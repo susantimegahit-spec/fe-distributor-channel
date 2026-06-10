@@ -4,10 +4,13 @@ import Cookies from 'js-cookie';
 
 // react-bootstrap
 import Button from 'react-bootstrap/Button';
+import Card from 'react-bootstrap/Card';
+import Col from 'react-bootstrap/Col';
 import Dropdown from 'react-bootstrap/Dropdown';
 import Form from 'react-bootstrap/Form';
 import Image from 'react-bootstrap/Image';
 import Nav from 'react-bootstrap/Nav';
+import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 
 // project-imports
@@ -93,6 +96,7 @@ export default function Header() {
 
   const [showChangePass, setShowChangePass] = useState(false);
   const [loadingSubmit, setLoadingSubmit] = useState(false);
+  const canSubmitPassword = Boolean(oldPass && newPass && confirmPass && newPass === confirmPass);
 
   const handleLogout = () => {
     Cookies.remove('isLoggedIn');
@@ -120,6 +124,16 @@ export default function Header() {
     setShowConfirmPassword((prevState) => !prevState);
   };
 
+  const closeChangePassword = () => {
+    setShowChangePass(false);
+    setOldPass('');
+    setNewPass('');
+    setConfirmPass('');
+    setShowOldPassword(false);
+    setShowNewPassword(false);
+    setShowConfirmPassword(false);
+  };
+
   const handleChangePassword = async () => {
     setLoadingSubmit(true);
     const payload = {
@@ -134,7 +148,7 @@ export default function Header() {
       if (response.data.success) {
         setLoadingSubmit(false);
         showAlert('Kata sandi berhasil di ubah', 'success');
-        setShowChangePass(false);
+        closeChangePassword();
       } else {
         setLoadingSubmit(false);
         showAlert(response.data.message, 'danger');
@@ -316,48 +330,87 @@ export default function Header() {
           </Nav>
         </div>
       </div>
-      <Modal show={showChangePass} size="md" centered onHide={() => setShowChangePass(false)}>
+      <Modal show={showChangePass} size="lg" centered onHide={closeChangePassword}>
         <Modal.Header closeButton>
           <Modal.Title>Ubah Kata Sandi</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <InputGroup>
-            <Form.Control
-              type={showOldPassword ? 'text' : 'password'}
-              placeholder="Kata Sandi Lama"
-              value={oldPass}
-              onChange={(e) => setOldPass(e.target.value)}
-            />
-            <Button onClick={toggleOldPass}>{showOldPassword ? <i className="ti ti-eye" /> : <i className="ti ti-eye-off" />}</Button>
-          </InputGroup>
-          <br />
-          <InputGroup>
-            <Form.Control
-              type={showNewPassword ? 'text' : 'password'}
-              placeholder="Kata Sandi Baru"
-              value={newPass}
-              onChange={(e) => setNewPass(e.target.value)}
-            />
-            <Button onClick={toggleNewPass}>{showNewPassword ? <i className="ti ti-eye" /> : <i className="ti ti-eye-off" />}</Button>
-          </InputGroup>
-          <br />
-          <InputGroup>
-            <Form.Control
-              type={showConfirmPassword ? 'text' : 'password'}
-              placeholder="Konfirmasi Kata Sandi"
-              value={confirmPass}
-              onChange={(e) => setConfirmPass(e.target.value)}
-            />
-            <Button onClick={toggleConfirmPass}>
-              {showConfirmPassword ? <i className="ti ti-eye" /> : <i className="ti ti-eye-off" />}
-            </Button>
-          </InputGroup>
+          <Row className="g-3">
+            <Col lg={4}>
+              <Card className="border mb-0 h-100">
+                <Card.Body>
+                  <div className="avtar avtar-xl bg-light-primary text-primary mb-3">
+                    <i className="ph ph-lock-key f-24" />
+                  </div>
+                  <h6 className="mb-1">Keamanan Akun</h6>
+                  <p className="text-muted mb-0">Gunakan kata sandi baru yang berbeda dan mudah Anda ingat.</p>
+                </Card.Body>
+              </Card>
+            </Col>
+            <Col lg={8}>
+              <Stack gap={3}>
+                <div>
+                  <Form.Label className="f-12 text-muted">Kata Sandi Lama</Form.Label>
+                  <InputGroup className="sm-input-group">
+                    <InputGroup.Text>
+                      <i className="ti ti-lock" />
+                    </InputGroup.Text>
+                    <Form.Control
+                      type={showOldPassword ? 'text' : 'password'}
+                      placeholder="Masukkan kata sandi lama"
+                      value={oldPass}
+                      onChange={(e) => setOldPass(e.target.value)}
+                    />
+                    <Button type="button" variant="light" className="sm-password-toggle" onClick={toggleOldPass}>
+                      {showOldPassword ? <i className="ti ti-eye" /> : <i className="ti ti-eye-off" />}
+                    </Button>
+                  </InputGroup>
+                </div>
+                <div>
+                  <Form.Label className="f-12 text-muted">Kata Sandi Baru</Form.Label>
+                  <InputGroup className="sm-input-group">
+                    <InputGroup.Text>
+                      <i className="ti ti-key" />
+                    </InputGroup.Text>
+                    <Form.Control
+                      type={showNewPassword ? 'text' : 'password'}
+                      placeholder="Masukkan kata sandi baru"
+                      value={newPass}
+                      onChange={(e) => setNewPass(e.target.value)}
+                    />
+                    <Button type="button" variant="light" className="sm-password-toggle" onClick={toggleNewPass}>
+                      {showNewPassword ? <i className="ti ti-eye" /> : <i className="ti ti-eye-off" />}
+                    </Button>
+                  </InputGroup>
+                </div>
+                <div>
+                  <Form.Label className="f-12 text-muted">Konfirmasi Kata Sandi</Form.Label>
+                  <InputGroup className="sm-input-group">
+                    <InputGroup.Text>
+                      <i className="ti ti-checkup-list" />
+                    </InputGroup.Text>
+                    <Form.Control
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      placeholder="Ulangi kata sandi baru"
+                      value={confirmPass}
+                      onChange={(e) => setConfirmPass(e.target.value)}
+                      isInvalid={Boolean(confirmPass && newPass !== confirmPass)}
+                    />
+                    <Button type="button" variant="light" className="sm-password-toggle" onClick={toggleConfirmPass}>
+                      {showConfirmPassword ? <i className="ti ti-eye" /> : <i className="ti ti-eye-off" />}
+                    </Button>
+                    <Form.Control.Feedback type="invalid">Konfirmasi kata sandi belum sama.</Form.Control.Feedback>
+                  </InputGroup>
+                </div>
+              </Stack>
+            </Col>
+          </Row>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowChangePass(false)}>
-            Tidak
+          <Button variant="light-secondary" onClick={closeChangePassword}>
+            Batal
           </Button>
-          <Button variant="primary" onClick={() => handleChangePassword()} disabled={loadingSubmit}>
+          <Button variant="primary" onClick={() => handleChangePassword()} disabled={loadingSubmit || !canSubmitPassword}>
             {loadingSubmit ? <LoaderButton /> : 'Simpan'}
           </Button>
         </Modal.Footer>

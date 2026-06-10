@@ -10,12 +10,24 @@ class UserServices {
     return DataService.get('/users');
   }
 
+  postCreateUser(payload) {
+    return DataService.post('/users', payload);
+  }
+
+  putEditUser(id, payload) {
+    return DataService.put(`/users/${id}`, payload);
+  }
+
   postChangePassword(payload) {
     return DataService.post('/auth/change-password', payload);
   }
 
   updateRole(id, roleData) {
     return DataService.put(`/roles/${id}`, roleData);
+  }
+
+  deleteUser(id) {
+    return DataService.delete(`/users/${id}`);
   }
 
   deleteRole(id) {
