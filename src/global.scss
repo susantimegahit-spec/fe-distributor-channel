@@ -1,0 +1,697 @@
+@use 'sass:color';
+
+.bg-light[colspan] {
+  @include media-breakpoint-up(sm) {
+    padding-left: 40px;
+  }
+
+  @include media-breakpoint-up(md) {
+    padding-left: 48px;
+  }
+
+  @include media-breakpoint-up(lg) {
+    padding-left: 96px;
+  }
+}
+
+.table thead th::after {
+  position: absolute;
+  content: '';
+  background-color: rgb(240, 240, 240);
+  width: 1px;
+  height: calc(100% - 30px);
+  right: 0px;
+  top: 16px;
+  height: 0;
+}
+
+.apexcharts-tooltip-text-goals-value,
+.apexcharts-tooltip-text-y-value,
+.apexcharts-tooltip-text-z-value {
+  margin-left: 0 !important;
+}
+
+.apexcharts-tooltip-series-group.apexcharts-active .apexcharts-tooltip-marker {
+  margin-bottom: 3px;
+}
+
+.apexcharts-menu-item:hover {
+  background: #eee;
+}
+
+.apexcharts-canvas .apexcharts-svg {
+  background: transparent !important;
+}
+
+[data-pc-theme='dark'] {
+
+  .apexcharts-menu-item:hover {
+    color: var(--bs-black);
+  }
+  
+}
+
+.sm-auth-main {
+  min-height: 100vh;
+  background:
+    linear-gradient(135deg, rgba(47, 50, 125, 0.96), rgba(19, 31, 75, 0.96)),
+    radial-gradient(circle at 15% 15%, rgba(255, 255, 255, 0.18), transparent 28%);
+  padding: 24px;
+}
+
+.sm-auth-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 480px);
+  width: min(1180px, 100%);
+  min-height: calc(100vh - 48px);
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 30px 80px rgba(9, 15, 50, 0.35);
+}
+
+.sm-auth-brand,
+.sm-auth-form {
+  min-width: 0;
+}
+
+.sm-auth-brand {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: clamp(32px, 6vw, 72px);
+  color: #fff;
+  overflow: hidden;
+}
+
+.sm-auth-brand::before,
+.sm-auth-brand::after {
+  position: absolute;
+  content: '';
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.sm-auth-brand::before {
+  width: 360px;
+  height: 360px;
+  right: -120px;
+  top: -90px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.sm-auth-brand::after {
+  width: 220px;
+  height: 220px;
+  left: -80px;
+  bottom: -70px;
+  border: 32px solid rgba(255, 255, 255, 0.1);
+}
+
+.sm-auth-brand-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 560px;
+}
+
+.sm-auth-brand-logo {
+  width: 220px;
+  max-width: 100%;
+  margin-bottom: 36px;
+  filter: drop-shadow(0 18px 28px rgba(9, 15, 50, 0.3));
+}
+
+.sm-auth-eyebrow {
+  color: #f2ca32;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.sm-auth-brand h1 {
+  max-width: 520px;
+  margin: 10px 0 14px;
+  color: #fff;
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  line-height: 1.06;
+}
+
+.sm-auth-brand p {
+  max-width: 520px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.sm-auth-highlights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 36px;
+}
+
+.sm-auth-highlights div {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-weight: 600;
+}
+
+.sm-auth-highlights i {
+  color: #f2ca32;
+  font-size: 1.1rem;
+}
+
+.sm-auth-form {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(24px, 4vw, 48px);
+  background: #f7f8fc;
+}
+
+.sm-login-card.card {
+  width: 100%;
+  max-width: 420px;
+  border: 0;
+  border-radius: 18px;
+  box-shadow: 0 22px 45px rgba(23, 31, 79, 0.12);
+}
+
+.sm-login-card .card-body {
+  padding: clamp(24px, 4vw, 40px);
+}
+
+.sm-login-logo {
+  width: 150px;
+  border-radius: 14px;
+}
+
+.sm-login-card h4 {
+  color: #23265f;
+}
+
+.sm-login-card .form-label {
+  color: #23265f;
+  font-weight: 700;
+}
+
+.sm-input-group .input-group-text,
+.sm-input-group .form-control,
+.sm-input-group .btn {
+  min-height: 46px;
+  border-color: #dfe3f0;
+}
+
+.sm-input-group .input-group-text {
+  background: #f3f5fb;
+  color: #2f327d;
+}
+
+.sm-input-group .form-control:focus {
+  border-color: #2f327d;
+  box-shadow: 0 0 0 0.2rem rgba(47, 50, 125, 0.12);
+}
+
+.sm-password-toggle {
+  color: #2f327d;
+  border-color: #dfe3f0;
+}
+
+.sm-login-submit.btn {
+  min-height: 48px;
+  border-color: #2f327d;
+  background: #2f327d;
+  font-weight: 700;
+}
+
+.sm-login-submit.btn:hover,
+.sm-login-submit.btn:focus {
+  border-color: #252866;
+  background: #252866;
+}
+
+@media (max-width: 991.98px) {
+  .sm-auth-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sm-auth-brand {
+    min-height: auto;
+    padding-bottom: 36px;
+  }
+
+  .sm-auth-brand-logo {
+    width: 170px;
+    margin-bottom: 24px;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .sm-auth-main {
+    padding: 0;
+  }
+
+  .sm-auth-shell {
+    min-height: 100vh;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .sm-auth-brand {
+    padding: 28px 20px;
+  }
+
+  .sm-auth-form {
+    padding: 20px;
+  }
+}
+
+.pc-sidebar {
+  --pc-sidebar-background: #2f327d;
+  --pc-sidebar-color: rgba(255, 255, 255, 0.78);
+  --pc-sidebar-caption-color: rgba(255, 255, 255, 0.48);
+  --pc-sidebar-active-background: rgba(255, 255, 255, 0.1);
+  --pc-sidebar-active-color: #f2ca32;
+  --pc-sidebar-main-active-color: #fff;
+  --pc-logo-bg: transparent;
+  --pc-sidebar-border: 0;
+  --pc-sidebar-shadow: 0 24px 55px rgba(9, 15, 50, 0.26);
+  background:
+    linear-gradient(180deg, #2f327d 0%, #252866 52%, #151f4b 100%),
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.16), transparent 32%);
+}
+
+.pc-sidebar::before {
+  position: absolute;
+  content: '';
+  width: 210px;
+  height: 210px;
+  right: -100px;
+  top: -80px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  pointer-events: none;
+}
+
+.pc-sidebar .navbar-wrapper {
+  position: relative;
+  z-index: 1;
+}
+
+.pc-sidebar .m-header {
+  height: 86px;
+  padding: 18px 18px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.sm-sidebar-brand {
+  width: 100%;
+  gap: 12px;
+  min-width: 0;
+  color: #fff;
+  text-decoration: none;
+}
+
+.sm-sidebar-logo {
+  width: 48px;
+  min-width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(9, 15, 50, 0.24);
+}
+
+.sm-sidebar-brand-text {
+  display: grid;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.sm-sidebar-brand-text strong,
+.sm-sidebar-brand-text small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sm-sidebar-brand-text strong {
+  color: #fff;
+  font-size: 0.98rem;
+}
+
+.sm-sidebar-brand-text small {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.pc-sidebar .navbar-content {
+  height: calc(100vh - 86px);
+  padding: 14px 10px 18px;
+}
+
+.pc-sidebar .pc-caption {
+  padding: 18px 14px 8px !important;
+  color: rgba(255, 255, 255, 0.46);
+  letter-spacing: 0;
+}
+
+.pc-sidebar .pc-caption label {
+  margin-bottom: 0;
+  color: inherit;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.pc-sidebar .pc-navbar > .pc-item:not(.pc-caption) {
+  margin: 3px 0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.pc-sidebar .pc-link {
+  min-height: 42px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.78);
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.pc-sidebar .pc-micon {
+  margin-right: 12px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.pc-sidebar .pc-micon i {
+  font-size: 1.08rem;
+}
+
+.pc-sidebar .pc-navbar > .pc-item:not(.pc-caption)::before {
+  width: 0;
+}
+
+.pc-sidebar .pc-navbar > .pc-item:not(.pc-caption) > .pc-link::after {
+  display: none;
+}
+
+.pc-sidebar .pc-navbar > .pc-item:not(.pc-caption):hover,
+.pc-sidebar .pc-navbar > .pc-item:not(.pc-caption).pc-trigger,
+.pc-sidebar .pc-navbar > .pc-item:not(.pc-caption).active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.pc-sidebar .pc-navbar > .pc-item:not(.pc-caption):hover > .pc-link,
+.pc-sidebar .pc-navbar > .pc-item:not(.pc-caption).pc-trigger > .pc-link,
+.pc-sidebar .pc-navbar > .pc-item:not(.pc-caption).active > .pc-link {
+  color: #fff;
+}
+
+.pc-sidebar .pc-navbar > .pc-item:not(.pc-caption).active > .pc-link,
+.pc-sidebar .pc-navbar > .pc-item:not(.pc-caption).pc-trigger > .pc-link {
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 3px 0 0 #f2ca32;
+}
+
+.pc-sidebar .pc-navbar > .pc-item:not(.pc-caption).active .pc-micon,
+.pc-sidebar .pc-navbar > .pc-item:not(.pc-caption).pc-trigger .pc-micon,
+.pc-sidebar .pc-navbar > .pc-item:not(.pc-caption):hover .pc-micon {
+  color: #f2ca32;
+}
+
+.pc-sidebar .pc-arrow {
+  color: rgba(255, 255, 255, 0.56);
+}
+
+.pc-sidebar .pc-submenu {
+  margin: 6px 0 8px;
+  padding: 4px 0 4px 12px !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.pc-sidebar .pc-submenu .pc-link {
+  min-height: 36px;
+  padding: 8px 12px 8px 22px !important;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.pc-sidebar .pc-submenu .pc-item.active > .pc-link,
+.pc-sidebar .pc-submenu .pc-item:hover > .pc-link {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.pc-sidebar .pc-submenu .pc-item > .pc-link::after {
+  left: 8px !important;
+  background: rgba(255, 255, 255, 0.54) !important;
+}
+
+.pc-sidebar .pc-submenu .pc-item.active > .pc-link::after,
+.pc-sidebar .pc-submenu .pc-item:hover > .pc-link::after {
+  background: #f2ca32 !important;
+}
+
+.min-w-0 {
+  min-width: 0;
+}
+
+.pc-header .sm-account-toggle.pc-head-link {
+  width: auto;
+  min-width: 44px;
+  height: 46px;
+  gap: 10px;
+  padding: 6px 10px 6px 6px;
+  border: 1px solid #e2e6f2;
+  border-radius: 999px;
+  background: #fff;
+  color: #23265f;
+  overflow: visible;
+  box-shadow: 0 8px 22px rgba(23, 31, 79, 0.08);
+}
+
+.pc-header .sm-account-toggle.pc-head-link::before {
+  display: none;
+}
+
+.pc-header .sm-account-toggle.pc-head-link:hover,
+.pc-header .sm-account-toggle.pc-head-link:focus {
+  border-color: rgba(47, 50, 125, 0.26);
+  background: #f7f8fc;
+  color: #2f327d;
+}
+
+.pc-header .sm-account-toggle.pc-head-link > i {
+  color: #2f327d;
+  font-size: 0.95rem;
+}
+
+.sm-account-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: #2f327d;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 800;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.16);
+}
+
+.sm-account-avatar-lg {
+  width: 48px;
+  min-width: 48px;
+  height: 48px;
+  background: #fff;
+  color: #2f327d;
+  font-size: 1.15rem;
+}
+
+.sm-account-toggle-text {
+  display: grid;
+  min-width: 0;
+  line-height: 1.1;
+  text-align: left;
+}
+
+.sm-account-toggle-text span,
+.sm-account-toggle-text small {
+  overflow: hidden;
+  max-width: 130px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sm-account-toggle-text span {
+  color: #23265f;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.sm-account-toggle-text small {
+  color: #6f7891;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.pc-header .sm-account-menu.dropdown-user-profile {
+  min-width: 330px;
+  margin-top: 10px;
+  border: 0;
+  border-radius: 18px;
+  box-shadow: 0 24px 55px rgba(9, 15, 50, 0.18);
+}
+
+.pc-header .sm-account-menu .dropdown-header,
+.pc-header .sm-account-menu .dropdown-body {
+  padding: 0;
+}
+
+.sm-account-header {
+  padding: 18px !important;
+  background:
+    linear-gradient(135deg, #2f327d 0%, #252866 58%, #151f4b 100%),
+    radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.2), transparent 36%);
+}
+
+.sm-account-header h6 {
+  color: #fff;
+  font-weight: 800;
+}
+
+.sm-account-header span:not(.sm-account-avatar) {
+  display: block;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sm-account-body {
+  padding: 14px !important;
+  background: #fff;
+}
+
+.sm-account-meta {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid #e7eaf4;
+  border-radius: 12px;
+  background: #f7f8fc;
+}
+
+.sm-account-meta div {
+  display: grid;
+  gap: 2px;
+}
+
+.sm-account-meta span {
+  color: #6f7891;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.sm-account-meta strong {
+  overflow: hidden;
+  color: #23265f;
+  font-size: 0.84rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pc-header .sm-account-menu .sm-account-item.dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  width: 100%;
+  min-height: 58px;
+  margin-bottom: 6px;
+  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: #23265f;
+}
+
+.pc-header .sm-account-menu .sm-account-item.dropdown-item:hover,
+.pc-header .sm-account-menu .sm-account-item.dropdown-item:focus {
+  border-color: #e2e6f2;
+  background: #f7f8fc;
+  color: #2f327d;
+}
+
+.sm-account-item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(47, 50, 125, 0.09);
+  color: #2f327d;
+}
+
+.sm-account-item-icon i {
+  font-size: 1.12rem;
+}
+
+.sm-account-item strong,
+.sm-account-item small {
+  display: block;
+}
+
+.sm-account-item strong {
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.sm-account-item small {
+  color: #6f7891;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.sm-account-logout.btn {
+  min-height: 44px;
+  border: 0;
+  border-radius: 12px;
+  background: #d82f43;
+  color: #fff;
+  font-weight: 800;
+}
+
+.sm-account-logout.btn:hover,
+.sm-account-logout.btn:focus {
+  background: #c32437;
+  color: #fff;
+}
+
+@media (max-width: 575.98px) {
+  .sm-account-toggle-text {
+    display: none;
+  }
+
+  .pc-header .sm-account-menu.dropdown-user-profile {
+    min-width: calc(100vw - 30px);
+  }
+}

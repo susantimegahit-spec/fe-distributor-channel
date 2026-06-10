@@ -1,0 +1,14 @@
+<svg width="240" height="120" viewBox="0 0 240 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="240" height="120" rx="18" fill="#2f327d"/>
+  <path d="M30 82H210" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.9"/>
+  <path d="M48 78V44L62 34L76 44V78" stroke="white" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M42 50H82" stroke="white" stroke-width="4" stroke-linecap="round"/>
+  <path d="M54 42V28H70V42" stroke="white" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M58 28V18H66V28" stroke="white" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M87 64L112 44L136 64L160 44L184 64L204 50" stroke="white" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M100 64V82M136 64V82M172 58V82M204 50V82" stroke="white" stroke-width="4" stroke-linecap="round"/>
+  <path d="M92 64H207" stroke="white" stroke-width="4" stroke-linecap="round"/>
+  <path d="M78 21C91 13 102 17 113 10C122 5 132 9 141 5" stroke="white" stroke-width="5" stroke-linecap="round"/>
+  <rect x="64" y="88" width="112" height="19" rx="6" fill="white"/>
+  <text x="120" y="102" fill="#2f327d" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="700" text-anchor="middle">Susanti Megah</text>
+</svg>
