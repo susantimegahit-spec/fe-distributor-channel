@@ -4,22 +4,18 @@ class OrderServices {
   // getAllUser() {
   //   return DataService.get(`/roles/${id}`);
   // }
-
-  getAllOrder() {
-    return DataService.get('/users');
+  postDiscount(payload) {
+    return DataService.post('/discounts/sap', payload);
   }
 
-  postChangePassword(payload) {
-    return DataService.post('/auth/change-password', payload);
+  getDiscType() {
+    return DataService.get('/discounts/types');
   }
 
-  updateRole(id, roleData) {
-    return DataService.put(`/roles/${id}`, roleData);
+  postOrder(payload) {
+    return DataService.post('/sales-orders', payload);
   }
 
-  deleteRole(id) {
-    return DataService.delete(`/roles/${id}`);
-  }
 }
 
 export default new OrderServices();

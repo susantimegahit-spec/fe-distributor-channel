@@ -6,6 +6,10 @@ class ProductServices {
     return DataService.get(`/items?search=${payload ?? ''}`);
   }
 
+  getProductPrice(payload) {
+    return DataService.get(`/distributor-item-prices?search=${payload ?? ''}`);
+  }
+
   syncProduct() {
     return DataService.post('/items/sync');
   }

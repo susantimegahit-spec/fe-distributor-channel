@@ -13,6 +13,8 @@ import ProductServices from '../../services/ProductServices';
 import WarehouseServices from '../../services/WarehouseServices';
 import { useNavigate } from 'react-router-dom';
 import EmployeeServices from '../../services/EmployeeServices';
+import OrderServices from '../../services/OrderServices';
+import PriceServices from '../../services/PriceServices';
 
 export default function OrderCreate() {
   const navigate = useNavigate();
@@ -20,12 +22,15 @@ export default function OrderCreate() {
   const distributorId = getCookies('distributorId');
   const [showDisc, setShowDisc] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingSubmit, setLoadingSubmit] = useState(false);
   const [listItem, setListItem] = useState([]);
   const [listOcr1, setListOcr1] = useState([]);
   const [listOcr2, setListOcr2] = useState([]);
   const [listOcr3, setListOcr3] = useState([]);
   const [listWarehouse, setListWarehouse] = useState([]);
   const [listEmployee, setListEmployee] = useState([]);
+  const [discId, setDiscId] = useState('');
+  const [listDiscType, setListDiscType] = useState([]);
 
   const [listAddressB, setListAddressB] = useState([]);
   const [listAddressS, setListAddressS] = useState([]);
@@ -77,7 +82,8 @@ export default function OrderCreate() {
   const [detailDisc, setDetailDisc] = useState([
     {
       name: '',
-      value: ''
+      value: '',
+      remarks: ''
     }
   ]);
 
@@ -90,6 +96,7 @@ export default function OrderCreate() {
     fetchOcr3();
     fetchWarehouse();
     fetchEmployee();
+    fetchDiscType();
   }, []);
 
   const fetchDistributor = async () => {
@@ -121,7 +128,8 @@ export default function OrderCreate() {
         let arr = {
           value: items.item_code,
           label: items?.item_name,
-          unitMsr: items?.sal_unit_msr
+          unitMsr: items?.sal_unit_msr,
+          uomEntry: items?.suom_entry
         };
         dataArr.push(arr);
       });
@@ -236,6 +244,24 @@ export default function OrderCreate() {
     }
   };
 
+  const fetchDiscType = async () => {
+    setIsLoading(true);
+    const response = await OrderServices.getDiscType();
+    if (response.data.success) {
+      const data = response.data.data;
+      const dataArr = data.map((item) => ({
+        value: item?.fld_value,
+        label: item?.fld_value
+      }));
+
+      setListDiscType(dataArr);
+      setIsLoading(false);
+    } else {
+      setIsLoading(false);
+      showAlert('Gagal ambil data sales', 'danger');
+    }
+  };
+
   const fetchAddress = async (code) => {
     setIsLoading(true);
     const response = await DistributorServices.getAddress(code);
@@ -246,13 +272,13 @@ export default function OrderCreate() {
       data.forEach((item) => {
         if (item?.AdresType === 'B') {
           let arr = {
-            value: item?.Adress,
+            value: item?.Address,
             label: item?.Street
           };
           dataB.push(arr);
         } else {
           let arr = {
-            value: item?.Adress,
+            value: item?.Address,
             label: item?.Street
           };
           dataS.push(arr);
@@ -274,13 +300,18 @@ export default function OrderCreate() {
     });
   };
 
-  const handleSelectItem = (e, index) => {
-    itemArr[index].itemCode = e;
-    itemArr[index].unitMsr = e.unitMsr;
-    setItemArr([...itemArr]);
+  const handleSelectItem = async (e, index) => {
+    const resp = await PriceServices.getPriceByItem(e.value);
+    if (resp.data.success) {
+      itemArr[index].itemCode = e;
+      itemArr[index].unitMsr = e.unitMsr;
+      itemArr[index].unitPrice = resp.data.data[0].price;
+      setItemArr([...itemArr]);
+    }
+    // const response = await
   };
 
-  const handleSelectWarehouse = (e, index) => {
+  const handleSelectWarehouse = async (e, index) => {
     itemArr[index].whsCode = e;
     setItemArr([...itemArr]);
   };
@@ -303,7 +334,7 @@ export default function OrderCreate() {
   const handleSelectAddress = (e, key) => {
     setOrderInput({
       ...orderInput,
-      [key]: e?.value || ''
+      [key]: e
     });
   };
 
@@ -312,6 +343,11 @@ export default function OrderCreate() {
       ...orderInput,
       slpCode: e?.value || ''
     });
+  };
+
+  const handleSelectDiscType = (e, index) => {
+    detailDisc[index].name = e;
+    setDetailDisc([...detailDisc]);
   };
 
   const addItem = () => {
@@ -354,15 +390,23 @@ export default function OrderCreate() {
 
   const handleChangeInputLine = (index, key, e) => {
     itemArr[index][key] = e.target.value;
+    if (key === 'quantity') {
+      itemArr[index].lineTotal = e.target.value * itemArr[index].unitPrice;
+    }
     setItemArr([...itemArr]);
   };
 
-  const handelInputDiscName = (index, e) => {
+  const handleInputDiscName = (index, e) => {
     detailDisc[index].name = e.target.value;
     setDetailDisc([...detailDisc]);
   };
 
-  const handelInputDiscValue = (index, e) => {
+  const handleInputRemarks = (index, e) => {
+    detailDisc[index].remarks = e.target.value;
+    setDetailDisc([...detailDisc]);
+  };
+
+  const handleInputDiscValue = (index, e) => {
     detailDisc[index].value = e.target.value;
     setDetailDisc([...detailDisc]);
   };
@@ -384,361 +428,421 @@ export default function OrderCreate() {
   const discountTotal = detailDisc.reduce((total, item) => total + (Number(item.value) || 0), 0);
   const grandTotal = Math.max(orderSubtotal - discountTotal, 0);
 
-  const handleSubmitOrder = () => {
+  const handleSubmitOrder = async () => {
+    setLoadingSubmit(true)
+    let arrItem = [];
+    itemArr.map((item) => {
+      let data = {
+        item_code: item?.itemCode?.value,
+        quantity: item?.quantity,
+        unit_msr: item?.unitMsr,
+        uom_entry: item?.itemCode?.uomEntry,
+        whs_code: item?.whsCode?.value,
+        unit_price: item?.unitPrice,
+        vat_group: 'S2',
+        line_total: item?.lineTotal,
+        free_text: item?.freeText,
+        ocr_code: item?.ocrCode?.value,
+        ocr_code2: item?.ocrCode2?.value,
+        ocr_code3: item?.ocrCode3?.value
+      };
+      arrItem.push(data);
+    });
     const payload = {
       card_code: orderInput.cardCode,
       po_number: orderInput.numAtCard,
       doc_date: orderInput.docDate,
       doc_due_date: orderInput.docDueDate,
       slp_code: orderInput.slpCode,
-      cntct: orderInput.cnctCode
+      cntct: orderInput.cnctCode,
+      pay_to_code: orderInput.address?.value,
+      address: orderInput.address?.label,
+      ship_to_code: orderInput.address2.value,
+      address2: orderInput.address2?.label,
+      comments: orderInput.comments,
+      lines: arrItem
     };
-
-    console.log('payload => ', payload, itemArr);
+    
+    const resp = await OrderServices.postOrder(payload);
+    if (resp.data.success) {
+      showAlert(resp.data.message, 'success');
+      setLoadingSubmit(false)
+      navigate(-1);
+    } else {
+      setLoadingSubmit(false)
+    }
   };
 
-  const handleSubmitDisc = () => {
-    console.log('disc => ', detailDisc);
-    setShowDisc(false);
+  const handleSubmitDisc = async () => {
+    let dataDisc = [];
+    detailDisc.map((item) => {
+      let data = {
+        TypeDiscount: item?.name?.value,
+        Persentase: 0,
+        TotalDiskon: item?.value,
+        Remarks: item?.remarks
+      };
+      dataDisc.push(data);
+    });
+    const payload = {
+      CardCode: getCookies('customerCode'),
+      CardName: getCookies('distributorName'),
+      Lines: dataDisc
+    };
+
+    const response = await OrderServices.postDiscount(payload);
+    if (response.data.success) {
+      setDiscId(response.data.data.code);
+      setShowDisc(false);
+    }
+    // setShowDisc(false);
   };
 
   return (
     <>
       <Stack gap={3}>
-        <MainCard
-          title={
-            <Stack gap={1}>
-              <h5 className="mb-0">Buat Order</h5>
-              <span className="text-muted f-12">Lengkapi informasi pelanggan, alamat, dan detail produk sebelum menyimpan order.</span>
-            </Stack>
-          }
-          secondary={
-            <Stack direction="horizontal" gap={2} className="flex-wrap">
-              <Button variant="light-secondary" onClick={() => navigate(-1)}>
-                <i className="ti ti-arrow-left me-1" />
-                Batal
-              </Button>
-              <Button onClick={() => handleSubmitOrder()} variant="primary">
-                <i className="ti ti-device-floppy me-1" />
-                Simpan
-              </Button>
-            </Stack>
-          }
-        >
-          {isLoading ? (
-            <LoaderData />
-          ) : (
-            <Row className="g-3">
-              <Col lg={8}>
-                <Card className="border mb-0 h-100">
-                  <Card.Header className="py-3">
-                    <Stack direction="horizontal" gap={2} className="justify-content-between">
-                      <div>
-                        <h6 className="mb-0">Informasi Order</h6>
-                        <small className="text-muted">Data utama transaksi dan pelanggan</small>
-                      </div>
-                      <Badge bg="light" text="dark">
-                        Draft
-                      </Badge>
-                    </Stack>
-                  </Card.Header>
-                  <Card.Body>
-                    <Row className="g-3">
-                      <Col md={6} xl={4}>
-                        <Form.Group>
-                          <Form.Label className="small text-muted">Kode Customer</Form.Label>
-                          <Form.Control
-                            readOnly
-                            onChange={(e) => handleSetInput(e, 'cardCode')}
-                            value={orderInput.cardCode}
-                            type="text"
-                            placeholder="Kode Customer"
-                            size="sm"
-                          />
-                        </Form.Group>
-                      </Col>
-                      <Col md={6} xl={4}>
-                        <Form.Group>
-                          <Form.Label className="small text-muted">No. PO</Form.Label>
-                          <Form.Control
-                            onChange={(e) => handleSetInput(e, 'numAtCard')}
-                            value={orderInput.numAtCard}
-                            type="text"
-                            placeholder="Masukkan nomor PO"
-                            size="sm"
-                          />
-                        </Form.Group>
-                      </Col>
-                      <Col md={6} xl={4}>
-                        <Form.Group>
-                          <Form.Label className="small text-muted">Kode Sales</Form.Label>
-                          <Select
-                            styles={customStyles}
-                            value={listEmployee.find((item) => item.value === orderInput.slpCode) || null}
-                            options={listEmployee}
-                            menuPosition="fixed"
-                            onChange={handleSelectSales}
-                            placeholder="Pilih sales"
-                            isClearable
-                          />
-                        </Form.Group>
-                      </Col>
-                      <Col md={6} xl={4}>
-                        <Form.Group>
-                          <Form.Label className="small text-muted">Kontak Pelanggan</Form.Label>
-                          <Form.Control
-                            onChange={(e) => handleSetInput(e, 'cnctCode')}
-                            value={orderInput.cnctCode}
-                            type="text"
-                            placeholder="Kontak Pelanggan"
-                            size="sm"
-                          />
-                        </Form.Group>
-                      </Col>
-                      <Col md={6} xl={4}>
-                        <Form.Group>
-                          <Form.Label className="small text-muted">Tanggal</Form.Label>
-                          <Form.Control
-                            onChange={(e) => handleSetInput(e, 'docDate')}
-                            value={orderInput.docDate}
-                            type="date"
-                            size="sm"
-                          />
-                        </Form.Group>
-                      </Col>
-                      <Col md={6} xl={4}>
-                        <Form.Group>
-                          <Form.Label className="small text-muted">Jatuh Tempo</Form.Label>
-                          <Form.Control
-                            onChange={(e) => handleSetInput(e, 'docDueDate')}
-                            value={orderInput.docDueDate}
-                            type="date"
-                            size="sm"
-                          />
-                        </Form.Group>
-                      </Col>
-                      <Col md={6}>
-                        <Form.Group>
-                          <Form.Label className="small text-muted">Alamat Tagih</Form.Label>
-                          <Select
-                            options={listAddressB}
-                            menuPosition="fixed"
-                            onChange={(e) => handleSelectAddress(e, 'address')}
-                            placeholder="Pilih alamat tagih"
-                          />
-                        </Form.Group>
-                      </Col>
-                      <Col md={6}>
-                        <Form.Group>
-                          <Form.Label className="small text-muted">Alamat Kirim</Form.Label>
-                          <Select
-                            options={listAddressS}
-                            menuPosition="fixed"
-                            onChange={(e) => handleSelectAddress(e, 'address2')}
-                            placeholder="Pilih alamat kirim"
-                          />
-                        </Form.Group>
-                      </Col>
-                      <Col md={12}>
-                        <Form.Group>
-                          <Form.Label className="small text-muted">Catatan</Form.Label>
-                          <Form.Control
-                            onChange={(e) => handleSetInput(e, 'comments')}
-                            value={orderInput.comments}
-                            as="textarea"
-                            rows={3}
-                            placeholder="Tambahkan catatan order bila diperlukan"
-                            size="sm"
-                          />
-                        </Form.Group>
-                      </Col>
-                    </Row>
-                  </Card.Body>
-                </Card>
-              </Col>
-              <Col lg={4}>
-                <Card className="border mb-0 h-100">
-                  <Card.Header className="py-3">
-                    <h6 className="mb-0">Ringkasan Order</h6>
-                    <small className="text-muted">Estimasi berdasarkan detail produk</small>
-                  </Card.Header>
-                  <Card.Body>
-                    <Stack gap={3}>
-                      <Stack direction="horizontal" className="justify-content-between">
-                        <span className="text-muted">Jumlah Baris</span>
-                        <strong>{itemArr.length}</strong>
-                      </Stack>
-                      <Stack direction="horizontal" className="justify-content-between">
-                        <span className="text-muted">Subtotal</span>
-                        <strong>{formatCurrency(orderSubtotal)}</strong>
-                      </Stack>
-                      <Stack direction="horizontal" className="justify-content-between">
-                        <span className="text-muted">Diskon</span>
-                        <Button variant="link" className="p-0 text-decoration-none" onClick={() => setShowDisc(true)}>
-                          {formatCurrency(discountTotal)}
-                        </Button>
-                      </Stack>
-                      <div className="border-top pt-3">
-                        <Stack direction="horizontal" className="justify-content-between">
-                          <span className="fw-semibold">Grand Total</span>
-                          <h5 className="mb-0 text-primary">{formatCurrency(grandTotal)}</h5>
+        {loadingSubmit ? (
+          <LoaderData />
+        ) : (
+          <>
+            <MainCard
+              title={
+                <Stack gap={1}>
+                  <h5 className="mb-0">Buat Order</h5>
+                  <span className="text-muted f-12">Lengkapi informasi pelanggan, alamat, dan detail produk sebelum menyimpan order.</span>
+                </Stack>
+              }
+              secondary={
+                <Stack direction="horizontal" gap={2} className="flex-wrap">
+                  <Button variant="light-secondary" onClick={() => navigate(-1)}>
+                    <i className="ti ti-arrow-left me-1" />
+                    Batal
+                  </Button>
+                  <Button onClick={() => handleSubmitOrder()} variant="primary">
+                    <i className="ti ti-device-floppy me-1" />
+                    Simpan
+                  </Button>
+                </Stack>
+              }
+            >
+              {isLoading ? (
+                <LoaderData />
+              ) : (
+                <Row className="g-3">
+                  <Col lg={8}>
+                    <Card className="border mb-0 h-100">
+                      <Card.Header className="py-3">
+                        <Stack direction="horizontal" gap={2} className="justify-content-between">
+                          <div>
+                            <h6 className="mb-0">Informasi Order</h6>
+                            <small className="text-muted">Data utama transaksi dan pelanggan</small>
+                          </div>
+                          <Badge bg="light" text="dark">
+                            Draft
+                          </Badge>
                         </Stack>
-                      </div>
-                      <Button variant="light-primary" onClick={() => setShowDisc(true)}>
-                        <i className="ti ti-discount-2 me-1" />
-                        Atur Diskon
-                      </Button>
-                    </Stack>
-                  </Card.Body>
-                </Card>
-              </Col>
-            </Row>
-          )}
-        </MainCard>
+                      </Card.Header>
+                      <Card.Body>
+                        <Row className="g-3">
+                          <Col md={6} xl={4}>
+                            <Form.Group>
+                              <Form.Label className="small text-muted">Kode Customer</Form.Label>
+                              <Form.Control
+                                readOnly
+                                onChange={(e) => handleSetInput(e, 'cardCode')}
+                                value={orderInput.cardCode}
+                                type="text"
+                                placeholder="Kode Customer"
+                                size="sm"
+                              />
+                            </Form.Group>
+                          </Col>
+                          <Col md={6} xl={4}>
+                            <Form.Group>
+                              <Form.Label className="small text-muted">No. PO</Form.Label>
+                              <Form.Control
+                                onChange={(e) => handleSetInput(e, 'numAtCard')}
+                                value={orderInput.numAtCard}
+                                type="text"
+                                placeholder="Masukkan nomor PO"
+                                size="sm"
+                              />
+                            </Form.Group>
+                          </Col>
+                          <Col md={6} xl={4}>
+                            <Form.Group>
+                              <Form.Label className="small text-muted">Kode Sales</Form.Label>
+                              <Select
+                                styles={customStyles}
+                                value={listEmployee.find((item) => item.value === orderInput.slpCode) || null}
+                                options={listEmployee}
+                                menuPosition="fixed"
+                                onChange={handleSelectSales}
+                                placeholder="Pilih sales"
+                                isClearable
+                              />
+                            </Form.Group>
+                          </Col>
+                          <Col md={6} xl={4}>
+                            <Form.Group>
+                              <Form.Label className="small text-muted">Kontak Pelanggan</Form.Label>
+                              <Form.Control
+                                onChange={(e) => handleSetInput(e, 'cnctCode')}
+                                value={orderInput.cnctCode}
+                                type="text"
+                                placeholder="Kontak Pelanggan"
+                                size="sm"
+                              />
+                            </Form.Group>
+                          </Col>
+                          <Col md={6} xl={4}>
+                            <Form.Group>
+                              <Form.Label className="small text-muted">Tanggal</Form.Label>
+                              <Form.Control
+                                onChange={(e) => handleSetInput(e, 'docDate')}
+                                value={orderInput.docDate}
+                                type="date"
+                                size="sm"
+                              />
+                            </Form.Group>
+                          </Col>
+                          <Col md={6} xl={4}>
+                            <Form.Group>
+                              <Form.Label className="small text-muted">Jatuh Tempo</Form.Label>
+                              <Form.Control
+                                onChange={(e) => handleSetInput(e, 'docDueDate')}
+                                value={orderInput.docDueDate}
+                                type="date"
+                                size="sm"
+                              />
+                            </Form.Group>
+                          </Col>
+                          <Col md={6}>
+                            <Form.Group>
+                              <Form.Label className="small text-muted">Alamat Tagih</Form.Label>
+                              <Select
+                                options={listAddressB}
+                                menuPosition="fixed"
+                                onChange={(e) => handleSelectAddress(e, 'address')}
+                                placeholder="Pilih alamat tagih"
+                              />
+                            </Form.Group>
+                          </Col>
+                          <Col md={6}>
+                            <Form.Group>
+                              <Form.Label className="small text-muted">Alamat Kirim</Form.Label>
+                              <Select
+                                options={listAddressS}
+                                menuPosition="fixed"
+                                onChange={(e) => handleSelectAddress(e, 'address2')}
+                                placeholder="Pilih alamat kirim"
+                              />
+                            </Form.Group>
+                          </Col>
+                          <Col md={12}>
+                            <Form.Group>
+                              <Form.Label className="small text-muted">Catatan</Form.Label>
+                              <Form.Control
+                                onChange={(e) => handleSetInput(e, 'comments')}
+                                value={orderInput.comments}
+                                as="textarea"
+                                rows={3}
+                                placeholder="Tambahkan catatan order bila diperlukan"
+                                size="sm"
+                              />
+                            </Form.Group>
+                          </Col>
+                        </Row>
+                      </Card.Body>
+                    </Card>
+                  </Col>
+                  <Col lg={4}>
+                    <Card className="border mb-0 h-100">
+                      <Card.Header className="py-3">
+                        <h6 className="mb-0">Ringkasan Order</h6>
+                        <small className="text-muted">Estimasi berdasarkan detail produk</small>
+                      </Card.Header>
+                      <Card.Body>
+                        <Stack gap={3}>
+                          <Stack direction="horizontal" className="justify-content-between">
+                            <span className="text-muted">Jumlah Item</span>
+                            <strong>{itemArr.length}</strong>
+                          </Stack>
+                          <Stack direction="horizontal" className="justify-content-between">
+                            <span className="text-muted">Subtotal</span>
+                            <strong>{formatCurrency(orderSubtotal)}</strong>
+                          </Stack>
+                          <Stack direction="horizontal" className="justify-content-between">
+                            <span className="text-muted">Diskon {discId ? `- ${discId}` : ''}</span>
+                            <Button variant="link" className="p-0 text-decoration-none" onClick={() => setShowDisc(true)}>
+                              {formatCurrency(discountTotal)}
+                            </Button>
+                          </Stack>
+                          <div className="border-top pt-3">
+                            <Stack direction="horizontal" className="justify-content-between">
+                              <span className="fw-semibold">Grand Total</span>
+                              <h5 className="mb-0 text-primary">{formatCurrency(grandTotal)}</h5>
+                            </Stack>
+                          </div>
+                          <Button variant="light-primary" onClick={() => setShowDisc(true)}>
+                            <i className="ti ti-discount-2 me-1" />
+                            Atur Diskon
+                          </Button>
+                        </Stack>
+                      </Card.Body>
+                    </Card>
+                  </Col>
+                </Row>
+              )}
+            </MainCard>
 
-        <MainCard
-          title={
-            <Stack gap={1}>
-              <h5 className="mb-0">Detail Produk</h5>
-              <span className="text-muted f-12">Pilih item, gudang, dimensi, quantity, dan harga untuk setiap baris order.</span>
-            </Stack>
-          }
-          secondary={
-            <Button variant="light-primary" onClick={addItem}>
-              <i className="ti ti-plus me-1" />
-              Tambah Baris
-            </Button>
-          }
-        >
-          <Table className="mb-0 align-middle" responsive hover>
-            <thead>
-              <tr>
-                <th style={{ minWidth: 240 }}>Item</th>
-                <th style={{ minWidth: 90 }}>Qty</th>
-                <th style={{ minWidth: 90 }}>Satuan</th>
-                <th style={{ minWidth: 160 }}>Harga</th>
-                <th style={{ minWidth: 220 }}>Warehouse</th>
-                <th style={{ minWidth: 160 }}>Total</th>
-                <th style={{ minWidth: 220 }}>Catatan</th>
-                <th style={{ minWidth: 220 }}>Cabang</th>
-                <th style={{ minWidth: 220 }}>Bisnis Unit</th>
-                <th style={{ minWidth: 220 }}>Department</th>
-                <th className="text-center" style={{ width: 72 }}>
-                  Aksi
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {itemArr?.map((item, index) => (
-                <tr key={index}>
-                  <td>
-                    <Select
-                      styles={customStyles}
-                      value={item.itemCode}
-                      options={listItem}
-                      menuPosition="fixed"
-                      onChange={(e) => handleSelectItem(e, index)}
-                      placeholder="Pilih item"
-                    />
-                  </td>
-                  <td>
-                    <Form.Control
-                      type="number"
-                      onChange={(e) => handleChangeInputLine(index, 'quantity', e)}
-                      value={item.quantity}
-                      size="sm"
-                      min="0"
-                    />
-                  </td>
-                  <td>
-                    <Form.Control readOnly value={item.unitMsr} size="sm" />
-                  </td>
-                  <td>
-                    <Form.Control
-                      type="number"
-                      onChange={(e) => handleChangeInputLine(index, 'unitPrice', e)}
-                      value={item.unitPrice}
-                      size="sm"
-                      min="0"
-                    />
-                  </td>
-                  <td>
-                    <Select
-                      styles={customStyles}
-                      value={item.whsCode}
-                      options={listWarehouse}
-                      menuPosition="fixed"
-                      onChange={(e) => handleSelectWarehouse(e, index)}
-                      placeholder="Pilih warehouse"
-                    />
-                  </td>
-                  <td>
-                    <Form.Control
-                      type="number"
-                      onChange={(e) => handleChangeInputLine(index, 'lineTotal', e)}
-                      value={item.lineTotal}
-                      size="sm"
-                      min="0"
-                      placeholder={String(Number(item.quantity || 0) * Number(item.unitPrice || 0))}
-                    />
-                  </td>
-                  <td>
-                    <Form.Control
-                      onChange={(e) => handleChangeInputLine(index, 'freeText', e)}
-                      value={item.freeText}
-                      size="sm"
-                      placeholder="Catatan baris"
-                    />
-                  </td>
-                  <td>
-                    <Select
-                      styles={customStyles}
-                      value={item.ocrCode}
-                      options={listOcr1}
-                      menuPosition="fixed"
-                      onChange={(e) => handleSelectOcr1(e, index)}
-                      placeholder="Pilih cabang"
-                    />
-                  </td>
-                  <td>
-                    <Select
-                      styles={customStyles}
-                      value={item.ocrCode2}
-                      options={listOcr2}
-                      menuPosition="fixed"
-                      onChange={(e) => handleSelectOcr2(e, index)}
-                      placeholder="Pilih unit"
-                    />
-                  </td>
-                  <td>
-                    <Select
-                      styles={customStyles}
-                      value={item.ocrCode3}
-                      options={listOcr3}
-                      menuPosition="fixed"
-                      onChange={(e) => handleSelectOcr3(e, index)}
-                      placeholder="Pilih department"
-                    />
-                  </td>
-                  <td className="text-center">
-                    {itemArr.length === 1 ? (
-                      <Button className="rounded-circle" size="sm" variant="outline-primary" onClick={addItem}>
-                        <i className="ti ti-plus"></i>
-                      </Button>
-                    ) : (
-                      <Button className="rounded-circle" size="sm" variant="outline-danger" onClick={() => removeItem(index)}>
-                        <i className="ti ti-trash"></i>
-                      </Button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        </MainCard>
+            <MainCard
+              title={
+                <Stack gap={1}>
+                  <h5 className="mb-0">Detail Produk</h5>
+                  <span className="text-muted f-12">Pilih item, gudang, dimensi, quantity, dan harga untuk setiap baris order.</span>
+                </Stack>
+              }
+              secondary={
+                <Button variant="light-primary" onClick={addItem}>
+                  <i className="ti ti-plus me-1" />
+                  Tambah Baris
+                </Button>
+              }
+            >
+              <Table className="mb-0 align-middle" responsive hover>
+                <thead>
+                  <tr>
+                    <th style={{ minWidth: 240 }}>Item</th>
+                    <th style={{ minWidth: 90 }}>Qty</th>
+                    <th style={{ minWidth: 90 }}>Satuan</th>
+                    <th style={{ minWidth: 160 }}>Harga</th>
+                    <th style={{ minWidth: 220 }}>Warehouse</th>
+                    <th style={{ minWidth: 160 }}>Total</th>
+                    <th style={{ minWidth: 220 }}>Catatan</th>
+                    <th style={{ minWidth: 220 }}>Cabang</th>
+                    <th style={{ minWidth: 220 }}>Bisnis Unit</th>
+                    <th style={{ minWidth: 220 }}>Department</th>
+                    <th className="text-center" style={{ width: 72 }}>
+                      Aksi
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {itemArr?.map((item, index) => (
+                    <tr key={index}>
+                      <td>
+                        <Select
+                          styles={customStyles}
+                          value={item.itemCode}
+                          options={listItem}
+                          menuPosition="fixed"
+                          onChange={(e) => handleSelectItem(e, index)}
+                          placeholder="Pilih item"
+                        />
+                      </td>
+                      <td>
+                        <Form.Control
+                          type="number"
+                          onChange={(e) => handleChangeInputLine(index, 'quantity', e)}
+                          value={item.quantity}
+                          size="sm"
+                          min="0"
+                        />
+                      </td>
+                      <td>
+                        <Form.Control readOnly value={item.unitMsr} size="sm" />
+                      </td>
+                      <td>
+                        <Form.Control
+                          readOnly
+                          type="number"
+                          onChange={(e) => handleChangeInputLine(index, 'unitPrice', e)}
+                          value={item.unitPrice}
+                          size="sm"
+                          min="0"
+                        />
+                      </td>
+                      <td>
+                        <Select
+                          styles={customStyles}
+                          value={item.whsCode}
+                          options={listWarehouse}
+                          menuPosition="fixed"
+                          onChange={(e) => handleSelectWarehouse(e, index)}
+                          placeholder="Pilih warehouse"
+                        />
+                      </td>
+                      <td>
+                        <Form.Control
+                          readOnly
+                          type="number"
+                          onChange={(e) => handleChangeInputLine(index, 'lineTotal', e)}
+                          value={item.lineTotal}
+                          size="sm"
+                          min="0"
+                          placeholder={String(Number(item.quantity || 0) * Number(item.unitPrice || 0))}
+                        />
+                      </td>
+                      <td>
+                        <Form.Control
+                          onChange={(e) => handleChangeInputLine(index, 'freeText', e)}
+                          value={item.freeText}
+                          size="sm"
+                          placeholder="Catatan baris"
+                        />
+                      </td>
+                      <td>
+                        <Select
+                          styles={customStyles}
+                          value={item.ocrCode}
+                          options={listOcr1}
+                          menuPosition="fixed"
+                          onChange={(e) => handleSelectOcr1(e, index)}
+                          placeholder="Pilih cabang"
+                        />
+                      </td>
+                      <td>
+                        <Select
+                          styles={customStyles}
+                          value={item.ocrCode2}
+                          options={listOcr2}
+                          menuPosition="fixed"
+                          onChange={(e) => handleSelectOcr2(e, index)}
+                          placeholder="Pilih unit"
+                        />
+                      </td>
+                      <td>
+                        <Select
+                          styles={customStyles}
+                          value={item.ocrCode3}
+                          options={listOcr3}
+                          menuPosition="fixed"
+                          onChange={(e) => handleSelectOcr3(e, index)}
+                          placeholder="Pilih department"
+                        />
+                      </td>
+                      <td className="text-center">
+                        {itemArr.length === 1 ? (
+                          <Button className="rounded-circle" size="sm" variant="outline-primary" onClick={addItem}>
+                            <i className="ti ti-plus"></i>
+                          </Button>
+                        ) : (
+                          <Button className="rounded-circle" size="sm" variant="outline-danger" onClick={() => removeItem(index)}>
+                            <i className="ti ti-trash"></i>
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </MainCard>
+          </>
+        )}
       </Stack>
 
-      <Modal show={showDisc} onHide={() => setShowDisc(false)} size="md" centered>
+      <Modal show={showDisc} onHide={() => setShowDisc(false)} size="lg" centered>
         <Modal.Header closeButton>
           <Modal.Title>Atur Diskon</Modal.Title>
         </Modal.Header>
@@ -746,7 +850,8 @@ export default function OrderCreate() {
           <Table className="mb-0 align-middle" responsive hover>
             <thead>
               <tr>
-                <th>Nama</th>
+                <th>Tipe</th>
+                <th>Keterangan</th>
                 <th>Nominal</th>
                 <th className="text-center">Aksi</th>
               </tr>
@@ -755,13 +860,23 @@ export default function OrderCreate() {
               {detailDisc.map((item, index) => (
                 <tr key={index}>
                   <td>
-                    <Form.Control value={item.name} onChange={(e) => handelInputDiscName(index, e)} size="sm" placeholder="Nama diskon" />
+                    <Select
+                      styles={customStyles}
+                      value={item.name}
+                      options={listDiscType}
+                      menuPosition="fixed"
+                      onChange={(e) => handleSelectDiscType(e, index)}
+                      placeholder="Pilih Tipe Diskon"
+                    />
+                  </td>
+                  <td>
+                    <Form.Control value={item.remarks} onChange={(e) => handleInputRemarks(index, e)} size="sm" placeholder="Keterangan" />
                   </td>
                   <td>
                     <Form.Control
                       type="number"
                       value={item.value}
-                      onChange={(e) => handelInputDiscValue(index, e)}
+                      onChange={(e) => handleInputDiscValue(index, e)}
                       size="sm"
                       placeholder="0"
                       min="0"

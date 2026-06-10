@@ -50,6 +50,16 @@ const listMenu = [
         url: '/master/product'
       },
       {
+        id: 'master-price',
+        title: 'Daftar Harga',
+        type: 'item',
+        value: 'master-price',
+        label: 'Daftar Harga',
+        selected: true,
+        icon: 'ti ti-currency-dollar',
+        url: '/master/price'
+      },
+      {
         id: 'master-employee',
         title: 'Daftar Sales',
         type: 'item',

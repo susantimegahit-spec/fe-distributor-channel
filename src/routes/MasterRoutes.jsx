@@ -8,6 +8,7 @@ import { getCookies } from '../utils/cookies';
 import DashboardLayout from 'layout/Dashboard';
 
 const MasterProduct = Loadable(lazy(() => import('views/master/MasterProduct')));
+const MasterPrice = Loadable(lazy(() => import('views/master/MasterPrice')));
 const MasterBuyingPrice = Loadable(lazy(() => import('views/master/MasterBuyingPrice')));
 const MasterDistributor = Loadable(lazy(() => import('views/master/MasterDistributor')));
 const MasterEmployee = Loadable(lazy(() => import('views/master/MasterEmployee')));
@@ -20,6 +21,10 @@ const MasterRoutes = {
     {
       path: 'master/product',
       element: <MasterProduct />
+    },
+    {
+      path: 'master/price',
+      element: <MasterPrice />
     },
     {
       path: 'master/buying-price',

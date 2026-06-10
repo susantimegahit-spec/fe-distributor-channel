@@ -3,7 +3,7 @@ import { DataService } from "../config/dataService";
 
 class DistributorServices {
   getAllDistributor(payload) {
-    return DataService.get(`/distributors?search=${payload}`);
+    return DataService.get(`/distributors?search=${payload ?? ''}`);
   }
 
   syncDistributor() {
