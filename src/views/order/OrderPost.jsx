@@ -17,7 +17,7 @@ import OrderServices from '../../services/OrderServices';
 import PriceServices from '../../services/PriceServices';
 import LoaderFull from '../../components/LoaderFull';
 
-export default function OrderPost() {
+export default function OrderCreate() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isDetailMode = Boolean(id);
@@ -582,9 +582,7 @@ export default function OrderPost() {
   const handleSubmitOrder = async (type) => {
     setLoadingSubmit(true);
     if (type === 'draft') {
-      // create or edit draft
       if (id) {
-        // edit draft
         let arrItem = [];
         itemArr.map((item) => {
           let data = {
@@ -618,7 +616,7 @@ export default function OrderPost() {
           lines: arrItem
         };
 
-        const resp = await OrderServices.putOrder(id, payload);
+        const resp = await OrderServices.postOrder(id, payload);
         if (resp.data.success) {
           showAlert(resp.data.message, 'success');
           setLoadingSubmit(false);
@@ -628,7 +626,6 @@ export default function OrderPost() {
           setLoadingSubmit(false);
         }
       } else {
-        // create draft
         let arrItem = [];
         itemArr.map((item) => {
           let data = {
@@ -671,50 +668,6 @@ export default function OrderPost() {
           showAlert(resp.data.message, 'danger');
           setLoadingSubmit(false);
         }
-      }
-    } else {
-      // save lock draft
-      let arrItem = [];
-      itemArr.map((item) => {
-        let data = {
-          item_code: item?.itemCode?.value,
-          quantity: item?.quantity,
-          unit_msr: item?.unitMsr,
-          uom_entry: item?.itemCode?.uomEntry,
-          whs_code: item?.whsCode?.value,
-          unit_price: item?.unitPrice,
-          vat_group: item?.vatGroup?.value,
-          line_total: item?.lineTotal,
-          free_text: item?.freeText,
-          ocr_code: item?.ocrCode?.value,
-          ocr_code2: item?.ocrCode2?.value,
-          ocr_code3: item?.ocrCode3?.value
-        };
-        arrItem.push(data);
-      });
-      const payload = {
-        card_code: orderInput.cardCode,
-        po_number: orderInput.numAtCard,
-        doc_date: orderInput.docDate,
-        doc_due_date: orderInput.docDueDate,
-        slp_code: orderInput.slpCode,
-        cntct: orderInput.cnctCode,
-        pay_to_code: orderInput.address?.value,
-        address: orderInput.address?.label,
-        ship_to_code: orderInput.address2.value,
-        address2: orderInput.address2?.label,
-        comments: orderInput.comments,
-        lines: arrItem
-      };
-
-      const resp = await OrderServices.postOrder(payload);
-      if (resp.data.success) {
-        showAlert(resp.data.message, 'success');
-        setLoadingSubmit(false);
-        navigate(-1);
-      } else {
-        showAlert(resp.data.message, 'danger');
-        setLoadingSubmit(false);
       }
     }
   };

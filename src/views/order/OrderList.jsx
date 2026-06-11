@@ -188,12 +188,7 @@ export default function OrderList() {
               <InputGroup.Text>
                 <i className="ti ti-search" />
               </InputGroup.Text>
-              <Form.Control
-                value={keywords}
-                onChange={(event) => setKeywords(event.target.value)}
-                type="text"
-                placeholder="No. invoice"
-              />
+              <Form.Control value={keywords} onChange={(event) => setKeywords(event.target.value)} type="text" placeholder="No. invoice" />
             </InputGroup>
           </Col>
           {/* <Col lg={3} md={6}>
@@ -263,9 +258,17 @@ export default function OrderList() {
                         <i className="ti ti-eye" />
                       </Button>
                       &nbsp;
-                      <Button as={Link} to={`/order/order-create/${order.id}`} className="rounded-circle" variant="outline-success" size="sm">
-                        <i className="ti ti-pencil" />
-                      </Button>
+                      {order.status === 'DRAFT' ? (
+                        <Button
+                          as={Link}
+                          to={`/order/order-create/${order.id}`}
+                          className="rounded-circle"
+                          variant="outline-success"
+                          size="sm"
+                        >
+                          <i className="ti ti-pencil" />
+                        </Button>
+                      ) : null}
                       &nbsp;
                       <Button className="rounded-circle" variant="outline-danger" size="sm">
                         <i className="ti ti-trash" />

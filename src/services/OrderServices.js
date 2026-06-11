@@ -25,7 +25,12 @@ class OrderServices {
   }
 
   postOrder(payload) {
+    console.log('payload => ', payload)
     return DataService.post('/sales-orders', payload);
+  }
+
+  putOrder(id, payload) {
+    return DataService.put(`/sales-orders/${id}`, payload);
   }
 }
 
