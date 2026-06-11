@@ -4,7 +4,7 @@ name: Prod deploy
 on:
   push:
     branches:
-      - production # Diubah menjadi branch production
+      - production # Hanya jalan saat Anda push ke branch production
 
 jobs:
   deploy:
@@ -31,10 +31,9 @@ jobs:
         uses: easingthemes/ssh-deploy@main
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SERVER_SSH_KEY }}
-          SOURCE: 'dist/'
-          REMOTE_HOST: 82.29.156.38
-          REMOTE_USER: u106957989
-          REMOTE_PORT: '65002'
-          # Pastikan path target di bawah ini sesuai dengan folder domain customerportal Anda
-          TARGET: domains/customerportal.susantimegah.com/public_html
+          SOURCE: 'dist/' # folder hasil build
+          REMOTE_HOST: 103.89.4.98 # IP VPS cPanel Anda
+          REMOTE_USER: susantimegah # Username cPanel Anda yang baru
+          REMOTE_PORT: '22' # Port SSH cPanel
+          TARGET: /home/susantimegah/public_html/customerportal.susantimegah.com/ # Folder website Anda
           EXCLUDE: '/build/'
