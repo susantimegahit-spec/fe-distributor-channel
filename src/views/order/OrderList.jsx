@@ -294,7 +294,7 @@ export default function OrderList() {
                           Reset Filter
                         </Button>
                       ) : (
-                        <Button variant="primary" href="/order/order-create">
+                        <Button variant="primary" as={Link} to={`/order/order-create`}>
                           <i className="ti ti-plus me-1" />
                           Tambah Order
                         </Button>
