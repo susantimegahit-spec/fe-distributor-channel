@@ -34,6 +34,6 @@ jobs:
           SOURCE: 'dist/' # folder hasil build
           REMOTE_HOST: 103.89.4.98 # IP VPS cPanel Anda
           REMOTE_USER: susantimegah # Username cPanel Anda
-          REMOTE_PORT: '22' # 👈 Gunakan port SSH Anda (di config awal Anda memakai port '65002', pastikan ini benar)
+          REMOTE_PORT: '65002' # 👈 Gunakan port SSH Anda (di config awal Anda memakai port '65002', pastikan ini benar)
           TARGET: /home/susantimegah/public_html/customerportal.susantimegah.com/ # Folder website Anda
           EXCLUDE: '/build/'
