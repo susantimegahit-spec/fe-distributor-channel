@@ -27,14 +27,12 @@ jobs:
           yarn install --no-immutable
           yarn build
 
-      - name: 📂 Deploy to Server
-        uses: easingthemes/ssh-deploy@main
+      - name: 📂 Deploy to Server via SFTP
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
         with:
-          # 👈 Sudah diubah menjadi SSH_PRIVATE_KEY sesuai nama di GitHub Secrets Anda
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }} 
-          SOURCE: 'dist/'
-          REMOTE_HOST: 103.89.4.98
-          REMOTE_USER: susantimegah
-          REMOTE_PORT: '22' # Coba port 22 dulu, jika error silakan ganti ke '65002'
-          TARGET: /home/susantimegah/public_html/customerportal.susantimegah.com/
-          EXCLUDE: '/build/'
+          username: 'susantimegah'
+          host: '103.89.4.98'
+          port: 22 # Port SSH/SFTP cPanel Anda
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          local_path: 'dist/*' # Mengirim isi folder dist
+          remote_path: '/home/susantimegah/public_html/customerportal.susantimegah.com/'
