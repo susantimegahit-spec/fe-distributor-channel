@@ -2,19 +2,12 @@ name: Prod deploy
 
 # Controls when the action will run.
 on:
-  # Triggers the workflow on push or pull request events but only for the master branch
   push:
     branches:
-      - main
-  pull_request:
-    types:
-      - closed
-    branches:
-      - main
+      - production # Diubah menjadi branch production
 
 jobs:
-  if_merged:
-    if: github.event.pull_request.merged == true
+  deploy:
     name: 🎉 Deploy
     runs-on: ubuntu-latest
 
@@ -38,10 +31,10 @@ jobs:
         uses: easingthemes/ssh-deploy@main
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SERVER_SSH_KEY }}
-          # ARGS: "-rltgoDzvO --delete"
           SOURCE: 'dist/'
           REMOTE_HOST: 82.29.156.38
           REMOTE_USER: u106957989
           REMOTE_PORT: '65002'
-          TARGET: domains/codedthemes.com/public_html/demos/admin-templates/datta-able/react/free
+          # Pastikan path target di bawah ini sesuai dengan folder domain customerportal Anda
+          TARGET: domains/customerportal.susantimegah.com/public_html
           EXCLUDE: '/build/'
