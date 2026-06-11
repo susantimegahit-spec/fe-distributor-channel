@@ -4,7 +4,7 @@ name: Prod deploy
 on:
   push:
     branches:
-      - production # Hanya jalan saat Anda push ke branch production
+      - production
 
 jobs:
   deploy:
@@ -29,11 +29,12 @@ jobs:
 
       - name: 📂 Deploy to Server
         uses: easingthemes/ssh-deploy@main
-        with: # 👈 Diubah dari 'env:' menjadi 'with:'
-          SSH_PRIVATE_KEY: ${{ secrets.SERVER_SSH_KEY }}
-          SOURCE: 'dist/' # folder hasil build
-          REMOTE_HOST: 103.89.4.98 # IP VPS cPanel Anda
-          REMOTE_USER: susantimegah # Username cPanel Anda
-          REMOTE_PORT: '65002' # 👈 Gunakan port SSH Anda (di config awal Anda memakai port '65002', pastikan ini benar)
-          TARGET: /home/susantimegah/public_html/customerportal.susantimegah.com/ # Folder website Anda
+        with:
+          # 👈 Sudah diubah menjadi SSH_PRIVATE_KEY sesuai nama di GitHub Secrets Anda
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }} 
+          SOURCE: 'dist/'
+          REMOTE_HOST: 103.89.4.98
+          REMOTE_USER: susantimegah
+          REMOTE_PORT: '22' # Coba port 22 dulu, jika error silakan ganti ke '65002'
+          TARGET: /home/susantimegah/public_html/customerportal.susantimegah.com/
           EXCLUDE: '/build/'
