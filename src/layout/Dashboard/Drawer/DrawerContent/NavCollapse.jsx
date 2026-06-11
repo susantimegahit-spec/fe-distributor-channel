@@ -24,7 +24,8 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
 
   const isMenuActive = useCallback((menu, currentPath) => {
     if (menu.type === 'item') {
-      return menu.url === currentPath;
+      const paths = menu.activeUrls || [menu.link || menu.url];
+      return paths.some((path) => path && matchPath({ path, end: true }, currentPath));
     }
     if (menu.type === 'collapse' && Array.isArray(menu.children)) {
       return menu.children.some((child) => isMenuActive(child, currentPath));
@@ -85,13 +86,10 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
         checkOpenForParent(item.children, menu.id);
       }
 
-      if (item.link && matchPath({ path: item?.link, end: false }, pathname)) {
-        setSelected(menu.id);
-        setOpen(true);
-        break;
-      }
+      const paths = item.activeUrls || [item.link || item.url];
+      const isActiveChild = paths.some((path) => path && matchPath({ path, end: true }, pathname));
 
-      if (item.url === pathname) {
+      if (isActiveChild) {
         setSelected(menu.id);
         setOpen(true);
         break;

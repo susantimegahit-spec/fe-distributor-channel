@@ -10,8 +10,9 @@ export default function NavItem({ item }) {
   const { pathname } = useLocation();
 
   const itemPath = item?.link || item?.url;
+  const activePaths = item?.activeUrls || [itemPath];
   const itemTarget = item?.target ? '_blank' : '_self';
-  const isSelected = itemPath ? !!matchPath({ path: itemPath, end: true }, pathname) : false;
+  const isSelected = activePaths.some((path) => path && matchPath({ path, end: true }, pathname));
   const isMobile = window.innerWidth <= 1024;
 
   const handleClick = () => {

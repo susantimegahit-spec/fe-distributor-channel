@@ -29,8 +29,8 @@ export default function NavGroup(props) {
     (children, parentId) => {
       children.forEach((child) => {
         if (child.children?.length) findMatchingChild(child.children, parentId);
-        const path = child.link || child.url;
-        if (path && matchPath({ path, end: true }, pathname)) {
+        const paths = child.activeUrls || [child.link || child.url];
+        if (paths.some((path) => path && matchPath({ path, end: true }, pathname))) {
           setSelectedID(parentId);
         }
       });
@@ -43,8 +43,8 @@ export default function NavGroup(props) {
     const children = currentItem.children ?? [];
     children.forEach((child) => {
       if (child.children?.length) findMatchingChild(child.children, currentItem.id);
-      const path = child.link || child.url;
-      if (path && matchPath({ path, end: true }, pathname)) {
+      const paths = child.activeUrls || [child.link || child.url];
+      if (paths.some((path) => path && matchPath({ path, end: true }, pathname))) {
         setSelectedID(currentItem.id);
       }
     });

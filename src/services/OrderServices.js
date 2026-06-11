@@ -12,10 +12,21 @@ class OrderServices {
     return DataService.get('/discounts/types');
   }
 
+  getListOrder() {
+    return DataService.get('/sales-orders');
+  }
+
+  getDetailOrder(id) {
+    return DataService.get(`/sales-orders/${id}`);
+  }
+
+  getVats() {
+    return DataService.get('/vats');
+  }
+
   postOrder(payload) {
     return DataService.post('/sales-orders', payload);
   }
-
 }
 
 export default new OrderServices();

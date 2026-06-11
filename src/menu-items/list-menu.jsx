@@ -137,7 +137,8 @@ const listMenu = [
         type: 'item',
         selected: true,
         icon: 'ph ph-list-bullets',
-        url: '/order/order-list'
+        url: '/order/order-list',
+        activeUrls: ['/order/order-list', '/order/order-create', '/order/order-create/:id']
       },
       // {
       //   id: 'order-retur',

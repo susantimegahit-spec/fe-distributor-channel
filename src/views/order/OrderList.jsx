@@ -1,4 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import moment from 'moment';
+import { Link } from 'react-router-dom';
 
 // react-bootstrap
 import Badge from 'react-bootstrap/Badge';
@@ -14,6 +16,9 @@ import Table from 'react-bootstrap/Table';
 
 // project-imports
 import MainCard from 'components/MainCard';
+import OrderServices from '../../services/OrderServices';
+import LoaderData from '../../components/LoaderData';
+import { currency } from '../../utils/global';
 
 const statusOptions = [
   { value: '', label: 'Semua Status' },
@@ -40,20 +45,24 @@ const statusLabel = {
 const initialOrders = [];
 
 export default function OrderList() {
-  const [orders] = useState(initialOrders);
+  const [orders, setOrders] = useState([]);
   const [keywords, setKeywords] = useState('');
   const [distributor, setDistributor] = useState('');
   const [status, setStatus] = useState('');
   const [date, setDate] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const filteredOrders = useMemo(() => {
     const normalizedKeyword = keywords.trim().toLowerCase();
 
     return orders.filter((order) => {
-      const matchesKeyword =
-        !normalizedKeyword ||
-        order.invoice?.toLowerCase().includes(normalizedKeyword) ||
-        order.distributor?.toLowerCase().includes(normalizedKeyword);
+      console.log('order => ', order);
+      const matchesKeyword = !normalizedKeyword || order.order_no?.toLowerCase().includes(normalizedKeyword);
+      // ||order.distributor?.toLowerCase().includes(normalizedKeyword);
       const matchesDistributor = !distributor || order.distributorId === distributor;
       const matchesStatus = !status || order.status === status;
       const matchesDate = !date || order.date === date;
@@ -79,6 +88,16 @@ export default function OrderList() {
     setDistributor('');
     setStatus('');
     setDate('');
+  };
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    const resp = await OrderServices.getListOrder();
+
+    if (resp.data.success) {
+      setIsLoading(false);
+      setOrders(resp.data.data);
+    }
   };
 
   return (
@@ -173,18 +192,18 @@ export default function OrderList() {
                 value={keywords}
                 onChange={(event) => setKeywords(event.target.value)}
                 type="text"
-                placeholder="No. invoice atau distributor"
+                placeholder="No. invoice"
               />
             </InputGroup>
           </Col>
-          <Col lg={3} md={6}>
+          {/* <Col lg={3} md={6}>
             <Form.Label className="f-12 text-muted">Distributor</Form.Label>
             <Form.Select value={distributor} onChange={(event) => setDistributor(event.target.value)}>
               <option value="">Semua Distributor</option>
               <option value="1">Distributor A</option>
               <option value="2">Distributor B</option>
             </Form.Select>
-          </Col>
+          </Col> */}
           <Col lg={2} md={6}>
             <Form.Label className="f-12 text-muted">Status</Form.Label>
             <Form.Select value={status} onChange={(event) => setStatus(event.target.value)}>
@@ -218,53 +237,71 @@ export default function OrderList() {
               <th className="text-center">Aksi</th>
             </tr>
           </thead>
-          <tbody>
-            {filteredOrders.length > 0 ? (
-              filteredOrders.map((order) => (
-                <tr key={order.id}>
-                  <td className="fw-semibold">{order.invoice}</td>
-                  <td>{order.distributor}</td>
-                  <td>{order.date}</td>
-                  <td>{order.totalItem}</td>
-                  <td>{order.total}</td>
-                  <td>
-                    <Badge bg={statusVariant[order.status] || 'secondary'}>{statusLabel[order.status] || order.status}</Badge>
-                  </td>
-                  <td className="text-center">
-                    <Button className="rounded-circle" variant="outline-primary" size="sm">
-                      <i className="ti ti-eye" />
-                    </Button>
-                  </td>
-                </tr>
-              ))
-            ) : (
+          {isLoading ? (
+            <tbody>
               <tr>
-                <td colSpan={7}>
-                  <div className="text-center py-5">
-                    <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
-                      <i className="ti ti-clipboard-list f-24" />
-                    </div>
-                    <h5 className="mb-1">{hasActiveFilter ? 'Order tidak ditemukan' : 'Belum ada order'}</h5>
-                    <p className="text-muted mb-3">
-                      {hasActiveFilter
-                        ? 'Ubah filter atau reset pencarian untuk melihat data lain.'
-                        : 'Mulai buat order baru untuk menambahkan transaksi distributor.'}
-                    </p>
-                    {hasActiveFilter ? (
-                      <Button variant="light-primary" onClick={resetFilters}>
-                        Reset Filter
-                      </Button>
-                    ) : (
-                      <Button variant="primary" href="/order/order-create">
-                        <i className="ti ti-plus me-1" />
-                        Tambah Order
-                      </Button>
-                    )}
-                  </div>
+                <td colSpan={6}>
+                  <LoaderData />
                 </td>
               </tr>
-            )}
-          </tbody>
+            </tbody>
+          ) : (
+            <tbody>
+              {filteredOrders.length > 0 ? (
+                filteredOrders.map((order) => (
+                  <tr key={order.id}>
+                    <td className="fw-semibold">{order.order_no}</td>
+                    <td>{order.customer_name}</td>
+                    <td>{moment(order.doc_date).format('DD MMM YYYY')}</td>
+                    <td>{order?.details?.length}</td>
+                    <td>{currency(order?.doc_total)}</td>
+                    <td>
+                      <Badge bg={statusVariant[order.status] || 'secondary'}>{statusLabel[order.status] || order.status}</Badge>
+                    </td>
+                    <td className="text-center">
+                      <Button className="rounded-circle" variant="outline-primary" size="sm">
+                        <i className="ti ti-eye" />
+                      </Button>
+                      &nbsp;
+                      <Button as={Link} to={`/order/order-create/${order.id}`} className="rounded-circle" variant="outline-success" size="sm">
+                        <i className="ti ti-pencil" />
+                      </Button>
+                      &nbsp;
+                      <Button className="rounded-circle" variant="outline-danger" size="sm">
+                        <i className="ti ti-trash" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={7}>
+                    <div className="text-center py-5">
+                      <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
+                        <i className="ti ti-clipboard-list f-24" />
+                      </div>
+                      <h5 className="mb-1">{hasActiveFilter ? 'Order tidak ditemukan' : 'Belum ada order'}</h5>
+                      <p className="text-muted mb-3">
+                        {hasActiveFilter
+                          ? 'Ubah filter atau reset pencarian untuk melihat data lain.'
+                          : 'Mulai buat order baru untuk menambahkan transaksi distributor.'}
+                      </p>
+                      {hasActiveFilter ? (
+                        <Button variant="light-primary" onClick={resetFilters}>
+                          Reset Filter
+                        </Button>
+                      ) : (
+                        <Button variant="primary" href="/order/order-create">
+                          <i className="ti ti-plus me-1" />
+                          Tambah Order
+                        </Button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          )}
         </Table>
 
         <Stack direction="horizontal" gap={2} className="flex-wrap justify-content-between mt-3">
