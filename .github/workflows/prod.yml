@@ -24,7 +24,7 @@ jobs:
         run: |
           corepack enable
           yarn set version 4.12.0           
-          yarn
+          yarn install --no-immutable
           yarn build
 
       - name: 📂 Deploy to Server
@@ -33,7 +33,7 @@ jobs:
           SSH_PRIVATE_KEY: ${{ secrets.SERVER_SSH_KEY }}
           SOURCE: 'dist/' # folder hasil build
           REMOTE_HOST: 103.89.4.98 # IP VPS cPanel Anda
-          REMOTE_USER: susantimegah # Username cPanel Anda yang baru
+          REMOTE_USER: susantimegah # Username cPanel Anda
           REMOTE_PORT: '22' # Port SSH cPanel
           TARGET: /home/susantimegah/public_html/customerportal.susantimegah.com/ # Folder website Anda
           EXCLUDE: '/build/'
