@@ -84,6 +84,44 @@ export default function MasterDistributor() {
     return filteredData.slice(startIndex, startIndex + pageSize);
   }, [currentPage, filteredData]);
 
+  const getPaginationItems = useMemo(() => {
+    const range = [];
+    const maxVisiblePages = 5;
+
+    if (pageCount <= maxVisiblePages) {
+      for (let i = 1; i <= pageCount; i++) {
+        range.push(i);
+      }
+    } else {
+      range.push(1);
+
+      let start = Math.max(2, currentPage - 1);
+      let end = Math.min(pageCount - 1, currentPage + 1);
+
+      if (currentPage <= 2) {
+        end = 3;
+      } else if (currentPage >= pageCount - 1) {
+        start = pageCount - 2;
+      }
+
+      if (start > 2) {
+        range.push('ellipsis1');
+      }
+
+      for (let i = start; i <= end; i++) {
+        range.push(i);
+      }
+
+      if (end < pageCount - 1) {
+        range.push('ellipsis2');
+      }
+
+      range.push(pageCount);
+    }
+    return range;
+  }, [currentPage, pageCount]);
+
+
   const summary = useMemo(
     () => ({
       total: dataSource.length,
@@ -295,23 +333,41 @@ export default function MasterDistributor() {
             )}
           </Table>
 
-          <Stack direction="horizontal" gap={2} className="flex-wrap justify-content-between mt-3">
-            <small className="text-muted">
+          <Stack direction="horizontal" gap={2} className="flex-wrap justify-content-between mt-4">
+            <small className="text-muted fw-semibold">
               Menampilkan {filteredData.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}-
               {Math.min(currentPage * pageSize, filteredData.length)} dari {filteredData.length} distributor
             </small>
-            <Pagination className="mb-0">
-              <Pagination.Prev disabled={currentPage === 1} onClick={() => setCurrentPage((page) => Math.max(page - 1, 1))} />
-              {Array.from({ length: pageCount }).map((_, index) => {
-                const page = index + 1;
+            <Pagination className="custom-pagination mb-0">
+              <Pagination.Prev 
+                disabled={currentPage === 1} 
+                onClick={() => setCurrentPage((page) => Math.max(page - 1, 1))}
+              >
+                <i className="ti ti-chevron-left" />
+              </Pagination.Prev>
+              
+              {getPaginationItems.map((item, index) => {
+                if (item === 'ellipsis1' || item === 'ellipsis2') {
+                  return <Pagination.Ellipsis key={`ellipsis-${index}`} disabled />;
+                }
 
                 return (
-                  <Pagination.Item key={page} active={page === currentPage} onClick={() => setCurrentPage(page)}>
-                    {page}
+                  <Pagination.Item 
+                    key={item} 
+                    active={item === currentPage} 
+                    onClick={() => setCurrentPage(item)}
+                  >
+                    {item}
                   </Pagination.Item>
                 );
               })}
-              <Pagination.Next disabled={currentPage === pageCount} onClick={() => setCurrentPage((page) => Math.min(page + 1, pageCount))} />
+              
+              <Pagination.Next 
+                disabled={currentPage === pageCount} 
+                onClick={() => setCurrentPage((page) => Math.min(page + 1, pageCount))}
+              >
+                <i className="ti ti-chevron-right" />
+              </Pagination.Next>
             </Pagination>
           </Stack>
         </MainCard>
