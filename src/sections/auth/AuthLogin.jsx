@@ -102,7 +102,7 @@ export default function AuthLoginForm({ className }) {
           </InputGroup>
           <Form.Control.Feedback type="invalid">{errors.username?.message}</Form.Control.Feedback>
         </Form.Group>
-        <Form.Group className="mb-3" controlId="formCustomerCode">
+        {/* <Form.Group className="mb-3" controlId="formCustomerCode">
           <Form.Label>Kode Customer</Form.Label>
           <InputGroup className="sm-input-group">
             <InputGroup.Text>
@@ -118,7 +118,7 @@ export default function AuthLoginForm({ className }) {
             />
           </InputGroup>
           <Form.Control.Feedback type="invalid">{errors.customerCode?.message}</Form.Control.Feedback>
-        </Form.Group>
+        </Form.Group> */}
         <Form.Group className="mb-3" controlId="formPassword">
           <Form.Label>Password</Form.Label>
           <InputGroup className="sm-input-group">

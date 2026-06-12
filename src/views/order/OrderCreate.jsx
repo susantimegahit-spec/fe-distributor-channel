@@ -115,8 +115,17 @@ export default function OrderPost() {
   }, [id]);
 
   const getValue = (data, keys, defaultValue = '') => {
-    const foundKey = keys.find((key) => data?.[key] !== undefined && data?.[key] !== null);
-    return foundKey ? data[foundKey] : defaultValue;
+    for (const key of keys) {
+      const value = String(key)
+        .split('.')
+        .reduce((current, path) => current?.[path], data);
+
+      if (value !== undefined && value !== null) {
+        return value;
+      }
+    }
+
+    return defaultValue;
   };
 
   const formatDateInput = (value) => {
@@ -135,23 +144,41 @@ export default function OrderPost() {
 
   const findOption = (options, value, label, extra = {}) => {
     if (!value && !label) return null;
-    return options.find((option) => String(option.value) === String(value)) || createOption(value, label, extra);
+    const matchedOption = options.find((option) => String(option.value) === String(value));
+
+    if (matchedOption) {
+      return {
+        ...matchedOption,
+        ...extra,
+        label: label || matchedOption.label
+      };
+    }
+
+    return createOption(value, label, extra);
   };
 
   const mapOrderLine = (line) => {
-    const itemCode = getValue(line, ['item_code', 'itemCode', 'ItemCode']);
-    const itemName = getValue(line, ['item_name', 'itemName', 'Dscription', 'description'], itemCode);
-    const unitMsr = getValue(line, ['unit_msr', 'unitMsr', 'unit', 'UomCode']);
+    const itemCode = getValue(line, ['item_code', 'itemCode', 'ItemCode', 'item.item_code', 'item.code', 'code']);
+    const itemName = getValue(
+      line,
+      ['item_name', 'itemName', 'ItemName', 'Dscription', 'description', 'item_description', 'item.item_name', 'item.name'],
+      itemCode
+    );
+    const unitMsr = getValue(line, ['unit_msr', 'unitMsr', 'unit', 'UomCode', 'uom_code']);
     const whsCode = getValue(line, ['whs_code', 'whsCode', 'warehouse_code', 'WhsCode']);
-    const whsName = getValue(line, ['whs_name', 'whsName', 'warehouse_name'], whsCode);
-    const vatGroup = getValue(line, ['vat_group', 'vatGroup', 'VatGroup']);
-    const vatName = getValue(line, ['vat_name', 'vatName'], vatGroup);
-    const ocrCode = getValue(line, ['ocr_code', 'ocrCode', 'OcrCode']);
-    const ocrName = getValue(line, ['ocr_name', 'ocrName'], ocrCode);
-    const ocrCode2 = getValue(line, ['ocr_code2', 'ocrCode2', 'OcrCode2']);
-    const ocrName2 = getValue(line, ['ocr_name2', 'ocrName2'], ocrCode2);
-    const ocrCode3 = getValue(line, ['ocr_code3', 'ocrCode3', 'OcrCode3']);
-    const ocrName3 = getValue(line, ['ocr_name3', 'ocrName3'], ocrCode3);
+    const whsName = getValue(line, ['whs_name', 'whsName', 'warehouse_name', 'WhsName', 'warehouse.whs_name', 'warehouse.name'], whsCode);
+    const vatGroup = getValue(line, ['vat_group', 'vatGroup', 'VatGroup', 'vat_code', 'vatCode']);
+    const vatName = getValue(line, ['vat_name', 'vatName', 'VatName', 'vat_group_name', 'vatGroupName', 'vat.name'], vatGroup);
+    const ocrCode = getValue(line, ['ocr_code', 'ocrCode', 'OcrCode', 'branch_code', 'branchCode']);
+    const ocrName = getValue(line, ['ocr_name', 'ocrName', 'OcrName', 'branch_name', 'branchName', 'cabang', 'branch.name'], ocrCode);
+    const ocrCode2 = getValue(line, ['ocr_code2', 'ocrCode2', 'OcrCode2', 'business_unit_code', 'businessUnitCode']);
+    const ocrName2 = getValue(
+      line,
+      ['ocr_name2', 'ocrName2', 'OcrName2', 'business_unit_name', 'businessUnitName', 'bisnis_unit', 'business_unit.name'],
+      ocrCode2
+    );
+    const ocrCode3 = getValue(line, ['ocr_code3', 'ocrCode3', 'OcrCode3', 'department_code', 'departmentCode']);
+    const ocrName3 = getValue(line, ['ocr_name3', 'ocrName3', 'OcrName3', 'department_name', 'departmentName'], ocrCode3);
 
     return {
       itemCode: findOption(listItem, itemCode, itemName, {
