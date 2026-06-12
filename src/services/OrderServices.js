@@ -32,6 +32,10 @@ class OrderServices {
   putOrder(id, payload) {
     return DataService.put(`/sales-orders/${id}`, payload);
   }
+
+  postOrderPosting(id, payload) {
+    return DataService.post(`/sales-orders/${id}/post-sap`, payload);
+  }
 }
 
 export default new OrderServices();

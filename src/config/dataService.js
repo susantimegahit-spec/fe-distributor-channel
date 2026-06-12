@@ -2,6 +2,7 @@ import axios from 'axios';
 import { getCookies } from '../utils/cookies';
 import QueryString from 'qs';
 import Cookies from 'js-cookie';
+import { useAlert } from '../utils/alertContext';
 
 const API_ENDPOINT = import.meta.env.VITE_APP_API_ENDPOINT_DEVELOPMENT;
 
@@ -86,7 +87,7 @@ client.interceptors.response.use(
     const { response } = error;
     const originalRequest = error.config;
     if (response) {
-      console.log('response error => ', response);
+      // console.log('response error => ', response);
       if (response.status === 500) {
         // do something here
       } else if (response.status === 429) {
@@ -100,6 +101,8 @@ client.interceptors.response.use(
         Cookies.remove('role');
         Cookies.remove('menu');
         window.location.replace('/');
+      }else if(response.status === 400) {
+        return response
       } else {
         return originalRequest;
       }

@@ -8,13 +8,13 @@ import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
 import InputGroup from 'react-bootstrap/InputGroup';
 import Modal from 'react-bootstrap/Modal';
-import Pagination from 'react-bootstrap/Pagination';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
 
 // project-imports
 import MainCard from 'components/MainCard';
+import TablePagination from 'components/TablePagination';
 import LoaderData from '../../components/LoaderData';
 import EmployeeServices from '../../services/EmployeeServices';
 import { useAlert } from '../../utils/alertContext';
@@ -174,7 +174,12 @@ export default function MasterEmployee() {
                 <InputGroup.Text>
                   <i className="ti ti-search" />
                 </InputGroup.Text>
-                <Form.Control value={keywords} onChange={(event) => setKeywords(event.target.value)} type="text" placeholder="Kode atau nama sales" />
+                <Form.Control
+                  value={keywords}
+                  onChange={(event) => setKeywords(event.target.value)}
+                  type="text"
+                  placeholder="Kode atau nama sales"
+                />
               </InputGroup>
             </Col>
             <Col lg={3} md={6}>
@@ -243,7 +248,9 @@ export default function MasterEmployee() {
                           </div>
                           <h5 className="mb-1">{hasActiveFilter ? 'Sales tidak ditemukan' : 'Belum ada data sales'}</h5>
                           <p className="text-muted mb-3">
-                            {hasActiveFilter ? 'Ubah kata kunci atau status untuk melihat data lain.' : 'Gunakan synchronize untuk mengambil data sales terbaru.'}
+                            {hasActiveFilter
+                              ? 'Ubah kata kunci atau status untuk melihat data lain.'
+                              : 'Gunakan synchronize untuk mengambil data sales terbaru.'}
                           </p>
                           {hasActiveFilter ? (
                             <Button variant="light-primary" onClick={resetFilters}>
@@ -264,25 +271,14 @@ export default function MasterEmployee() {
             )}
           </Table>
 
-          <Stack direction="horizontal" gap={2} className="flex-wrap justify-content-between mt-3">
-            <small className="text-muted">
-              Menampilkan {filteredData.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}-
-              {Math.min(currentPage * pageSize, filteredData.length)} dari {filteredData.length} sales
-            </small>
-            <Pagination className="mb-0">
-              <Pagination.Prev disabled={currentPage === 1} onClick={() => setCurrentPage((page) => Math.max(page - 1, 1))} />
-              {Array.from({ length: pageCount }).map((_, index) => {
-                const page = index + 1;
-
-                return (
-                  <Pagination.Item key={page} active={page === currentPage} onClick={() => setCurrentPage(page)}>
-                    {page}
-                  </Pagination.Item>
-                );
-              })}
-              <Pagination.Next disabled={currentPage === pageCount} onClick={() => setCurrentPage((page) => Math.min(page + 1, pageCount))} />
-            </Pagination>
-          </Stack>
+          <TablePagination
+            currentPage={currentPage}
+            onPageChange={setCurrentPage}
+            pageCount={pageCount}
+            pageSize={pageSize}
+            total={filteredData.length}
+            itemLabel="sales"
+          />
         </MainCard>
       </Stack>
 

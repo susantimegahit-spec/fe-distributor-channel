@@ -8,7 +8,6 @@ import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
 import InputGroup from 'react-bootstrap/InputGroup';
 import Modal from 'react-bootstrap/Modal';
-import Pagination from 'react-bootstrap/Pagination';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
@@ -16,6 +15,7 @@ import Select from 'react-select';
 
 // project-imports
 import MainCard from 'components/MainCard';
+import TablePagination from 'components/TablePagination';
 import LoaderData from '../../components/LoaderData';
 import DistributorServices from '../../services/DistributorServices';
 import PriceServices from '../../services/PriceServices';
@@ -451,9 +451,14 @@ export default function MasterPrice() {
                           </div>
                           <h5 className="mb-1">{hasActiveFilter ? 'Data harga tidak ditemukan' : 'Belum ada data harga'}</h5>
                           <p className="text-muted mb-3">
-                            {hasActiveFilter ? 'Ubah kata kunci atau status untuk melihat data lain.' : 'Klik refresh untuk mengambil data harga terbaru.'}
+                            {hasActiveFilter
+                              ? 'Ubah kata kunci atau status untuk melihat data lain.'
+                              : 'Klik refresh untuk mengambil data harga terbaru.'}
                           </p>
-                          <Button variant={hasActiveFilter ? 'light-primary' : 'primary'} onClick={hasActiveFilter ? resetFilters : fetchData}>
+                          <Button
+                            variant={hasActiveFilter ? 'light-primary' : 'primary'}
+                            onClick={hasActiveFilter ? resetFilters : fetchData}
+                          >
                             <i className="ti ti-refresh me-1" />
                             {hasActiveFilter ? 'Reset Filter' : 'Refresh'}
                           </Button>
@@ -466,25 +471,14 @@ export default function MasterPrice() {
             )}
           </Table>
 
-          <Stack direction="horizontal" gap={2} className="flex-wrap justify-content-between mt-3">
-            <small className="text-muted">
-              Menampilkan {filteredData.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}-
-              {Math.min(currentPage * pageSize, filteredData.length)} dari {filteredData.length} harga
-            </small>
-            <Pagination className="mb-0">
-              <Pagination.Prev disabled={currentPage === 1} onClick={() => setCurrentPage((page) => Math.max(page - 1, 1))} />
-              {Array.from({ length: pageCount }).map((_, index) => {
-                const page = index + 1;
-
-                return (
-                  <Pagination.Item key={page} active={page === currentPage} onClick={() => setCurrentPage(page)}>
-                    {page}
-                  </Pagination.Item>
-                );
-              })}
-              <Pagination.Next disabled={currentPage === pageCount} onClick={() => setCurrentPage((page) => Math.min(page + 1, pageCount))} />
-            </Pagination>
-          </Stack>
+          <TablePagination
+            currentPage={currentPage}
+            onPageChange={setCurrentPage}
+            pageCount={pageCount}
+            pageSize={pageSize}
+            total={filteredData.length}
+            itemLabel="harga"
+          />
         </MainCard>
       </Stack>
 
@@ -543,7 +537,9 @@ export default function MasterPrice() {
           <Modal.Body>
             <Row className="g-3">
               <Col md={6}>
-                <Form.Label>Kode Item <span className="text-danger">*</span></Form.Label>
+                <Form.Label>
+                  Kode Item <span className="text-danger">*</span>
+                </Form.Label>
                 <Select
                   styles={selectStyles}
                   options={listItem}
@@ -556,7 +552,9 @@ export default function MasterPrice() {
                 />
               </Col>
               <Col md={6}>
-                <Form.Label>Kode Distributor <span className="text-danger">*</span></Form.Label>
+                <Form.Label>
+                  Kode Distributor <span className="text-danger">*</span>
+                </Form.Label>
                 <Select
                   styles={selectStyles}
                   options={listDistributor}
@@ -573,15 +571,10 @@ export default function MasterPrice() {
                 <Form.Control name="uom" value={priceInput.uom} onChange={handlePriceInput} placeholder="PCS / CTN" />
               </Col>
               <Col md={4}>
-                <Form.Label>Harga <span className="text-danger">*</span></Form.Label>
-                <Form.Control
-                  name="price"
-                  value={priceInput.price}
-                  onChange={handlePriceInput}
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                />
+                <Form.Label>
+                  Harga <span className="text-danger">*</span>
+                </Form.Label>
+                <Form.Control name="price" value={priceInput.price} onChange={handlePriceInput} type="number" min="0" placeholder="0" />
               </Col>
               <Col md={4}>
                 <Form.Label>Status</Form.Label>

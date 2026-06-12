@@ -15,6 +15,7 @@ import Select from 'react-select';
 
 // project-imports
 import MainCard from 'components/MainCard';
+import TablePagination from 'components/TablePagination';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import LoaderButton from '../../../components/LoaderButton';
 import LoaderData from '../../../components/LoaderData';
@@ -33,8 +34,15 @@ const initialInput = {
   distributorId: ''
 };
 
+const pageSize = 10;
+
 const getUserDistributorCode = (item) =>
-  item?.code_customer || item?.customer_code || item?.distributor_code || item?.distributor?.code_customer || item?.distributor?.customer_code || '';
+  item?.code_customer ||
+  item?.customer_code ||
+  item?.distributor_code ||
+  item?.distributor?.code_customer ||
+  item?.distributor?.customer_code ||
+  '';
 
 const getUserDistributorName = (item) =>
   item?.name_distributor || item?.distributor_name || item?.distributor?.name || item?.distributor?.name_distributor || '';
@@ -57,12 +65,17 @@ export default function UserList() {
   const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedRole, setSelectedRole] = useState('');
   const [input, setInput] = useState(initialInput);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     fetchData();
     getListRole();
     getListDistributor();
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [keywords, selectedRole, selectedStatus]);
 
   const fetchData = async () => {
     setLoadingData(true);
@@ -124,6 +137,12 @@ export default function UserList() {
   );
 
   const hasActiveFilter = Boolean(keywords || selectedStatus || selectedRole);
+  const pageCount = Math.max(Math.ceil(filteredData.length / pageSize), 1);
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+
+    return filteredData.slice(startIndex, startIndex + pageSize);
+  }, [currentPage, filteredData]);
 
   const resetFilters = () => {
     setKeywords('');
@@ -408,8 +427,8 @@ export default function UserList() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredData.length > 0 ? (
-                    filteredData.map((item) => (
+                  {paginatedData.length > 0 ? (
+                    paginatedData.map((item) => (
                       <tr key={item.id}>
                         <td>
                           <Stack direction="horizontal" gap={2}>
@@ -439,7 +458,12 @@ export default function UserList() {
                             <Button className="rounded-circle" variant="outline-secondary" size="sm" onClick={() => openEditModal(item)}>
                               <i className="ti ti-pencil" />
                             </Button>
-                            <Button className="rounded-circle" variant="outline-danger" size="sm" onClick={() => handleShowConfirm(item.id)}>
+                            <Button
+                              className="rounded-circle"
+                              variant="outline-danger"
+                              size="sm"
+                              onClick={() => handleShowConfirm(item.id)}
+                            >
                               <i className="ti ti-trash" />
                             </Button>
                           </Stack>
@@ -475,6 +499,14 @@ export default function UserList() {
               </>
             )}
           </Table>
+          <TablePagination
+            currentPage={currentPage}
+            onPageChange={setCurrentPage}
+            pageCount={pageCount}
+            pageSize={pageSize}
+            total={filteredData.length}
+            itemLabel="user"
+          />
         </MainCard>
       </Stack>
 
@@ -499,15 +531,30 @@ export default function UserList() {
               <Row className="g-3">
                 <Col md={6}>
                   <Form.Label className="f-12 text-muted">Nama</Form.Label>
-                  <Form.Control type="text" placeholder="Nama lengkap" value={input.name} onChange={(event) => handleSetState('name', event)} />
+                  <Form.Control
+                    type="text"
+                    placeholder="Nama lengkap"
+                    value={input.name}
+                    onChange={(event) => handleSetState('name', event)}
+                  />
                 </Col>
                 <Col md={6}>
                   <Form.Label className="f-12 text-muted">Username</Form.Label>
-                  <Form.Control type="text" placeholder="Username login" value={input.username} onChange={(event) => handleSetState('username', event)} />
+                  <Form.Control
+                    type="text"
+                    placeholder="Username login"
+                    value={input.username}
+                    onChange={(event) => handleSetState('username', event)}
+                  />
                 </Col>
                 <Col md={6}>
                   <Form.Label className="f-12 text-muted">Email</Form.Label>
-                  <Form.Control type="email" placeholder="nama@email.com" value={input.email} onChange={(event) => handleSetState('email', event)} />
+                  <Form.Control
+                    type="email"
+                    placeholder="nama@email.com"
+                    value={input.email}
+                    onChange={(event) => handleSetState('email', event)}
+                  />
                 </Col>
                 <Col md={6}>
                   <Form.Label className="f-12 text-muted">Hak Akses</Form.Label>

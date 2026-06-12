@@ -17,6 +17,7 @@ import Table from 'react-bootstrap/Table';
 
 // project-imports
 import MainCard from 'components/MainCard';
+import TablePagination from 'components/TablePagination';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import LoaderButton from '../../../components/LoaderButton';
 import LoaderData from '../../../components/LoaderData';
@@ -25,6 +26,7 @@ import RoleServices from '../../../services/RoleServices';
 import { useAlert } from '../../../utils/alertContext';
 
 const defaultExpanded = ['dashboard', 'masterData', 'order', 'finance'];
+const pageSize = 10;
 
 const countMenuNodes = (menus) =>
   menus.reduce((total, item) => {
@@ -46,10 +48,15 @@ export default function PermissionList() {
   const [menuName, setMenuName] = useState('');
   const [keywords, setKeywords] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [keywords, selectedStatus]);
 
   const fetchData = async () => {
     setLoadingData(true);
@@ -96,6 +103,12 @@ export default function PermissionList() {
   );
 
   const hasActiveFilter = Boolean(keywords || selectedStatus);
+  const pageCount = Math.max(Math.ceil(filteredData.length / pageSize), 1);
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+
+    return filteredData.slice(startIndex, startIndex + pageSize);
+  }, [currentPage, filteredData]);
 
   const resetForm = () => {
     setRoleId(null);
@@ -315,8 +328,8 @@ export default function PermissionList() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredData.length > 0 ? (
-                    filteredData.map((item) => (
+                  {paginatedData.length > 0 ? (
+                    paginatedData.map((item) => (
                       <tr key={item.id}>
                         <td>
                           <div className="fw-semibold">{item.name || '-'}</div>
@@ -333,7 +346,12 @@ export default function PermissionList() {
                             <Button className="rounded-circle" variant="outline-primary" size="sm" onClick={() => showEditMenu(item.id)}>
                               <i className="ti ti-pencil" />
                             </Button>
-                            <Button className="rounded-circle" variant="outline-danger" size="sm" onClick={() => handleShowConfirm(item.id)}>
+                            <Button
+                              className="rounded-circle"
+                              variant="outline-danger"
+                              size="sm"
+                              onClick={() => handleShowConfirm(item.id)}
+                            >
                               <i className="ti ti-trash" />
                             </Button>
                           </Stack>
@@ -349,7 +367,9 @@ export default function PermissionList() {
                           </div>
                           <h5 className="mb-1">{hasActiveFilter ? 'Role tidak ditemukan' : 'Belum ada data role'}</h5>
                           <p className="text-muted mb-3">
-                            {hasActiveFilter ? 'Ubah kata kunci atau status untuk melihat role lain.' : 'Tambahkan role untuk mulai mengatur hak akses.'}
+                            {hasActiveFilter
+                              ? 'Ubah kata kunci atau status untuk melihat role lain.'
+                              : 'Tambahkan role untuk mulai mengatur hak akses.'}
                           </p>
                           {hasActiveFilter ? (
                             <Button variant="light-primary" onClick={resetFilters}>
@@ -369,6 +389,14 @@ export default function PermissionList() {
               </>
             )}
           </Table>
+          <TablePagination
+            currentPage={currentPage}
+            onPageChange={setCurrentPage}
+            pageCount={pageCount}
+            pageSize={pageSize}
+            total={filteredData.length}
+            itemLabel="role"
+          />
         </MainCard>
       </Stack>
 
@@ -396,7 +424,9 @@ export default function PermissionList() {
                       <div className="text-muted f-12">Menu Dipilih</div>
                       <h4 className="mb-0">{checked.length}</h4>
                     </div>
-                    <small className="text-muted">Pilih menu yang boleh diakses oleh role ini. Perubahan role aktif akan diterapkan setelah disimpan.</small>
+                    <small className="text-muted">
+                      Pilih menu yang boleh diakses oleh role ini. Perubahan role aktif akan diterapkan setelah disimpan.
+                    </small>
                   </Stack>
                 </Card.Body>
               </Card>

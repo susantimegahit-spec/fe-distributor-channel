@@ -9,13 +9,13 @@ import Card from 'react-bootstrap/Card';
 import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
 import InputGroup from 'react-bootstrap/InputGroup';
-import Pagination from 'react-bootstrap/Pagination';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
 
 // project-imports
 import MainCard from 'components/MainCard';
+import TablePagination from 'components/TablePagination';
 import OrderServices from '../../services/OrderServices';
 import LoaderData from '../../components/LoaderData';
 import { currency } from '../../utils/global';
@@ -43,6 +43,7 @@ const statusLabel = {
 };
 
 const initialOrders = [];
+const pageSize = 10;
 
 export default function OrderList() {
   const [orders, setOrders] = useState([]);
@@ -51,10 +52,15 @@ export default function OrderList() {
   const [status, setStatus] = useState('');
   const [date, setDate] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [date, distributor, keywords, status]);
 
   const filteredOrders = useMemo(() => {
     const normalizedKeyword = keywords.trim().toLowerCase();
@@ -82,6 +88,12 @@ export default function OrderList() {
   );
 
   const hasActiveFilter = Boolean(keywords || distributor || status || date);
+  const pageCount = Math.max(Math.ceil(filteredOrders.length / pageSize), 1);
+  const paginatedOrders = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+
+    return filteredOrders.slice(startIndex, startIndex + pageSize);
+  }, [currentPage, filteredOrders]);
 
   const resetFilters = () => {
     setKeywords('');
@@ -242,8 +254,8 @@ export default function OrderList() {
             </tbody>
           ) : (
             <tbody>
-              {filteredOrders.length > 0 ? (
-                filteredOrders.map((order) => (
+              {paginatedOrders.length > 0 ? (
+                paginatedOrders.map((order) => (
                   <tr key={order.id}>
                     <td className="fw-semibold">{order.order_no}</td>
                     <td>{order.customer_name}</td>
@@ -307,16 +319,14 @@ export default function OrderList() {
           )}
         </Table>
 
-        <Stack direction="horizontal" gap={2} className="flex-wrap justify-content-between mt-3">
-          <small className="text-muted">
-            Menampilkan {filteredOrders.length} dari {orders.length} order
-          </small>
-          <Pagination className="mb-0">
-            <Pagination.Prev disabled />
-            <Pagination.Item active>{1}</Pagination.Item>
-            <Pagination.Next disabled />
-          </Pagination>
-        </Stack>
+        <TablePagination
+          currentPage={currentPage}
+          onPageChange={setCurrentPage}
+          pageCount={pageCount}
+          pageSize={pageSize}
+          total={filteredOrders.length}
+          itemLabel="order"
+        />
       </MainCard>
     </Stack>
   );

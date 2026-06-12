@@ -18,6 +18,7 @@ import PriceServices from '../../services/PriceServices';
 import LoaderFull from '../../components/LoaderFull';
 
 export default function OrderPost() {
+  const roleId = getCookies('role');
   const navigate = useNavigate();
   const { id } = useParams();
   const isDetailMode = Boolean(id);
@@ -158,6 +159,7 @@ export default function OrderPost() {
   };
 
   const mapOrderLine = (line) => {
+    console.log('line => ', line);
     const itemCode = getValue(line, ['item_code', 'itemCode', 'ItemCode', 'item.item_code', 'item.code', 'code']);
     const itemName = getValue(
       line,
@@ -479,6 +481,9 @@ export default function OrderPost() {
       itemArr[index].itemCode = e;
       itemArr[index].unitMsr = e.unitMsr;
       itemArr[index].unitPrice = resp.data.data[0].price;
+      if (itemArr[index].quantity > 0) {
+        itemArr[index].lineTotal = resp.data.data[0].price * itemArr[index].quantity;
+      }
       setItemArr([...itemArr]);
     }
     // const response = await
@@ -607,133 +612,53 @@ export default function OrderPost() {
   const grandTotal = Math.max(orderSubtotal - discountTotal, 0);
 
   const handleSubmitOrder = async (type) => {
-    setLoadingSubmit(true);
-    if (type === 'draft') {
-      // create or edit draft
-      if (id) {
-        // edit draft
-        let arrItem = [];
-        itemArr.map((item) => {
-          let data = {
-            item_code: item?.itemCode?.value,
-            quantity: item?.quantity,
-            unit_msr: item?.unitMsr,
-            uom_entry: item?.itemCode?.uomEntry,
-            whs_code: item?.whsCode?.value,
-            unit_price: item?.unitPrice,
-            vat_group: item?.vatGroup?.value,
-            line_total: item?.lineTotal,
-            free_text: item?.freeText,
-            ocr_code: item?.ocrCode?.value,
-            ocr_code2: item?.ocrCode2?.value,
-            ocr_code3: item?.ocrCode3?.value
-          };
-          arrItem.push(data);
-        });
-        const payload = {
-          card_code: orderInput.cardCode,
-          po_number: orderInput.numAtCard,
-          doc_date: orderInput.docDate,
-          doc_due_date: orderInput.docDueDate,
-          slp_code: orderInput.slpCode,
-          cntct: orderInput.cnctCode,
-          pay_to_code: orderInput.address?.value,
-          address: orderInput.address?.label,
-          ship_to_code: orderInput.address2.value,
-          address2: orderInput.address2?.label,
-          comments: orderInput.comments,
-          lines: arrItem
-        };
+    let arrItem = [];
+    itemArr.map((item) => {
+      let data = {
+        item_code: item?.itemCode?.value,
+        quantity: item?.quantity,
+        unit_msr: item?.unitMsr,
+        uom_entry: item?.itemCode?.uomEntry,
+        whs_code: item?.whsCode?.value,
+        unit_price: item?.unitPrice,
+        vat_group: item?.vatGroup?.value,
+        line_total: item?.lineTotal,
+        free_text: item?.freeText,
+        ocr_code: item?.ocrCode?.value,
+        ocr_code2: item?.ocrCode2?.value,
+        ocr_code3: item?.ocrCode3?.value
+      };
+      arrItem.push(data);
+    });
 
-        const resp = await OrderServices.putOrder(id, payload);
-        if (resp.data.success) {
-          showAlert(resp.data.message, 'success');
-          setLoadingSubmit(false);
-          navigate(-1);
-        } else {
-          showAlert(resp.data.message, 'danger');
-          setLoadingSubmit(false);
-        }
+    const payload = {
+      card_code: orderInput.cardCode,
+      po_number: orderInput.numAtCard,
+      doc_date: orderInput.docDate,
+      doc_due_date: orderInput.docDueDate,
+      slp_code: orderInput.slpCode,
+      cntct: orderInput.cnctCode,
+      pay_to_code: orderInput.address?.value,
+      address: orderInput.address?.label,
+      ship_to_code: orderInput.address2.value,
+      address2: orderInput.address2?.label,
+      comments: orderInput.comments,
+      status: type,
+      id_discount: discId,
+      lines: arrItem
+    };
+
+    if (id) {
+      const resp = await OrderServices.putOrder(id, payload);
+      if (resp.data.success) {
+        showAlert(resp.data.message, 'success');
+        setLoadingSubmit(false);
+        navigate(-1);
       } else {
-        // create draft
-        let arrItem = [];
-        itemArr.map((item) => {
-          let data = {
-            item_code: item?.itemCode?.value,
-            quantity: item?.quantity,
-            unit_msr: item?.unitMsr,
-            uom_entry: item?.itemCode?.uomEntry,
-            whs_code: item?.whsCode?.value,
-            unit_price: item?.unitPrice,
-            vat_group: item?.vatGroup?.value,
-            line_total: item?.lineTotal,
-            free_text: item?.freeText,
-            ocr_code: item?.ocrCode?.value,
-            ocr_code2: item?.ocrCode2?.value,
-            ocr_code3: item?.ocrCode3?.value
-          };
-          arrItem.push(data);
-        });
-        const payload = {
-          card_code: orderInput.cardCode,
-          po_number: orderInput.numAtCard,
-          doc_date: orderInput.docDate,
-          doc_due_date: orderInput.docDueDate,
-          slp_code: orderInput.slpCode,
-          cntct: orderInput.cnctCode,
-          pay_to_code: orderInput.address?.value,
-          address: orderInput.address?.label,
-          ship_to_code: orderInput.address2.value,
-          address2: orderInput.address2?.label,
-          comments: orderInput.comments,
-          lines: arrItem
-        };
-
-        const resp = await OrderServices.postOrder(payload);
-        if (resp.data.success) {
-          showAlert(resp.data.message, 'success');
-          setLoadingSubmit(false);
-          navigate(-1);
-        } else {
-          showAlert(resp.data.message, 'danger');
-          setLoadingSubmit(false);
-        }
+        showAlert(resp.data.message, 'danger');
+        setLoadingSubmit(false);
       }
     } else {
-      // save lock draft
-      let arrItem = [];
-      itemArr.map((item) => {
-        let data = {
-          item_code: item?.itemCode?.value,
-          quantity: item?.quantity,
-          unit_msr: item?.unitMsr,
-          uom_entry: item?.itemCode?.uomEntry,
-          whs_code: item?.whsCode?.value,
-          unit_price: item?.unitPrice,
-          vat_group: item?.vatGroup?.value,
-          line_total: item?.lineTotal,
-          free_text: item?.freeText,
-          ocr_code: item?.ocrCode?.value,
-          ocr_code2: item?.ocrCode2?.value,
-          ocr_code3: item?.ocrCode3?.value
-        };
-        arrItem.push(data);
-      });
-      const payload = {
-        card_code: orderInput.cardCode,
-        po_number: orderInput.numAtCard,
-        doc_date: orderInput.docDate,
-        doc_due_date: orderInput.docDueDate,
-        slp_code: orderInput.slpCode,
-        cntct: orderInput.cnctCode,
-        pay_to_code: orderInput.address?.value,
-        address: orderInput.address?.label,
-        ship_to_code: orderInput.address2.value,
-        address2: orderInput.address2?.label,
-        comments: orderInput.comments,
-        lines: arrItem
-      };
-
       const resp = await OrderServices.postOrder(payload);
       if (resp.data.success) {
         showAlert(resp.data.message, 'success');
@@ -742,6 +667,61 @@ export default function OrderPost() {
       } else {
         showAlert(resp.data.message, 'danger');
         setLoadingSubmit(false);
+      }
+    }
+  };
+
+  const handlePostingData = async (type) => {
+    setLoadingSubmit(true);
+    let arrItem = [];
+    itemArr.map((item) => {
+      let data = {
+        item_code: item?.itemCode?.value,
+        quantity: item?.quantity,
+        unit_msr: item?.unitMsr,
+        uom_entry: item?.itemCode?.uomEntry,
+        whs_code: item?.whsCode?.value,
+        unit_price: item?.unitPrice,
+        vat_group: item?.vatGroup?.value,
+        line_total: item?.lineTotal,
+        free_text: item?.freeText,
+        ocr_code: item?.ocrCode?.value,
+        ocr_code2: item?.ocrCode2?.value,
+        ocr_code3: item?.ocrCode3?.value
+      };
+      arrItem.push(data);
+    });
+
+    const payload = {
+      card_code: orderInput.cardCode,
+      po_number: orderInput.numAtCard,
+      doc_date: orderInput.docDate,
+      doc_due_date: orderInput.docDueDate,
+      slp_code: orderInput.slpCode,
+      cntct: orderInput.cnctCode,
+      pay_to_code: orderInput.address?.value,
+      address: orderInput.address?.label,
+      ship_to_code: orderInput.address2.value,
+      address2: orderInput.address2?.label,
+      comments: orderInput.comments,
+      status: type,
+      id_discount: discId,
+      lines: arrItem
+    };
+
+    if (id) {
+      const resp = await OrderServices.postOrderPosting(id, payload);
+      try {
+        if (resp.data.success) {
+          showAlert(resp.data.message, 'success');
+          setLoadingSubmit(false);
+          navigate(-1);
+        } else {
+          showAlert(resp.data.message, 'danger');
+          setLoadingSubmit(false);
+        }
+      } catch (error) {
+        console.log('err =>', error)
       }
     }
   };
@@ -792,14 +772,20 @@ export default function OrderPost() {
                   <i className="ti ti-arrow-left me-1" />
                   Batal
                 </Button>
-                <Button onClick={() => handleSubmitOrder('draft')} variant="primary">
+                <Button onClick={() => handleSubmitOrder('DRAFT')} variant="secondary">
                   <i className="ti ti-device-floppy me-1" />
                   Simpan Draft
                 </Button>
-                <Button onClick={() => handleSubmitOrder('create')} variant="success">
+                <Button onClick={() => handleSubmitOrder('WAITING_APPROVAL')} variant="primary">
                   <i className="ti ti-send" />
                   Kirim
                 </Button>
+                {roleId === 5 || roleId === 2 ? (
+                  <Button onClick={() => handlePostingData('APPROVED')} variant="success">
+                    <i className="ti ti-checks" />
+                    Approve
+                  </Button>
+                ) : null}
               </Stack>
             }
           >
@@ -881,7 +867,7 @@ export default function OrderPost() {
                         </Col>
                         <Col md={6} xl={4}>
                           <Form.Group>
-                            <Form.Label className="small text-muted">Jatuh Tempo</Form.Label>
+                            <Form.Label className="small text-muted">Request Tanggal Kirim</Form.Label>
                             <Form.Control
                               onChange={(e) => handleSetInput(e, 'docDueDate')}
                               value={orderInput.docDueDate}
@@ -1021,7 +1007,7 @@ export default function OrderPost() {
                       <Form.Control
                         type="number"
                         onChange={(e) => handleChangeInputLine(index, 'quantity', e)}
-                        value={item.quantity}
+                        value={Math.round(item.quantity)}
                         size="sm"
                         min="0"
                       />
@@ -1034,7 +1020,7 @@ export default function OrderPost() {
                         readOnly
                         type="number"
                         onChange={(e) => handleChangeInputLine(index, 'unitPrice', e)}
-                        value={item.unitPrice}
+                        value={Math.round(item.unitPrice)}
                         size="sm"
                         min="0"
                       />
@@ -1054,7 +1040,7 @@ export default function OrderPost() {
                         readOnly
                         type="number"
                         onChange={(e) => handleChangeInputLine(index, 'lineTotal', e)}
-                        value={item.lineTotal}
+                        value={Math.round(item.lineTotal)}
                         size="sm"
                         min="0"
                         placeholder={String(Number(item.quantity || 0) * Number(item.unitPrice || 0))}
@@ -1195,7 +1181,11 @@ export default function OrderPost() {
           </Button>
         </Modal.Footer>
       </Modal>
-      {loadingSubmit ? <LoaderFull /> : null}
+      {loadingSubmit ? (
+        <div className="text-center">
+          <LoaderFull />
+        </div>
+      ) : null}
     </>
   );
 }
