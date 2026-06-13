@@ -42,10 +42,13 @@ const statusVariant = {
 };
 
 const statusLabel = {
-  draft: 'Draft',
-  submitted: 'Diajukan',
-  approved: 'Disetujui',
-  rejected: 'Ditolak'
+  DRAFT: 'secondary',
+  WAITING_APPROVAL: 'warning',
+  DELIVERY: 'info',
+  APPROVED: 'primary',
+  ARRIVED: 'success',
+  REJECTED: 'orange',
+  FAILED: 'danger'
 };
 
 const initialOrders = [];
@@ -87,9 +90,12 @@ export default function OrderList() {
   const summary = useMemo(
     () => ({
       total: orders.length,
-      submitted: orders.filter((order) => order.status === 'submitted').length,
-      approved: orders.filter((order) => order.status === 'approved').length,
-      rejected: orders.filter((order) => order.status === 'rejected').length
+      DRAFT: orders.filter((order) => order.status === 'DRAFT').length,
+      APPROVED: orders.filter((order) => order.status === 'APPROVED').length,
+      WAITING_APPROVAL: orders.filter((order) => order.status === 'WAITING_APPROVAL').length,
+      REJECTED: orders.filter((order) => order.status === 'REJECTED').length,
+      FAILED: orders.filter((order) => order.status === 'FAILED').length,
+      // waiti: orders.filter((order) => order.status === 'rejected').length
     }),
     [orders]
   );
@@ -136,7 +142,7 @@ export default function OrderList() {
         }
       >
         <Row className="g-3">
-          <Col sm={6} xl={3}>
+          <Col sm={6} xl={2}>
             <Card className="border mb-0 h-100">
               <Card.Body className="py-3">
                 <Stack direction="horizontal" gap={3} className="justify-content-between">
@@ -151,13 +157,28 @@ export default function OrderList() {
               </Card.Body>
             </Card>
           </Col>
-          <Col sm={6} xl={3}>
+          <Col sm={6} xl={2}>
             <Card className="border mb-0 h-100">
               <Card.Body className="py-3">
                 <Stack direction="horizontal" gap={3} className="justify-content-between">
                   <div>
-                    <div className="text-muted f-12">Diajukan</div>
-                    <h4 className="mb-0">{summary.submitted}</h4>
+                    <div className="text-muted f-12">Draft</div>
+                    <h4 className="mb-0">{summary.DRAFT}</h4>
+                  </div>
+                  <span className="avtar avtar-s bg-light-secondary text-secondary">
+                    <i className="ti ti-clipboard-list" />
+                  </span>
+                </Stack>
+              </Card.Body>
+            </Card>
+          </Col>
+          <Col sm={6} xl={2}>
+            <Card className="border mb-0 h-100">
+              <Card.Body className="py-3">
+                <Stack direction="horizontal" gap={3} className="justify-content-between">
+                  <div>
+                    <div className="text-muted f-12">Waiting</div>
+                    <h4 className="mb-0">{summary.WAITING_APPROVAL}</h4>
                   </div>
                   <span className="avtar avtar-s bg-light-warning text-warning">
                     <i className="ti ti-clock-hour-4" />
@@ -166,31 +187,46 @@ export default function OrderList() {
               </Card.Body>
             </Card>
           </Col>
-          <Col sm={6} xl={3}>
+          <Col sm={6} xl={2}>
             <Card className="border mb-0 h-100">
               <Card.Body className="py-3">
                 <Stack direction="horizontal" gap={3} className="justify-content-between">
                   <div>
-                    <div className="text-muted f-12">Disetujui</div>
-                    <h4 className="mb-0">{summary.approved}</h4>
+                    <div className="text-muted f-12">Approved</div>
+                    <h4 className="mb-0">{summary.APPROVED}</h4>
                   </div>
-                  <span className="avtar avtar-s bg-light-success text-success">
-                    <i className="ti ti-circle-check" />
+                  <span className="avtar avtar-s bg-light-primary text-primary">
+                    <i className="ti ti-user-check" />
                   </span>
                 </Stack>
               </Card.Body>
             </Card>
           </Col>
-          <Col sm={6} xl={3}>
+          <Col sm={6} xl={2}>
             <Card className="border mb-0 h-100">
               <Card.Body className="py-3">
                 <Stack direction="horizontal" gap={3} className="justify-content-between">
                   <div>
-                    <div className="text-muted f-12">Ditolak</div>
-                    <h4 className="mb-0">{summary.rejected}</h4>
+                    <div className="text-muted f-12">Rejected</div>
+                    <h4 className="mb-0">{summary.REJECTED}</h4>
+                  </div>
+                  <span className="avtar avtar-s bg-light-orange text-orange">
+                    <i className="ti ti-user-cancel" />
+                  </span>
+                </Stack>
+              </Card.Body>
+            </Card>
+          </Col>
+          <Col sm={6} xl={2}>
+            <Card className="border mb-0 h-100">
+              <Card.Body className="py-3">
+                <Stack direction="horizontal" gap={3} className="justify-content-between">
+                  <div>
+                    <div className="text-muted f-12">Failed</div>
+                    <h4 className="mb-0">{summary.FAILED}</h4>
                   </div>
                   <span className="avtar avtar-s bg-light-danger text-danger">
-                    <i className="ti ti-circle-x" />
+                    <i className="ti ti-forbid" />
                   </span>
                 </Stack>
               </Card.Body>
@@ -270,7 +306,7 @@ export default function OrderList() {
                     <td>{order?.details?.length}</td>
                     <td>{currency(order?.doc_total)}</td>
                     <td>
-                      <Badge bg={statusVariant[order.status] || 'secondary'}>{statusLabel[order.status] || order.status}</Badge>
+                      <Badge bg={statusVariant[order.status] || 'secondary'}>{order.status}</Badge>
                     </td>
                     <td className="text-center">
                       <Button className="rounded-circle" variant="outline-primary" size="sm">

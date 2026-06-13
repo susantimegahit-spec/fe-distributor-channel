@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 
 // react-bootstrap
 import Image from 'react-bootstrap/Image';
+import LogoYellow from 'assets/images/logo-susanti-yellow.png';
 
 // project-import
 import { APP_DEFAULT_PATH } from 'config';
@@ -13,11 +14,11 @@ export const DrawerHeader = () => {
   return (
     <div className="m-header">
       <Link to={APP_DEFAULT_PATH} className="b-brand sm-sidebar-brand">
-        <Image src={SusantiMegahLogo} alt="PT. Susanti Megah" className="sm-sidebar-logo" />
-        <span className="sm-sidebar-brand-text">
+        <Image src={LogoYellow} alt="PT. Susanti Megah" style={{width: '100%'}}/>
+        {/* <span className="sm-sidebar-brand-text">
           <strong>Susanti Megah</strong>
           <small>Distributor Channel</small>
-        </span>
+        </span> */}
       </Link>
     </div>
   );
