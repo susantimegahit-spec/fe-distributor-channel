@@ -51,7 +51,8 @@ export default function MasterEmployee() {
     setLoadingData(true);
     const response = await EmployeeServices.getAllEmployee(keywords);
     if (response.data.success) {
-      setDataSource(response.data.data);
+      let spliceData = response.data.data.splice(1);
+      setDataSource(spliceData);
       setLoadingData(false);
     } else {
       setLoadingData(false);
@@ -133,7 +134,7 @@ export default function MasterEmployee() {
                 </Card.Body>
               </Card>
             </Col>
-            <Col md={4}>
+            {/* <Col md={4}>
               <Card className="border mb-0 h-100">
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
@@ -162,7 +163,7 @@ export default function MasterEmployee() {
                   </Stack>
                 </Card.Body>
               </Card>
-            </Col>
+            </Col> */}
           </Row>
         </MainCard>
 
@@ -182,21 +183,21 @@ export default function MasterEmployee() {
                 />
               </InputGroup>
             </Col>
-            <Col lg={3} md={6}>
+            {/* <Col lg={3} md={6}>
               <Form.Label className="f-12 text-muted">Status</Form.Label>
               <Form.Select value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value)}>
                 <option value="">Semua Status</option>
                 <option value="1">Aktif</option>
                 <option value="0">Tidak Aktif</option>
               </Form.Select>
-            </Col>
+            </Col> */}
             <Col lg={2} md={6}>
               <Button className="w-100" variant="light-secondary" disabled={!hasActiveFilter} onClick={resetFilters}>
                 <i className="ti ti-refresh me-1" />
                 Reset
               </Button>
             </Col>
-            <Col lg={2} md={6} className="text-lg-end">
+            <Col lg={5} md={6} className="text-lg-end">
               <span className="text-muted f-12">Menampilkan</span>
               <div className="fw-semibold">
                 {filteredData.length} dari {dataSource.length}
