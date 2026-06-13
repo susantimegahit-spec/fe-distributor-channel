@@ -19,20 +19,26 @@ import TablePagination from 'components/TablePagination';
 import OrderServices from '../../services/OrderServices';
 import LoaderData from '../../components/LoaderData';
 import { currency } from '../../utils/global';
+import { getCookies } from '../../utils/cookies';
 
 const statusOptions = [
   { value: '', label: 'Semua Status' },
-  { value: 'draft', label: 'Draft' },
-  { value: 'submitted', label: 'Diajukan' },
-  { value: 'approved', label: 'Disetujui' },
-  { value: 'rejected', label: 'Ditolak' }
+  { value: 'DRAFT', label: 'Draft' },
+  { value: 'WAITING_APPROVAL', label: 'Waiting Approval' },
+  { value: 'APPROVED', label: 'Approved' },
+  { value: 'ARRIVED', label: 'Arrived' },
+  { value: 'REJECTED', label: 'Rejected' },
+  { value: 'FAILED', label: 'Failed' }
 ];
 
 const statusVariant = {
-  draft: 'secondary',
-  submitted: 'warning',
-  approved: 'success',
-  rejected: 'danger'
+  DRAFT: 'secondary',
+  WAITING_APPROVAL: 'warning',
+  DELIVERY: 'info',
+  APPROVED: 'primary',
+  ARRIVED: 'success',
+  REJECTED: 'orange',
+  FAILED: 'danger'
 };
 
 const statusLabel = {
@@ -46,6 +52,7 @@ const initialOrders = [];
 const pageSize = 10;
 
 export default function OrderList() {
+  const roleId = getCookies('role');
   const [orders, setOrders] = useState([]);
   const [keywords, setKeywords] = useState('');
   const [distributor, setDistributor] = useState('');
@@ -270,7 +277,17 @@ export default function OrderList() {
                         <i className="ti ti-eye" />
                       </Button>
                       &nbsp;
-                      {order.status === 'DRAFT' ? (
+                      {roleId === 1 && order.status === 'DRAFT' ? (
+                        <Button
+                          as={Link}
+                          to={`/order/order-create/${order.id}`}
+                          className="rounded-circle"
+                          variant="outline-success"
+                          size="sm"
+                        >
+                          <i className="ti ti-pencil" />
+                        </Button>
+                      ) : roleId !== 1 && order.status !== 'APPROVED' ? (
                         <Button
                           as={Link}
                           to={`/order/order-create/${order.id}`}

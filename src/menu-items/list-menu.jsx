@@ -152,26 +152,26 @@ const listMenu = [
       // }
     ]
   },
-  // {
-  //   id: 'finance',
-  //   title: 'Finance',
-  //   value: 'finance',
-  //   label: 'Finance',
-  //   type: 'group',
-  //   selected: true,
-  //   children: [
-  //     {
-  //       id: 'finance-reward',
-  //       title: 'Reward',
-  //       value: 'finance-reward',
-  //       label: 'Reward',
-  //       type: 'item',
-  //       selected: true,
-  //       icon: 'ti ti-tag',
-  //       url: '/finance/reward'
-  //     }
-  //   ]
-  // }
+  {
+    id: 'finance',
+    title: 'Finance',
+    value: 'finance',
+    label: 'Finance',
+    type: 'group',
+    selected: true,
+    children: [
+      {
+        id: 'finance-reward',
+        title: 'Reward',
+        value: 'finance-reward',
+        label: 'Reward',
+        type: 'item',
+        selected: true,
+        icon: 'ti ti-tag',
+        url: '/finance/reward'
+      }
+    ]
+  }
 ];
 
 export default listMenu;

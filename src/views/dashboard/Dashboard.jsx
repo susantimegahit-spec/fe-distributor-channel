@@ -89,7 +89,7 @@ export default function Dashboard() {
                       <span className={`avtar avtar-s bg-light-${item.color} text-${item.color}`}>
                         <i className={item.icon} />
                       </span>
-                      <Button as={Link} to={item.url} variant="light-secondary" size="sm" className="rounded-circle">
+                      <Button variant="light-secondary" size="sm" className="rounded-circle">
                         <i className="ti ti-arrow-up-right" />
                       </Button>
                     </Stack>
@@ -105,7 +105,7 @@ export default function Dashboard() {
         </Row>
       </MainCard>
 
-      <Row className="g-3">
+      {/* <Row className="g-3">
         <Col xl={8}>
           <MainCard
             title={
@@ -142,30 +142,30 @@ export default function Dashboard() {
         <Col xl={4}>
           <MainCard title="Menu Tersedia">
             <Stack gap={2}>
-              <Button as={Link} to="/master/distributor" variant="light-secondary" className="justify-content-start">
+              <Button variant="light-secondary" className="justify-content-start">
                 <i className="ti ti-building-store me-2" />
                 Daftar Distributor
               </Button>
-              <Button as={Link} to="/master/product" variant="light-secondary" className="justify-content-start">
+              <Button variant="light-secondary" className="justify-content-start">
                 <i className="ti ti-clipboard-list me-2" />
                 Daftar Item
               </Button>
-              <Button as={Link} to="/master/employee" variant="light-secondary" className="justify-content-start">
+              <Button variant="light-secondary" className="justify-content-start">
                 <i className="ti ti-users me-2" />
                 Daftar Sales
               </Button>
-              <Button as={Link} to="/master/warehouse" variant="light-secondary" className="justify-content-start">
+              <Button variant="light-secondary" className="justify-content-start">
                 <i className="ti ti-building-warehouse me-2" />
                 Daftar Warehouse
               </Button>
-              <Button as={Link} to="/order/order-list" variant="light-secondary" className="justify-content-start">
+              <Button variant="light-secondary" className="justify-content-start">
                 <i className="ph ph-list-bullets me-2" />
                 Daftar Pesanan
               </Button>
             </Stack>
           </MainCard>
         </Col>
-      </Row>
+      </Row> */}
     </Stack>
   );
 }

@@ -77,6 +77,7 @@ const notifications = [
 // =============================|| MAIN LAYOUT - HEADER ||============================== //
 
 export default function Header() {
+  const roleId = getCookies('role');
   const { menuMaster } = useGetMenuMaster();
   const { showAlert } = useAlert();
   const drawerOpen = menuMaster?.isDashboardDrawerOpened;
@@ -143,7 +144,7 @@ export default function Header() {
     };
 
     const response = await UserServices.postChangePassword(payload);
-    console.log('resp => ', response.data.message)
+    console.log('resp => ', response.data.message);
     try {
       if (response.data.success) {
         setLoadingSubmit(false);
@@ -154,7 +155,7 @@ export default function Header() {
         showAlert(response.data.message, 'danger');
       }
     } catch (error) {
-      console.log(error)
+      console.log(error);
       setLoadingSubmit(false);
     }
   };
@@ -290,24 +291,30 @@ export default function Header() {
                   </div>
 
                   <div className="profile-notification-scroll position-relative">
-                    <Dropdown.Item as={Link} to="/setting/user-list" className="sm-account-item">
-                      <span className="sm-account-item-icon">
-                        <i className="ti ti-users-group" />
-                      </span>
-                      <span>
-                        <strong>Users</strong>
-                        <small>Kelola daftar pengguna</small>
-                      </span>
-                    </Dropdown.Item>
-                    <Dropdown.Item as={Link} to="/setting/role-permission" className="sm-account-item">
-                      <span className="sm-account-item-icon">
-                        <i className="ph ph-gear" />
-                      </span>
-                      <span>
-                        <strong>Hak Akses</strong>
-                        <small>Atur role dan permission</small>
-                      </span>
-                    </Dropdown.Item>
+                    {roleId === 5 && (
+                      <Dropdown.Item as={Link} to="/setting/user-list" className="sm-account-item">
+                        <span className="sm-account-item-icon">
+                          <i className="ti ti-users-group" />
+                        </span>
+
+                        <span>
+                          <strong>Users</strong>
+                          <small>Kelola daftar pengguna</small>
+                        </span>
+                      </Dropdown.Item>
+                    )}
+                    {roleId === 5 && (
+                      <Dropdown.Item as={Link} to="/setting/role-permission" className="sm-account-item">
+                        <span className="sm-account-item-icon">
+                          <i className="ph ph-gear" />
+                        </span>
+
+                        <span>
+                          <strong>Hak Akses</strong>
+                          <small>Atur role dan permission</small>
+                        </span>
+                      </Dropdown.Item>
+                    )}
                     <Dropdown.Item as="button" className="sm-account-item" onClick={() => setShowChangePass(true)}>
                       <span className="sm-account-item-icon">
                         <i className="ph ph-lock-key" />

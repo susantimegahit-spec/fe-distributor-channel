@@ -721,7 +721,7 @@ export default function OrderPost() {
           setLoadingSubmit(false);
         }
       } catch (error) {
-        console.log('err =>', error)
+        console.log('err =>', error);
       }
     }
   };
@@ -772,7 +772,7 @@ export default function OrderPost() {
                   <i className="ti ti-arrow-left me-1" />
                   Batal
                 </Button>
-                <Button onClick={() => handleSubmitOrder('DRAFT')} variant="secondary">
+                <Button onClick={() => handleSubmitOrder('DRAFT')} variant="warning">
                   <i className="ti ti-device-floppy me-1" />
                   Simpan Draft
                 </Button>
@@ -793,7 +793,7 @@ export default function OrderPost() {
               <LoaderData />
             ) : (
               <Row className="g-3">
-                <Col lg={8}>
+                <Col lg={roleId === 1 ? 12 : 8}>
                   <Card className="border mb-0 h-100">
                     <Card.Header className="py-3">
                       <Stack direction="horizontal" gap={2} className="justify-content-between">
@@ -833,20 +833,22 @@ export default function OrderPost() {
                             />
                           </Form.Group>
                         </Col>
-                        <Col md={6} xl={4}>
-                          <Form.Group>
-                            <Form.Label className="small text-muted">Kode Sales</Form.Label>
-                            <Select
-                              styles={customStyles}
-                              value={listEmployee.find((item) => item.value === orderInput.slpCode) || null}
-                              options={listEmployee}
-                              menuPosition="fixed"
-                              onChange={handleSelectSales}
-                              placeholder="Pilih sales"
-                              isClearable
-                            />
-                          </Form.Group>
-                        </Col>
+                        {roleId === 5 || roleId === 2 ? (
+                          <Col md={6} xl={4}>
+                            <Form.Group>
+                              <Form.Label className="small text-muted">Kode Sales</Form.Label>
+                              <Select
+                                styles={customStyles}
+                                value={listEmployee.find((item) => item.value === orderInput.slpCode) || null}
+                                options={listEmployee}
+                                menuPosition="fixed"
+                                onChange={handleSelectSales}
+                                placeholder="Pilih sales"
+                                isClearable
+                              />
+                            </Form.Group>
+                          </Col>
+                        ) : null}
                         <Col md={6} xl={4}>
                           <Form.Group>
                             <Form.Label className="small text-muted">Kontak Pelanggan</Form.Label>
@@ -917,42 +919,44 @@ export default function OrderPost() {
                     </Card.Body>
                   </Card>
                 </Col>
-                <Col lg={4}>
-                  <Card className="border mb-0 h-100">
-                    <Card.Header className="py-3">
-                      <h6 className="mb-0">Ringkasan Order</h6>
-                      <small className="text-muted">Estimasi berdasarkan detail produk</small>
-                    </Card.Header>
-                    <Card.Body>
-                      <Stack gap={3}>
-                        <Stack direction="horizontal" className="justify-content-between">
-                          <span className="text-muted">Jumlah Item</span>
-                          <strong>{itemArr.length}</strong>
-                        </Stack>
-                        <Stack direction="horizontal" className="justify-content-between">
-                          <span className="text-muted">Subtotal</span>
-                          <strong>{formatCurrency(orderSubtotal)}</strong>
-                        </Stack>
-                        <Stack direction="horizontal" className="justify-content-between">
-                          <span className="text-muted">Diskon {discId ? `- ${discId}` : ''}</span>
-                          <Button variant="link" className="p-0 text-decoration-none" onClick={() => setShowDisc(true)}>
-                            {formatCurrency(discountTotal)}
+                {roleId === 5 || roleId === 2 ? (
+                  <Col lg={4}>
+                    <Card className="border mb-0 h-100">
+                      <Card.Header className="py-3">
+                        <h6 className="mb-0">Ringkasan Order</h6>
+                        <small className="text-muted">Estimasi berdasarkan detail produk</small>
+                      </Card.Header>
+                      <Card.Body>
+                        <Stack gap={3}>
+                          <Stack direction="horizontal" className="justify-content-between">
+                            <span className="text-muted">Jumlah Item</span>
+                            <strong>{itemArr.length}</strong>
+                          </Stack>
+                          <Stack direction="horizontal" className="justify-content-between">
+                            <span className="text-muted">Subtotal</span>
+                            <strong>{formatCurrency(orderSubtotal)}</strong>
+                          </Stack>
+                          <Stack direction="horizontal" className="justify-content-between">
+                            <span className="text-muted">Diskon {discId ? `- ${discId}` : ''}</span>
+                            <Button variant="link" className="p-0 text-decoration-none" onClick={() => setShowDisc(true)}>
+                              {formatCurrency(discountTotal)}
+                            </Button>
+                          </Stack>
+                          <div className="border-top pt-3">
+                            <Stack direction="horizontal" className="justify-content-between">
+                              <span className="fw-semibold">Grand Total</span>
+                              <h5 className="mb-0 text-primary">{formatCurrency(grandTotal)}</h5>
+                            </Stack>
+                          </div>
+                          <Button variant="light-primary" onClick={() => setShowDisc(true)}>
+                            <i className="ti ti-discount-2 me-1" />
+                            Atur Diskon
                           </Button>
                         </Stack>
-                        <div className="border-top pt-3">
-                          <Stack direction="horizontal" className="justify-content-between">
-                            <span className="fw-semibold">Grand Total</span>
-                            <h5 className="mb-0 text-primary">{formatCurrency(grandTotal)}</h5>
-                          </Stack>
-                        </div>
-                        <Button variant="light-primary" onClick={() => setShowDisc(true)}>
-                          <i className="ti ti-discount-2 me-1" />
-                          Atur Diskon
-                        </Button>
-                      </Stack>
-                    </Card.Body>
-                  </Card>
-                </Col>
+                      </Card.Body>
+                    </Card>
+                  </Col>
+                ) : null}
               </Row>
             )}
           </MainCard>
@@ -978,13 +982,17 @@ export default function OrderPost() {
                   <th style={{ minWidth: 90 }}>Qty</th>
                   <th style={{ minWidth: 90 }}>Satuan</th>
                   <th style={{ minWidth: 160 }}>Harga</th>
-                  <th style={{ minWidth: 220 }}>Warehouse</th>
                   <th style={{ minWidth: 160 }}>Total</th>
-                  <th style={{ minWidth: 160 }}>Vat</th>
-                  <th style={{ minWidth: 220 }}>Catatan</th>
-                  <th style={{ minWidth: 220 }}>Cabang</th>
-                  <th style={{ minWidth: 220 }}>Bisnis Unit</th>
-                  <th style={{ minWidth: 220 }}>Department</th>
+                  {roleId !== 1 && (
+                    <>
+                      <th style={{ minWidth: 220 }}>Warehouse</th>
+                      <th style={{ minWidth: 160 }}>Vat</th>
+                      <th style={{ minWidth: 220 }}>Catatan</th>
+                      <th style={{ minWidth: 220 }}>Cabang</th>
+                      <th style={{ minWidth: 220 }}>Bisnis Unit</th>
+                      <th style={{ minWidth: 220 }}>Department</th>
+                    </>
+                  )}
                   <th className="text-center" style={{ width: 72 }}>
                     Aksi
                   </th>
@@ -1026,16 +1034,6 @@ export default function OrderPost() {
                       />
                     </td>
                     <td>
-                      <Select
-                        styles={customStyles}
-                        value={item.whsCode}
-                        options={listWarehouse}
-                        menuPosition="fixed"
-                        onChange={(e) => handleSelectWarehouse(e, index)}
-                        placeholder="Pilih warehouse"
-                      />
-                    </td>
-                    <td>
                       <Form.Control
                         readOnly
                         type="number"
@@ -1046,54 +1044,68 @@ export default function OrderPost() {
                         placeholder={String(Number(item.quantity || 0) * Number(item.unitPrice || 0))}
                       />
                     </td>
-                    <td>
-                      <Select
-                        styles={customStyles}
-                        value={item.vatGroup}
-                        options={listVats}
-                        menuPosition="fixed"
-                        onChange={(e) => handleSelectVat(e, index)}
-                        placeholder="Vat"
-                      />
-                    </td>
-                    <td>
-                      <Form.Control
-                        onChange={(e) => handleChangeInputLine(index, 'freeText', e)}
-                        value={item.freeText}
-                        size="sm"
-                        placeholder="Catatan baris"
-                      />
-                    </td>
-                    <td>
-                      <Select
-                        styles={customStyles}
-                        value={item.ocrCode}
-                        options={listOcr1}
-                        menuPosition="fixed"
-                        onChange={(e) => handleSelectOcr1(e, index)}
-                        placeholder="Pilih cabang"
-                      />
-                    </td>
-                    <td>
-                      <Select
-                        styles={customStyles}
-                        value={item.ocrCode2}
-                        options={listOcr2}
-                        menuPosition="fixed"
-                        onChange={(e) => handleSelectOcr2(e, index)}
-                        placeholder="Pilih unit"
-                      />
-                    </td>
-                    <td>
-                      <Select
-                        styles={customStyles}
-                        value={item.ocrCode3}
-                        options={listOcr3}
-                        menuPosition="fixed"
-                        onChange={(e) => handleSelectOcr3(e, index)}
-                        placeholder="Pilih department"
-                      />
-                    </td>
+                    {roleId !== 1 && (
+                      <>
+                        <td>
+                          <Select
+                            styles={customStyles}
+                            value={item.whsCode}
+                            options={listWarehouse}
+                            menuPosition="fixed"
+                            onChange={(e) => handleSelectWarehouse(e, index)}
+                            placeholder="Pilih warehouse"
+                          />
+                        </td>
+                        <td>
+                          <Select
+                            styles={customStyles}
+                            value={item.vatGroup}
+                            options={listVats}
+                            menuPosition="fixed"
+                            onChange={(e) => handleSelectVat(e, index)}
+                            placeholder="Vat"
+                          />
+                        </td>
+                        <td>
+                          <Form.Control
+                            onChange={(e) => handleChangeInputLine(index, 'freeText', e)}
+                            value={item.freeText}
+                            size="sm"
+                            placeholder="Catatan baris"
+                          />
+                        </td>
+                        <td>
+                          <Select
+                            styles={customStyles}
+                            value={item.ocrCode}
+                            options={listOcr1}
+                            menuPosition="fixed"
+                            onChange={(e) => handleSelectOcr1(e, index)}
+                            placeholder="Pilih cabang"
+                          />
+                        </td>
+                        <td>
+                          <Select
+                            styles={customStyles}
+                            value={item.ocrCode2}
+                            options={listOcr2}
+                            menuPosition="fixed"
+                            onChange={(e) => handleSelectOcr2(e, index)}
+                            placeholder="Pilih unit"
+                          />
+                        </td>
+                        <td>
+                          <Select
+                            styles={customStyles}
+                            value={item.ocrCode3}
+                            options={listOcr3}
+                            menuPosition="fixed"
+                            onChange={(e) => handleSelectOcr3(e, index)}
+                            placeholder="Pilih department"
+                          />
+                        </td>
+                      </>
+                    )}
                     <td className="text-center">
                       {itemArr.length === 1 ? (
                         <Button className="rounded-circle" size="sm" variant="outline-primary" onClick={addItem}>
