@@ -13,6 +13,7 @@ const MasterBuyingPrice = Loadable(lazy(() => import('views/master/MasterBuyingP
 const MasterDistributor = Loadable(lazy(() => import('views/master/MasterDistributor')));
 const MasterEmployee = Loadable(lazy(() => import('views/master/MasterEmployee')));
 const MasterWarehouse = Loadable(lazy(() => import('views/master/MasterWarehouse')));
+const MasterPromo = Loadable(lazy(() => import('views/master/MasterPromo')));
 
 const MasterRoutes = {
   path: '/',
@@ -42,6 +43,10 @@ const MasterRoutes = {
       path: 'master/warehouse',
       element: <MasterWarehouse />
     },
+    {
+      path: 'master/promo',
+      element: <MasterPromo />
+    }
   ]
 };
 

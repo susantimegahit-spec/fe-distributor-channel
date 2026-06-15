@@ -16,6 +16,7 @@ import EmployeeServices from '../../services/EmployeeServices';
 import OrderServices from '../../services/OrderServices';
 import PriceServices from '../../services/PriceServices';
 import LoaderFull from '../../components/LoaderFull';
+import LoaderButton from '../../components/LoaderButton';
 
 export default function OrderPost() {
   const roleId = getCookies('role');
@@ -26,6 +27,7 @@ export default function OrderPost() {
   const distributorId = getCookies('distributorId');
   const [showDisc, setShowDisc] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [loaderDisc, setLoaderDisc] = useState(false);
   const [loadingSubmit, setLoadingSubmit] = useState(false);
   const [listItem, setListItem] = useState([]);
   const [listOcr1, setListOcr1] = useState([]);
@@ -36,6 +38,7 @@ export default function OrderPost() {
   const [discId, setDiscId] = useState('');
   const [listDiscType, setListDiscType] = useState([]);
   const [listVats, setListVats] = useState([]);
+  const [listDistributor, setListDistributor] = useState([]);
   const [orderDetail, setOrderDetail] = useState(null);
 
   const [listAddressB, setListAddressB] = useState([]);
@@ -63,7 +66,7 @@ export default function OrderPost() {
       quantity: '',
       unitMsr: '',
       unitPrice: '',
-      whsCode: null,
+      WhsCode: null,
       lineTotal: '',
       freeText: '',
       ocrCode: null,
@@ -107,6 +110,9 @@ export default function OrderPost() {
     fetchEmployee();
     fetchDiscType();
     fetchVats();
+    if (roleId !== 1) {
+      fetchListDistributor();
+    }
   }, [isDetailMode]);
 
   useEffect(() => {
@@ -167,8 +173,8 @@ export default function OrderPost() {
       itemCode
     );
     const unitMsr = getValue(line, ['unit_msr', 'unitMsr', 'unit', 'UomCode', 'uom_code']);
-    const whsCode = getValue(line, ['whs_code', 'whsCode', 'warehouse_code', 'WhsCode']);
-    const whsName = getValue(line, ['whs_name', 'whsName', 'warehouse_name', 'WhsName', 'warehouse.whs_name', 'warehouse.name'], whsCode);
+    const WhsCode = getValue(line, ['WhsCode', 'WhsCode', 'warehouse_code', 'WhsCode']);
+    const whsName = getValue(line, ['whs_name', 'whsName', 'warehouse_name', 'WhsName', 'warehouse.whs_name', 'warehouse.name'], WhsCode);
     const vatGroup = getValue(line, ['vat_group', 'vatGroup', 'VatGroup', 'vat_code', 'vatCode']);
     const vatName = getValue(line, ['vat_name', 'vatName', 'VatName', 'vat_group_name', 'vatGroupName', 'vat.name'], vatGroup);
     const ocrCode = getValue(line, ['ocr_code', 'ocrCode', 'OcrCode', 'branch_code', 'branchCode']);
@@ -190,7 +196,7 @@ export default function OrderPost() {
       quantity: getValue(line, ['quantity', 'qty', 'Quantity'], ''),
       unitMsr,
       unitPrice: getValue(line, ['unit_price', 'unitPrice', 'price', 'Price'], ''),
-      whsCode: findOption(listWarehouse, whsCode, whsName),
+      WhsCode: findOption(listWarehouse, WhsCode, whsName),
       lineTotal: getValue(line, ['line_total', 'lineTotal', 'LineTotal'], ''),
       freeText: getValue(line, ['free_text', 'freeText', 'FreeTxt'], ''),
       ocrCode: findOption(listOcr1, ocrCode, ocrName),
@@ -401,6 +407,25 @@ export default function OrderPost() {
     }
   };
 
+  const fetchListDistributor = async () => {
+    setIsLoading(true);
+    const response = await DistributorServices.getAllDistributor();
+    if (response.data.success) {
+      const data = response.data.data;
+      const dataArr = data.map((item) => ({
+        value: item?.code_customer,
+        label: `${item?.name || '-'}`,
+        name: item?.name
+      }));
+
+      setListDistributor(dataArr);
+      setIsLoading(false);
+    } else {
+      setIsLoading(false);
+      showAlert('Gagal ambil data sales', 'danger');
+    }
+  };
+
   const fetchDiscType = async () => {
     setIsLoading(true);
     const response = await OrderServices.getDiscType();
@@ -490,7 +515,7 @@ export default function OrderPost() {
   };
 
   const handleSelectWarehouse = async (e, index) => {
-    itemArr[index].whsCode = e;
+    itemArr[index].WhsCode = e;
     setItemArr([...itemArr]);
   };
 
@@ -528,6 +553,19 @@ export default function OrderPost() {
     });
   };
 
+  const handleSelectDistributor = (e) => {
+    setListAddressB([])
+    setListAddressS([])
+    setOrderInput({
+      ...orderInput,
+      cardCode: e?.value || '',
+      cnctCode: e?.name || '',
+      address: '',
+      address2: ''
+    });
+    fetchAddress(e?.value);
+  };
+
   const handleSelectDiscType = (e, index) => {
     detailDisc[index].name = e;
     setDetailDisc([...detailDisc]);
@@ -539,7 +577,7 @@ export default function OrderPost() {
       quantity: '',
       unitMsr: '',
       uomEntry: '',
-      whsCode: null,
+      WhsCode: null,
       lineTotal: '',
       freeText: '',
       ocrCode: null,
@@ -619,7 +657,7 @@ export default function OrderPost() {
         quantity: item?.quantity,
         unit_msr: item?.unitMsr,
         uom_entry: item?.itemCode?.uomEntry,
-        whs_code: item?.whsCode?.value,
+        WhsCode: item?.WhsCode?.value,
         unit_price: item?.unitPrice,
         vat_group: item?.vatGroup?.value,
         line_total: item?.lineTotal,
@@ -680,7 +718,7 @@ export default function OrderPost() {
         quantity: item?.quantity,
         unit_msr: item?.unitMsr,
         uom_entry: item?.itemCode?.uomEntry,
-        whs_code: item?.whsCode?.value,
+        WhsCode: item?.WhsCode?.value,
         unit_price: item?.unitPrice,
         vat_group: item?.vatGroup?.value,
         line_total: item?.lineTotal,
@@ -708,7 +746,7 @@ export default function OrderPost() {
       id_discount: discId,
       lines: arrItem
     };
-
+    console.log('arr item => ', arrItem)
     if (id) {
       const resp = await OrderServices.postOrderPosting(id, payload);
       try {
@@ -727,6 +765,7 @@ export default function OrderPost() {
   };
 
   const handleSubmitDisc = async () => {
+    setLoaderDisc(true);
     let dataDisc = [];
     detailDisc.map((item) => {
       let data = {
@@ -738,15 +777,20 @@ export default function OrderPost() {
       dataDisc.push(data);
     });
     const payload = {
-      CardCode: getCookies('customerCode'),
-      CardName: getCookies('distributorName'),
+      CardCode: orderInput.cardCode,
+      CardName: orderInput.cnctCode,
       Lines: dataDisc
     };
 
     const response = await OrderServices.postDiscount(payload);
     if (response.data.success) {
+      setLoaderDisc(false);
       setDiscId(response.data.data.code);
+      showAlert(response.data.message, 'success');
       setShowDisc(false);
+    } else {
+      setLoaderDisc(false);
+      showAlert(response.data.message, 'danger');
     }
     // setShowDisc(false);
   };
@@ -793,7 +837,7 @@ export default function OrderPost() {
               <LoaderData />
             ) : (
               <Row className="g-3">
-                <Col lg={roleId === 1 ? 12 : 8}>
+                <Col lg={roleId === 1 ? 12 : 9}>
                   <Card className="border mb-0 h-100">
                     <Card.Header className="py-3">
                       <Stack direction="horizontal" gap={2} className="justify-content-between">
@@ -807,18 +851,30 @@ export default function OrderPost() {
                       </Stack>
                     </Card.Header>
                     <Card.Body>
-                      <Row className="g-3">
+                      <Row className="g-4">
                         <Col md={6} xl={4}>
                           <Form.Group>
                             <Form.Label className="small text-muted">Kode Customer</Form.Label>
-                            <Form.Control
-                              readOnly
-                              onChange={(e) => handleSetInput(e, 'cardCode')}
-                              value={orderInput.cardCode}
-                              type="text"
-                              placeholder="Kode Customer"
-                              size="sm"
-                            />
+                            {roleId === 1 ? (
+                              <Form.Control
+                                readOnly
+                                onChange={(e) => handleSetInput(e, 'cardCode')}
+                                value={orderInput.cardCode}
+                                type="text"
+                                placeholder="Kode Customer"
+                                size="sm"
+                              />
+                            ) : (
+                              <Select
+                                styles={customStyles}
+                                value={listDistributor.find((item) => item.value === orderInput.cardCode) || null}
+                                options={listDistributor}
+                                menuPosition="fixed"
+                                onChange={handleSelectDistributor}
+                                placeholder="Pilih Customer"
+                                isClearable
+                              />
+                            )}
                           </Form.Group>
                         </Col>
                         <Col md={6} xl={4}>
@@ -920,7 +976,7 @@ export default function OrderPost() {
                   </Card>
                 </Col>
                 {roleId === 5 || roleId === 2 ? (
-                  <Col lg={4}>
+                  <Col lg={3}>
                     <Card className="border mb-0 h-100">
                       <Card.Header className="py-3">
                         <h6 className="mb-0">Ringkasan Order</h6>
@@ -1013,11 +1069,10 @@ export default function OrderPost() {
                     </td>
                     <td>
                       <Form.Control
-                        type="number"
+                        type="text"
                         onChange={(e) => handleChangeInputLine(index, 'quantity', e)}
                         value={Math.round(item.quantity)}
                         size="sm"
-                        min="0"
                       />
                     </td>
                     <td>
@@ -1049,7 +1104,7 @@ export default function OrderPost() {
                         <td>
                           <Select
                             styles={customStyles}
-                            value={item.whsCode}
+                            value={item.WhsCode}
                             options={listWarehouse}
                             menuPosition="fixed"
                             onChange={(e) => handleSelectWarehouse(e, index)}
@@ -1188,8 +1243,8 @@ export default function OrderPost() {
           <Button variant="light-secondary" onClick={() => setShowDisc(false)}>
             Batal
           </Button>
-          <Button onClick={() => handleSubmitDisc()} variant="primary">
-            Simpan
+          <Button onClick={() => handleSubmitDisc()} variant="primary" disabled={loaderDisc}>
+            {loaderDisc ? <LoaderButton /> : 'Simpan Diskon'}
           </Button>
         </Modal.Footer>
       </Modal>

@@ -567,17 +567,20 @@ export default function UserList() {
                     ))}
                   </Form.Select>
                 </Col>
-                <Col md={12}>
-                  <Form.Label className="f-12 text-muted">Distributor Code</Form.Label>
-                  <Select
-                    value={selectedDistributor}
-                    options={listDistributor}
-                    menuPosition="fixed"
-                    onChange={handleSelectDistributor}
-                    placeholder="Pilih distributor"
-                    isClearable
-                  />
-                </Col>
+                {console.log('role => ', input.roleId)}
+                {input.roleId == 1 ? (
+                  <Col md={12}>
+                    <Form.Label className="f-12 text-muted">Distributor Code</Form.Label>
+                    <Select
+                      value={selectedDistributor}
+                      options={listDistributor}
+                      menuPosition="fixed"
+                      onChange={handleSelectDistributor}
+                      placeholder="Pilih distributor"
+                      isClearable
+                    />
+                  </Col>
+                ) : null}
                 <Col md={12}>
                   <Form.Label className="f-12 text-muted">{formMode === 'edit' ? 'Password Baru' : 'Password'}</Form.Label>
                   <InputGroup className="sm-input-group">
