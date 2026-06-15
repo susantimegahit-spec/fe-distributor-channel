@@ -25,7 +25,7 @@ class OrderServices {
   }
 
   postOrder(payload) {
-    console.log('payload => ', payload)
+    console.log('payload => ', payload);
     return DataService.post('/sales-orders', payload);
   }
 
@@ -34,7 +34,11 @@ class OrderServices {
   }
 
   postOrderPosting(id, payload) {
-    return DataService.post(`/sales-orders/${id}/post-sap`, payload);
+    if (id) {
+      return DataService.post(`/sales-orders/${id}/post-sap`, payload);
+    } else {
+      return DataService.post(`/sales-orders/post-sap`, payload);
+    }
   }
 }
 

@@ -66,7 +66,7 @@ export default function OrderPost() {
       quantity: '',
       unitMsr: '',
       unitPrice: '',
-      WhsCode: null,
+      whs_code: null,
       lineTotal: '',
       freeText: '',
       ocrCode: null,
@@ -173,8 +173,8 @@ export default function OrderPost() {
       itemCode
     );
     const unitMsr = getValue(line, ['unit_msr', 'unitMsr', 'unit', 'UomCode', 'uom_code']);
-    const WhsCode = getValue(line, ['WhsCode', 'WhsCode', 'warehouse_code', 'WhsCode']);
-    const whsName = getValue(line, ['whs_name', 'whsName', 'warehouse_name', 'WhsName', 'warehouse.whs_name', 'warehouse.name'], WhsCode);
+    const whs_code = getValue(line, ['whs_code', 'whs_code', 'warehouse_code', 'whs_code']);
+    const whsName = getValue(line, ['whs_name', 'whsName', 'warehouse_name', 'WhsName', 'warehouse.whs_name', 'warehouse.name'], whs_code);
     const vatGroup = getValue(line, ['vat_group', 'vatGroup', 'VatGroup', 'vat_code', 'vatCode']);
     const vatName = getValue(line, ['vat_name', 'vatName', 'VatName', 'vat_group_name', 'vatGroupName', 'vat.name'], vatGroup);
     const ocrCode = getValue(line, ['ocr_code', 'ocrCode', 'OcrCode', 'branch_code', 'branchCode']);
@@ -196,7 +196,7 @@ export default function OrderPost() {
       quantity: getValue(line, ['quantity', 'qty', 'Quantity'], ''),
       unitMsr,
       unitPrice: getValue(line, ['unit_price', 'unitPrice', 'price', 'Price'], ''),
-      WhsCode: findOption(listWarehouse, WhsCode, whsName),
+      whs_code: findOption(listWarehouse, whs_code, whsName),
       lineTotal: getValue(line, ['line_total', 'lineTotal', 'LineTotal'], ''),
       freeText: getValue(line, ['free_text', 'freeText', 'FreeTxt'], ''),
       ocrCode: findOption(listOcr1, ocrCode, ocrName),
@@ -515,7 +515,7 @@ export default function OrderPost() {
   };
 
   const handleSelectWarehouse = async (e, index) => {
-    itemArr[index].WhsCode = e;
+    itemArr[index].whs_code = e;
     setItemArr([...itemArr]);
   };
 
@@ -554,8 +554,8 @@ export default function OrderPost() {
   };
 
   const handleSelectDistributor = (e) => {
-    setListAddressB([])
-    setListAddressS([])
+    setListAddressB([]);
+    setListAddressS([]);
     setOrderInput({
       ...orderInput,
       cardCode: e?.value || '',
@@ -577,7 +577,7 @@ export default function OrderPost() {
       quantity: '',
       unitMsr: '',
       uomEntry: '',
-      WhsCode: null,
+      whs_code: null,
       lineTotal: '',
       freeText: '',
       ocrCode: null,
@@ -657,7 +657,7 @@ export default function OrderPost() {
         quantity: item?.quantity,
         unit_msr: item?.unitMsr,
         uom_entry: item?.itemCode?.uomEntry,
-        WhsCode: item?.WhsCode?.value,
+        whs_code: item?.whs_code?.value,
         unit_price: item?.unitPrice,
         vat_group: item?.vatGroup?.value,
         line_total: item?.lineTotal,
@@ -718,7 +718,7 @@ export default function OrderPost() {
         quantity: item?.quantity,
         unit_msr: item?.unitMsr,
         uom_entry: item?.itemCode?.uomEntry,
-        WhsCode: item?.WhsCode?.value,
+        whs_code: item?.whs_code?.value,
         unit_price: item?.unitPrice,
         vat_group: item?.vatGroup?.value,
         line_total: item?.lineTotal,
@@ -746,9 +746,23 @@ export default function OrderPost() {
       id_discount: discId,
       lines: arrItem
     };
-    console.log('arr item => ', arrItem)
+
     if (id) {
       const resp = await OrderServices.postOrderPosting(id, payload);
+      try {
+        if (resp.data.success) {
+          showAlert(resp.data.message, 'success');
+          setLoadingSubmit(false);
+          navigate(-1);
+        } else {
+          showAlert(resp.data.message, 'danger');
+          setLoadingSubmit(false);
+        }
+      } catch (error) {
+        console.log('err =>', error);
+      }
+    } else {
+      const resp = await OrderServices.postOrderPosting('', payload);
       try {
         if (resp.data.success) {
           showAlert(resp.data.message, 'success');
@@ -1104,7 +1118,7 @@ export default function OrderPost() {
                         <td>
                           <Select
                             styles={customStyles}
-                            value={item.WhsCode}
+                            value={item.whs_code}
                             options={listWarehouse}
                             menuPosition="fixed"
                             onChange={(e) => handleSelectWarehouse(e, index)}
