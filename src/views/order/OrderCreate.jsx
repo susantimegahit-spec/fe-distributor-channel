@@ -47,6 +47,8 @@ export default function OrderPost() {
   const [orderDetail, setOrderDetail] = useState(null);
   const [statusType, setStatusType] = useState('');
   const [confirmSubmit, setConfirmSubmit] = useState(false);
+  const [documents, setDocuments] = useState([]);
+  const [existingDocuments, setExistingDocuments] = useState([]);
 
   const [listAddressB, setListAddressB] = useState([]);
   const [listAddressS, setListAddressS] = useState([]);
@@ -66,6 +68,13 @@ export default function OrderPost() {
       paddingBottom: 0
     })
   };
+
+  const RequiredLabel = ({ children }) => (
+    <>
+      {children}
+      <span className="text-danger ms-1">*</span>
+    </>
+  );
 
   const [itemArr, setItemArr] = useState([
     {
@@ -147,6 +156,14 @@ export default function OrderPost() {
     return String(value).slice(0, 10);
   };
 
+  const formatFileSize = (size = 0) => {
+    if (!size) return '0 KB';
+    const units = ['B', 'KB', 'MB', 'GB'];
+    const index = Math.min(Math.floor(Math.log(size) / Math.log(1024)), units.length - 1);
+
+    return `${(size / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
+  };
+
   const createOption = (value, label, extra = {}) => {
     if (!value && !label) return null;
     return {
@@ -221,8 +238,10 @@ export default function OrderPost() {
     const shipToAddress = getValue(order, ['address2', 'ship_to_address', 'Address2']);
     const details = getValue(order, ['details', 'lines', 'document_lines', 'DocumentLines'], []);
     const detailLines = Array.isArray(details) ? details : [];
+    const orderDocuments = getValue(order, ['documents', 'attachments', 'files', 'order_documents'], []);
 
     setOrderDetail(order);
+    setExistingDocuments(Array.isArray(orderDocuments) ? orderDocuments : []);
     setOrderInput({
       cardCode,
       numAtCard: getValue(order, ['po_number', 'num_at_card', 'numAtCard', 'NumAtCard']),
@@ -282,7 +301,7 @@ export default function OrderPost() {
         // address2: createOption(response.data?.data.mail_address, response.data?.data.mail_address)
       });
       fetchAddress(response.data?.data.code_customer);
-      fetchItem(response.data?.data.code_customer)
+      fetchItem(response.data?.data.code_customer);
     } else {
       setIsLoading(false);
       showAlert('Gagal ambil data', 'danger');
@@ -572,7 +591,24 @@ export default function OrderPost() {
       address2: ''
     });
     fetchAddress(e?.value);
-    fetchItem(e?.value)
+    fetchItem(e?.value);
+  };
+
+  const handleSelectDocuments = (event) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+
+    setDocuments((prevDocuments) => {
+      const existingKeys = new Set(prevDocuments.map((file) => `${file.name}-${file.size}-${file.lastModified}`));
+      const nextFiles = files.filter((file) => !existingKeys.has(`${file.name}-${file.size}-${file.lastModified}`));
+
+      return [...prevDocuments, ...nextFiles];
+    });
+    event.target.value = '';
+  };
+
+  const removeDocument = (index) => {
+    setDocuments((prevDocuments) => prevDocuments.filter((_, documentIndex) => documentIndex !== index));
   };
 
   const handleSelectDiscType = (e, index) => {
@@ -658,28 +694,23 @@ export default function OrderPost() {
   const discountTotal = detailDisc.reduce((total, item) => total + (Number(item.value) || 0), 0);
   const grandTotal = Math.max(orderSubtotal - discountTotal, 0);
 
-  const handleSubmitOrder = async () => {
-    const type = statusType;
-    let arrItem = [];
-    itemArr.map((item) => {
-      let data = {
-        item_code: item?.itemCode?.value,
-        quantity: item?.quantity,
-        unit_msr: item?.unitMsr,
-        uom_entry: item?.itemCode?.uomEntry,
-        whs_code: item?.whs_code?.value,
-        unit_price: item?.unitPrice,
-        vat_group: item?.vatGroup?.value,
-        line_total: item?.lineTotal,
-        free_text: item?.freeText,
-        ocr_code: item?.ocrCode?.value,
-        ocr_code2: item?.ocrCode2?.value,
-        ocr_code3: item?.ocrCode3?.value
-      };
-      arrItem.push(data);
-    });
+  const createOrderPayload = (type) => {
+    const arrItem = itemArr.map((item) => ({
+      item_code: item?.itemCode?.value,
+      quantity: item?.quantity,
+      unit_msr: item?.unitMsr,
+      uom_entry: item?.itemCode?.uomEntry,
+      whs_code: item?.whs_code?.value,
+      unit_price: item?.unitPrice,
+      vat_group: item?.vatGroup?.value,
+      line_total: item?.lineTotal,
+      free_text: item?.freeText,
+      ocr_code: item?.ocrCode?.value,
+      ocr_code2: item?.ocrCode2?.value,
+      ocr_code3: item?.ocrCode3?.value
+    }));
 
-    const payload = {
+    return {
       card_code: orderInput.cardCode,
       po_number: orderInput.numAtCard,
       doc_date: orderInput.docDate,
@@ -688,74 +719,62 @@ export default function OrderPost() {
       cntct: orderInput.cnctCode,
       pay_to_code: orderInput.address?.value,
       address: orderInput.address?.label,
-      ship_to_code: orderInput.address2.value,
+      ship_to_code: orderInput.address2?.value,
       address2: orderInput.address2?.label,
       comments: orderInput.comments,
       status: type,
       id_discount: discId,
       lines: arrItem
     };
+  };
 
+  const buildOrderRequestPayload = (payload) => {
+    if (!documents.length) return payload;
+
+    const formData = new FormData();
+
+    Object.entries(payload).forEach(([key, value]) => {
+      if (key === 'lines') {
+        formData.append(key, JSON.stringify(value));
+        return;
+      }
+
+      formData.append(key, value ?? '');
+    });
+
+    documents.forEach((file) => {
+      formData.append('attachment', file);
+    });
+
+    return formData;
+  };
+
+  const handleOrderResponse = (resp) => {
+    if (resp.data.success) {
+      showAlert(resp.data.message, 'success');
+      setLoadingSubmit(false);
+      navigate(-1);
+    } else {
+      showAlert(resp.data.message, 'danger');
+      setLoadingSubmit(false);
+    }
+  };
+
+  const handleSubmitOrder = async () => {
+    const payload = buildOrderRequestPayload(createOrderPayload(statusType));
+    console.log('payload => ', payload);
     if (id) {
       const resp = await OrderServices.putOrder(id, payload);
-      if (resp.data.success) {
-        showAlert(resp.data.message, 'success');
-        setLoadingSubmit(false);
-        navigate(-1);
-      } else {
-        showAlert(resp.data.message, 'danger');
-        setLoadingSubmit(false);
-      }
+      handleOrderResponse(resp);
     } else {
       const resp = await OrderServices.postOrder(payload);
-      if (resp.data.success) {
-        showAlert(resp.data.message, 'success');
-        setLoadingSubmit(false);
-        navigate(-1);
-      } else {
-        showAlert(resp.data.message, 'danger');
-        setLoadingSubmit(false);
-      }
+      handleOrderResponse(resp);
     }
   };
 
   const handlePostingData = async (type) => {
     setLoadingSubmit(true);
-    let arrItem = [];
-    itemArr.map((item) => {
-      let data = {
-        item_code: item?.itemCode?.value,
-        quantity: item?.quantity,
-        unit_msr: item?.unitMsr,
-        uom_entry: item?.itemCode?.uomEntry,
-        whs_code: item?.whs_code?.value,
-        unit_price: item?.unitPrice,
-        vat_group: item?.vatGroup?.value,
-        line_total: item?.lineTotal,
-        free_text: item?.freeText,
-        ocr_code: item?.ocrCode?.value,
-        ocr_code2: item?.ocrCode2?.value,
-        ocr_code3: item?.ocrCode3?.value
-      };
-      arrItem.push(data);
-    });
-
-    const payload = {
-      card_code: orderInput.cardCode,
-      po_number: orderInput.numAtCard,
-      doc_date: orderInput.docDate,
-      doc_due_date: orderInput.docDueDate,
-      slp_code: orderInput.slpCode,
-      cntct: orderInput.cnctCode,
-      pay_to_code: orderInput.address?.value,
-      address: orderInput.address?.label,
-      ship_to_code: orderInput.address2.value,
-      address2: orderInput.address2?.label,
-      comments: orderInput.comments,
-      status: type,
-      id_discount: discId,
-      lines: arrItem
-    };
+    const payload = buildOrderRequestPayload(createOrderPayload(type));
 
     if (id) {
       const resp = await OrderServices.postOrderPosting(id, payload);
@@ -883,7 +902,9 @@ export default function OrderPost() {
                       <Row className="g-4">
                         <Col md={6} xl={4}>
                           <Form.Group>
-                            <Form.Label className="small text-muted">Kode Customer</Form.Label>
+                            <Form.Label className="small text-muted">
+                              <RequiredLabel>Kode Customer</RequiredLabel>
+                            </Form.Label>
                             {roleId === 1 ? (
                               <Form.Control
                                 readOnly
@@ -908,7 +929,9 @@ export default function OrderPost() {
                         </Col>
                         <Col md={6} xl={4}>
                           <Form.Group>
-                            <Form.Label className="small text-muted">No. PO</Form.Label>
+                            <Form.Label className="small text-muted">
+                              <RequiredLabel>No. PO</RequiredLabel>
+                            </Form.Label>
                             <Form.Control
                               onChange={(e) => handleSetInput(e, 'numAtCard')}
                               value={orderInput.numAtCard}
@@ -921,7 +944,9 @@ export default function OrderPost() {
                         {roleId === 5 || roleId === 2 ? (
                           <Col md={6} xl={4}>
                             <Form.Group>
-                              <Form.Label className="small text-muted">Kode Sales</Form.Label>
+                              <Form.Label className="small text-muted">
+                                <RequiredLabel>Kode Sales</RequiredLabel>
+                              </Form.Label>
                               <Select
                                 styles={customStyles}
                                 value={listEmployee.find((item) => item.value === orderInput.slpCode) || null}
@@ -936,7 +961,9 @@ export default function OrderPost() {
                         ) : null}
                         <Col md={6} xl={4}>
                           <Form.Group>
-                            <Form.Label className="small text-muted">Kontak Pelanggan</Form.Label>
+                            <Form.Label className="small text-muted">
+                              <RequiredLabel>Kontak Pelanggan</RequiredLabel>
+                            </Form.Label>
                             <Form.Control
                               onChange={(e) => handleSetInput(e, 'cnctCode')}
                               value={orderInput.cnctCode}
@@ -948,13 +975,17 @@ export default function OrderPost() {
                         </Col>
                         <Col md={6} xl={4}>
                           <Form.Group>
-                            <Form.Label className="small text-muted">Tanggal</Form.Label>
+                            <Form.Label className="small text-muted">
+                              <RequiredLabel>Tanggal</RequiredLabel>
+                            </Form.Label>
                             <Form.Control onChange={(e) => handleSetInput(e, 'docDate')} value={orderInput.docDate} type="date" size="sm" />
                           </Form.Group>
                         </Col>
                         <Col md={6} xl={4}>
                           <Form.Group>
-                            <Form.Label className="small text-muted">Request Tanggal Kirim</Form.Label>
+                            <Form.Label className="small text-muted">
+                              <RequiredLabel>Request Tanggal Kirim</RequiredLabel>
+                            </Form.Label>
                             <Form.Control
                               onChange={(e) => handleSetInput(e, 'docDueDate')}
                               value={orderInput.docDueDate}
@@ -965,7 +996,9 @@ export default function OrderPost() {
                         </Col>
                         <Col md={6}>
                           <Form.Group>
-                            <Form.Label className="small text-muted">Alamat Tagih</Form.Label>
+                            <Form.Label className="small text-muted">
+                              <RequiredLabel>Alamat Tagih</RequiredLabel>
+                            </Form.Label>
                             <Select
                               value={orderInput.address || null}
                               options={listAddressB}
@@ -977,7 +1010,9 @@ export default function OrderPost() {
                         </Col>
                         <Col md={6}>
                           <Form.Group>
-                            <Form.Label className="small text-muted">Alamat Kirim</Form.Label>
+                            <Form.Label className="small text-muted">
+                              <RequiredLabel>Alamat Kirim</RequiredLabel>
+                            </Form.Label>
                             <Select
                               value={orderInput.address2 || null}
                               options={listAddressS}
@@ -1049,6 +1084,128 @@ export default function OrderPost() {
           <MainCard
             title={
               <Stack gap={1}>
+                <h5 className="mb-0">Dokumen Order</h5>
+                <span className="text-muted f-12">Upload dokumen pendukung seperti PO, surat jalan, atau lampiran approval.</span>
+              </Stack>
+            }
+          >
+            <Row className="g-3">
+              <Col lg={5}>
+                <Card className="border mb-0 h-100">
+                  <Card.Body>
+                    <Stack gap={3}>
+                      <div className="d-flex align-items-center gap-3">
+                        <div className="rounded bg-light-primary text-primary d-flex align-items-center justify-content-center p-3">
+                          <i className="ti ti-file-upload f-24" />
+                        </div>
+                        <div>
+                          <h6 className="mb-1">Upload Dokumen</h6>
+                          <small className="text-muted">Bisa upload lebih dari satu file.</small>
+                        </div>
+                      </div>
+                      <Form.Group>
+                        <Form.Label className="small text-muted">Pilih File</Form.Label>
+                        <Form.Control
+                          type="file"
+                          multiple
+                          accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
+                          onChange={handleSelectDocuments}
+                        />
+                        <Form.Text className="text-muted">Format: PDF, Word, Excel, PNG, JPG, JPEG.</Form.Text>
+                      </Form.Group>
+                    </Stack>
+                  </Card.Body>
+                </Card>
+              </Col>
+              <Col lg={7}>
+                <Card className="border mb-0 h-100">
+                  <Card.Header className="py-3">
+                    <Stack direction="horizontal" className="justify-content-between">
+                      <div>
+                        <h6 className="mb-0">Daftar Dokumen</h6>
+                        <small className="text-muted">File akan ikut dikirim saat order disimpan.</small>
+                      </div>
+                      <Badge bg={documents.length ? 'primary' : 'secondary'}>{documents.length} file baru</Badge>
+                    </Stack>
+                  </Card.Header>
+                  <Card.Body>
+                    <Stack gap={2}>
+                      {existingDocuments.length ? (
+                        <>
+                          <small className="text-muted fw-semibold">Dokumen tersimpan</small>
+                          {existingDocuments.map((documentItem, index) => {
+                            const fileName = getValue(
+                              documentItem,
+                              ['file_name', 'name', 'original_name', 'document_name'],
+                              `Dokumen ${index + 1}`
+                            );
+                            const fileUrl = getValue(documentItem, ['file_url', 'url', 'path', 'document_url']);
+
+                            return (
+                              <div
+                                key={`${fileName}-${index}`}
+                                className="border rounded p-2 d-flex align-items-center justify-content-between gap-2"
+                              >
+                                <div className="d-flex align-items-center gap-2 text-truncate">
+                                  <i className="ti ti-file-text text-primary f-20" />
+                                  <span className="text-truncate">{fileName}</span>
+                                </div>
+                                {fileUrl ? (
+                                  <Button as="a" href={fileUrl} target="_blank" rel="noreferrer" variant="light-primary" size="sm">
+                                    <i className="ti ti-eye me-1" />
+                                    Lihat
+                                  </Button>
+                                ) : null}
+                              </div>
+                            );
+                          })}
+                        </>
+                      ) : null}
+
+                      {documents.length ? (
+                        <>
+                          {existingDocuments.length ? <small className="text-muted fw-semibold mt-2">File baru</small> : null}
+                          {documents.map((file, index) => (
+                            <div
+                              key={`${file.name}-${file.lastModified}`}
+                              className="border rounded p-2 d-flex align-items-center justify-content-between gap-2"
+                            >
+                              <div className="d-flex align-items-center gap-2 text-truncate">
+                                <i className="ti ti-file text-primary f-20" />
+                                <div className="text-truncate">
+                                  <div className="text-truncate fw-semibold">{file.name}</div>
+                                  <small className="text-muted">{formatFileSize(file.size)}</small>
+                                </div>
+                              </div>
+                              <Button
+                                className="rounded-circle flex-shrink-0"
+                                size="sm"
+                                variant="outline-danger"
+                                onClick={() => removeDocument(index)}
+                              >
+                                <i className="ti ti-x"></i>
+                              </Button>
+                            </div>
+                          ))}
+                        </>
+                      ) : null}
+
+                      {!documents.length && !existingDocuments.length ? (
+                        <div className="text-center border rounded p-4">
+                          <i className="ti ti-file-upload text-muted f-28" />
+                          <p className="mb-0 mt-2 text-muted">Belum ada dokumen yang dipilih.</p>
+                        </div>
+                      ) : null}
+                    </Stack>
+                  </Card.Body>
+                </Card>
+              </Col>
+            </Row>
+          </MainCard>
+
+          <MainCard
+            title={
+              <Stack gap={1}>
                 <h5 className="mb-0">Detail Produk</h5>
                 <span className="text-muted f-12">Pilih item, gudang, dimensi, quantity, dan harga untuk setiap baris order.</span>
               </Stack>
@@ -1063,15 +1220,23 @@ export default function OrderPost() {
             <Table className="mb-0 align-middle" responsive hover>
               <thead>
                 <tr>
-                  <th style={{ minWidth: 240 }}>Item</th>
-                  <th style={{ minWidth: 90 }}>Qty</th>
+                  <th style={{ minWidth: 240 }}>
+                    <RequiredLabel>Item</RequiredLabel>
+                  </th>
+                  <th style={{ minWidth: 90 }}>
+                    <RequiredLabel>Qty</RequiredLabel>
+                  </th>
                   <th style={{ minWidth: 90 }}>Satuan</th>
                   <th style={{ minWidth: 160 }}>Harga</th>
                   <th style={{ minWidth: 160 }}>Total</th>
                   {roleId !== 1 && (
                     <>
-                      <th style={{ minWidth: 220 }}>Warehouse</th>
-                      <th style={{ minWidth: 160 }}>Vat</th>
+                      <th style={{ minWidth: 220 }}>
+                        <RequiredLabel>Warehouse</RequiredLabel>
+                      </th>
+                      <th style={{ minWidth: 160 }}>
+                        <RequiredLabel>Vat</RequiredLabel>
+                      </th>
                       <th style={{ minWidth: 220 }}>Catatan</th>
                       <th style={{ minWidth: 220 }}>Cabang</th>
                       <th style={{ minWidth: 220 }}>Bisnis Unit</th>

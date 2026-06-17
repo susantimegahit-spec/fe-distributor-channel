@@ -20,6 +20,8 @@ import OrderServices from '../../services/OrderServices';
 import LoaderData from '../../components/LoaderData';
 import { currency } from '../../utils/global';
 import { getCookies } from '../../utils/cookies';
+import { useAlert } from '../../utils/alertContext';
+import { downloadSalesOrderPdf } from '../../utils/orderPdf';
 
 const statusOptions = [
   { value: '', label: 'Semua Status' },
@@ -56,12 +58,15 @@ const pageSize = 10;
 
 export default function OrderList() {
   const roleId = getCookies('role');
+  const { showAlert } = useAlert();
   const [orders, setOrders] = useState([]);
   const [keywords, setKeywords] = useState('');
   const [distributor, setDistributor] = useState('');
   const [status, setStatus] = useState('');
   const [date, setDate] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [downloadingPdfId, setDownloadingPdfId] = useState(null);
+  const [downloadingAttachmentId, setDownloadingAttachmentId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
@@ -94,7 +99,7 @@ export default function OrderList() {
       APPROVED: orders.filter((order) => order.status === 'APPROVED').length,
       WAITING_APPROVAL: orders.filter((order) => order.status === 'WAITING_APPROVAL').length,
       REJECTED: orders.filter((order) => order.status === 'REJECTED').length,
-      FAILED: orders.filter((order) => order.status === 'FAILED').length,
+      FAILED: orders.filter((order) => order.status === 'FAILED').length
       // waiti: orders.filter((order) => order.status === 'rejected').length
     }),
     [orders]
@@ -122,6 +127,102 @@ export default function OrderList() {
     if (resp.data.success) {
       setIsLoading(false);
       setOrders(resp.data.data);
+    }
+  };
+
+  const getOrderAttachments = (order = {}) => {
+    const attachments = order.attachments || order.documents || order.files || order.order_documents || order.attachment || [];
+
+    return Array.isArray(attachments) ? attachments : [attachments].filter(Boolean);
+  };
+
+  const getAttachmentValue = (attachment, keys, defaultValue = '') => {
+    if (typeof attachment === 'string') return attachment;
+
+    for (const key of keys) {
+      const value = attachment?.[key];
+
+      if (value !== undefined && value !== null && value !== '') {
+        return value;
+      }
+    }
+
+    return defaultValue;
+  };
+
+  const getAttachmentUrl = (attachment) => {
+    const rawUrl = getAttachmentValue(attachment, ['file_url', 'url', 'path', 'document_url', 'attachment_url']);
+
+    if (!rawUrl) return '';
+    if (/^https?:\/\//i.test(rawUrl)) return rawUrl;
+
+    try {
+      return new URL(rawUrl, import.meta.env.VITE_APP_API_ENDPOINT_DEVELOPMENT).href;
+    } catch {
+      return rawUrl;
+    }
+  };
+
+  const openAttachment = (attachment) => {
+    const attachmentUrl = getAttachmentUrl(attachment);
+
+    if (!attachmentUrl) {
+      showAlert('URL lampiran tidak ditemukan', 'danger');
+      return;
+    }
+
+    const anchor = document.createElement('a');
+    anchor.href = attachmentUrl;
+    anchor.target = '_blank';
+    anchor.rel = 'noreferrer';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  };
+
+  const handleViewAttachment = async (order) => {
+    setDownloadingAttachmentId(order.id);
+
+    try {
+      let attachments = getOrderAttachments(order);
+
+      if (!attachments.length) {
+        const response = await OrderServices.getDetailOrder(order.id);
+
+        if (response?.data?.success) {
+          attachments = getOrderAttachments(response.data.data);
+        }
+      }
+
+      if (!attachments.length) {
+        showAlert('Lampiran order tidak tersedia', 'warning');
+        return;
+      }
+
+      openAttachment(attachments[0]);
+    } catch (error) {
+      showAlert(error?.message || 'Gagal membuka lampiran order', 'danger');
+    } finally {
+      setDownloadingAttachmentId(null);
+    }
+  };
+
+  const handleDownloadPdf = async (order) => {
+    setDownloadingPdfId(order.id);
+
+    try {
+      const response = await OrderServices.getDetailOrder(order.id);
+
+      if (response?.data?.success) {
+        downloadSalesOrderPdf(response.data.data);
+        showAlert('PDF berhasil didownload', 'success');
+      } else {
+        showAlert(response?.data?.message || 'Gagal mengambil detail order', 'danger');
+      }
+    } catch (error) {
+      showAlert(error?.message || 'Gagal download PDF order', 'danger');
+    } finally {
+      setDownloadingPdfId(null);
     }
   };
 
@@ -284,13 +385,14 @@ export default function OrderList() {
               <th>Total Item</th>
               <th>Total Order</th>
               <th>Status</th>
+              <th>Lampiran</th>
               <th className="text-center">Aksi</th>
             </tr>
           </thead>
           {isLoading ? (
             <tbody>
               <tr>
-                <td colSpan={6}>
+                <td colSpan={8}>
                   <LoaderData />
                 </td>
               </tr>
@@ -308,9 +410,32 @@ export default function OrderList() {
                     <td>
                       <Badge bg={statusVariant[order.status] || 'secondary'}>{order.status}</Badge>
                     </td>
+                    <td>
+                      {order.attachments?.length > 0 ? (
+                        <Button
+                          variant="light-primary"
+                          size="sm"
+                          disabled={downloadingAttachmentId === order.id}
+                          onClick={() => handleViewAttachment(order)}
+                        >
+                          <i className={downloadingAttachmentId === order.id ? 'ti ti-loader-2 me-1' : 'ti ti-paperclip me-1'} />
+                          Lihat Lampiran
+                        </Button>
+                      ) : null}
+                    </td>
                     <td className="text-center">
                       <Button className="rounded-circle" variant="outline-primary" size="sm">
                         <i className="ti ti-eye" />
+                      </Button>
+                      &nbsp;
+                      <Button
+                        className="rounded-circle"
+                        variant="outline-secondary"
+                        size="sm"
+                        disabled={downloadingPdfId === order.id}
+                        onClick={() => handleDownloadPdf(order)}
+                      >
+                        <i className={downloadingPdfId === order.id ? 'ti ti-loader-2' : 'ti ti-file-type-pdf'} />
                       </Button>
                       &nbsp;
                       {roleId === 1 && order.status === 'DRAFT' ? (
@@ -343,7 +468,7 @@ export default function OrderList() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7}>
+                  <td colSpan={8}>
                     <div className="text-center py-5">
                       <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                         <i className="ti ti-clipboard-list f-24" />

@@ -17,6 +17,18 @@ const client = axios.create({
   }
 });
 
+const isFormData = (data) => typeof FormData !== 'undefined' && data instanceof FormData;
+
+const buildHeaders = (data, optionalHeader = {}) => {
+  const headers = { ...authHeader(), ...optionalHeader };
+
+  if (isFormData(data)) {
+    delete headers['Content-Type'];
+  }
+
+  return headers;
+};
+
 class DataService {
   static get(path = '') {
     return client({
@@ -31,7 +43,7 @@ class DataService {
       method: 'POST',
       url: path,
       data,
-      headers: { ...authHeader(), ...optionalHeader }
+      headers: buildHeaders(data, optionalHeader)
     });
   }
 
@@ -57,8 +69,8 @@ class DataService {
     return client({
       method: 'PUT',
       url: path,
-      data: JSON.stringify(data),
-      headers: { ...authHeader(), ...optionalHeader }
+      data: isFormData(data) ? data : JSON.stringify(data),
+      headers: buildHeaders(data, optionalHeader)
     });
   }
 }
@@ -73,6 +85,11 @@ client.interceptors.request.use((config) => {
   const requestConfig = config;
   const { headers } = config;
   requestConfig.headers = { ...headers, Authorization: `Bearer ${getCookies('accessToken')}` };
+
+  if (isFormData(config.data)) {
+    delete requestConfig.headers['Content-Type'];
+    delete requestConfig.headers['content-type'];
+  }
 
   return requestConfig;
 });
@@ -101,8 +118,8 @@ client.interceptors.response.use(
         Cookies.remove('role');
         Cookies.remove('menu');
         window.location.replace('/');
-      }else if(response.status === 400) {
-        return response
+      } else if (response.status === 400) {
+        return response;
       } else {
         return originalRequest;
       }
