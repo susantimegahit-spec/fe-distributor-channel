@@ -21,6 +21,7 @@ import SusantiMegahLogo from 'assets/images/logo-susanti-yellow.png';
 import { DataService } from '../../config/dataService';
 import LoaderButton from '../../components/LoaderButton';
 import { customerCodeSchema } from '../../utils/validationSchema';
+import Turnstile from 'components/Turnstile';
 
 // ==============================|| AUTH LOGIN FORM ||============================== //
 
@@ -28,6 +29,7 @@ export default function AuthLoginForm({ className }) {
   const [showPassword, setShowPassword] = useState(false);
   const { showAlert } = useAlert();
   const [isLoading, setIsLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState(null);
 
   const {
     register,
@@ -45,7 +47,8 @@ export default function AuthLoginForm({ className }) {
     const payload = {
       username: getValues().username,
       password: getValues().password,
-      code_customer: getValues().customerCode
+      code_customer: getValues().customerCode,
+      cf_turnstile_response: turnstileToken
     };
     const response = await DataService.post('/auth/login', payload);
     console.log('response login => ', response.data);
@@ -139,8 +142,13 @@ export default function AuthLoginForm({ className }) {
           <Form.Control.Feedback type="invalid">{errors.password?.message}</Form.Control.Feedback>
         </Form.Group>
 
+        <Turnstile
+          siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
+          onVerify={setTurnstileToken}
+        />
+
         <div className="d-grid mt-4">
-          <Button type="submit" disabled={isLoading} className="sm-login-submit">
+          <Button type="submit" disabled={isLoading || !turnstileToken} className="sm-login-submit">
             {isLoading ? <LoaderButton /> : 'Login'}
           </Button>
         </div>
