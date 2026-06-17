@@ -18,6 +18,9 @@ import PriceServices from '../../services/PriceServices';
 import LoaderFull from '../../components/LoaderFull';
 import LoaderButton from '../../components/LoaderButton';
 
+// #FBD43C -> soft yellow
+// #DAA919 -> dark yellow
+
 export default function OrderPost() {
   const roleId = getCookies('role');
   const navigate = useNavigate();

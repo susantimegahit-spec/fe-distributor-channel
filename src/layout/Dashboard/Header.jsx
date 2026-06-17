@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Cookies from 'js-cookie';
 
@@ -8,71 +8,98 @@ import Card from 'react-bootstrap/Card';
 import Col from 'react-bootstrap/Col';
 import Dropdown from 'react-bootstrap/Dropdown';
 import Form from 'react-bootstrap/Form';
-import Image from 'react-bootstrap/Image';
 import Nav from 'react-bootstrap/Nav';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 
 // project-imports
-import MainCard from 'components/MainCard';
 import SimpleBarScroll from 'components/third-party/SimpleBar';
 import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
 
-// assets
-import Img1 from 'assets/images/user/avatar-1.png';
-import Img2 from 'assets/images/user/avatar-2.png';
-import Img3 from 'assets/images/user/avatar-3.png';
-import Img4 from 'assets/images/user/avatar-4.png';
-import Img5 from 'assets/images/user/avatar-5.png';
 import { getCookies } from '../../utils/cookies';
 import { InputGroup, Modal } from 'react-bootstrap';
 import UserServices from '../../services/UserServices';
+import NotificationServices from '../../services/NotificationServices';
 import LoaderButton from '../../components/LoaderButton';
 import { useAlert } from '../../utils/alertContext';
+import { createEchoClient, getNotificationChannelName } from '../../config/echo';
 
-const notifications = [
-  {
-    id: 1,
-    avatar: Img1,
-    time: '2 min ago',
-    title: 'UI/UX Design',
-    description: "Lorem Ipsum has been the industry's standard dummy text ever since the 1500s.",
-    date: 'Today'
-  },
-  {
-    id: 2,
-    avatar: Img2,
-    time: '1 hour ago',
-    title: 'Message',
-    description: "Lorem Ipsum has been the industry's standard dummy text ever since the 1500s.",
-    date: 'Today'
-  },
-  {
-    id: 3,
-    avatar: Img3,
-    time: '2 hour ago',
-    title: 'Forms',
-    description: "Lorem Ipsum has been the industry's standard dummy text ever since the 1500s.",
-    date: 'Yesterday'
-  },
-  {
-    id: 4,
-    avatar: Img4,
-    time: '12 hour ago',
-    title: 'Challenge invitation',
-    description: 'Jonny aber invites you to join the challenge',
-    actions: true,
-    date: 'Yesterday'
-  },
-  {
-    id: 5,
-    avatar: Img5,
-    time: '5 hour ago',
-    title: 'Security',
-    description: "Lorem Ipsum has been the industry's standard dummy text ever since the 1500s.",
-    date: 'Yesterday'
+const getResponsePayload = (response) => response?.data?.data ?? response?.data ?? {};
+
+const getNotificationItems = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.notifications)) return payload.notifications;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.items)) return payload.items;
+  return [];
+};
+
+const isUnreadNotification = (notification) => {
+  if (typeof notification?.is_read === 'boolean') return !notification.is_read;
+  if (typeof notification?.read === 'boolean') return !notification.read;
+  return !notification?.read_at;
+};
+
+const formatNotificationTime = (value) => {
+  if (!value) return '';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  return date.toLocaleString('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+const getNotificationSectionDate = (value) => {
+  if (!value) return 'Terbaru';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Terbaru';
+
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  if (date.toDateString() === today.toDateString()) return 'Hari ini';
+  if (date.toDateString() === yesterday.toDateString()) return 'Kemarin';
+
+  return date.toLocaleDateString('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  });
+};
+
+const normalizeNotification = (notification) => {
+  const data = notification?.data || {};
+  const createdAt = notification?.created_at || notification?.createdAt || notification?.time || data.created_at;
+
+  return {
+    id: notification?.id,
+    title: notification?.title || data.title || data.subject || 'Notifikasi',
+    description: notification?.message || notification?.description || data.message || data.description || '-',
+    url: notification?.url || data.url || data.link || '#',
+    createdAt,
+    time: formatNotificationTime(createdAt),
+    date: getNotificationSectionDate(createdAt),
+    unread: isUnreadNotification(notification)
+  };
+};
+
+const getUnreadCount = (payload, items) => {
+  const count = payload?.unread_count ?? payload?.unreadCount ?? payload?.unread;
+
+  if (count !== undefined && count !== null && !Number.isNaN(Number(count))) {
+    return Number(count);
   }
-];
+
+  return items.filter((notification) => notification.unread).length;
+};
 
 // =============================|| MAIN LAYOUT - HEADER ||============================== //
 
@@ -81,6 +108,7 @@ export default function Header() {
   const { menuMaster } = useGetMenuMaster();
   const { showAlert } = useAlert();
   const drawerOpen = menuMaster?.isDashboardDrawerOpened;
+  const userId = getCookies('id');
   const userName = getCookies('name');
   const userEmail = getCookies('email');
   const customerCode = getCookies('customerCode');
@@ -97,7 +125,46 @@ export default function Header() {
 
   const [showChangePass, setShowChangePass] = useState(false);
   const [loadingSubmit, setLoadingSubmit] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [notificationError, setNotificationError] = useState('');
   const canSubmitPassword = Boolean(oldPass && newPass && confirmPass && newPass === confirmPass);
+
+  const fetchNotifications = useCallback(async (silent = false) => {
+    if (!silent) setLoadingNotifications(true);
+    setNotificationError('');
+
+    try {
+      const response = await NotificationServices.getNotifications();
+      const payload = getResponsePayload(response);
+      const items = getNotificationItems(payload).map(normalizeNotification);
+
+      setNotifications(items);
+      setUnreadCount(getUnreadCount(payload, items));
+    } catch (error) {
+      setNotificationError('Notifikasi belum bisa dimuat.');
+    } finally {
+      if (!silent) setLoadingNotifications(false);
+    }
+  }, []);
+
+  const handleIncomingNotification = useCallback((payload) => {
+    const notification = normalizeNotification({
+      ...payload,
+      read_at: payload?.read_at ?? null,
+      created_at: payload?.created_at || payload?.createdAt || new Date().toISOString()
+    });
+
+    setNotifications((prevState) => {
+      if (notification.id && prevState.some((item) => item.id === notification.id)) {
+        return prevState.map((item) => (item.id === notification.id ? notification : item));
+      }
+
+      return [notification, ...prevState];
+    });
+    setUnreadCount((prevState) => prevState + (notification.unread ? 1 : 0));
+  }, []);
 
   const handleLogout = () => {
     Cookies.remove('isLoggedIn');
@@ -111,6 +178,40 @@ export default function Header() {
     Cookies.remove('distributorName');
     Cookies.remove('distributorId');
     window.location.replace('/');
+  };
+
+  const handleNotificationDropdownToggle = (isOpen) => {
+    if (isOpen) {
+      fetchNotifications(true);
+    }
+  };
+
+  const handleMarkAsRead = async (notification) => {
+    if (!notification?.id) return;
+
+    if (notification.unread) {
+      setNotifications((prevState) => prevState.map((item) => (item.id === notification.id ? { ...item, unread: false } : item)));
+      setUnreadCount((prevState) => Math.max(prevState - 1, 0));
+    }
+
+    try {
+      await NotificationServices.markAsRead(notification.id);
+      fetchNotifications(true);
+    } catch (error) {
+      fetchNotifications(true);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    setNotifications((prevState) => prevState.map((item) => ({ ...item, unread: false })));
+    setUnreadCount(0);
+
+    try {
+      await NotificationServices.markAllAsRead();
+      fetchNotifications(true);
+    } catch (error) {
+      fetchNotifications(true);
+    }
   };
 
   const toggleOldPass = () => {
@@ -160,6 +261,41 @@ export default function Header() {
     }
   };
 
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
+
+  useEffect(() => {
+    if (!userId) return undefined;
+
+    const echo = createEchoClient();
+    const channelName = getNotificationChannelName(userId);
+
+    if (!echo) {
+      return undefined;
+    }
+
+    const channel = echo.private(channelName);
+    const customEvent = import.meta.env.VITE_ECHO_NOTIFICATION_EVENT;
+
+    channel.notification(handleIncomingNotification);
+
+    if (customEvent) {
+      channel.listen(customEvent, handleIncomingNotification);
+    }
+
+    return () => {
+      channel.stopListeningForNotification(handleIncomingNotification);
+
+      if (customEvent) {
+        channel.stopListening(customEvent);
+      }
+
+      echo.leave(channelName);
+      echo.disconnect();
+    };
+  }, [handleIncomingNotification, userId]);
+
   return (
     <header className="pc-header">
       <div className="header-wrapper">
@@ -199,55 +335,67 @@ export default function Header() {
         </div>
         <div className="ms-auto">
           <Nav className="list-unstyled">
-            <Dropdown className="pc-h-item" align="end">
-              {/* <Dropdown.Toggle className="pc-head-link me-0 arrow-none" variant="link" id="notification-dropdown">
+            <Dropdown className="pc-h-item" align="end" onToggle={handleNotificationDropdownToggle}>
+              <Dropdown.Toggle className="pc-head-link sm-notification-toggle me-0 arrow-none" variant="link" id="notification-dropdown">
                 <i className="ph ph-bell" />
-                <span className="badge bg-success pc-h-badge">3</span>
-              </Dropdown.Toggle> */}
+                {unreadCount > 0 && <span className="badge bg-danger pc-h-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>}
+              </Dropdown.Toggle>
 
               <Dropdown.Menu className="dropdown-notification pc-h-dropdown">
                 <Dropdown.Header className="d-flex align-items-center justify-content-between">
-                  <h5 className="m-0">Notifications</h5>
-                  <Link className="btn btn-link btn-sm" to="#">
-                    Mark all read
-                  </Link>
+                  <div>
+                    <h5 className="m-0">Notifikasi</h5>
+                    <small className="text-muted">{unreadCount > 0 ? `${unreadCount} belum dibaca` : 'Semua sudah dibaca'}</small>
+                  </div>
+                  <Button variant="link" size="sm" className="p-0 text-primary" disabled={!unreadCount} onClick={handleMarkAllAsRead}>
+                    Tandai dibaca
+                  </Button>
                 </Dropdown.Header>
                 <SimpleBarScroll style={{ maxHeight: 'calc(100vh - 215px)' }}>
                   <div className="dropdown-body text-wrap position-relative">
-                    {notifications.map((notification, index) => (
-                      <React.Fragment key={notification.id}>
-                        {index === 0 || notifications[index - 1].date !== notification.date ? (
-                          <p className="text-span">{notification.date}</p>
-                        ) : null}
-                        <MainCard className="mb-0">
-                          <Stack direction="horizontal" gap={3}>
-                            <Image className="img-radius avatar rounded-0" src={notification.avatar} alt="Generic placeholder image" />
-                            <div>
-                              <span className="float-end text-sm text-muted">{notification.time}</span>
-                              <h5 className="text-body mb-2">{notification.title}</h5>
-                              <p className="mb-0">{notification.description}</p>
-                              {notification.actions && (
-                                <div className="mt-2">
-                                  <Button variant="outline-secondary" size="sm" className="me-2">
-                                    Decline
-                                  </Button>
-                                  <Button variant="primary" size="sm">
-                                    Accept
-                                  </Button>
-                                </div>
-                              )}
-                            </div>
-                          </Stack>
-                        </MainCard>
-                      </React.Fragment>
-                    ))}
+                    {loadingNotifications && <div className="sm-notification-state">Memuat notifikasi...</div>}
+
+                    {!loadingNotifications && notificationError && <div className="sm-notification-state text-danger">{notificationError}</div>}
+
+                    {!loadingNotifications && !notificationError && notifications.length === 0 && (
+                      <div className="sm-notification-state">
+                        <span className="sm-notification-empty-icon">
+                          <i className="ph ph-bell-simple" />
+                        </span>
+                        <strong>Belum ada notifikasi</strong>
+                        <small>Notifikasi dari backend akan tampil di sini.</small>
+                      </div>
+                    )}
+
+                    {!loadingNotifications &&
+                      !notificationError &&
+                      notifications.map((notification, index) => (
+                        <React.Fragment key={notification.id || `${notification.title}-${index}`}>
+                          {index === 0 || notifications[index - 1].date !== notification.date ? (
+                            <p className="text-span">{notification.date}</p>
+                          ) : null}
+                          <button type="button" className="sm-notification-item" onClick={() => handleMarkAsRead(notification)}>
+                            <span className={`sm-notification-icon ${notification.unread ? 'is-unread' : ''}`}>
+                              <i className="ph ph-bell-ringing" />
+                            </span>
+                            <span className="sm-notification-content">
+                              <span className="d-flex align-items-start justify-content-between gap-2">
+                                <strong>{notification.title}</strong>
+                                {notification.unread && <span className="sm-notification-dot" />}
+                              </span>
+                              <span>{notification.description}</span>
+                              {notification.time && <small>{notification.time}</small>}
+                            </span>
+                          </button>
+                        </React.Fragment>
+                      ))}
                   </div>
                 </SimpleBarScroll>
 
-                <div className="text-center py-2">
-                  <Link to="#!" className="link-danger">
-                    Clear all Notifications
-                  </Link>
+                <div className="text-center py-2 sm-notification-footer">
+                  <Button variant="link" size="sm" onClick={() => fetchNotifications(true)}>
+                    Refresh
+                  </Button>
                 </div>
               </Dropdown.Menu>
             </Dropdown>

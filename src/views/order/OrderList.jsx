@@ -243,7 +243,7 @@ export default function OrderList() {
               <InputGroup.Text>
                 <i className="ti ti-search" />
               </InputGroup.Text>
-              <Form.Control value={keywords} onChange={(event) => setKeywords(event.target.value)} type="text" placeholder="No. invoice" />
+              <Form.Control value={keywords} onChange={(event) => setKeywords(event.target.value)} type="text" placeholder="No. PO" />
             </InputGroup>
           </Col>
           {/* <Col lg={3} md={6}>
@@ -278,8 +278,8 @@ export default function OrderList() {
         <Table className="mb-0 align-middle" responsive hover>
           <thead>
             <tr>
-              <th>No. Invoice</th>
-              <th>Nama Distributor</th>
+              <th>No. PO</th>
+              <th>Depo</th>
               <th>Tanggal</th>
               <th>Total Item</th>
               <th>Total Order</th>
