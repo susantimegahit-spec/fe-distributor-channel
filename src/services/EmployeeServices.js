@@ -9,6 +9,10 @@ class EmployeeServices {
   syncEmployee() {
     return DataService.post('/sales-employees/sync');
   }
+
+  createEmployee(payload) {
+    return DataService.post('/sales-employees', payload);
+  }
 }
 
 export default new EmployeeServices();

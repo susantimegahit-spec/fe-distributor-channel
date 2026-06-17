@@ -17,6 +17,7 @@ import OrderServices from '../../services/OrderServices';
 import PriceServices from '../../services/PriceServices';
 import LoaderFull from '../../components/LoaderFull';
 import LoaderButton from '../../components/LoaderButton';
+import { currency } from '../../utils/global';
 
 // #FBD43C -> soft yellow
 // #DAA919 -> dark yellow
@@ -1098,9 +1099,9 @@ export default function OrderPost() {
                     <td>
                       <Form.Control
                         readOnly
-                        type="number"
+                        type="text"
                         onChange={(e) => handleChangeInputLine(index, 'unitPrice', e)}
-                        value={Math.round(item.unitPrice)}
+                        value={currency(Math.round(item.unitPrice))}
                         size="sm"
                         min="0"
                       />
@@ -1108,9 +1109,9 @@ export default function OrderPost() {
                     <td>
                       <Form.Control
                         readOnly
-                        type="number"
+                        type="text"
                         onChange={(e) => handleChangeInputLine(index, 'lineTotal', e)}
-                        value={Math.round(item.lineTotal)}
+                        value={currency(item.lineTotal)}
                         size="sm"
                         min="0"
                         placeholder={String(Number(item.quantity || 0) * Number(item.unitPrice || 0))}
