@@ -10,6 +10,7 @@ import GaramJempol from 'assets/images/garam-jempol.png';
 import Garami from 'assets/images/garami.png';
 import GaramCapTangan from 'assets/images/garam-cap-tangan.png';
 import Garamku from 'assets/images/garamku.png';
+import CapLayar from 'assets/images/cap_layar.png';
 
 // ===========================|| AUTH - LOGIN PAGE ||=========================== //
 
@@ -34,6 +35,7 @@ export default function LoginPage() {
               <div className="md-auth-highlights">
                 <img src={GaramCapTangan} style={{ width: '25%' }} />
                 <img src={Garamku} style={{ width: '25%' }} />
+                <img src={CapLayar} style={{ width: '25%' }} />
               </div>
             </div>
           </div>

@@ -18,6 +18,7 @@ import PriceServices from '../../services/PriceServices';
 import LoaderFull from '../../components/LoaderFull';
 import LoaderButton from '../../components/LoaderButton';
 import { currency } from '../../utils/global';
+import ConfirmDialog from '../../components/ConfirmDialog';
 
 // #FBD43C -> soft yellow
 // #DAA919 -> dark yellow
@@ -44,6 +45,8 @@ export default function OrderPost() {
   const [listVats, setListVats] = useState([]);
   const [listDistributor, setListDistributor] = useState([]);
   const [orderDetail, setOrderDetail] = useState(null);
+  const [statusType, setStatusType] = useState('');
+  const [confirmSubmit, setConfirmSubmit] = useState(false);
 
   const [listAddressB, setListAddressB] = useState([]);
   const [listAddressS, setListAddressS] = useState([]);
@@ -103,7 +106,7 @@ export default function OrderPost() {
 
   useEffect(() => {
     // setItemArr([itemArr]);
-    fetchItem();
+    // fetchItem();
     if (!isDetailMode) {
       fetchDistributor();
     }
@@ -279,15 +282,16 @@ export default function OrderPost() {
         // address2: createOption(response.data?.data.mail_address, response.data?.data.mail_address)
       });
       fetchAddress(response.data?.data.code_customer);
+      fetchItem(response.data?.data.code_customer)
     } else {
       setIsLoading(false);
       showAlert('Gagal ambil data', 'danger');
     }
   };
 
-  const fetchItem = async () => {
+  const fetchItem = async (code) => {
     setIsLoading(true);
-    const response = await ProductServices.getAllProduct();
+    const response = await ProductServices.getProductCustomer(code);
     if (response.data.success) {
       const data = response.data.data;
       let dataArr = [];
@@ -568,6 +572,7 @@ export default function OrderPost() {
       address2: ''
     });
     fetchAddress(e?.value);
+    fetchItem(e?.value)
   };
 
   const handleSelectDiscType = (e, index) => {
@@ -653,7 +658,8 @@ export default function OrderPost() {
   const discountTotal = detailDisc.reduce((total, item) => total + (Number(item.value) || 0), 0);
   const grandTotal = Math.max(orderSubtotal - discountTotal, 0);
 
-  const handleSubmitOrder = async (type) => {
+  const handleSubmitOrder = async () => {
+    const type = statusType;
     let arrItem = [];
     itemArr.map((item) => {
       let data = {
@@ -813,6 +819,11 @@ export default function OrderPost() {
     // setShowDisc(false);
   };
 
+  const handleShowConfirm = (type) => {
+    setStatusType(type);
+    setConfirmSubmit(true);
+  };
+
   return (
     <>
       <Stack gap={3}>
@@ -834,11 +845,11 @@ export default function OrderPost() {
                   <i className="ti ti-arrow-left me-1" />
                   Batal
                 </Button>
-                <Button onClick={() => handleSubmitOrder('DRAFT')} variant="warning">
+                <Button onClick={() => handleShowConfirm('DRAFT')} variant="warning">
                   <i className="ti ti-device-floppy me-1" />
                   Simpan Draft
                 </Button>
-                <Button onClick={() => handleSubmitOrder('WAITING_APPROVAL')} variant="primary">
+                <Button onClick={() => handleShowConfirm('WAITING_APPROVAL')} variant="primary">
                   <i className="ti ti-send" />
                   Kirim
                 </Button>
@@ -1271,6 +1282,14 @@ export default function OrderPost() {
           <LoaderFull />
         </div>
       ) : null}
+
+      <ConfirmDialog
+        show={confirmSubmit}
+        onCancel={() => setConfirmSubmit(false)}
+        onSubmit={handleSubmitOrder}
+        title="Submit Order"
+        subTitle="Anda yakin ingin memproses data"
+      />
     </>
   );
 }
