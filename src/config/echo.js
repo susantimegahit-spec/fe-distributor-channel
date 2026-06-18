@@ -6,6 +6,8 @@ const API_ENDPOINT = import.meta.env.VITE_APP_API_ENDPOINT_DEVELOPMENT || '';
 
 const trimTrailingSlash = (value = '') => value.replace(/\/+$/, '');
 
+const isEchoEnabled = () => String(import.meta.env.VITE_ECHO_ENABLED || 'false').toLowerCase() === 'true';
+
 const getBroadcastAuthEndpoint = () => {
   const configuredEndpoint = import.meta.env.VITE_ECHO_AUTH_ENDPOINT;
 
@@ -21,6 +23,8 @@ export const getNotificationChannelName = (userId) => {
 };
 
 export const createEchoClient = () => {
+  if (!isEchoEnabled()) return null;
+
   const key = import.meta.env.VITE_PUSHER_APP_KEY || import.meta.env.VITE_REVERB_APP_KEY;
 
   if (!key) return null;
