@@ -25,6 +25,9 @@ import ConfirmDialog from '../../components/ConfirmDialog';
 
 export default function OrderPost() {
   const roleId = getCookies('role');
+  const roleNumber = Number(roleId);
+  const isCustomerRole = roleNumber === 1;
+  const canSelectSales = roleNumber === 2 || roleNumber === 5;
   const navigate = useNavigate();
   const { id } = useParams();
   const isDetailMode = Boolean(id);
@@ -76,6 +79,15 @@ export default function OrderPost() {
     </>
   );
 
+  const getTodayDate = () => {
+    const today = new Date();
+    const timezoneOffset = today.getTimezoneOffset() * 60000;
+
+    return new Date(today.getTime() - timezoneOffset).toISOString().slice(0, 10);
+  };
+
+  const todayDate = getTodayDate();
+
   const [itemArr, setItemArr] = useState([
     {
       itemCode: null,
@@ -94,7 +106,7 @@ export default function OrderPost() {
 
   const [orderInput, setOrderInput] = useState({
     cardCode: '',
-    numAtCard: '',
+    poNumber: '',
     docDate: '',
     docDueDate: '',
     slpCode: '',
@@ -123,10 +135,9 @@ export default function OrderPost() {
     fetchOcr2();
     fetchOcr3();
     fetchWarehouse();
-    fetchEmployee();
     fetchDiscType();
     fetchVats();
-    if (roleId !== 1) {
+    if (!isCustomerRole) {
       fetchListDistributor();
     }
   }, [isDetailMode]);
@@ -171,6 +182,17 @@ export default function OrderPost() {
       label: label || value,
       ...extra
     };
+  };
+
+  const normalizeList = (response) => {
+    const data = response?.data?.data;
+
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.data)) return data.data;
+    if (Array.isArray(data?.items)) return data.items;
+    if (Array.isArray(data?.rows)) return data.rows;
+
+    return [];
   };
 
   const findOption = (options, value, label, extra = {}) => {
@@ -244,7 +266,7 @@ export default function OrderPost() {
     setExistingDocuments(Array.isArray(orderDocuments) ? orderDocuments : []);
     setOrderInput({
       cardCode,
-      numAtCard: getValue(order, ['po_number', 'num_at_card', 'numAtCard', 'NumAtCard']),
+      poNumber: getValue(order, ['po_number', 'num_at_card', 'numAtCard', 'NumAtCard']),
       docDate: formatDateInput(getValue(order, ['doc_date', 'docDate', 'DocDate'])),
       docDueDate: formatDateInput(getValue(order, ['doc_due_date', 'docDueDate', 'DocDueDate'])),
       slpCode: getValue(order, ['slp_code', 'slpCode', 'SlpCode']),
@@ -256,7 +278,8 @@ export default function OrderPost() {
     });
 
     if (cardCode) {
-      fetchAddress(cardCode);
+      fetchAddress(cardCode, false);
+      fetchEmployee(cardCode, false);
     }
 
     setItemArr(detailLines.length > 0 ? detailLines.map(mapOrderLine) : itemArr);
@@ -302,6 +325,7 @@ export default function OrderPost() {
       });
       fetchAddress(response.data?.data.code_customer);
       fetchItem(response.data?.data.code_customer);
+      fetchEmployee(response.data?.data.code_customer);
     } else {
       setIsLoading(false);
       showAlert('Gagal ambil data', 'danger');
@@ -415,18 +439,40 @@ export default function OrderPost() {
     }
   };
 
-  const fetchEmployee = async () => {
+  const fetchEmployee = async (codeCustomer, shouldSetDefault = true) => {
+    if (!codeCustomer) {
+      setListEmployee([]);
+      if (shouldSetDefault) {
+        setOrderInput((prevState) => ({
+          ...prevState,
+          slpCode: '',
+        }));
+      }
+      return;
+    }
+
     setIsLoading(true);
-    const response = await EmployeeServices.getAllEmployee('');
+    const response = await EmployeeServices.getSalesDistributor({
+      keywords: '',
+      codeCustomer
+    });
     if (response.data.success) {
-      const data = response.data.data;
-      const dataArr = data.map((item) => ({
-        value: item?.slp_code,
-        label: `${item?.slp_code || '-'} - ${item?.slp_name || '-'}`,
-        name: item?.slp_name
-      }));
+      const data = normalizeList(response);
+      const dataArr = data
+        .map((item) => ({
+          value: item?.slp_code,
+          label: `${item?.sales_employee?.slp_name || ''}`,
+          name: item?.slp_name
+        }))
+        .filter((item) => item.value);
 
       setListEmployee(dataArr);
+      if (shouldSetDefault) {
+        setOrderInput((prevState) => ({
+          ...prevState,
+          slpCode: dataArr[0]?.value || ''
+        }));
+      }
       setIsLoading(false);
     } else {
       setIsLoading(false);
@@ -441,8 +487,9 @@ export default function OrderPost() {
       const data = response.data.data;
       const dataArr = data.map((item) => ({
         value: item?.code_customer,
-        label: `${item?.name || '-'}`,
-        name: item?.name
+        label: `${item?.code_customer || ''} - ${item?.name || ''} - ${item?.depo || ''}`,
+        name: item?.name,
+        depo: item?.depo
       }));
 
       setListDistributor(dataArr);
@@ -489,7 +536,7 @@ export default function OrderPost() {
     }
   };
 
-  const fetchAddress = async (code) => {
+  const fetchAddress = async (code, shouldSetDefault = true) => {
     setIsLoading(true);
     const response = await DistributorServices.getAddress(code);
     if (response.data.success) {
@@ -513,6 +560,13 @@ export default function OrderPost() {
       });
       setListAddressB(dataB);
       setListAddressS(dataS);
+      if (shouldSetDefault) {
+        setOrderInput((prevState) => ({
+          ...prevState,
+          address: dataB[0] || '',
+          address2: dataS[0] || ''
+        }));
+      }
       setIsLoading(false);
     } else {
       setIsLoading(false);
@@ -583,15 +637,22 @@ export default function OrderPost() {
   const handleSelectDistributor = (e) => {
     setListAddressB([]);
     setListAddressS([]);
+    setListEmployee([]);
+    setListItem([]);
     setOrderInput({
       ...orderInput,
       cardCode: e?.value || '',
       cnctCode: e?.name || '',
+      slpCode: '',
       address: '',
       address2: ''
     });
-    fetchAddress(e?.value);
-    fetchItem(e?.value);
+
+    if (e?.value) {
+      fetchAddress(e.value);
+      fetchItem(e.value);
+      fetchEmployee(e.value);
+    }
   };
 
   const handleSelectDocuments = (event) => {
@@ -712,7 +773,7 @@ export default function OrderPost() {
 
     return {
       card_code: orderInput.cardCode,
-      po_number: orderInput.numAtCard,
+      po_number: orderInput.poNumber,
       doc_date: orderInput.docDate,
       doc_due_date: orderInput.docDueDate,
       slp_code: orderInput.slpCode,
@@ -872,7 +933,7 @@ export default function OrderPost() {
                   <i className="ti ti-send" />
                   Kirim
                 </Button>
-                {roleId === 5 || roleId === 2 ? (
+                {canSelectSales ? (
                   <Button onClick={() => handlePostingData('APPROVED')} variant="success">
                     <i className="ti ti-checks" />
                     Approve
@@ -885,7 +946,7 @@ export default function OrderPost() {
               <LoaderData />
             ) : (
               <Row className="g-3">
-                <Col lg={roleId === 1 ? 12 : 9}>
+                <Col lg={isCustomerRole ? 12 : 9}>
                   <Card className="border mb-0 h-100">
                     <Card.Header className="py-3">
                       <Stack direction="horizontal" gap={2} className="justify-content-between">
@@ -905,7 +966,7 @@ export default function OrderPost() {
                             <Form.Label className="small text-muted">
                               <RequiredLabel>Kode Customer</RequiredLabel>
                             </Form.Label>
-                            {roleId === 1 ? (
+                            {isCustomerRole ? (
                               <Form.Control
                                 readOnly
                                 onChange={(e) => handleSetInput(e, 'cardCode')}
@@ -933,15 +994,15 @@ export default function OrderPost() {
                               <RequiredLabel>No. PO</RequiredLabel>
                             </Form.Label>
                             <Form.Control
-                              onChange={(e) => handleSetInput(e, 'numAtCard')}
-                              value={orderInput.numAtCard}
+                              onChange={(e) => handleSetInput(e, 'poNumber')}
+                              value={orderInput.poNumber}
                               type="text"
                               placeholder="Masukkan nomor PO"
                               size="sm"
                             />
                           </Form.Group>
                         </Col>
-                        {roleId === 5 || roleId === 2 ? (
+                        {canSelectSales ? (
                           <Col md={6} xl={4}>
                             <Form.Group>
                               <Form.Label className="small text-muted">
@@ -976,9 +1037,15 @@ export default function OrderPost() {
                         <Col md={6} xl={4}>
                           <Form.Group>
                             <Form.Label className="small text-muted">
-                              <RequiredLabel>Tanggal</RequiredLabel>
+                              <RequiredLabel>Tanggal Dokumen</RequiredLabel>
                             </Form.Label>
-                            <Form.Control onChange={(e) => handleSetInput(e, 'docDate')} value={orderInput.docDate} type="date" size="sm" />
+                            <Form.Control
+                              onChange={(e) => handleSetInput(e, 'docDate')}
+                              value={orderInput.docDate}
+                              type="date"
+                              min={todayDate}
+                              size="sm"
+                            />
                           </Form.Group>
                         </Col>
                         <Col md={6} xl={4}>
@@ -990,6 +1057,7 @@ export default function OrderPost() {
                               onChange={(e) => handleSetInput(e, 'docDueDate')}
                               value={orderInput.docDueDate}
                               type="date"
+                              min={todayDate}
                               size="sm"
                             />
                           </Form.Group>
@@ -1039,7 +1107,7 @@ export default function OrderPost() {
                     </Card.Body>
                   </Card>
                 </Col>
-                {roleId === 5 || roleId === 2 ? (
+                {canSelectSales ? (
                   <Col lg={3}>
                     <Card className="border mb-0 h-100">
                       <Card.Header className="py-3">
@@ -1229,7 +1297,7 @@ export default function OrderPost() {
                   <th style={{ minWidth: 90 }}>Satuan</th>
                   <th style={{ minWidth: 160 }}>Harga</th>
                   <th style={{ minWidth: 160 }}>Total</th>
-                  {roleId !== 1 && (
+                  {!isCustomerRole && (
                     <>
                       <th style={{ minWidth: 220 }}>
                         <RequiredLabel>Warehouse</RequiredLabel>
@@ -1293,7 +1361,7 @@ export default function OrderPost() {
                         placeholder={String(Number(item.quantity || 0) * Number(item.unitPrice || 0))}
                       />
                     </td>
-                    {roleId !== 1 && (
+                    {!isCustomerRole && (
                       <>
                         <td>
                           <Select

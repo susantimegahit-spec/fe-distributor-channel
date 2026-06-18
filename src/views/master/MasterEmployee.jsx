@@ -43,12 +43,17 @@ const normalizeList = (response) => {
 };
 
 const getValue = (item, keys, fallback = '') => {
+  console.log('item => ', item)
   const key = keys.find((field) => item?.[field] !== undefined && item?.[field] !== null && item?.[field] !== '');
   return key ? item[key] : fallback;
 };
 
 const getSalesCode = (item) => getValue(item, ['slp_code', 'sales_code', 'code_sales', 'employee_code', 'code']);
-const getSalesName = (item) => getValue(item, ['slp_name', 'sales_name', 'name_sales', 'employee_name', 'name']);
+// const getSalesName = (item) => getValue(item, ['slp_name', 'sales_name', 'name_sales', 'employee_name', 'name']);
+const getSalesName = (item) =>
+  getValue(item, ['slp_name']) ||
+  item?.sales_employee?.slp_name ||
+  '';
 const getDistributorCode = (item) =>
   getValue(item, ['code_customer', 'distributor_code', 'customer_code', 'card_code']) ||
   item?.distributor?.code_customer ||
@@ -112,7 +117,7 @@ export default function MasterEmployee() {
   const fetchData = async () => {
     const payload = {
       keywords: keywords,
-      codeCustomer: selectedDistributorSearch?.value
+      codeCustomer: selectedDistributorSearch?.value || ''
     };
     setLoadingData(true);
     try {
@@ -457,9 +462,10 @@ export default function MasterEmployee() {
                   <tr>
                     <th style={{ minWidth: 160 }}>Kode Sales</th>
                     <th style={{ minWidth: 240 }}>Nama Sales</th>
-                    <th style={{ minWidth: 180 }}>Kode Distributor</th>
-                    <th style={{ minWidth: 260 }}>Nama Distributor</th>
-                    <th style={{ minWidth: 120 }}>Status</th>
+                    <th style={{ minWidth: 180 }}>Kode Customer</th>
+                    <th style={{ minWidth: 260 }}>Nama Customer</th>
+                    <th style={{ minWidth: 260 }}>Depo</th>
+                    {/* <th style={{ minWidth: 120 }}>Status</th> */}
                     <th className="text-center" style={{ width: 80 }}>
                       Aksi
                     </th>
@@ -473,7 +479,8 @@ export default function MasterEmployee() {
                         <td style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>{getSalesName(item) || '-'}</td>
                         <td className="fw-semibold">{getDistributorCode(item) || '-'}</td>
                         <td style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>{getDistributorName(item) || '-'}</td>
-                        <td>{item.status === 1 ? <Badge bg="success">Aktif</Badge> : <Badge bg="secondary">Tidak Aktif</Badge>}</td>
+                        <td className="fw-semibold">{item?.depo || ''}</td>
+                        {/* <td>{item.status === 1 ? <Badge bg="success">Aktif</Badge> : <Badge bg="secondary">Tidak Aktif</Badge>}</td> */}
                         <td className="text-center">
                           <Button className="rounded-circle" variant="outline-primary" size="sm" onClick={() => setSelectedEmployee(item)}>
                             <i className="ti ti-eye" />
