@@ -129,6 +129,7 @@ export default function Header() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
   const [notificationError, setNotificationError] = useState('');
+  const [sendingTestNotification, setSendingTestNotification] = useState(false);
   const canSubmitPassword = Boolean(oldPass && newPass && confirmPass && newPass === confirmPass);
 
   const fetchNotifications = useCallback(async (silent = false) => {
@@ -157,8 +158,18 @@ export default function Header() {
     });
 
     setNotifications((prevState) => {
-      if (notification.id && prevState.some((item) => item.id === notification.id)) {
+      const existingNotification = notification.id ? prevState.find((item) => item.id === notification.id) : null;
+
+      if (existingNotification) {
+        if (!existingNotification.unread && notification.unread) {
+          setUnreadCount((prevCount) => prevCount + 1);
+        }
+
         return prevState.map((item) => (item.id === notification.id ? notification : item));
+      }
+
+      if (notification.unread) {
+        setUnreadCount((prevCount) => prevCount + 1);
       }
 
       return [notification, ...prevState];
@@ -168,164 +179,187 @@ export default function Header() {
     // Tampilkan popup notifikasi secara real-time
     showAlert(`${notification.title}: ${notification.description}`, 'info', 8000);
   }, [showAlert]);
-  // tes
 
-  const handleLogout = () => {
-    Cookies.remove('isLoggedIn');
-    Cookies.remove('accessToken');
-    Cookies.remove('id');
-    Cookies.remove('name');
-    Cookies.remove('email');
-    Cookies.remove('role');
-    Cookies.remove('menu');
-    Cookies.remove('customerCode');
-    Cookies.remove('distributorName');
-    Cookies.remove('distributorId');
-    window.location.replace('/');
-  };
+const handleLogout = () => {
+  Cookies.remove('isLoggedIn');
+  Cookies.remove('accessToken');
+  Cookies.remove('id');
+  Cookies.remove('name');
+  Cookies.remove('email');
+  Cookies.remove('role');
+  Cookies.remove('menu');
+  Cookies.remove('customerCode');
+  Cookies.remove('distributorName');
+  Cookies.remove('distributorId');
+  window.location.replace('/');
+};
 
-  const handleNotificationDropdownToggle = (isOpen) => {
-    if (isOpen) {
+const handleNotificationDropdownToggle = (isOpen) => {
+  if (isOpen) {
+    fetchNotifications(true);
+  }
+};
+
+const handleMarkAsRead = async (notification) => {
+  if (!notification?.id) return;
+
+  if (notification.unread) {
+    setNotifications((prevState) => prevState.map((item) => (item.id === notification.id ? { ...item, unread: false } : item)));
+    setUnreadCount((prevState) => Math.max(prevState - 1, 0));
+  }
+
+  try {
+    await NotificationServices.markAsRead(notification.id);
+    fetchNotifications(true);
+  } catch (error) {
+    fetchNotifications(true);
+  }
+};
+
+const handleMarkAllAsRead = async () => {
+  setNotifications((prevState) => prevState.map((item) => ({ ...item, unread: false })));
+  setUnreadCount(0);
+
+  try {
+    await NotificationServices.markAllAsRead();
+    fetchNotifications(true);
+  } catch (error) {
+    fetchNotifications(true);
+  }
+};
+
+const handleSendTestNotification = async () => {
+  setSendingTestNotification(true);
+
+  try {
+    const response = await NotificationServices.sendTestNotification({
+      title: 'Test Push Notification',
+      message: 'Notifikasi test berhasil dikirim dari backend.'
+    });
+    const payload = getResponsePayload(response);
+
+    if (payload?.id) {
+      handleIncomingNotification(payload);
+    } else {
       fetchNotifications(true);
     }
+
+    showAlert('Notifikasi test berhasil dikirim', 'success');
+  } catch (error) {
+    showAlert('Gagal mengirim notifikasi test', 'danger');
+  } finally {
+    setSendingTestNotification(false);
+  }
+};
+
+const toggleOldPass = () => {
+  setShowOldPassword((prevState) => !prevState);
+};
+
+const toggleNewPass = () => {
+  setShowNewPassword((prevState) => !prevState);
+};
+
+const toggleConfirmPass = () => {
+  setShowConfirmPassword((prevState) => !prevState);
+};
+
+const closeChangePassword = () => {
+  setShowChangePass(false);
+  setOldPass('');
+  setNewPass('');
+  setConfirmPass('');
+  setShowOldPassword(false);
+  setShowNewPassword(false);
+  setShowConfirmPassword(false);
+};
+
+const handleChangePassword = async () => {
+  setLoadingSubmit(true);
+  const payload = {
+    old_password: oldPass,
+    new_password: newPass,
+    new_password_confirmation: confirmPass
   };
 
-  const handleMarkAsRead = async (notification) => {
-    if (!notification?.id) return;
-
-    if (notification.unread) {
-      setNotifications((prevState) => prevState.map((item) => (item.id === notification.id ? { ...item, unread: false } : item)));
-      setUnreadCount((prevState) => Math.max(prevState - 1, 0));
-    }
-
-    try {
-      await NotificationServices.markAsRead(notification.id);
-      fetchNotifications(true);
-    } catch (error) {
-      fetchNotifications(true);
-    }
-  };
-
-  const handleMarkAllAsRead = async () => {
-    setNotifications((prevState) => prevState.map((item) => ({ ...item, unread: false })));
-    setUnreadCount(0);
-
-    try {
-      await NotificationServices.markAllAsRead();
-      fetchNotifications(true);
-    } catch (error) {
-      fetchNotifications(true);
-    }
-  };
-
-  const toggleOldPass = () => {
-    setShowOldPassword((prevState) => !prevState);
-  };
-
-  const toggleNewPass = () => {
-    setShowNewPassword((prevState) => !prevState);
-  };
-
-  const toggleConfirmPass = () => {
-    setShowConfirmPassword((prevState) => !prevState);
-  };
-
-  const closeChangePassword = () => {
-    setShowChangePass(false);
-    setOldPass('');
-    setNewPass('');
-    setConfirmPass('');
-    setShowOldPassword(false);
-    setShowNewPassword(false);
-    setShowConfirmPassword(false);
-  };
-
-  const handleChangePassword = async () => {
-    setLoadingSubmit(true);
-    const payload = {
-      old_password: oldPass,
-      new_password: newPass,
-      new_password_confirmation: confirmPass
-    };
-
-    const response = await UserServices.postChangePassword(payload);
-    console.log('resp => ', response.data.message);
-    try {
-      if (response.data.success) {
-        setLoadingSubmit(false);
-        showAlert('Kata sandi berhasil di ubah', 'success');
-        closeChangePassword();
-      } else {
-        setLoadingSubmit(false);
-        showAlert(response.data.message, 'danger');
-      }
-    } catch (error) {
-      console.log(error);
+  const response = await UserServices.postChangePassword(payload);
+  console.log('resp => ', response.data.message);
+  try {
+    if (response.data.success) {
       setLoadingSubmit(false);
+      showAlert('Kata sandi berhasil di ubah', 'success');
+      closeChangePassword();
+    } else {
+      setLoadingSubmit(false);
+      showAlert(response.data.message, 'danger');
     }
-  };
+  } catch (error) {
+    console.log(error);
+    setLoadingSubmit(false);
+  }
+};
 
-  useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
+useEffect(() => {
+  fetchNotifications();
+}, [fetchNotifications]);
 
-  useEffect(() => {
-    if (!userId) return undefined;
+useEffect(() => {
+  if (!userId) return undefined;
 
-    const echo = createEchoClient();
-    const channelName = getNotificationChannelName(userId);
+  const echo = createEchoClient();
+  const channelName = getNotificationChannelName(userId);
 
-    if (!echo) {
-      return undefined;
-    }
+  if (!echo) {
+    return undefined;
+  }
 
-    const channel = echo.private(channelName);
-    const customEvent = import.meta.env.VITE_ECHO_NOTIFICATION_EVENT;
+  const channel = echo.private(channelName);
+  const customEvent = import.meta.env.VITE_ECHO_NOTIFICATION_EVENT || '.NotificationCreated';
 
-    channel.notification(handleIncomingNotification);
+  channel.notification(handleIncomingNotification);
+
+  if (customEvent) {
+    channel.listen(customEvent, handleIncomingNotification);
+  }
+
+  return () => {
+    channel.stopListeningForNotification(handleIncomingNotification);
 
     if (customEvent) {
-      channel.listen(customEvent, handleIncomingNotification);
+      channel.stopListening(customEvent);
     }
 
-    return () => {
-      channel.stopListeningForNotification(handleIncomingNotification);
+    echo.leave(channelName);
+    echo.disconnect();
+  };
+}, [handleIncomingNotification, userId]);
 
-      if (customEvent) {
-        channel.stopListening(customEvent);
-      }
+return (
+  <header className="pc-header">
+    <div className="header-wrapper">
+      <div className="me-auto pc-mob-drp">
+        <Nav className="list-unstyled">
+          <Nav.Item className="pc-h-item pc-sidebar-collapse">
+            <Nav.Link
+              as={Link}
+              to="#"
+              className="pc-head-link ms-0"
+              id="sidebar-hide"
+              onClick={() => {
+                handlerDrawerOpen(!drawerOpen);
+              }}
+            >
+              <i className="ph ph-list" />
+            </Nav.Link>
+          </Nav.Item>
 
-      echo.leave(channelName);
-      echo.disconnect();
-    };
-  }, [handleIncomingNotification, userId]);
+          <Nav.Item className="pc-h-item pc-sidebar-popup">
+            <Nav.Link as={Link} to="#" className="pc-head-link ms-0" id="mobile-collapse" onClick={() => handlerDrawerOpen(!drawerOpen)}>
+              <i className="ph ph-list" />
+            </Nav.Link>
+          </Nav.Item>
 
-  return (
-    <header className="pc-header">
-      <div className="header-wrapper">
-        <div className="me-auto pc-mob-drp">
-          <Nav className="list-unstyled">
-            <Nav.Item className="pc-h-item pc-sidebar-collapse">
-              <Nav.Link
-                as={Link}
-                to="#"
-                className="pc-head-link ms-0"
-                id="sidebar-hide"
-                onClick={() => {
-                  handlerDrawerOpen(!drawerOpen);
-                }}
-              >
-                <i className="ph ph-list" />
-              </Nav.Link>
-            </Nav.Item>
-
-            <Nav.Item className="pc-h-item pc-sidebar-popup">
-              <Nav.Link as={Link} to="#" className="pc-head-link ms-0" id="mobile-collapse" onClick={() => handlerDrawerOpen(!drawerOpen)}>
-                <i className="ph ph-list" />
-              </Nav.Link>
-            </Nav.Item>
-
-            {/* <Dropdown className="pc-h-item dropdown">
+          {/* <Dropdown className="pc-h-item dropdown">
               <Dropdown.Toggle variant="link" className="pc-head-link arrow-none m-0 trig-drp-search" id="dropdown-search">
                 <i className="ph ph-magnifying-glass" />
               </Dropdown.Toggle>
@@ -335,245 +369,248 @@ export default function Header() {
                 </Form>
               </Dropdown.Menu>
             </Dropdown> */}
-          </Nav>
-        </div>
-        <div className="ms-auto">
-          <Nav className="list-unstyled">
-            <Dropdown className="pc-h-item" align="end" onToggle={handleNotificationDropdownToggle}>
-              <Dropdown.Toggle className="pc-head-link sm-notification-toggle me-0 arrow-none" variant="link" id="notification-dropdown">
-                <i className="ph ph-bell" />
-                {unreadCount > 0 && <span className="badge bg-danger pc-h-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>}
-              </Dropdown.Toggle>
+        </Nav>
+      </div>
+      <div className="ms-auto">
+        <Nav className="list-unstyled">
+          <Dropdown className="pc-h-item" align="end" onToggle={handleNotificationDropdownToggle}>
+            <Dropdown.Toggle className="pc-head-link sm-notification-toggle me-0 arrow-none" variant="link" id="notification-dropdown">
+              <i className="ph ph-bell" />
+              {unreadCount > 0 && <span className="badge bg-danger pc-h-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>}
+            </Dropdown.Toggle>
 
-              <Dropdown.Menu className="dropdown-notification pc-h-dropdown">
-                <Dropdown.Header className="d-flex align-items-center justify-content-between">
-                  <div>
-                    <h5 className="m-0">Notifikasi</h5>
-                    <small className="text-muted">{unreadCount > 0 ? `${unreadCount} belum dibaca` : 'Semua sudah dibaca'}</small>
-                  </div>
-                  <Button variant="link" size="sm" className="p-0 text-primary" disabled={!unreadCount} onClick={handleMarkAllAsRead}>
-                    Tandai dibaca
-                  </Button>
-                </Dropdown.Header>
-                <SimpleBarScroll style={{ maxHeight: 'calc(100vh - 215px)' }}>
-                  <div className="dropdown-body text-wrap position-relative">
-                    {loadingNotifications && <div className="sm-notification-state">Memuat notifikasi...</div>}
-
-                    {!loadingNotifications && notificationError && <div className="sm-notification-state text-danger">{notificationError}</div>}
-
-                    {!loadingNotifications && !notificationError && notifications.length === 0 && (
-                      <div className="sm-notification-state">
-                        <span className="sm-notification-empty-icon">
-                          <i className="ph ph-bell-simple" />
-                        </span>
-                        <strong>Belum ada notifikasi</strong>
-                        <small>Notifikasi dari backend akan tampil di sini.</small>
-                      </div>
-                    )}
-
-                    {!loadingNotifications &&
-                      !notificationError &&
-                      notifications.map((notification, index) => (
-                        <React.Fragment key={notification.id || `${notification.title}-${index}`}>
-                          {index === 0 || notifications[index - 1].date !== notification.date ? (
-                            <p className="text-span">{notification.date}</p>
-                          ) : null}
-                          <button type="button" className="sm-notification-item" onClick={() => handleMarkAsRead(notification)}>
-                            <span className={`sm-notification-icon ${notification.unread ? 'is-unread' : ''}`}>
-                              <i className="ph ph-bell-ringing" />
-                            </span>
-                            <span className="sm-notification-content">
-                              <span className="d-flex align-items-start justify-content-between gap-2">
-                                <strong>{notification.title}</strong>
-                                {notification.unread && <span className="sm-notification-dot" />}
-                              </span>
-                              <span>{notification.description}</span>
-                              {notification.time && <small>{notification.time}</small>}
-                            </span>
-                          </button>
-                        </React.Fragment>
-                      ))}
-                  </div>
-                </SimpleBarScroll>
-
-                <div className="text-center py-2 sm-notification-footer">
-                  <Button variant="link" size="sm" onClick={() => fetchNotifications(true)}>
-                    Refresh
-                  </Button>
+            <Dropdown.Menu className="dropdown-notification pc-h-dropdown">
+              <Dropdown.Header className="d-flex align-items-center justify-content-between">
+                <div>
+                  <h5 className="m-0">Notifikasi</h5>
+                  <small className="text-muted">{unreadCount > 0 ? `${unreadCount} belum dibaca` : 'Semua sudah dibaca'}</small>
                 </div>
-              </Dropdown.Menu>
-            </Dropdown>
-            <Dropdown className="pc-h-item" align="end">
-              <Dropdown.Toggle
-                className="pc-head-link sm-account-toggle arrow-none me-0"
-                variant="link"
-                id="user-profile-dropdown"
-                aria-haspopup="true"
-                aria-expanded="false"
-              >
-                <span className="sm-account-avatar">{userInitial}</span>
-                <span className="sm-account-toggle-text">
-                  <span>{userName || 'User'}</span>
-                  <small>Akun</small>
-                </span>
-                <i className="ti ti-chevron-down" />
-              </Dropdown.Toggle>
+                <Button variant="link" size="sm" className="p-0 text-primary" disabled={!unreadCount} onClick={handleMarkAllAsRead}>
+                  Tandai dibaca
+                </Button>
+              </Dropdown.Header>
+              <SimpleBarScroll style={{ maxHeight: 'calc(100vh - 215px)' }}>
+                <div className="dropdown-body text-wrap position-relative">
+                  {loadingNotifications && <div className="sm-notification-state">Memuat notifikasi...</div>}
 
-              <Dropdown.Menu className="dropdown-user-profile sm-account-menu pc-h-dropdown p-0 overflow-hidden">
-                <Dropdown.Header className="sm-account-header">
-                  <Stack direction="horizontal" gap={3} className="align-items-center">
-                    <span className="sm-account-avatar sm-account-avatar-lg">{userInitial}</span>
-                    <div className="min-w-0">
-                      <h6 className="mb-1">{userName || 'User'}</h6>
-                      <span>{userEmail || '-'}</span>
-                    </div>
-                  </Stack>
-                </Dropdown.Header>
+                  {!loadingNotifications && notificationError && <div className="sm-notification-state text-danger">{notificationError}</div>}
 
-                <div className="dropdown-body sm-account-body">
-                  <div className="sm-account-meta">
-                    <div>
-                      <span>Kode Customer</span>
-                      <strong>{customerCode || '-'}</strong>
-                    </div>
-                    <div>
-                      <span>Distributor</span>
-                      <strong>{distributorName || '-'}</strong>
-                    </div>
-                  </div>
-
-                  <div className="profile-notification-scroll position-relative">
-                    {roleId === 5 && (
-                      <Dropdown.Item as={Link} to="/setting/user-list" className="sm-account-item">
-                        <span className="sm-account-item-icon">
-                          <i className="ti ti-users-group" />
-                        </span>
-
-                        <span>
-                          <strong>Users</strong>
-                          <small>Kelola daftar pengguna</small>
-                        </span>
-                      </Dropdown.Item>
-                    )}
-                    {roleId === 5 && (
-                      <Dropdown.Item as={Link} to="/setting/role-permission" className="sm-account-item">
-                        <span className="sm-account-item-icon">
-                          <i className="ph ph-gear" />
-                        </span>
-
-                        <span>
-                          <strong>Hak Akses</strong>
-                          <small>Atur role dan permission</small>
-                        </span>
-                      </Dropdown.Item>
-                    )}
-                    <Dropdown.Item as="button" className="sm-account-item" onClick={() => setShowChangePass(true)}>
-                      <span className="sm-account-item-icon">
-                        <i className="ph ph-lock-key" />
+                  {!loadingNotifications && !notificationError && notifications.length === 0 && (
+                    <div className="sm-notification-state">
+                      <span className="sm-notification-empty-icon">
+                        <i className="ph ph-bell-simple" />
                       </span>
+                      <strong>Belum ada notifikasi</strong>
+                      <small>Notifikasi dari backend akan tampil di sini.</small>
+                    </div>
+                  )}
+
+                  {!loadingNotifications &&
+                    !notificationError &&
+                    notifications.map((notification, index) => (
+                      <React.Fragment key={notification.id || `${notification.title}-${index}`}>
+                        {index === 0 || notifications[index - 1].date !== notification.date ? (
+                          <p className="text-span">{notification.date}</p>
+                        ) : null}
+                        <button type="button" className="sm-notification-item" onClick={() => handleMarkAsRead(notification)}>
+                          <span className={`sm-notification-icon ${notification.unread ? 'is-unread' : ''}`}>
+                            <i className="ph ph-bell-ringing" />
+                          </span>
+                          <span className="sm-notification-content">
+                            <span className="d-flex align-items-start justify-content-between gap-2">
+                              <strong>{notification.title}</strong>
+                              {notification.unread && <span className="sm-notification-dot" />}
+                            </span>
+                            <span>{notification.description}</span>
+                            {notification.time && <small>{notification.time}</small>}
+                          </span>
+                        </button>
+                      </React.Fragment>
+                    ))}
+                </div>
+              </SimpleBarScroll>
+
+              <div className="text-center py-2 sm-notification-footer">
+                <Button variant="link" size="sm" onClick={() => fetchNotifications(true)}>
+                  Refresh
+                </Button>
+                <Button variant="link" size="sm" disabled={sendingTestNotification} onClick={handleSendTestNotification}>
+                  {sendingTestNotification ? 'Mengirim...' : 'Test'}
+                </Button>
+              </div>
+            </Dropdown.Menu>
+          </Dropdown>
+          <Dropdown className="pc-h-item" align="end">
+            <Dropdown.Toggle
+              className="pc-head-link sm-account-toggle arrow-none me-0"
+              variant="link"
+              id="user-profile-dropdown"
+              aria-haspopup="true"
+              aria-expanded="false"
+            >
+              <span className="sm-account-avatar">{userInitial}</span>
+              <span className="sm-account-toggle-text">
+                <span>{userName || 'User'}</span>
+                <small>Akun</small>
+              </span>
+              <i className="ti ti-chevron-down" />
+            </Dropdown.Toggle>
+
+            <Dropdown.Menu className="dropdown-user-profile sm-account-menu pc-h-dropdown p-0 overflow-hidden">
+              <Dropdown.Header className="sm-account-header">
+                <Stack direction="horizontal" gap={3} className="align-items-center">
+                  <span className="sm-account-avatar sm-account-avatar-lg">{userInitial}</span>
+                  <div className="min-w-0">
+                    <h6 className="mb-1">{userName || 'User'}</h6>
+                    <span>{userEmail || '-'}</span>
+                  </div>
+                </Stack>
+              </Dropdown.Header>
+
+              <div className="dropdown-body sm-account-body">
+                <div className="sm-account-meta">
+                  <div>
+                    <span>Kode Customer</span>
+                    <strong>{customerCode || '-'}</strong>
+                  </div>
+                  <div>
+                    <span>Distributor</span>
+                    <strong>{distributorName || '-'}</strong>
+                  </div>
+                </div>
+
+                <div className="profile-notification-scroll position-relative">
+                  {roleId === 5 && (
+                    <Dropdown.Item as={Link} to="/setting/user-list" className="sm-account-item">
+                      <span className="sm-account-item-icon">
+                        <i className="ti ti-users-group" />
+                      </span>
+
                       <span>
-                        <strong>Ubah Kata Sandi</strong>
-                        <small>Perbarui keamanan akun</small>
+                        <strong>Users</strong>
+                        <small>Kelola daftar pengguna</small>
                       </span>
                     </Dropdown.Item>
-                    <div className="d-grid mt-3">
-                      <Button onClick={handleLogout} className="sm-account-logout">
-                        <i className="ph ph-sign-out align-middle me-2" />
-                        Logout
-                      </Button>
-                    </div>
+                  )}
+                  {roleId === 5 && (
+                    <Dropdown.Item as={Link} to="/setting/role-permission" className="sm-account-item">
+                      <span className="sm-account-item-icon">
+                        <i className="ph ph-gear" />
+                      </span>
+
+                      <span>
+                        <strong>Hak Akses</strong>
+                        <small>Atur role dan permission</small>
+                      </span>
+                    </Dropdown.Item>
+                  )}
+                  <Dropdown.Item as="button" className="sm-account-item" onClick={() => setShowChangePass(true)}>
+                    <span className="sm-account-item-icon">
+                      <i className="ph ph-lock-key" />
+                    </span>
+                    <span>
+                      <strong>Ubah Kata Sandi</strong>
+                      <small>Perbarui keamanan akun</small>
+                    </span>
+                  </Dropdown.Item>
+                  <div className="d-grid mt-3">
+                    <Button onClick={handleLogout} className="sm-account-logout">
+                      <i className="ph ph-sign-out align-middle me-2" />
+                      Logout
+                    </Button>
                   </div>
                 </div>
-              </Dropdown.Menu>
-            </Dropdown>
-          </Nav>
-        </div>
+              </div>
+            </Dropdown.Menu>
+          </Dropdown>
+        </Nav>
       </div>
-      <Modal show={showChangePass} size="lg" centered onHide={closeChangePassword}>
-        <Modal.Header closeButton>
-          <Modal.Title>Ubah Kata Sandi</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Row className="g-3">
-            <Col lg={4}>
-              <Card className="border mb-0 h-100">
-                <Card.Body>
-                  <div className="avtar avtar-xl bg-light-primary text-primary mb-3">
-                    <i className="ph ph-lock-key f-24" />
-                  </div>
-                  <h6 className="mb-1">Keamanan Akun</h6>
-                  <p className="text-muted mb-0">Gunakan kata sandi baru yang berbeda dan mudah Anda ingat.</p>
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col lg={8}>
-              <Stack gap={3}>
-                <div>
-                  <Form.Label className="f-12 text-muted">Kata Sandi Lama</Form.Label>
-                  <InputGroup className="sm-input-group">
-                    <InputGroup.Text>
-                      <i className="ti ti-lock" />
-                    </InputGroup.Text>
-                    <Form.Control
-                      type={showOldPassword ? 'text' : 'password'}
-                      placeholder="Masukkan kata sandi lama"
-                      value={oldPass}
-                      onChange={(e) => setOldPass(e.target.value)}
-                    />
-                    <Button type="button" variant="light" className="sm-password-toggle" onClick={toggleOldPass}>
-                      {showOldPassword ? <i className="ti ti-eye" /> : <i className="ti ti-eye-off" />}
-                    </Button>
-                  </InputGroup>
+    </div>
+    <Modal show={showChangePass} size="lg" centered onHide={closeChangePassword}>
+      <Modal.Header closeButton>
+        <Modal.Title>Ubah Kata Sandi</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Row className="g-3">
+          <Col lg={4}>
+            <Card className="border mb-0 h-100">
+              <Card.Body>
+                <div className="avtar avtar-xl bg-light-primary text-primary mb-3">
+                  <i className="ph ph-lock-key f-24" />
                 </div>
-                <div>
-                  <Form.Label className="f-12 text-muted">Kata Sandi Baru</Form.Label>
-                  <InputGroup className="sm-input-group">
-                    <InputGroup.Text>
-                      <i className="ti ti-key" />
-                    </InputGroup.Text>
-                    <Form.Control
-                      type={showNewPassword ? 'text' : 'password'}
-                      placeholder="Masukkan kata sandi baru"
-                      value={newPass}
-                      onChange={(e) => setNewPass(e.target.value)}
-                    />
-                    <Button type="button" variant="light" className="sm-password-toggle" onClick={toggleNewPass}>
-                      {showNewPassword ? <i className="ti ti-eye" /> : <i className="ti ti-eye-off" />}
-                    </Button>
-                  </InputGroup>
-                </div>
-                <div>
-                  <Form.Label className="f-12 text-muted">Konfirmasi Kata Sandi</Form.Label>
-                  <InputGroup className="sm-input-group">
-                    <InputGroup.Text>
-                      <i className="ti ti-checkup-list" />
-                    </InputGroup.Text>
-                    <Form.Control
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      placeholder="Ulangi kata sandi baru"
-                      value={confirmPass}
-                      onChange={(e) => setConfirmPass(e.target.value)}
-                      isInvalid={Boolean(confirmPass && newPass !== confirmPass)}
-                    />
-                    <Button type="button" variant="light" className="sm-password-toggle" onClick={toggleConfirmPass}>
-                      {showConfirmPassword ? <i className="ti ti-eye" /> : <i className="ti ti-eye-off" />}
-                    </Button>
-                    <Form.Control.Feedback type="invalid">Konfirmasi kata sandi belum sama.</Form.Control.Feedback>
-                  </InputGroup>
-                </div>
-              </Stack>
-            </Col>
-          </Row>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="light-secondary" onClick={closeChangePassword}>
-            Batal
-          </Button>
-          <Button variant="primary" onClick={() => handleChangePassword()} disabled={loadingSubmit || !canSubmitPassword}>
-            {loadingSubmit ? <LoaderButton /> : 'Simpan'}
-          </Button>
-        </Modal.Footer>
-      </Modal>
-    </header>
-  );
+                <h6 className="mb-1">Keamanan Akun</h6>
+                <p className="text-muted mb-0">Gunakan kata sandi baru yang berbeda dan mudah Anda ingat.</p>
+              </Card.Body>
+            </Card>
+          </Col>
+          <Col lg={8}>
+            <Stack gap={3}>
+              <div>
+                <Form.Label className="f-12 text-muted">Kata Sandi Lama</Form.Label>
+                <InputGroup className="sm-input-group">
+                  <InputGroup.Text>
+                    <i className="ti ti-lock" />
+                  </InputGroup.Text>
+                  <Form.Control
+                    type={showOldPassword ? 'text' : 'password'}
+                    placeholder="Masukkan kata sandi lama"
+                    value={oldPass}
+                    onChange={(e) => setOldPass(e.target.value)}
+                  />
+                  <Button type="button" variant="light" className="sm-password-toggle" onClick={toggleOldPass}>
+                    {showOldPassword ? <i className="ti ti-eye" /> : <i className="ti ti-eye-off" />}
+                  </Button>
+                </InputGroup>
+              </div>
+              <div>
+                <Form.Label className="f-12 text-muted">Kata Sandi Baru</Form.Label>
+                <InputGroup className="sm-input-group">
+                  <InputGroup.Text>
+                    <i className="ti ti-key" />
+                  </InputGroup.Text>
+                  <Form.Control
+                    type={showNewPassword ? 'text' : 'password'}
+                    placeholder="Masukkan kata sandi baru"
+                    value={newPass}
+                    onChange={(e) => setNewPass(e.target.value)}
+                  />
+                  <Button type="button" variant="light" className="sm-password-toggle" onClick={toggleNewPass}>
+                    {showNewPassword ? <i className="ti ti-eye" /> : <i className="ti ti-eye-off" />}
+                  </Button>
+                </InputGroup>
+              </div>
+              <div>
+                <Form.Label className="f-12 text-muted">Konfirmasi Kata Sandi</Form.Label>
+                <InputGroup className="sm-input-group">
+                  <InputGroup.Text>
+                    <i className="ti ti-checkup-list" />
+                  </InputGroup.Text>
+                  <Form.Control
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    placeholder="Ulangi kata sandi baru"
+                    value={confirmPass}
+                    onChange={(e) => setConfirmPass(e.target.value)}
+                    isInvalid={Boolean(confirmPass && newPass !== confirmPass)}
+                  />
+                  <Button type="button" variant="light" className="sm-password-toggle" onClick={toggleConfirmPass}>
+                    {showConfirmPassword ? <i className="ti ti-eye" /> : <i className="ti ti-eye-off" />}
+                  </Button>
+                  <Form.Control.Feedback type="invalid">Konfirmasi kata sandi belum sama.</Form.Control.Feedback>
+                </InputGroup>
+              </div>
+            </Stack>
+          </Col>
+        </Row>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="light-secondary" onClick={closeChangePassword}>
+          Batal
+        </Button>
+        <Button variant="primary" onClick={() => handleChangePassword()} disabled={loadingSubmit || !canSubmitPassword}>
+          {loadingSubmit ? <LoaderButton /> : 'Simpan'}
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  </header>
+);
 }

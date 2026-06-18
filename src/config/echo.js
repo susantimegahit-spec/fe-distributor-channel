@@ -6,21 +6,13 @@ const API_ENDPOINT = import.meta.env.VITE_APP_API_ENDPOINT_DEVELOPMENT || '';
 
 const trimTrailingSlash = (value = '') => value.replace(/\/+$/, '');
 
-const getApiOrigin = () => {
-  try {
-    return new URL(API_ENDPOINT).origin;
-  } catch (error) {
-    return '';
-  }
-};
-
 const getBroadcastAuthEndpoint = () => {
   const configuredEndpoint = import.meta.env.VITE_ECHO_AUTH_ENDPOINT;
 
   if (configuredEndpoint) return configuredEndpoint;
 
-  const apiOrigin = getApiOrigin();
-  return apiOrigin ? `${trimTrailingSlash(apiOrigin)}/broadcasting/auth` : '/broadcasting/auth';
+  const apiEndpoint = trimTrailingSlash(API_ENDPOINT);
+  return apiEndpoint ? `${apiEndpoint}/broadcasting/auth` : '/broadcasting/auth';
 };
 
 export const getNotificationChannelName = (userId) => {

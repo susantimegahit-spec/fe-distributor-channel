@@ -9,6 +9,7 @@ import Card from 'react-bootstrap/Card';
 import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
 import InputGroup from 'react-bootstrap/InputGroup';
+import Modal from 'react-bootstrap/Modal';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
@@ -67,6 +68,8 @@ export default function OrderList() {
   const [isLoading, setIsLoading] = useState(false);
   const [downloadingPdfId, setDownloadingPdfId] = useState(null);
   const [downloadingAttachmentId, setDownloadingAttachmentId] = useState(null);
+  const [loadingDetailId, setLoadingDetailId] = useState(null);
+  const [selectedOrderDetail, setSelectedOrderDetail] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
@@ -134,6 +137,34 @@ export default function OrderList() {
     const attachments = order.attachments || order.documents || order.files || order.order_documents || order.attachment || [];
 
     return Array.isArray(attachments) ? attachments : [attachments].filter(Boolean);
+  };
+
+  const getOrderValue = (order, keys, defaultValue = '-') => {
+    for (const key of keys) {
+      const value = String(key)
+        .split('.')
+        .reduce((current, path) => current?.[path], order);
+
+      if (value !== undefined && value !== null && value !== '') {
+        return value;
+      }
+    }
+
+    return defaultValue;
+  };
+
+  const getOrderLines = (order = {}) => {
+    const lines = order.details || order.lines || order.document_lines || order.DocumentLines || [];
+
+    return Array.isArray(lines) ? lines : [];
+  };
+
+  const formatOrderDate = (value) => {
+    if (!value) return '-';
+
+    const dateValue = moment(value);
+
+    return dateValue.isValid() ? dateValue.format('DD MMM YYYY') : '-';
   };
 
   const getAttachmentValue = (attachment, keys, defaultValue = '') => {
@@ -226,7 +257,30 @@ export default function OrderList() {
     }
   };
 
+  const handleViewOrder = async (order) => {
+    setLoadingDetailId(order.id);
+
+    try {
+      const response = await OrderServices.getDetailOrder(order.id);
+
+      if (response?.data?.success) {
+        setSelectedOrderDetail(response.data.data);
+      } else {
+        showAlert(response?.data?.message || 'Gagal mengambil detail order', 'danger');
+      }
+    } catch (error) {
+      showAlert(error?.message || 'Gagal mengambil detail order', 'danger');
+    } finally {
+      setLoadingDetailId(null);
+    }
+  };
+
+  const closeDetailModal = () => {
+    setSelectedOrderDetail(null);
+  };
+
   return (
+    <>
     <Stack gap={3}>
       <MainCard
         title={
@@ -424,8 +478,14 @@ export default function OrderList() {
                       ) : null}
                     </td>
                     <td className="text-center">
-                      <Button className="rounded-circle" variant="outline-primary" size="sm">
-                        <i className="ti ti-eye" />
+                      <Button
+                        className="rounded-circle"
+                        variant="outline-primary"
+                        size="sm"
+                        disabled={loadingDetailId === order.id}
+                        onClick={() => handleViewOrder(order)}
+                      >
+                        <i className={loadingDetailId === order.id ? 'ti ti-loader-2' : 'ti ti-eye'} />
                       </Button>
                       &nbsp;
                       <Button
@@ -507,5 +567,110 @@ export default function OrderList() {
         />
       </MainCard>
     </Stack>
+    <Modal show={Boolean(selectedOrderDetail)} onHide={closeDetailModal} centered size="xl">
+      <Modal.Header closeButton>
+        <Modal.Title>Detail Order</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        {selectedOrderDetail ? (
+          <Stack gap={3}>
+            <Row className="g-3">
+              <Col md={4}>
+                <Form.Label className="f-12 text-muted">No. Order</Form.Label>
+                <div className="fw-semibold">{getOrderValue(selectedOrderDetail, ['order_no', 'doc_num', 'docNum'])}</div>
+              </Col>
+              <Col md={4}>
+                <Form.Label className="f-12 text-muted">No. PO</Form.Label>
+                <div>{getOrderValue(selectedOrderDetail, ['po_number', 'num_at_card', 'numAtCard'])}</div>
+              </Col>
+              <Col md={4}>
+                <Form.Label className="f-12 text-muted">Status</Form.Label>
+                <div>
+                  <Badge bg={statusVariant[selectedOrderDetail.status] || 'secondary'}>
+                    {getOrderValue(selectedOrderDetail, ['status'])}
+                  </Badge>
+                </div>
+              </Col>
+              <Col md={4}>
+                <Form.Label className="f-12 text-muted">Customer</Form.Label>
+                <div className="fw-semibold">{getOrderValue(selectedOrderDetail, ['card_code', 'cardCode', 'customer_code'])}</div>
+                <div>{getOrderValue(selectedOrderDetail, ['customer_name', 'card_name', 'CardName'])}</div>
+              </Col>
+              <Col md={4}>
+                <Form.Label className="f-12 text-muted">Tanggal Dokumen</Form.Label>
+                <div>{formatOrderDate(getOrderValue(selectedOrderDetail, ['doc_date', 'docDate'], ''))}</div>
+              </Col>
+              <Col md={4}>
+                <Form.Label className="f-12 text-muted">Request Tanggal Kirim</Form.Label>
+                <div>{formatOrderDate(getOrderValue(selectedOrderDetail, ['doc_due_date', 'docDueDate'], ''))}</div>
+              </Col>
+              <Col md={4}>
+                <Form.Label className="f-12 text-muted">Kode Sales</Form.Label>
+                <div>{getOrderValue(selectedOrderDetail, ['slp_code', 'slpCode'])}</div>
+              </Col>
+              <Col md={4}>
+                <Form.Label className="f-12 text-muted">Alamat Tagih</Form.Label>
+                <div>{getOrderValue(selectedOrderDetail, ['address', 'bill_to_address', 'Address'])}</div>
+              </Col>
+              <Col md={4}>
+                <Form.Label className="f-12 text-muted">Alamat Kirim</Form.Label>
+                <div>{getOrderValue(selectedOrderDetail, ['address2', 'ship_to_address', 'Address2'])}</div>
+              </Col>
+              <Col md={12}>
+                <Form.Label className="f-12 text-muted">Catatan</Form.Label>
+                <div>{getOrderValue(selectedOrderDetail, ['comments', 'Comments'])}</div>
+              </Col>
+            </Row>
+
+            <Table className="mb-0 align-middle" responsive hover>
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th className="text-end">Qty</th>
+                  <th>Satuan</th>
+                  <th className="text-end">Harga</th>
+                  <th className="text-end">Total</th>
+                  <th>Warehouse</th>
+                </tr>
+              </thead>
+              <tbody>
+                {getOrderLines(selectedOrderDetail).length > 0 ? (
+                  getOrderLines(selectedOrderDetail).map((line, index) => (
+                    <tr key={line.id || line.item_code || index}>
+                      <td>
+                        <div className="fw-semibold">{getOrderValue(line, ['item_code', 'itemCode', 'ItemCode'])}</div>
+                        <div className="text-muted f-12">{getOrderValue(line, ['item_name', 'itemName', 'Dscription', 'description'])}</div>
+                      </td>
+                      <td className="text-end">{getOrderValue(line, ['quantity', 'qty', 'Quantity'], 0)}</td>
+                      <td>{getOrderValue(line, ['unit_msr', 'unitMsr', 'uom_code', 'UomCode'])}</td>
+                      <td className="text-end">{currency(getOrderValue(line, ['unit_price', 'unitPrice', 'price', 'Price'], 0))}</td>
+                      <td className="text-end">{currency(getOrderValue(line, ['line_total', 'lineTotal', 'LineTotal'], 0))}</td>
+                      <td>{getOrderValue(line, ['whs_code', 'warehouse_code', 'WhsCode'])}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="text-center text-muted py-4">
+                      Detail item tidak tersedia
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </Table>
+
+            <div className="text-end">
+              <span className="text-muted me-2">Total Order</span>
+              <span className="fw-semibold">{currency(getOrderValue(selectedOrderDetail, ['doc_total', 'docTotal'], 0))}</span>
+            </div>
+          </Stack>
+        ) : null}
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="light-secondary" onClick={closeDetailModal}>
+          Tutup
+        </Button>
+      </Modal.Footer>
+    </Modal>
+    </>
   );
 }
