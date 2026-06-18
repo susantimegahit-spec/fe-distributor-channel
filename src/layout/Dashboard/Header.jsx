@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Cookies from 'js-cookie';
 
@@ -101,6 +101,8 @@ const getUnreadCount = (payload, items) => {
   return items.filter((notification) => notification.unread).length;
 };
 
+const getNotificationKey = (notification) => notification?.id || `${notification?.title}-${notification?.createdAt}`;
+
 // =============================|| MAIN LAYOUT - HEADER ||============================== //
 
 export default function Header() {
@@ -130,7 +132,44 @@ export default function Header() {
   const [loadingNotifications, setLoadingNotifications] = useState(false);
   const [notificationError, setNotificationError] = useState('');
   const [sendingTestNotification, setSendingTestNotification] = useState(false);
+  const notificationAudioContextRef = useRef(null);
+  const knownNotificationIdsRef = useRef(new Set());
+  const hasLoadedNotificationsRef = useRef(false);
   const canSubmitPassword = Boolean(oldPass && newPass && confirmPass && newPass === confirmPass);
+
+  const playNotificationSound = useCallback(() => {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+
+      if (!notificationAudioContextRef.current) {
+        notificationAudioContextRef.current = new AudioContext();
+      }
+
+      const audioContext = notificationAudioContextRef.current;
+      if (audioContext.state === 'suspended') {
+        audioContext.resume();
+      }
+
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      const startTime = audioContext.currentTime;
+
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(880, startTime);
+      oscillator.frequency.setValueAtTime(1175, startTime + 0.08);
+      gainNode.gain.setValueAtTime(0.001, startTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.2, startTime + 0.02);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + 0.32);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      oscillator.start(startTime);
+      oscillator.stop(startTime + 0.34);
+    } catch (error) {
+      // Browser can block audio until the user interacts with the page.
+    }
+  }, []);
 
   const fetchNotifications = useCallback(async (silent = false) => {
     if (!silent) setLoadingNotifications(true);
@@ -140,6 +179,18 @@ export default function Header() {
       const response = await NotificationServices.getNotifications();
       const payload = getResponsePayload(response);
       const items = getNotificationItems(payload).map(normalizeNotification);
+      const incomingKeys = items.map(getNotificationKey).filter(Boolean);
+      const hasNewUnreadNotification = items.some((item) => {
+        const key = getNotificationKey(item);
+        return item.unread && key && !knownNotificationIdsRef.current.has(key);
+      });
+
+      if (hasLoadedNotificationsRef.current && hasNewUnreadNotification) {
+        playNotificationSound();
+      }
+
+      incomingKeys.forEach((key) => knownNotificationIdsRef.current.add(key));
+      hasLoadedNotificationsRef.current = true;
 
       setNotifications(items);
       setUnreadCount(getUnreadCount(payload, items));
@@ -148,7 +199,7 @@ export default function Header() {
     } finally {
       if (!silent) setLoadingNotifications(false);
     }
-  }, []);
+  }, [playNotificationSound]);
 
   const handleIncomingNotification = useCallback((payload) => {
     const notification = normalizeNotification({
@@ -156,6 +207,16 @@ export default function Header() {
       read_at: payload?.read_at ?? null,
       created_at: payload?.created_at || payload?.createdAt || new Date().toISOString()
     });
+    const notificationKey = getNotificationKey(notification);
+    const isNewNotification = notificationKey && !knownNotificationIdsRef.current.has(notificationKey);
+
+    if (notificationKey) {
+      knownNotificationIdsRef.current.add(notificationKey);
+    }
+
+    if (notification.unread && isNewNotification) {
+      playNotificationSound();
+    }
 
     setNotifications((prevState) => {
       const existingNotification = notification.id ? prevState.find((item) => item.id === notification.id) : null;
@@ -174,11 +235,10 @@ export default function Header() {
 
       return [notification, ...prevState];
     });
-    setUnreadCount((prevState) => prevState + (notification.unread ? 1 : 0));
 
     // Tampilkan popup notifikasi secara real-time
     showAlert(`${notification.title}: ${notification.description}`, 'info', 8000);
-  }, [showAlert]);
+  }, [playNotificationSound, showAlert]);
 
 const handleLogout = () => {
   Cookies.remove('isLoggedIn');
@@ -302,6 +362,44 @@ const handleChangePassword = async () => {
 useEffect(() => {
   fetchNotifications();
 }, [fetchNotifications]);
+
+useEffect(() => {
+  const intervalId = window.setInterval(() => {
+    fetchNotifications(true);
+  }, 15000);
+
+  return () => window.clearInterval(intervalId);
+}, [fetchNotifications]);
+
+useEffect(() => {
+  const unlockNotificationAudio = () => {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+
+      if (!notificationAudioContextRef.current) {
+        notificationAudioContextRef.current = new AudioContext();
+      }
+
+      if (notificationAudioContextRef.current.state === 'suspended') {
+        notificationAudioContextRef.current.resume();
+      }
+    } catch (error) {
+      // Ignore browsers that block or do not support Web Audio.
+    }
+
+    window.removeEventListener('pointerdown', unlockNotificationAudio);
+    window.removeEventListener('keydown', unlockNotificationAudio);
+  };
+
+  window.addEventListener('pointerdown', unlockNotificationAudio);
+  window.addEventListener('keydown', unlockNotificationAudio);
+
+  return () => {
+    window.removeEventListener('pointerdown', unlockNotificationAudio);
+    window.removeEventListener('keydown', unlockNotificationAudio);
+  };
+}, []);
 
 useEffect(() => {
   if (!userId) return undefined;
