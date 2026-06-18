@@ -164,7 +164,11 @@ export default function Header() {
       return [notification, ...prevState];
     });
     setUnreadCount((prevState) => prevState + (notification.unread ? 1 : 0));
-  }, []);
+
+    // Tampilkan popup notifikasi secara real-time
+    showAlert(`${notification.title}: ${notification.description}`, 'info', 8000);
+  }, [showAlert]);
+  // tes
 
   const handleLogout = () => {
     Cookies.remove('isLoggedIn');
