@@ -142,13 +142,19 @@ export default function AuthLoginForm({ className }) {
           <Form.Control.Feedback type="invalid">{errors.password?.message}</Form.Control.Feedback>
         </Form.Group>
 
-        <Turnstile
-          siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
-          onVerify={setTurnstileToken}
-        />
+        {import.meta.env.VITE_TURNSTILE_ENABLED !== 'false' && (
+          <Turnstile
+            siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
+            onVerify={setTurnstileToken}
+          />
+        )}
 
         <div className="d-grid mt-4">
-          <Button type="submit" disabled={isLoading || !turnstileToken} className="sm-login-submit">
+          <Button
+            type="submit"
+            disabled={isLoading || (import.meta.env.VITE_TURNSTILE_ENABLED !== 'false' && !turnstileToken)}
+            className="sm-login-submit"
+          >
             {isLoading ? <LoaderButton /> : 'Login'}
           </Button>
         </div>
