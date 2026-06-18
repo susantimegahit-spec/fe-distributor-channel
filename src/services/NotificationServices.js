@@ -5,6 +5,10 @@ class NotificationServices {
     return DataService.get('/notifications');
   }
 
+  sendTestNotification(data = {}) {
+    return DataService.post('/notifications/test', data);
+  }
+
   markAsRead(id) {
     return DataService.post(`/notifications/${id}/read`);
   }

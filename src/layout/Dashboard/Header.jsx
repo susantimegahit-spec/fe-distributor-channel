@@ -129,6 +129,7 @@ export default function Header() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loadingNotifications, setLoadingNotifications] = useState(false);
   const [notificationError, setNotificationError] = useState('');
+  const [sendingTestNotification, setSendingTestNotification] = useState(false);
   const canSubmitPassword = Boolean(oldPass && newPass && confirmPass && newPass === confirmPass);
 
   const fetchNotifications = useCallback(async (silent = false) => {
@@ -157,13 +158,22 @@ export default function Header() {
     });
 
     setNotifications((prevState) => {
-      if (notification.id && prevState.some((item) => item.id === notification.id)) {
+      const existingNotification = notification.id ? prevState.find((item) => item.id === notification.id) : null;
+
+      if (existingNotification) {
+        if (!existingNotification.unread && notification.unread) {
+          setUnreadCount((prevCount) => prevCount + 1);
+        }
+
         return prevState.map((item) => (item.id === notification.id ? notification : item));
+      }
+
+      if (notification.unread) {
+        setUnreadCount((prevCount) => prevCount + 1);
       }
 
       return [notification, ...prevState];
     });
-    setUnreadCount((prevState) => prevState + (notification.unread ? 1 : 0));
   }, []);
 
   const handleLogout = () => {
@@ -211,6 +221,30 @@ export default function Header() {
       fetchNotifications(true);
     } catch (error) {
       fetchNotifications(true);
+    }
+  };
+
+  const handleSendTestNotification = async () => {
+    setSendingTestNotification(true);
+
+    try {
+      const response = await NotificationServices.sendTestNotification({
+        title: 'Test Push Notification',
+        message: 'Notifikasi test berhasil dikirim dari backend.'
+      });
+      const payload = getResponsePayload(response);
+
+      if (payload?.id) {
+        handleIncomingNotification(payload);
+      } else {
+        fetchNotifications(true);
+      }
+
+      showAlert('Notifikasi test berhasil dikirim', 'success');
+    } catch (error) {
+      showAlert('Gagal mengirim notifikasi test', 'danger');
+    } finally {
+      setSendingTestNotification(false);
     }
   };
 
@@ -276,7 +310,7 @@ export default function Header() {
     }
 
     const channel = echo.private(channelName);
-    const customEvent = import.meta.env.VITE_ECHO_NOTIFICATION_EVENT;
+    const customEvent = import.meta.env.VITE_ECHO_NOTIFICATION_EVENT || '.NotificationCreated';
 
     channel.notification(handleIncomingNotification);
 
@@ -395,6 +429,9 @@ export default function Header() {
                 <div className="text-center py-2 sm-notification-footer">
                   <Button variant="link" size="sm" onClick={() => fetchNotifications(true)}>
                     Refresh
+                  </Button>
+                  <Button variant="link" size="sm" disabled={sendingTestNotification} onClick={handleSendTestNotification}>
+                    {sendingTestNotification ? 'Mengirim...' : 'Test'}
                   </Button>
                 </div>
               </Dropdown.Menu>
