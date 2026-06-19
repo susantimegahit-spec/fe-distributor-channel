@@ -10,6 +10,10 @@ class RoleServices {
     return DataService.get('/roles');
   }
 
+  getMasterApproval() {
+    return DataService.get('/master-approvals');
+  }
+
   postCreateRole(payload) {
     return DataService.post('/roles', payload);
   }

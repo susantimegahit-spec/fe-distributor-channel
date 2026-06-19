@@ -30,11 +30,19 @@ const initialInput = {
   email: '',
   password: '',
   roleId: '',
-  distributorCode: '',
-  distributorId: ''
+  distributorCodes: [],
+  distributorIds: []
 };
 
 const pageSize = 10;
+const ALL_DISTRIBUTORS_VALUE = 'ALL';
+const allDistributorOption = {
+  value: ALL_DISTRIBUTORS_VALUE,
+  label: 'All Distributor',
+  id: ALL_DISTRIBUTORS_VALUE,
+  name: 'All Distributor',
+  isAll: true
+};
 
 const getUserDistributorCode = (item) =>
   item?.code_customer ||
@@ -46,6 +54,88 @@ const getUserDistributorCode = (item) =>
 
 const getUserDistributorName = (item) =>
   item?.name_distributor || item?.distributor_name || item?.distributor?.name || item?.distributor?.name_distributor || '';
+
+const normalizeArray = (value) => {
+  if (Array.isArray(value)) return value.filter((item) => item !== undefined && item !== null && item !== '');
+  if (value === undefined || value === null || value === '') return [];
+  return [value];
+};
+
+const getUserDistributors = (item) => {
+  const distributors =
+    item?.distributors || item?.user_distributors || item?.userDistributors || item?.distributor_users || item?.distributorUsers || [];
+
+  if (Array.isArray(distributors) && distributors.length) {
+    return distributors.map((distributor) => {
+      const source = distributor?.distributor || distributor;
+
+      return {
+        id: source?.id || distributor?.id_distributor || distributor?.distributor_id || distributor?.id || '',
+        code:
+          source?.code_customer ||
+          source?.customer_code ||
+          source?.distributor_code ||
+          distributor?.code_customer ||
+          distributor?.customer_code ||
+          distributor?.distributor_code ||
+          '',
+        name:
+          source?.name ||
+          source?.name_distributor ||
+          source?.distributor_name ||
+          distributor?.name ||
+          distributor?.name_distributor ||
+          distributor?.distributor_name ||
+          ''
+      };
+    });
+  }
+
+  const codes = normalizeArray(item?.code_customers || item?.code_customer || item?.customer_code || item?.distributor_code);
+  const ids = normalizeArray(item?.id_distributors || item?.id_distributor || item?.distributor_id);
+  const names = normalizeArray(item?.name_distributors || item?.name_distributor || item?.distributor_name);
+
+  if (codes.length || ids.length || names.length) {
+    const maxLength = Math.max(codes.length, ids.length, names.length);
+
+    return Array.from({ length: maxLength }, (_, index) => ({
+      id: ids[index] || '',
+      code: codes[index] || '',
+      name: names[index] || ''
+    }));
+  }
+
+  const code = getUserDistributorCode(item);
+  const name = getUserDistributorName(item);
+
+  return code || name
+    ? [
+        {
+          id: item?.id_distributor || item?.distributor_id || item?.distributor?.id || '',
+          code,
+          name
+        }
+      ]
+    : [];
+};
+
+const formatDistributorCodes = (item) => {
+  const distributors = getUserDistributors(item);
+
+  return distributors
+    .map((distributor) => distributor.code)
+    .filter(Boolean)
+    .join(', ');
+};
+
+const formatDistributorNames = (item) => {
+  const distributors = getUserDistributors(item);
+
+  return distributors
+    .map((distributor) => distributor.name)
+    .filter(Boolean)
+    .join(', ');
+};
 
 export default function UserList() {
   const { showAlert } = useAlert();
@@ -117,8 +207,8 @@ export default function UserList() {
         item.username?.toLowerCase().includes(keyword) ||
         item.email?.toLowerCase().includes(keyword) ||
         item.role?.name?.toLowerCase().includes(keyword) ||
-        getUserDistributorCode(item).toLowerCase().includes(keyword) ||
-        getUserDistributorName(item).toLowerCase().includes(keyword);
+        formatDistributorCodes(item).toLowerCase().includes(keyword) ||
+        formatDistributorNames(item).toLowerCase().includes(keyword);
       const matchStatus = selectedStatus ? String(item.is_active) === selectedStatus : true;
       const matchRole = selectedRole ? String(item.role?.id) === selectedRole || String(item.role_id) === selectedRole : true;
 
@@ -167,13 +257,26 @@ export default function UserList() {
     });
   };
 
-  const handleSelectDistributor = (option) => {
+  const handleSelectDistributor = (options) => {
+    const selectedOptions = options || [];
+    const hasAllDistributor = selectedOptions.some((option) => option.value === ALL_DISTRIBUTORS_VALUE);
+
     setInput({
       ...input,
-      distributorCode: option?.value || '',
-      distributorId: option?.id || ''
+      distributorCodes: hasAllDistributor ? [ALL_DISTRIBUTORS_VALUE] : selectedOptions.map((option) => option.value),
+      distributorIds: hasAllDistributor ? [ALL_DISTRIBUTORS_VALUE] : selectedOptions.map((option) => option.id)
     });
   };
+
+  const distributorOptions = [allDistributorOption, ...listDistributor];
+  const isAllDistributorSelected = input.distributorCodes.includes(ALL_DISTRIBUTORS_VALUE);
+  const selectedDistributor = isAllDistributorSelected
+    ? [allDistributorOption]
+    : listDistributor.filter((item) => input.distributorCodes.includes(item.value));
+  const getSelectedDistributorPayload = () => ({
+    code_customer: isAllDistributorSelected ? listDistributor.map((item) => item.value) : input.distributorCodes,
+    id_distributor: isAllDistributorSelected ? listDistributor.map((item) => item.id) : input.distributorIds
+  });
 
   const openCreateModal = () => {
     setFormMode('create');
@@ -183,6 +286,14 @@ export default function UserList() {
   };
 
   const openEditModal = (item) => {
+    const distributors = getUserDistributors(item);
+    const distributorCodes = distributors.map((distributor) => distributor.code).filter(Boolean);
+    const distributorIds = distributors.map((distributor) => distributor.id).filter(Boolean);
+    const hasAllDistributors =
+      listDistributor.length > 0 &&
+      distributorCodes.length === listDistributor.length &&
+      listDistributor.every((distributor) => distributorCodes.includes(distributor.value));
+
     setFormMode('edit');
     setSelectedUserId(item.id);
     setShowView(false);
@@ -192,8 +303,8 @@ export default function UserList() {
       email: item.email || '',
       password: '',
       roleId: item.role?.id || item.role_id || '',
-      distributorCode: getUserDistributorCode(item),
-      distributorId: item.id_distributor || item.distributor_id || item.distributor?.id || ''
+      distributorCodes: hasAllDistributors ? [ALL_DISTRIBUTORS_VALUE] : distributorCodes,
+      distributorIds: hasAllDistributors ? [ALL_DISTRIBUTORS_VALUE] : distributorIds
     });
     setShowPassword(false);
     setShowMenu(true);
@@ -206,14 +317,15 @@ export default function UserList() {
 
   const handleCreate = async () => {
     setLoadingSubmit(true);
+    const distributorPayload = getSelectedDistributorPayload();
     const payload = {
       name: input.name,
       username: input.username,
       email: input.email,
       password: input.password,
       role_id: input.roleId,
-      code_customer: input.distributorCode,
-      id_distributor: input.distributorId
+      code_customer: distributorPayload.code_customer,
+      id_distributor: distributorPayload.id_distributor
     };
 
     const response = await UserServices.postCreateUser(payload);
@@ -229,13 +341,14 @@ export default function UserList() {
 
   const handleEdit = async () => {
     setLoadingSubmit(true);
+    const distributorPayload = getSelectedDistributorPayload();
     const payload = {
       name: input.name,
       username: input.username,
       email: input.email,
       role_id: input.roleId,
-      code_customer: input.distributorCode,
-      id_distributor: input.distributorId
+      code_customer: distributorPayload.code_customer,
+      id_distributor: distributorPayload.id_distributor
     };
 
     if (input.password) {
@@ -270,9 +383,8 @@ export default function UserList() {
     }
   };
 
-  const selectedDistributor = listDistributor.find((item) => item.value === input.distributorCode) || null;
   const formIsValid = Boolean(
-    input.name && input.username && input.email && input.roleId && input.distributorCode && (formMode === 'edit' || input.password)
+    input.name && input.username && input.email && input.roleId && input.distributorCodes.length && (formMode === 'edit' || input.password)
   );
 
   return (
@@ -441,8 +553,8 @@ export default function UserList() {
                         </td>
                         <td>{item.email || '-'}</td>
                         <td>
-                          <div className="fw-semibold">{getUserDistributorCode(item) || '-'}</div>
-                          <small className="text-muted">{getUserDistributorName(item) || '-'}</small>
+                          <div className="fw-semibold">{formatDistributorCodes(item) || '-'}</div>
+                          <small className="text-muted">{formatDistributorNames(item) || '-'}</small>
                         </td>
                         <td>
                           <Badge bg="light" text="dark">
@@ -567,20 +679,21 @@ export default function UserList() {
                     ))}
                   </Form.Select>
                 </Col>
-                {console.log('role => ', input.roleId)}
-                {input.roleId == 1 ? (
-                  <Col md={12}>
-                    <Form.Label className="f-12 text-muted">Distributor Code</Form.Label>
-                    <Select
-                      value={selectedDistributor}
-                      options={listDistributor}
-                      menuPosition="fixed"
-                      onChange={handleSelectDistributor}
-                      placeholder="Pilih distributor"
-                      isClearable
-                    />
-                  </Col>
-                ) : null}
+                {/* {input.roleId == 1 ? ( */}
+                <Col md={12}>
+                  <Form.Label className="f-12 text-muted">Distributor</Form.Label>
+                  <Select
+                    value={selectedDistributor}
+                    options={distributorOptions}
+                    menuPosition="fixed"
+                    onChange={handleSelectDistributor}
+                    placeholder="Pilih distributor"
+                    isClearable
+                    isMulti
+                    closeMenuOnSelect={false}
+                  />
+                </Col>
+                {/* ) : null} */}
                 <Col md={12}>
                   <Form.Label className="f-12 text-muted">{formMode === 'edit' ? 'Password Baru' : 'Password'}</Form.Label>
                   <InputGroup className="sm-input-group">
@@ -642,11 +755,11 @@ export default function UserList() {
                   </Col>
                   <Col md={6}>
                     <Form.Label className="f-12 text-muted">Distributor Code</Form.Label>
-                    <div className="fw-semibold">{getUserDistributorCode(selectedUser) || '-'}</div>
+                    <div className="fw-semibold">{formatDistributorCodes(selectedUser) || '-'}</div>
                   </Col>
                   <Col md={6}>
                     <Form.Label className="f-12 text-muted">Nama Distributor</Form.Label>
-                    <div>{getUserDistributorName(selectedUser) || '-'}</div>
+                    <div>{formatDistributorNames(selectedUser) || '-'}</div>
                   </Col>
                   <Col md={6}>
                     <Form.Label className="f-12 text-muted">Status</Form.Label>

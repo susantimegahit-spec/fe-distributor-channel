@@ -117,10 +117,16 @@
 }
 
 .sm-auth-brand-logo {
-  width: 220px;
+  width: min(360px, 84%);
   max-width: 100%;
-  margin-bottom: 36px;
-  filter: drop-shadow(0 18px 28px rgba(9, 15, 50, 0.3));
+  max-height: 180px;
+  height: auto;
+  object-fit: contain;
+  margin-bottom: 24px;
+  padding: 12px 16px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 18px 38px rgba(9, 15, 50, 0.22);
 }
 
 .sm-auth-eyebrow {
@@ -145,6 +151,41 @@
   color: rgba(255, 255, 255, 0.78);
   font-size: 1rem;
   line-height: 1.7;
+}
+
+.sm-brand-showcase {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  width: min(520px, 100%);
+  margin-top: 34px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(8px);
+}
+
+.sm-brand-logo-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  height: 82px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 12px 24px rgba(9, 15, 50, 0.12);
+}
+
+.sm-brand-logo-tile img {
+  display: block;
+  width: 100%;
+  max-width: 120px;
+  height: 100%;
+  object-fit: contain;
 }
 
 .sm-auth-highlights {
@@ -193,8 +234,14 @@
 }
 
 .sm-login-logo {
-  width: 150px;
-  border-radius: 14px;
+  width: 104px;
+  height: 104px;
+  object-fit: contain;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid rgba(31, 79, 216, 0.1);
+  border-radius: 18px;
+  box-shadow: 0 12px 28px rgba(23, 31, 79, 0.12);
 }
 
 .sm-login-card h4 {
@@ -252,8 +299,18 @@
   }
 
   .sm-auth-brand-logo {
-    width: 170px;
+    width: min(320px, 82%);
     margin-bottom: 24px;
+  }
+
+  .sm-brand-showcase {
+    grid-template-columns: repeat(6, minmax(64px, 1fr));
+    overflow-x: auto;
+    padding-bottom: 16px;
+  }
+
+  .sm-brand-logo-tile {
+    height: 70px;
   }
 }
 
@@ -266,6 +323,15 @@
     min-height: 100vh;
     border: 0;
     border-radius: 0;
+  }
+
+  .sm-brand-showcase {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .sm-brand-logo-tile {
+    height: 64px;
+    padding: 9px;
   }
 
   .sm-auth-brand {
@@ -327,7 +393,9 @@
   width: 48px;
   min-width: 48px;
   height: 48px;
-  object-fit: cover;
+  object-fit: contain;
+  padding: 1px;
+  background: #fff;
   border: 2px solid rgba(255, 255, 255, 0.18);
   border-radius: 12px;
   box-shadow: 0 10px 24px rgba(9, 15, 50, 0.24);

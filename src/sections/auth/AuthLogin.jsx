@@ -16,8 +16,7 @@ import MainCard from 'components/MainCard';
 import { passwordSchema, usernameSchema } from 'utils/validationSchema';
 import { useAlert } from '../../utils/alertContext';
 
-// assets
-import SusantiMegahLogo from 'assets/images/logo-susanti-yellow.png';
+import CustomerPortalMark from 'assets/images/customer-portal-mark.png';
 import { DataService } from '../../config/dataService';
 import LoaderButton from '../../components/LoaderButton';
 import { customerCodeSchema } from '../../utils/validationSchema';
@@ -82,10 +81,9 @@ export default function AuthLoginForm({ className }) {
   return (
     <MainCard className="sm-login-card mb-0">
       <div className="text-center mb-4">
-        {/* <Image src={SusantiMegahLogo} alt="PT. Susanti Megah" className="sm-login-logo" /> */}
+        <Image src={CustomerPortalMark} alt="Customer Portal" className="sm-login-logo mb-3" />
         {/* <span className="sm-auth-eyebrow d-block mt-3">Selamat Datang</span> */}
-        <h4 className="mb-1">Masuk ke Distributor Channel</h4>
-        <p className="text-muted mb-0">Gunakan akun dan kode customer yang sudah terdaftar.</p>
+        <p className="text-muted mb-0">Gunakan akun yang sudah terdaftar.</p>
       </div>
       <Form onSubmit={handleSubmit(onSubmit)}>
         <Form.Group className="mb-3" controlId="formUsername">

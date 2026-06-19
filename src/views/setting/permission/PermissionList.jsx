@@ -28,6 +28,17 @@ import { useAlert } from '../../../utils/alertContext';
 const defaultExpanded = ['dashboard', 'masterData', 'order', 'finance'];
 const pageSize = 10;
 
+const getMasterApprovalId = (item) =>
+  item?.master_approval_id || item?.masterApprovalId || item?.master_approval?.id || item?.masterApproval?.id || '';
+
+const getMasterApprovalName = (item) =>
+  item?.master_approval_name ||
+  item?.masterApprovalName ||
+  item?.master_approval?.name ||
+  item?.masterApproval?.name ||
+  item?.name_master_approval ||
+  '';
+
 const countMenuNodes = (menus) =>
   menus.reduce((total, item) => {
     const children = item.children?.length ? countMenuNodes(item.children) : 0;
@@ -38,6 +49,7 @@ const countMenuNodes = (menus) =>
 export default function PermissionList() {
   const { showAlert } = useAlert();
   const [dataSource, setDataSource] = useState([]);
+  const [listMasterApproval, setListMasterApproval] = useState([]);
   const [showMenu, setShowMenu] = useState(false);
   const [loadingSubmit, setLoadingSubmit] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
@@ -46,12 +58,14 @@ export default function PermissionList() {
   const [checked, setChecked] = useState([]);
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [menuName, setMenuName] = useState('');
+  const [masterApprovalId, setMasterApprovalId] = useState('');
   const [keywords, setKeywords] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     fetchData();
+    fetchMasterApproval();
   }, []);
 
   useEffect(() => {
@@ -69,11 +83,21 @@ export default function PermissionList() {
     setLoadingData(false);
   };
 
+  const fetchMasterApproval = async () => {
+    const response = await RoleServices.getMasterApproval();
+    if (response.data.success) {
+      setListMasterApproval(response.data.data || []);
+    } else {
+      showAlert('Gagal ambil data master approval', 'danger');
+    }
+  };
+
   const fetchRoleDetail = async (id) => {
     setLoadingSubmit(true);
     const response = await RoleServices.fetchRole(id);
     if (response.data.success) {
       setMenuName(response.data.data?.name || '');
+      setMasterApprovalId(getMasterApprovalId(response.data.data));
       setChecked(response.data.data?.role_menu?.menu || []);
       setExpanded(defaultExpanded);
       setShowMenu(true);
@@ -113,6 +137,7 @@ export default function PermissionList() {
   const resetForm = () => {
     setRoleId(null);
     setMenuName('');
+    setMasterApprovalId('');
     setChecked([]);
     setExpanded(defaultExpanded);
     setShowMenu(false);
@@ -126,6 +151,7 @@ export default function PermissionList() {
   const showAddMenu = () => {
     setRoleId(null);
     setMenuName('');
+    setMasterApprovalId('');
     setChecked([]);
     setExpanded(defaultExpanded);
     setShowMenu(true);
@@ -141,6 +167,7 @@ export default function PermissionList() {
     const payload = {
       name: menuName,
       is_active: true,
+      master_approval_id: masterApprovalId,
       menu: checked
     };
 
@@ -160,6 +187,7 @@ export default function PermissionList() {
     const payload = {
       name: menuName,
       is_active: true,
+      master_approval_id: masterApprovalId,
       menu: checked
     };
 
@@ -310,7 +338,7 @@ export default function PermissionList() {
             {loadingData ? (
               <tbody>
                 <tr>
-                  <td colSpan={4}>
+                  <td colSpan={5}>
                     <LoaderData />
                   </td>
                 </tr>
@@ -320,6 +348,7 @@ export default function PermissionList() {
                 <thead>
                   <tr>
                     <th style={{ minWidth: 260 }}>Nama Role</th>
+                    <th style={{ minWidth: 180 }}>Master Approval</th>
                     <th style={{ minWidth: 140 }}>Menu Akses</th>
                     <th style={{ minWidth: 120 }}>Status</th>
                     <th className="text-center" style={{ width: 120 }}>
@@ -335,6 +364,7 @@ export default function PermissionList() {
                           <div className="fw-semibold">{item.name || '-'}</div>
                           <small className="text-muted">Role ID: {item.id}</small>
                         </td>
+                        <td>{getMasterApprovalName(item) || '-'}</td>
                         <td>
                           <Badge bg="light" text="dark">
                             {item.role_menu?.menu?.length || 0} menu
@@ -360,7 +390,7 @@ export default function PermissionList() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={4}>
+                      <td colSpan={5}>
                         <div className="text-center py-5">
                           <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                             <i className="ti ti-shield-lock f-24" />
@@ -420,13 +450,24 @@ export default function PermissionList() {
                         onChange={(event) => setMenuName(event.target.value)}
                       />
                     </div>
-                    <div className="border rounded p-3 bg-light">
+                    <div>
+                      <Form.Label className="f-12 text-muted">Master Approval</Form.Label>
+                      <Form.Select value={masterApprovalId} onChange={(event) => setMasterApprovalId(event.target.value)}>
+                        <option value="">Pilih Master Approval</option>
+                        {listMasterApproval.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.name || item.approval_name || item.title || `Master Approval ${item.id}`}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </div>
+                    {/* <div className="border rounded p-3 bg-light">
                       <div className="text-muted f-12">Menu Dipilih</div>
                       <h4 className="mb-0">{checked.length}</h4>
                     </div>
                     <small className="text-muted">
                       Pilih menu yang boleh diakses oleh role ini. Perubahan role aktif akan diterapkan setelah disimpan.
-                    </small>
+                    </small> */}
                   </Stack>
                 </Card.Body>
               </Card>
@@ -476,7 +517,11 @@ export default function PermissionList() {
           <Button variant="light-secondary" onClick={resetForm}>
             Batal
           </Button>
-          <Button variant="primary" onClick={() => (roleId ? handleEdit() : handleCreate())} disabled={loadingSubmit || !menuName}>
+          <Button
+            variant="primary"
+            onClick={() => (roleId ? handleEdit() : handleCreate())}
+            disabled={loadingSubmit || !menuName || !masterApprovalId}
+          >
             {loadingSubmit ? <LoaderButton /> : 'Simpan'}
           </Button>
         </Modal.Footer>

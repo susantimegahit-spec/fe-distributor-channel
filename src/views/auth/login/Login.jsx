@@ -2,15 +2,22 @@
 import AuthLoginForm from 'sections/auth/AuthLogin';
 
 // assets
-// import SusantiMegahLogo from 'assets/images/susanti-megah-logo.svg';
-import LogoYellow from 'assets/images/logo-susanti-yellow.png';
-import LogoWhite from 'assets/images/logo-susanti-white.png';
+import CustomerPortalWordmark from 'assets/images/customer-portal-wordmark.png';
 import CapKapalLogo from 'assets/images/cap-kapal.png';
 import GaramJempol from 'assets/images/garam-jempol.png';
 import Garami from 'assets/images/garami.png';
 import GaramCapTangan from 'assets/images/garam-cap-tangan.png';
 import Garamku from 'assets/images/garamku.png';
 import CapLayar from 'assets/images/cap_layar.png';
+
+const brandLogos = [
+  { src: CapKapalLogo, alt: 'Cap Kapal' },
+  { src: GaramJempol, alt: 'Garam Jempol' },
+  { src: Garami, alt: 'Garami' },
+  { src: GaramCapTangan, alt: 'Garam Cap Tangan' },
+  { src: Garamku, alt: 'Garamku' },
+  { src: CapLayar, alt: 'Cap Layar' }
+];
 
 // ===========================|| AUTH - LOGIN PAGE ||=========================== //
 
@@ -20,23 +27,17 @@ export default function LoginPage() {
       <div className="sm-auth-shell">
         <section className="sm-auth-brand">
           <div className="sm-auth-brand-inner">
-            <img src={LogoWhite} alt="PT. Susanti Megah" className="sm-auth-brand-logo" style={{ width: '100%' }} />
+            <img src={CustomerPortalWordmark} alt="Customer Portal" className="sm-auth-brand-logo" />
             <div>
               {/* <span className="sm-auth-eyebrow">PT. Susanti Megah</span> */}
-              <h1>Distributor Channel</h1>
               <p>Portal distribusi untuk mengelola data pelanggan, sales, item, warehouse, dan pesanan dengan lebih terarah.</p>
             </div>
-            <div className='text-center' style={{marginTop: 10}}>
-              <div className="md-auth-highlights">
-                <img src={CapKapalLogo} style={{ width: '25%' }} />
-                <img src={GaramJempol} style={{ width: '25%' }} />
-                <img src={Garami} style={{ width: '25%' }} />
-              </div>
-              <div className="md-auth-highlights">
-                <img src={GaramCapTangan} style={{ width: '25%' }} />
-                <img src={Garamku} style={{ width: '25%' }} />
-                <img src={CapLayar} style={{ width: '25%' }} />
-              </div>
+            <div className="sm-brand-showcase" aria-label="Brand">
+              {brandLogos.map((brand) => (
+                <div className="sm-brand-logo-tile" key={brand.alt}>
+                  <img src={brand.src} alt={brand.alt} />
+                </div>
+              ))}
             </div>
           </div>
         </section>
