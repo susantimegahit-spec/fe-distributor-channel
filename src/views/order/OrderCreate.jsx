@@ -884,6 +884,7 @@ export default function OrderPost() {
     const payload = {
       CardCode: orderInput.cardCode,
       CardName: orderInput.cnctCode,
+      OldIdDiscount: discId,
       Lines: dataDisc
     };
 
