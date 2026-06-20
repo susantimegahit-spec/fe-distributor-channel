@@ -28,8 +28,7 @@ import { useAlert } from '../../../utils/alertContext';
 const defaultExpanded = ['dashboard', 'masterData', 'order', 'finance'];
 const pageSize = 10;
 
-const getMasterApprovalId = (item) =>
-  item?.master_approval_id || item?.masterApprovalId || item?.master_approval?.id || item?.masterApproval?.id || '';
+const getMasterApprovalId = (item) => item?.id || '';
 
 const getMasterApprovalName = (item) =>
   item?.master_approval_name ||
@@ -58,6 +57,7 @@ export default function PermissionList() {
   const [checked, setChecked] = useState([]);
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [menuName, setMenuName] = useState('');
+  const [approvalId, setApprovalId] = useState(null);
   const [masterApprovalId, setMasterApprovalId] = useState('');
   const [keywords, setKeywords] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
@@ -97,8 +97,9 @@ export default function PermissionList() {
     const response = await RoleServices.fetchRole(id);
     if (response.data.success) {
       setMenuName(response.data.data?.name || '');
-      setMasterApprovalId(getMasterApprovalId(response.data.data));
+      setMasterApprovalId(getMasterApprovalId(response.data.data?.role_menu?.approval));
       setChecked(response.data.data?.role_menu?.menu || []);
+      
       setExpanded(defaultExpanded);
       setShowMenu(true);
     } else {
@@ -167,7 +168,7 @@ export default function PermissionList() {
     const payload = {
       name: menuName,
       is_active: true,
-      master_approval_id: masterApprovalId,
+      approval_id: masterApprovalId,
       menu: checked
     };
 
@@ -187,7 +188,7 @@ export default function PermissionList() {
     const payload = {
       name: menuName,
       is_active: true,
-      master_approval_id: masterApprovalId,
+      approval_id: masterApprovalId,
       menu: checked
     };
 
@@ -348,7 +349,7 @@ export default function PermissionList() {
                 <thead>
                   <tr>
                     <th style={{ minWidth: 260 }}>Nama Role</th>
-                    <th style={{ minWidth: 180 }}>Master Approval</th>
+                    <th style={{ minWidth: 180 }}>Perijinan</th>
                     <th style={{ minWidth: 140 }}>Menu Akses</th>
                     <th style={{ minWidth: 120 }}>Status</th>
                     <th className="text-center" style={{ width: 120 }}>
@@ -451,12 +452,12 @@ export default function PermissionList() {
                       />
                     </div>
                     <div>
-                      <Form.Label className="f-12 text-muted">Master Approval</Form.Label>
+                      <Form.Label className="f-12 text-muted">Perijinan</Form.Label>
                       <Form.Select value={masterApprovalId} onChange={(event) => setMasterApprovalId(event.target.value)}>
-                        <option value="">Pilih Master Approval</option>
+                        <option value=''>Pilih Perijinan</option>
                         {listMasterApproval.map((item) => (
                           <option key={item.id} value={item.id}>
-                            {item.name || item.approval_name || item.title || `Master Approval ${item.id}`}
+                            {item.label || item.approval_name || item.title || `Master Approval ${item.id}`}
                           </option>
                         ))}
                       </Form.Select>

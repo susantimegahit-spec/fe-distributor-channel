@@ -445,7 +445,7 @@ export default function OrderPost() {
       if (shouldSetDefault) {
         setOrderInput((prevState) => ({
           ...prevState,
-          slpCode: '',
+          slpCode: ''
         }));
       }
       return;
@@ -539,6 +539,7 @@ export default function OrderPost() {
   const fetchAddress = async (code, shouldSetDefault = true) => {
     setIsLoading(true);
     const response = await DistributorServices.getAddress(code);
+    console.log('resp => ', response.data.data)
     if (response.data.success) {
       const data = response.data.data;
       let dataB = [];
@@ -785,6 +786,7 @@ export default function OrderPost() {
       comments: orderInput.comments,
       status: type,
       id_discount: discId,
+      action: type === 'WAITING_OM' ? 'submit' : type === 'WAITING_FINANCE' ? 'approve' : '',
       lines: arrItem
     };
   };
@@ -823,7 +825,6 @@ export default function OrderPost() {
 
   const handleSubmitOrder = async () => {
     const payload = buildOrderRequestPayload(createOrderPayload(statusType));
-    console.log('payload => ', payload);
     if (id) {
       const resp = await OrderServices.putOrder(id, payload);
       handleOrderResponse(resp);
@@ -925,20 +926,31 @@ export default function OrderPost() {
                   <i className="ti ti-arrow-left me-1" />
                   Batal
                 </Button>
-                <Button onClick={() => handleShowConfirm('DRAFT')} variant="warning">
-                  <i className="ti ti-device-floppy me-1" />
-                  Simpan Draft
-                </Button>
-                <Button onClick={() => handleShowConfirm('WAITING_APPROVAL')} variant="primary">
-                  <i className="ti ti-send" />
-                  Kirim
-                </Button>
-                {canSelectSales ? (
+
+                {roleId === 1 || roleId === 5 ? (
+                  <>
+                    <Button onClick={() => handleShowConfirm('DRAFT')} variant="warning">
+                      <i className="ti ti-device-floppy me-1" />
+                      Simpan Draft
+                    </Button>
+                    <Button onClick={() => handleShowConfirm('WAITING_OM')} variant="primary">
+                      <i className="ti ti-send" />
+                      Kirim
+                    </Button>
+                  </>
+                ) : null}
+                {roleId === 2 && (
+                  <Button onClick={() => handleShowConfirm('WAITING_FINANCE')} variant="primary">
+                    <i className="ti ti-send" />
+                    Submit
+                  </Button>
+                )}
+                {/* {canSelectSales ? (
                   <Button onClick={() => handlePostingData('APPROVED')} variant="success">
                     <i className="ti ti-checks" />
                     Approve
                   </Button>
-                ) : null}
+                ) : null} */}
               </Stack>
             }
           >
@@ -1312,7 +1324,7 @@ export default function OrderPost() {
                     </>
                   )}
                   <th className="text-center" style={{ width: 72 }}>
-                    Aksi
+                    #
                   </th>
                 </tr>
               </thead>

@@ -66,7 +66,7 @@ export default function AuthLoginForm({ className }) {
         showAlert('Login Successful', 'success');
         setIsLoading(false);
         setTimeout(() => {
-          window.location.reload();
+          window.location.reload(true);
         }, 1000);
       } else {
         setIsLoading(false);

@@ -43,17 +43,14 @@ const normalizeList = (response) => {
 };
 
 const getValue = (item, keys, fallback = '') => {
-  console.log('item => ', item)
+  console.log('item => ', item);
   const key = keys.find((field) => item?.[field] !== undefined && item?.[field] !== null && item?.[field] !== '');
   return key ? item[key] : fallback;
 };
 
 const getSalesCode = (item) => getValue(item, ['slp_code', 'sales_code', 'code_sales', 'employee_code', 'code']);
 // const getSalesName = (item) => getValue(item, ['slp_name', 'sales_name', 'name_sales', 'employee_name', 'name']);
-const getSalesName = (item) =>
-  getValue(item, ['slp_name']) ||
-  item?.sales_employee?.slp_name ||
-  '';
+const getSalesName = (item) => getValue(item, ['slp_name']) || item?.sales_employee?.slp_name || '';
 const getDistributorCode = (item) =>
   getValue(item, ['code_customer', 'distributor_code', 'customer_code', 'card_code']) ||
   item?.distributor?.code_customer ||
@@ -123,7 +120,8 @@ export default function MasterEmployee() {
     try {
       const response = await EmployeeServices.getSalesDistributor(payload);
       if (response.data.success) {
-        let spliceData = normalizeList(response).slice(1);
+        // let spliceData = normalizeList(response).slice(1);
+        let spliceData = response.data.data.data;
         setDataSource(spliceData);
         setLoadingData(false);
       } else {
@@ -281,8 +279,7 @@ export default function MasterEmployee() {
     }
 
     setSubmittingSales(true);
-
-    if (salesInput?.salesId?.length > 1) {
+    if (salesInput?.salesId?.length > 0) {
       for (let index = 0; index < salesInput?.salesId.length; index++) {
         // const element = array[index];
         const payloads = salesInput.slpCode.map((slpCode) => ({
@@ -290,13 +287,11 @@ export default function MasterEmployee() {
           code_customer: salesInput.distributorCode,
           status: Number(salesInput.status)
         }));
-
         try {
           const responses = await Promise.allSettled(payloads.map((payload) => EmployeeServices.postSalesDistributor(payload)));
           const fulfilledResponses = responses.filter((response) => response.status === 'fulfilled').map((response) => response.value);
           const failedResponses = fulfilledResponses.filter((response) => !response.data.success);
           const rejectedResponses = responses.filter((response) => response.status === 'rejected');
-
           if (!failedResponses.length && !rejectedResponses.length) {
             showAlert(
               fulfilledResponses.length > 1

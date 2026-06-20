@@ -190,7 +190,7 @@ export default function UserList() {
     if (response.data.success) {
       const options = response.data.data.map((item) => ({
         value: item.code_customer,
-        label: `${item.code_customer || '-'} - ${item.name || '-'}`,
+        label: `${item.code_customer || '-'} - ${item.name || '-'} - ${item?.depo}`,
         id: item.id,
         name: item.name
       }));
@@ -324,8 +324,8 @@ export default function UserList() {
       email: input.email,
       password: input.password,
       role_id: input.roleId,
-      code_customer: distributorPayload.code_customer,
-      id_distributor: distributorPayload.id_distributor
+      code_customer: distributorPayload.code_customer?.toString(),
+      id_distributor: distributorPayload.id_distributor?.toString()
     };
 
     const response = await UserServices.postCreateUser(payload);
@@ -347,14 +347,14 @@ export default function UserList() {
       username: input.username,
       email: input.email,
       role_id: input.roleId,
-      code_customer: distributorPayload.code_customer,
-      id_distributor: distributorPayload.id_distributor
+      code_customer: distributorPayload.code_customer?.toString(),
+      id_distributor: distributorPayload.id_distributor?.toString()
     };
 
     if (input.password) {
       payload.password = input.password;
     }
-
+    console.log('payload => ', payload)
     const response = await UserServices.putEditUser(selectedUserId, payload);
     if (response.data.success) {
       showAlert('User berhasil diubah', 'success');

@@ -23,6 +23,7 @@ import { currency } from '../../utils/global';
 import { getCookies } from '../../utils/cookies';
 import { useAlert } from '../../utils/alertContext';
 import { downloadSalesOrderPdf } from '../../utils/orderPdf';
+import RoleServices from '../../services/RoleServices';
 
 const statusOptions = [
   { value: '', label: 'Semua Status' },
@@ -36,6 +37,9 @@ const statusOptions = [
 
 const statusVariant = {
   DRAFT: 'secondary',
+  WAITING_OM: 'warning',
+  WAITING_ASM: 'info',
+  WAITING_ADMIN_SALES: 'primary',
   WAITING_APPROVAL: 'warning',
   DELIVERY: 'info',
   APPROVED: 'primary',
@@ -44,21 +48,35 @@ const statusVariant = {
   FAILED: 'danger'
 };
 
-const statusLabel = {
-  DRAFT: 'secondary',
-  WAITING_APPROVAL: 'warning',
-  DELIVERY: 'info',
-  APPROVED: 'primary',
-  ARRIVED: 'success',
-  REJECTED: 'orange',
-  FAILED: 'danger'
-};
-
-const initialOrders = [];
 const pageSize = 10;
 
+const actionAliases = {
+  view: ['view', 'read', 'show', 'detail', 'lihat'],
+  create: ['create', 'add', 'store', 'insert', 'tambah'],
+  edit: ['edit', 'update', 'ubah'],
+  delete: ['delete', 'remove', 'destroy', 'hapus'],
+  download: ['download', 'export', 'pdf', 'print', 'unduh'],
+  attachment: ['attachment', 'document', 'file', 'lampiran']
+};
+
+const normalizeAction = (value) =>
+  String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_');
+
+const normalizeStatus = (value) =>
+  String(value || '')
+    .trim()
+    .toUpperCase();
+
+const approvalStatusMap = {
+  WAITING_OM: 'WAITING_OM',
+  WAITING_ASM: 'WAITING_ASM',
+  WAITING_FINANCE: 'WAITING_FINANCE',
+};
+
 export default function OrderList() {
-  const roleId = getCookies('role');
   const { showAlert } = useAlert();
   const [orders, setOrders] = useState([]);
   const [keywords, setKeywords] = useState('');
@@ -69,11 +87,15 @@ export default function OrderList() {
   const [downloadingPdfId, setDownloadingPdfId] = useState(null);
   const [downloadingAttachmentId, setDownloadingAttachmentId] = useState(null);
   const [loadingDetailId, setLoadingDetailId] = useState(null);
+  const [approvalLoadingAction, setApprovalLoadingAction] = useState('');
+  const [approvalNotes, setApprovalNotes] = useState('');
   const [selectedOrderDetail, setSelectedOrderDetail] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [permissionDetail, setPermissionDetail] = useState(null);
 
   useEffect(() => {
     fetchData();
+    getPermissionDetail();
   }, []);
 
   useEffect(() => {
@@ -117,10 +139,11 @@ export default function OrderList() {
   }, [currentPage, filteredOrders]);
 
   const resetFilters = () => {
-    setKeywords('');
-    setDistributor('');
-    setStatus('');
-    setDate('');
+    fetchData()
+    // setKeywords('');
+    // setDistributor('');
+    // setStatus('');
+    // setDate('');
   };
 
   const fetchData = async () => {
@@ -158,6 +181,39 @@ export default function OrderList() {
 
     return Array.isArray(lines) ? lines : [];
   };
+
+  const buildOrderStatusPayload = (order, nextStatus, actionName) => ({
+    card_code: getOrderValue(order, ['card_code', 'cardCode', 'customer_code', 'CardCode'], ''),
+    po_number: getOrderValue(order, ['po_number', 'num_at_card', 'numAtCard', 'NumAtCard'], ''),
+    doc_date: getOrderValue(order, ['doc_date', 'docDate', 'DocDate'], ''),
+    doc_due_date: getOrderValue(order, ['doc_due_date', 'docDueDate', 'DocDueDate'], ''),
+    slp_code: getOrderValue(order, ['slp_code', 'slpCode', 'SlpCode'], ''),
+    cntct: getOrderValue(order, ['cntct', 'cnctCode', 'contact_name', 'customer_name', 'CardName'], ''),
+    pay_to_code: getOrderValue(order, ['pay_to_code', 'payToCode', 'address_code', 'PayToCode'], ''),
+    address: getOrderValue(order, ['address', 'bill_to_address', 'Address'], ''),
+    ship_to_code: getOrderValue(order, ['ship_to_code', 'shipToCode', 'address2_code', 'ShipToCode'], ''),
+    address2: getOrderValue(order, ['address2', 'ship_to_address', 'Address2'], ''),
+    comments: getOrderValue(order, ['comments', 'Comments'], ''),
+    status: nextStatus,
+    action: actionName,
+    notes: approvalNotes,
+    id_discount: getOrderValue(order, ['id_discount', 'idDiscount'], ''),
+    approval_id: permissionDetail?.role_menu?.approval_id,
+    lines: getOrderLines(order).map((line) => ({
+      item_code: getOrderValue(line, ['item_code', 'itemCode', 'ItemCode'], ''),
+      quantity: getOrderValue(line, ['quantity', 'qty', 'Quantity'], ''),
+      unit_msr: getOrderValue(line, ['unit_msr', 'unitMsr', 'UomCode'], ''),
+      uom_entry: getOrderValue(line, ['uom_entry', 'uomEntry', 'UomEntry'], ''),
+      whs_code: getOrderValue(line, ['whs_code', 'warehouse_code', 'WhsCode'], ''),
+      unit_price: getOrderValue(line, ['unit_price', 'unitPrice', 'price', 'Price'], ''),
+      vat_group: getOrderValue(line, ['vat_group', 'vatGroup', 'VatGroup'], ''),
+      line_total: getOrderValue(line, ['line_total', 'lineTotal', 'LineTotal'], ''),
+      free_text: getOrderValue(line, ['free_text', 'freeText', 'FreeTxt'], ''),
+      ocr_code: getOrderValue(line, ['ocr_code', 'ocrCode', 'OcrCode'], ''),
+      ocr_code2: getOrderValue(line, ['ocr_code2', 'ocrCode2', 'OcrCode2'], ''),
+      ocr_code3: getOrderValue(line, ['ocr_code3', 'ocrCode3', 'OcrCode3'], '')
+    }))
+  });
 
   const formatOrderDate = (value) => {
     if (!value) return '-';
@@ -259,6 +315,7 @@ export default function OrderList() {
 
   const handleViewOrder = async (order) => {
     setLoadingDetailId(order.id);
+    setApprovalNotes('');
 
     try {
       const response = await OrderServices.getDetailOrder(order.id);
@@ -277,131 +334,315 @@ export default function OrderList() {
 
   const closeDetailModal = () => {
     setSelectedOrderDetail(null);
+    setApprovalNotes('');
   };
+
+  const getNextApprovalStatus = (order) => approvalStatusMap[normalizeStatus(order.status)];
+
+  const updateSelectedOrderStatus = async (nextStatus, actionName) => {
+    if (!selectedOrderDetail?.id) {
+      showAlert('Detail order tidak ditemukan', 'danger');
+      return;
+    }
+
+    setApprovalLoadingAction(actionName);
+    const payload =buildOrderStatusPayload(selectedOrderDetail, nextStatus, actionName);
+    try {
+      const response = await OrderServices.putOrder(
+        selectedOrderDetail.id,
+        buildOrderStatusPayload(selectedOrderDetail, nextStatus, actionName)
+      );
+
+      if (response?.data?.success) {
+        const updatedOrder = response.data.data || { ...selectedOrderDetail, status: nextStatus };
+
+        setSelectedOrderDetail(updatedOrder);
+        setOrders((prevOrders) =>
+          prevOrders.map((order) => (String(order.id) === String(selectedOrderDetail.id) ? { ...order, ...updatedOrder, status: nextStatus } : order))
+        );
+        showAlert(response.data.message || 'Status order berhasil diupdate', 'success');
+        fetchData()
+        setSelectedOrderDetail(null)
+      } else {
+        showAlert(response?.data?.message || 'Gagal update status order', 'danger');
+      }
+    } catch (error) {
+      showAlert(error?.message || 'Gagal update status order', 'danger');
+    } finally {
+      setApprovalLoadingAction('');
+    }
+  };
+
+  const handleApproveOrder = () => {
+    const nextStatus = getNextApprovalStatus(selectedOrderDetail);
+
+    if (!nextStatus) {
+      showAlert('Status order tidak memiliki alur approve berikutnya', 'warning');
+      return;
+    }
+
+    updateSelectedOrderStatus(nextStatus, 'approve');
+  };
+
+  const handleRejectOrder = () => {
+    updateSelectedOrderStatus('DRAFT', 'reject');
+  };
+
+  const getPermissionDetail = async () => {
+    const resp = await RoleServices.fetchRole(getCookies('role'));
+
+    if (resp.data.success) {
+      setPermissionDetail(resp.data.data);
+    }
+  };
+
+  const getPermissionActionList = () => {
+    const rawAction =
+      permissionDetail?.role_menu?.approval?.action ||
+      permissionDetail?.role_menu?.approval?.actions ||
+      permissionDetail?.roleMenu?.approval?.action ||
+      permissionDetail?.permissionDetail?.actionList ||
+      permissionDetail?.actionList ||
+      [];
+
+    if (Array.isArray(rawAction)) {
+      return rawAction
+        .filter((item) => item?.allowed !== false && item?.is_allowed !== false)
+        .map((item) => normalizeAction(item?.name || item?.action || item?.code || item?.value || item))
+        .filter(Boolean);
+    }
+
+    return String(rawAction)
+      .split(',')
+      .map((item) => normalizeAction(item))
+      .filter(Boolean);
+  };
+
+  const actionList = useMemo(() => getPermissionActionList(), [permissionDetail]);
+
+  const permissionApprovalName = useMemo(() => normalizeStatus(permissionDetail?.role_menu?.approval?.name), [permissionDetail]);
+
+  const hasAction = (actionName) => {
+    const aliases = actionAliases[actionName] || [actionName];
+
+    return actionList.some((action) => aliases.some((alias) => action === alias || action.includes(alias)));
+  };
+
+  const canCreateOrder = hasAction('create');
+
+  const isOrderStatusSameWithPermission = (order) => Boolean(permissionApprovalName) && normalizeStatus(order.status) === permissionApprovalName;
+
+  const isOrderStatusAllowed = (order) => {
+    if (!permissionApprovalName) return true;
+
+    return isOrderStatusSameWithPermission(order);
+  };
+
+  const getButtonVisibility = (order) => {
+    const view = hasAction('view');
+
+    if (!isOrderStatusAllowed(order)) {
+      return {
+        view,
+        attachment: false,
+        download: false,
+        edit: false,
+        delete: false
+      };
+    }
+
+    return {
+      view,
+      attachment: hasAction('attachment') || hasAction('download'),
+      download: hasAction('download'),
+      edit: hasAction('edit') && order.status !== 'APPROVED' && order.status !== 'ARRIVED',
+      delete: hasAction('delete')
+    };
+  };
+
+  const getAccessAction = (order) => {
+    const button = getButtonVisibility(order);
+    const hasVisibleButton = button.view || button.download || button.edit || button.delete;
+
+    if (!hasVisibleButton) {
+      return <span className="text-muted">-</span>;
+    }
+
+    return (
+      <>
+        {button.view ? (
+          <>
+            <Button
+              className="rounded-circle"
+              variant="outline-primary"
+              size="sm"
+              disabled={loadingDetailId === order.id}
+              onClick={() => handleViewOrder(order)}
+            >
+              <i className={loadingDetailId === order.id ? 'ti ti-loader-2' : 'ti ti-eye'} />
+            </Button>
+            &nbsp;
+          </>
+        ) : null}
+        {button.download ? (
+          <>
+            <Button
+              className="rounded-circle"
+              variant="outline-secondary"
+              size="sm"
+              disabled={downloadingPdfId === order.id}
+              onClick={() => handleDownloadPdf(order)}
+            >
+              <i className={downloadingPdfId === order.id ? 'ti ti-loader-2' : 'ti ti-file-type-pdf'} />
+            </Button>
+            &nbsp;
+          </>
+        ) : null}
+        {button.edit ? (
+          <>
+            <Button as={Link} to={`/order/order-create/${order.id}`} className="rounded-circle" variant="outline-success" size="sm">
+              <i className="ti ti-pencil" />
+            </Button>
+            &nbsp;
+          </>
+        ) : null}
+        {/* {button.delete ? (
+          <Button className="rounded-circle" variant="outline-danger" size="sm">
+            <i className="ti ti-trash" />
+          </Button>
+        ) : null} */}
+      </>
+    );
+  };
+
+  const canShowSelectedApprovalAction = selectedOrderDetail && isOrderStatusSameWithPermission(selectedOrderDetail);
+  const nextSelectedApprovalStatus = selectedOrderDetail ? getNextApprovalStatus(selectedOrderDetail) : '';
 
   return (
     <>
-    <Stack gap={3}>
-      <MainCard
-        title={
-          <Stack gap={1}>
-            <h5 className="mb-0">Daftar Order</h5>
-            <span className="text-muted f-12">Monitor order distributor dan lanjutkan proses penjualan dari satu halaman.</span>
-          </Stack>
-        }
-        secondary={
-          <Button variant="primary" as={Link} to={`/order/order-create`}>
-            <i className="ti ti-plus me-1" />
-            Tambah Order
-          </Button>
-        }
-      >
-        <Row className="g-3">
-          <Col sm={6} xl={2}>
-            <Card className="border mb-0 h-100">
-              <Card.Body className="py-3">
-                <Stack direction="horizontal" gap={3} className="justify-content-between">
-                  <div>
-                    <div className="text-muted f-12">Total Order</div>
-                    <h4 className="mb-0">{summary.total}</h4>
-                  </div>
-                  <span className="avtar avtar-s bg-light-primary text-primary">
-                    <i className="ti ti-shopping-cart" />
-                  </span>
-                </Stack>
-              </Card.Body>
-            </Card>
-          </Col>
-          <Col sm={6} xl={2}>
-            <Card className="border mb-0 h-100">
-              <Card.Body className="py-3">
-                <Stack direction="horizontal" gap={3} className="justify-content-between">
-                  <div>
-                    <div className="text-muted f-12">Draft</div>
-                    <h4 className="mb-0">{summary.DRAFT}</h4>
-                  </div>
-                  <span className="avtar avtar-s bg-light-secondary text-secondary">
-                    <i className="ti ti-clipboard-list" />
-                  </span>
-                </Stack>
-              </Card.Body>
-            </Card>
-          </Col>
-          <Col sm={6} xl={2}>
-            <Card className="border mb-0 h-100">
-              <Card.Body className="py-3">
-                <Stack direction="horizontal" gap={3} className="justify-content-between">
-                  <div>
-                    <div className="text-muted f-12">Waiting</div>
-                    <h4 className="mb-0">{summary.WAITING_APPROVAL}</h4>
-                  </div>
-                  <span className="avtar avtar-s bg-light-warning text-warning">
-                    <i className="ti ti-clock-hour-4" />
-                  </span>
-                </Stack>
-              </Card.Body>
-            </Card>
-          </Col>
-          <Col sm={6} xl={2}>
-            <Card className="border mb-0 h-100">
-              <Card.Body className="py-3">
-                <Stack direction="horizontal" gap={3} className="justify-content-between">
-                  <div>
-                    <div className="text-muted f-12">Approved</div>
-                    <h4 className="mb-0">{summary.APPROVED}</h4>
-                  </div>
-                  <span className="avtar avtar-s bg-light-primary text-primary">
-                    <i className="ti ti-user-check" />
-                  </span>
-                </Stack>
-              </Card.Body>
-            </Card>
-          </Col>
-          <Col sm={6} xl={2}>
-            <Card className="border mb-0 h-100">
-              <Card.Body className="py-3">
-                <Stack direction="horizontal" gap={3} className="justify-content-between">
-                  <div>
-                    <div className="text-muted f-12">Rejected</div>
-                    <h4 className="mb-0">{summary.REJECTED}</h4>
-                  </div>
-                  <span className="avtar avtar-s bg-light-orange text-orange">
-                    <i className="ti ti-user-cancel" />
-                  </span>
-                </Stack>
-              </Card.Body>
-            </Card>
-          </Col>
-          <Col sm={6} xl={2}>
-            <Card className="border mb-0 h-100">
-              <Card.Body className="py-3">
-                <Stack direction="horizontal" gap={3} className="justify-content-between">
-                  <div>
-                    <div className="text-muted f-12">Failed</div>
-                    <h4 className="mb-0">{summary.FAILED}</h4>
-                  </div>
-                  <span className="avtar avtar-s bg-light-danger text-danger">
-                    <i className="ti ti-forbid" />
-                  </span>
-                </Stack>
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
-      </MainCard>
+      <Stack gap={3}>
+        <MainCard
+          title={
+            <Stack gap={1}>
+              <h5 className="mb-0">Daftar Order</h5>
+              <span className="text-muted f-12">Monitor order distributor dan lanjutkan proses penjualan dari satu halaman.</span>
+            </Stack>
+          }
+          secondary={
+            canCreateOrder ? (
+              <Button variant="primary" as={Link} to={`/order/order-create`}>
+                <i className="ti ti-plus me-1" />
+                Tambah Order
+              </Button>
+            ) : null
+          }
+        >
+          <Row className="g-3">
+            <Col sm={6} xl={2}>
+              <Card className="border mb-0 h-100">
+                <Card.Body className="py-3">
+                  <Stack direction="horizontal" gap={3} className="justify-content-between">
+                    <div>
+                      <div className="text-muted f-12">Total Order</div>
+                      <h4 className="mb-0">{summary.total}</h4>
+                    </div>
+                    <span className="avtar avtar-s bg-light-primary text-primary">
+                      <i className="ti ti-shopping-cart" />
+                    </span>
+                  </Stack>
+                </Card.Body>
+              </Card>
+            </Col>
+            <Col sm={6} xl={2}>
+              <Card className="border mb-0 h-100">
+                <Card.Body className="py-3">
+                  <Stack direction="horizontal" gap={3} className="justify-content-between">
+                    <div>
+                      <div className="text-muted f-12">Draft</div>
+                      <h4 className="mb-0">{summary.DRAFT}</h4>
+                    </div>
+                    <span className="avtar avtar-s bg-light-secondary text-secondary">
+                      <i className="ti ti-clipboard-list" />
+                    </span>
+                  </Stack>
+                </Card.Body>
+              </Card>
+            </Col>
+            <Col sm={6} xl={2}>
+              <Card className="border mb-0 h-100">
+                <Card.Body className="py-3">
+                  <Stack direction="horizontal" gap={3} className="justify-content-between">
+                    <div>
+                      <div className="text-muted f-12">Waiting</div>
+                      <h4 className="mb-0">{summary.WAITING_APPROVAL}</h4>
+                    </div>
+                    <span className="avtar avtar-s bg-light-warning text-warning">
+                      <i className="ti ti-clock-hour-4" />
+                    </span>
+                  </Stack>
+                </Card.Body>
+              </Card>
+            </Col>
+            <Col sm={6} xl={2}>
+              <Card className="border mb-0 h-100">
+                <Card.Body className="py-3">
+                  <Stack direction="horizontal" gap={3} className="justify-content-between">
+                    <div>
+                      <div className="text-muted f-12">Approved</div>
+                      <h4 className="mb-0">{summary.APPROVED}</h4>
+                    </div>
+                    <span className="avtar avtar-s bg-light-primary text-primary">
+                      <i className="ti ti-user-check" />
+                    </span>
+                  </Stack>
+                </Card.Body>
+              </Card>
+            </Col>
+            <Col sm={6} xl={2}>
+              <Card className="border mb-0 h-100">
+                <Card.Body className="py-3">
+                  <Stack direction="horizontal" gap={3} className="justify-content-between">
+                    <div>
+                      <div className="text-muted f-12">Rejected</div>
+                      <h4 className="mb-0">{summary.REJECTED}</h4>
+                    </div>
+                    <span className="avtar avtar-s bg-light-orange text-orange">
+                      <i className="ti ti-user-cancel" />
+                    </span>
+                  </Stack>
+                </Card.Body>
+              </Card>
+            </Col>
+            <Col sm={6} xl={2}>
+              <Card className="border mb-0 h-100">
+                <Card.Body className="py-3">
+                  <Stack direction="horizontal" gap={3} className="justify-content-between">
+                    <div>
+                      <div className="text-muted f-12">Failed</div>
+                      <h4 className="mb-0">{summary.FAILED}</h4>
+                    </div>
+                    <span className="avtar avtar-s bg-light-danger text-danger">
+                      <i className="ti ti-forbid" />
+                    </span>
+                  </Stack>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+        </MainCard>
 
-      <MainCard>
-        <Row className="g-2 align-items-end mb-3">
-          <Col lg={4} md={6}>
-            <Form.Label className="f-12 text-muted">Cari Order</Form.Label>
-            <InputGroup>
-              <InputGroup.Text>
-                <i className="ti ti-search" />
-              </InputGroup.Text>
-              <Form.Control value={keywords} onChange={(event) => setKeywords(event.target.value)} type="text" placeholder="No. PO" />
-            </InputGroup>
-          </Col>
-          {/* <Col lg={3} md={6}>
+        <MainCard>
+          <Row className="g-2 align-items-end mb-3">
+            <Col lg={4} md={6}>
+              <Form.Label className="f-12 text-muted">Cari Order</Form.Label>
+              <InputGroup>
+                <InputGroup.Text>
+                  <i className="ti ti-search" />
+                </InputGroup.Text>
+                <Form.Control value={keywords} onChange={(event) => setKeywords(event.target.value)} type="text" placeholder="No. PO" />
+              </InputGroup>
+            </Col>
+            {/* <Col lg={3} md={6}>
             <Form.Label className="f-12 text-muted">Distributor</Form.Label>
             <Form.Select value={distributor} onChange={(event) => setDistributor(event.target.value)}>
               <option value="">Semua Distributor</option>
@@ -409,268 +650,249 @@ export default function OrderList() {
               <option value="2">Distributor B</option>
             </Form.Select>
           </Col> */}
-          <Col lg={2} md={6}>
-            <Form.Label className="f-12 text-muted">Status</Form.Label>
-            <Form.Select value={status} onChange={(event) => setStatus(event.target.value)}>
-              {statusOptions.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </Form.Select>
-          </Col>
-          <Col lg={2} md={6}>
-            <Form.Label className="f-12 text-muted">Tanggal</Form.Label>
-            <Form.Control value={date} onChange={(event) => setDate(event.target.value)} type="date" />
-          </Col>
-          <Col lg={1} md={12} className="text-lg-end">
-            <Button className="w-100" variant="light-secondary" disabled={!hasActiveFilter} onClick={resetFilters}>
-              <i className="ti ti-refresh" />
-            </Button>
-          </Col>
-        </Row>
+            <Col lg={2} md={6}>
+              <Form.Label className="f-12 text-muted">Status</Form.Label>
+              <Form.Select value={status} onChange={(event) => setStatus(event.target.value)}>
+                {statusOptions.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </Form.Select>
+            </Col>
+            <Col lg={2} md={6}>
+              <Form.Label className="f-12 text-muted">Tanggal</Form.Label>
+              <Form.Control value={date} onChange={(event) => setDate(event.target.value)} type="date" />
+            </Col>
+            <Col lg={1} md={12} className="text-lg-end">
+              {/* <Button className="w-100" variant="light-secondary" disabled={!hasActiveFilter} onClick={resetFilters}> */}
+              <Button className="w-100" variant="light-primary" onClick={resetFilters}>
+                <i className="ti ti-refresh" />
+              </Button>
+            </Col>
+          </Row>
 
-        <Table className="mb-0 align-middle" responsive hover>
-          <thead>
-            <tr>
-              <th>No. PO</th>
-              <th>Depo</th>
-              <th>Tanggal</th>
-              <th>Total Item</th>
-              <th>Total Order</th>
-              <th>Status</th>
-              <th>Lampiran</th>
-              <th className="text-center">Aksi</th>
-            </tr>
-          </thead>
-          {isLoading ? (
-            <tbody>
+          <Table className="mb-0 align-middle" responsive hover>
+            <thead>
               <tr>
-                <td colSpan={8}>
-                  <LoaderData />
-                </td>
+                <th>No. PO</th>
+                <th>Depo</th>
+                <th>Tanggal</th>
+                <th>Total Item</th>
+                <th>Total Order</th>
+                <th>Status</th>
+                <th>Lampiran</th>
+                <th className="text-center">#</th>
               </tr>
-            </tbody>
-          ) : (
-            <tbody>
-              {paginatedOrders.length > 0 ? (
-                paginatedOrders.map((order) => (
-                  <tr key={order.id}>
-                    <td className="fw-semibold">{order.order_no}</td>
-                    <td>{order.customer_name}</td>
-                    <td>{moment(order.doc_date).format('DD MMM YYYY')}</td>
-                    <td>{order?.details?.length}</td>
-                    <td>{currency(order?.doc_total)}</td>
-                    <td>
-                      <Badge bg={statusVariant[order.status] || 'secondary'}>{order.status}</Badge>
-                    </td>
-                    <td>
-                      {order.attachments?.length > 0 ? (
-                        <Button
-                          variant="light-primary"
-                          size="sm"
-                          disabled={downloadingAttachmentId === order.id}
-                          onClick={() => handleViewAttachment(order)}
-                        >
-                          <i className={downloadingAttachmentId === order.id ? 'ti ti-loader-2 me-1' : 'ti ti-paperclip me-1'} />
-                          Lihat Lampiran
-                        </Button>
-                      ) : null}
-                    </td>
-                    <td className="text-center">
-                      <Button
-                        className="rounded-circle"
-                        variant="outline-primary"
-                        size="sm"
-                        disabled={loadingDetailId === order.id}
-                        onClick={() => handleViewOrder(order)}
-                      >
-                        <i className={loadingDetailId === order.id ? 'ti ti-loader-2' : 'ti ti-eye'} />
-                      </Button>
-                      &nbsp;
-                      <Button
-                        className="rounded-circle"
-                        variant="outline-secondary"
-                        size="sm"
-                        disabled={downloadingPdfId === order.id}
-                        onClick={() => handleDownloadPdf(order)}
-                      >
-                        <i className={downloadingPdfId === order.id ? 'ti ti-loader-2' : 'ti ti-file-type-pdf'} />
-                      </Button>
-                      &nbsp;
-                      {roleId === 1 && order.status === 'DRAFT' ? (
-                        <Button
-                          as={Link}
-                          to={`/order/order-create/${order.id}`}
-                          className="rounded-circle"
-                          variant="outline-success"
-                          size="sm"
-                        >
-                          <i className="ti ti-pencil" />
-                        </Button>
-                      ) : roleId !== 1 && order.status !== 'APPROVED' ? (
-                        <Button
-                          as={Link}
-                          to={`/order/order-create/${order.id}`}
-                          className="rounded-circle"
-                          variant="outline-success"
-                          size="sm"
-                        >
-                          <i className="ti ti-pencil" />
-                        </Button>
-                      ) : null}
-                      &nbsp;
-                      <Button className="rounded-circle" variant="outline-danger" size="sm">
-                        <i className="ti ti-trash" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
+            </thead>
+            {isLoading ? (
+              <tbody>
                 <tr>
                   <td colSpan={8}>
-                    <div className="text-center py-5">
-                      <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
-                        <i className="ti ti-clipboard-list f-24" />
-                      </div>
-                      <h5 className="mb-1">{hasActiveFilter ? 'Order tidak ditemukan' : 'Belum ada order'}</h5>
-                      <p className="text-muted mb-3">
-                        {hasActiveFilter
-                          ? 'Ubah filter atau reset pencarian untuk melihat data lain.'
-                          : 'Mulai buat order baru untuk menambahkan transaksi distributor.'}
-                      </p>
-                      {hasActiveFilter ? (
-                        <Button variant="light-primary" onClick={resetFilters}>
-                          Reset Filter
-                        </Button>
-                      ) : (
-                        <Button variant="primary" as={Link} to={`/order/order-create`}>
-                          <i className="ti ti-plus me-1" />
-                          Tambah Order
-                        </Button>
-                      )}
-                    </div>
+                    <LoaderData />
                   </td>
                 </tr>
-              )}
-            </tbody>
-          )}
-        </Table>
-
-        <TablePagination
-          currentPage={currentPage}
-          onPageChange={setCurrentPage}
-          pageCount={pageCount}
-          pageSize={pageSize}
-          total={filteredOrders.length}
-          itemLabel="order"
-        />
-      </MainCard>
-    </Stack>
-    <Modal show={Boolean(selectedOrderDetail)} onHide={closeDetailModal} centered size="xl">
-      <Modal.Header closeButton>
-        <Modal.Title>Detail Order</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        {selectedOrderDetail ? (
-          <Stack gap={3}>
-            <Row className="g-3">
-              <Col md={4}>
-                <Form.Label className="f-12 text-muted">No. Order</Form.Label>
-                <div className="fw-semibold">{getOrderValue(selectedOrderDetail, ['order_no', 'doc_num', 'docNum'])}</div>
-              </Col>
-              <Col md={4}>
-                <Form.Label className="f-12 text-muted">No. PO</Form.Label>
-                <div>{getOrderValue(selectedOrderDetail, ['po_number', 'num_at_card', 'numAtCard'])}</div>
-              </Col>
-              <Col md={4}>
-                <Form.Label className="f-12 text-muted">Status</Form.Label>
-                <div>
-                  <Badge bg={statusVariant[selectedOrderDetail.status] || 'secondary'}>
-                    {getOrderValue(selectedOrderDetail, ['status'])}
-                  </Badge>
-                </div>
-              </Col>
-              <Col md={4}>
-                <Form.Label className="f-12 text-muted">Customer</Form.Label>
-                <div className="fw-semibold">{getOrderValue(selectedOrderDetail, ['card_code', 'cardCode', 'customer_code'])}</div>
-                <div>{getOrderValue(selectedOrderDetail, ['customer_name', 'card_name', 'CardName'])}</div>
-              </Col>
-              <Col md={4}>
-                <Form.Label className="f-12 text-muted">Tanggal Dokumen</Form.Label>
-                <div>{formatOrderDate(getOrderValue(selectedOrderDetail, ['doc_date', 'docDate'], ''))}</div>
-              </Col>
-              <Col md={4}>
-                <Form.Label className="f-12 text-muted">Request Tanggal Kirim</Form.Label>
-                <div>{formatOrderDate(getOrderValue(selectedOrderDetail, ['doc_due_date', 'docDueDate'], ''))}</div>
-              </Col>
-              <Col md={4}>
-                <Form.Label className="f-12 text-muted">Kode Sales</Form.Label>
-                <div>{getOrderValue(selectedOrderDetail, ['slp_code', 'slpCode'])}</div>
-              </Col>
-              <Col md={4}>
-                <Form.Label className="f-12 text-muted">Alamat Tagih</Form.Label>
-                <div>{getOrderValue(selectedOrderDetail, ['address', 'bill_to_address', 'Address'])}</div>
-              </Col>
-              <Col md={4}>
-                <Form.Label className="f-12 text-muted">Alamat Kirim</Form.Label>
-                <div>{getOrderValue(selectedOrderDetail, ['address2', 'ship_to_address', 'Address2'])}</div>
-              </Col>
-              <Col md={12}>
-                <Form.Label className="f-12 text-muted">Catatan</Form.Label>
-                <div>{getOrderValue(selectedOrderDetail, ['comments', 'Comments'])}</div>
-              </Col>
-            </Row>
-
-            <Table className="mb-0 align-middle" responsive hover>
-              <thead>
-                <tr>
-                  <th>Item</th>
-                  <th className="text-end">Qty</th>
-                  <th>Satuan</th>
-                  <th className="text-end">Harga</th>
-                  <th className="text-end">Total</th>
-                  <th>Warehouse</th>
-                </tr>
-              </thead>
+              </tbody>
+            ) : (
               <tbody>
-                {getOrderLines(selectedOrderDetail).length > 0 ? (
-                  getOrderLines(selectedOrderDetail).map((line, index) => (
-                    <tr key={line.id || line.item_code || index}>
+                {paginatedOrders.length > 0 ? (
+                  paginatedOrders.map((order) => (
+                    <tr key={order.id}>
+                      <td className="fw-semibold">{order.order_no}</td>
+                      <td>{order.customer_name}</td>
+                      <td>{moment(order.doc_date).format('DD MMM YYYY')}</td>
+                      <td>{order?.details?.length}</td>
+                      <td>{currency(order?.doc_total)}</td>
                       <td>
-                        <div className="fw-semibold">{getOrderValue(line, ['item_code', 'itemCode', 'ItemCode'])}</div>
-                        <div className="text-muted f-12">{getOrderValue(line, ['item_name', 'itemName', 'Dscription', 'description'])}</div>
+                        <Badge bg={statusVariant[order.status] || 'secondary'}>{order.status}</Badge>
                       </td>
-                      <td className="text-end">{getOrderValue(line, ['quantity', 'qty', 'Quantity'], 0)}</td>
-                      <td>{getOrderValue(line, ['unit_msr', 'unitMsr', 'uom_code', 'UomCode'])}</td>
-                      <td className="text-end">{currency(getOrderValue(line, ['unit_price', 'unitPrice', 'price', 'Price'], 0))}</td>
-                      <td className="text-end">{currency(getOrderValue(line, ['line_total', 'lineTotal', 'LineTotal'], 0))}</td>
-                      <td>{getOrderValue(line, ['whs_code', 'warehouse_code', 'WhsCode'])}</td>
+                      <td>
+                        {getButtonVisibility(order).attachment && order.attachments?.length > 0 ? (
+                          <Button
+                            variant="light-primary"
+                            size="sm"
+                            disabled={downloadingAttachmentId === order.id}
+                            onClick={() => handleViewAttachment(order)}
+                          >
+                            <i className={downloadingAttachmentId === order.id ? 'ti ti-loader-2 me-1' : 'ti ti-paperclip me-1'} />
+                            Lihat Lampiran
+                          </Button>
+                        ) : null}
+                      </td>
+                      <td className="text-center">{getAccessAction(order)}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="text-center text-muted py-4">
-                      Detail item tidak tersedia
+                    <td colSpan={8}>
+                      <div className="text-center py-5">
+                        <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
+                          <i className="ti ti-clipboard-list f-24" />
+                        </div>
+                        <h5 className="mb-1">{hasActiveFilter ? 'Order tidak ditemukan' : 'Belum ada order'}</h5>
+                        <p className="text-muted mb-3">
+                          {hasActiveFilter
+                            ? 'Ubah filter atau reset pencarian untuk melihat data lain.'
+                            : 'Mulai buat order baru untuk menambahkan transaksi distributor.'}
+                        </p>
+                        {hasActiveFilter ? (
+                          <Button variant="light-primary" onClick={resetFilters}>
+                            Reset Filter
+                          </Button>
+                        ) : canCreateOrder ? (
+                          <Button variant="primary" as={Link} to={`/order/order-create`}>
+                            <i className="ti ti-plus me-1" />
+                            Tambah Order
+                          </Button>
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                 )}
               </tbody>
-            </Table>
+            )}
+          </Table>
 
-            <div className="text-end">
-              <span className="text-muted me-2">Total Order</span>
-              <span className="fw-semibold">{currency(getOrderValue(selectedOrderDetail, ['doc_total', 'docTotal'], 0))}</span>
-            </div>
-          </Stack>
-        ) : null}
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="light-secondary" onClick={closeDetailModal}>
-          Tutup
-        </Button>
-      </Modal.Footer>
-    </Modal>
+          <TablePagination
+            currentPage={currentPage}
+            onPageChange={setCurrentPage}
+            pageCount={pageCount}
+            pageSize={pageSize}
+            total={filteredOrders.length}
+            itemLabel="order"
+          />
+        </MainCard>
+      </Stack>
+      <Modal show={Boolean(selectedOrderDetail)} onHide={closeDetailModal} centered size="xl">
+        <Modal.Header closeButton>
+          <Modal.Title>Detail Order</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedOrderDetail ? (
+            <Stack gap={3}>
+              <Row className="g-3">
+                <Col md={4}>
+                  <Form.Label className="f-12 text-muted">No. Order</Form.Label>
+                  <div className="fw-semibold">{getOrderValue(selectedOrderDetail, ['order_no', 'doc_num', 'docNum'])}</div>
+                </Col>
+                <Col md={4}>
+                  <Form.Label className="f-12 text-muted">No. PO</Form.Label>
+                  <div>{getOrderValue(selectedOrderDetail, ['po_number', 'num_at_card', 'numAtCard'])}</div>
+                </Col>
+                <Col md={4}>
+                  <Form.Label className="f-12 text-muted">Status</Form.Label>
+                  <div>
+                    <Badge bg={statusVariant[selectedOrderDetail.status] || 'secondary'}>
+                      {getOrderValue(selectedOrderDetail, ['status'])}
+                    </Badge>
+                  </div>
+                </Col>
+                <Col md={4}>
+                  <Form.Label className="f-12 text-muted">Customer</Form.Label>
+                  <div className="fw-semibold">{getOrderValue(selectedOrderDetail, ['card_code', 'cardCode', 'customer_code'])}</div>
+                  <div>{getOrderValue(selectedOrderDetail, ['customer_name', 'card_name', 'CardName'])}</div>
+                </Col>
+                <Col md={4}>
+                  <Form.Label className="f-12 text-muted">Tanggal Dokumen</Form.Label>
+                  <div>{formatOrderDate(getOrderValue(selectedOrderDetail, ['doc_date', 'docDate'], ''))}</div>
+                </Col>
+                <Col md={4}>
+                  <Form.Label className="f-12 text-muted">Request Tanggal Kirim</Form.Label>
+                  <div>{formatOrderDate(getOrderValue(selectedOrderDetail, ['doc_due_date', 'docDueDate'], ''))}</div>
+                </Col>
+                <Col md={4}>
+                  <Form.Label className="f-12 text-muted">Kode Sales</Form.Label>
+                  <div>{getOrderValue(selectedOrderDetail, ['slp_code', 'slpCode'])}</div>
+                </Col>
+                <Col md={4}>
+                  <Form.Label className="f-12 text-muted">Alamat Tagih</Form.Label>
+                  <div>{getOrderValue(selectedOrderDetail, ['address', 'bill_to_address', 'Address'])}</div>
+                </Col>
+                <Col md={4}>
+                  <Form.Label className="f-12 text-muted">Alamat Kirim</Form.Label>
+                  <div>{getOrderValue(selectedOrderDetail, ['address2', 'ship_to_address', 'Address2'])}</div>
+                </Col>
+                <Col md={12}>
+                  <Form.Label className="f-12 text-muted">Catatan</Form.Label>
+                  <div>{getOrderValue(selectedOrderDetail, ['comments', 'Comments'])}</div>
+                </Col>
+              </Row>
+
+              <Table className="mb-0 align-middle" responsive hover>
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th className="text-end">Qty</th>
+                    <th>Satuan</th>
+                    <th className="text-end">Harga</th>
+                    <th className="text-end">Total</th>
+                    <th>Warehouse</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {getOrderLines(selectedOrderDetail).length > 0 ? (
+                    getOrderLines(selectedOrderDetail).map((line, index) => (
+                      <tr key={line.id || line.item_code || index}>
+                        <td>
+                          <div className="fw-semibold">{getOrderValue(line, ['item_code', 'itemCode', 'ItemCode'])}</div>
+                          <div className="text-muted f-12">
+                            {getOrderValue(line, ['item_name', 'itemName', 'Dscription', 'description'])}
+                          </div>
+                        </td>
+                        <td className="text-end">{Math.round(getOrderValue(line, ['quantity', 'qty', 'Quantity'], 0))}</td>
+                        <td>{getOrderValue(line, ['unit_msr', 'unitMsr', 'uom_code', 'UomCode'])}</td>
+                        <td className="text-end">{currency(getOrderValue(line, ['unit_price', 'unitPrice', 'price', 'Price'], 0))}</td>
+                        <td className="text-end">{currency(getOrderValue(line, ['line_total', 'lineTotal', 'LineTotal'], 0))}</td>
+                        <td>{getOrderValue(line, ['whs_code', 'warehouse_code', 'WhsCode'])}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={6} className="text-center text-muted py-4">
+                        Detail item tidak tersedia
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </Table>
+
+              <div className="text-end">
+                <span className="text-muted me-2">Total Order</span>
+                <span className="fw-semibold">{currency(getOrderValue(selectedOrderDetail, ['doc_total', 'docTotal'], 0))}</span>
+              </div>
+              {canShowSelectedApprovalAction ? (
+                <Form.Group>
+                  <Form.Label className="f-12 text-muted">Notes Approval</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={3}
+                    value={approvalNotes}
+                    onChange={(event) => setApprovalNotes(event.target.value)}
+                    placeholder="Tambahkan catatan approval atau rejection"
+                  />
+                </Form.Group>
+              ) : null}
+            </Stack>
+          ) : null}
+        </Modal.Body>
+        <Modal.Footer>
+          {canShowSelectedApprovalAction ? (
+            <>
+              <Button variant="outline-danger" disabled={Boolean(approvalLoadingAction)} onClick={handleRejectOrder}>
+                <i className={approvalLoadingAction === 'reject' ? 'ti ti-loader-2 me-1' : 'ti ti-x me-1'} />
+                Reject
+              </Button>
+              <Button variant="success" disabled={Boolean(approvalLoadingAction) || !nextSelectedApprovalStatus} onClick={handleApproveOrder}>
+                <i className={approvalLoadingAction === 'approve' ? 'ti ti-loader-2 me-1' : 'ti ti-check me-1'} />
+                Approve
+              </Button>
+            </>
+          ) : null}
+          <Button variant="light-secondary" onClick={closeDetailModal}>
+            Tutup
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </>
   );
 }

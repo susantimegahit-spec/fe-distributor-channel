@@ -360,16 +360,16 @@ const handleChangePassword = async () => {
 };
 
 useEffect(() => {
-  fetchNotifications();
+  // fetchNotifications();
 }, [fetchNotifications]);
 
-useEffect(() => {
-  const intervalId = window.setInterval(() => {
-    fetchNotifications(true);
-  }, 15000);
+// useEffect(() => {
+//   const intervalId = window.setInterval(() => {
+//     fetchNotifications(true);
+//   }, 15000);
 
-  return () => window.clearInterval(intervalId);
-}, [fetchNotifications]);
+//   return () => window.clearInterval(intervalId);
+// }, [fetchNotifications]);
 
 useEffect(() => {
   const unlockNotificationAudio = () => {
