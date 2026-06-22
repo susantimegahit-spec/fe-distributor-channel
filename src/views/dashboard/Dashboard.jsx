@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import moment from 'moment';
 import { Link } from 'react-router-dom';
 
@@ -34,7 +34,9 @@ const statusConfig = {
 const salesOrderChartOptions = {
   chart: {
     toolbar: { show: false },
-    zoom: { enabled: false }
+    zoom: { enabled: false },
+    redrawOnParentResize: true,
+    redrawOnWindowResize: true
   },
   dataLabels: { enabled: false },
   stroke: {
@@ -127,6 +129,8 @@ export default function Dashboard() {
   const { showAlert } = useAlert();
   const [orders, setOrders] = useState([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [isChartReady, setIsChartReady] = useState(false);
+  const chartContainerRef = useRef(null);
 
   useEffect(() => {
     const fetchSalesOrders = async () => {
@@ -226,6 +230,26 @@ export default function Dashboard() {
     ],
     [chartData.count, chartData.total]
   );
+
+  useEffect(() => {
+    if (isLoadingOrders) {
+      setIsChartReady(false);
+      return undefined;
+    }
+
+    let animationFrame;
+    const renderTimer = window.setTimeout(() => {
+      animationFrame = window.requestAnimationFrame(() => {
+        setIsChartReady(true);
+        window.dispatchEvent(new Event('resize'));
+      });
+    }, 120);
+
+    return () => {
+      window.clearTimeout(renderTimer);
+      if (animationFrame) window.cancelAnimationFrame(animationFrame);
+    };
+  }, [isLoadingOrders, chartData.categories, chartData.count, chartData.total]);
 
   return (
     <Stack gap={3}>
@@ -327,11 +351,15 @@ export default function Dashboard() {
               </Stack>
             }
           >
-            {isLoadingOrders ? (
-              <div className="text-center text-muted py-5">Memuat data sales order...</div>
-            ) : (
-              <ReactApexChart options={chartOptions} series={chartSeries} type="line" height={340} />
-            )}
+            <div ref={chartContainerRef} style={{ minHeight: 340, width: '100%' }}>
+              {isLoadingOrders || !isChartReady ? (
+                <div className="d-flex align-items-center justify-content-center text-muted" style={{ minHeight: 340 }}>
+                  Memuat data sales order...
+                </div>
+              ) : (
+                <ReactApexChart options={chartOptions} series={chartSeries} type="line" height={340} width="100%" />
+              )}
+            </div>
           </MainCard>
         </Col>
         <Col xl={4}>

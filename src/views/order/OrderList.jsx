@@ -40,9 +40,9 @@ const statusVariant = {
   WAITING_OM: 'warning',
   WAITING_ASM: 'info',
   WAITING_ADMIN_SALES: 'primary',
-  WAITING_APPROVAL: 'warning',
+  WAITING_FINANCE: 'light-primary',
   DELIVERY: 'info',
-  APPROVED: 'primary',
+  COMPLETED: 'success',
   ARRIVED: 'success',
   REJECTED: 'orange',
   FAILED: 'danger'

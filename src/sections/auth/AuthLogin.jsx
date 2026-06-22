@@ -21,6 +21,7 @@ import { DataService } from '../../config/dataService';
 import LoaderButton from '../../components/LoaderButton';
 import { customerCodeSchema } from '../../utils/validationSchema';
 import Turnstile from 'components/Turnstile';
+import { AUTH_STATE_CHANGED_EVENT } from '../../utils/authEvents';
 
 // ==============================|| AUTH LOGIN FORM ||============================== //
 
@@ -49,9 +50,10 @@ export default function AuthLoginForm({ className }) {
       code_customer: getValues().customerCode,
       cf_turnstile_response: turnstileToken
     };
-    const response = await DataService.post('/auth/login', payload);
-    console.log('response login => ', response.data);
+
     try {
+      const response = await DataService.post('/auth/login', payload);
+
       if (response.data.success === true) {
         Cookies.set('isLoggedIn', true);
         Cookies.set('accessToken', response.data.data.access_token);
@@ -64,17 +66,14 @@ export default function AuthLoginForm({ className }) {
         Cookies.set('distributorName', response.data.data?.user?.name_distributor);
         Cookies.set('distributorId', response.data.data?.user?.id_distributor);
         showAlert('Login Successful', 'success');
-        setIsLoading(false);
-        setTimeout(() => {
-          window.location.reload(true);
-        }, 1000);
+        window.dispatchEvent(new Event(AUTH_STATE_CHANGED_EVENT));
       } else {
-        setIsLoading(false);
         showAlert(response.data.message, 'danger');
       }
     } catch (error) {
+      showAlert(error?.message || 'Login gagal. Silakan coba kembali.', 'danger');
+    } finally {
       setIsLoading(false);
-      console.log('login error => ', error);
     }
   };
 

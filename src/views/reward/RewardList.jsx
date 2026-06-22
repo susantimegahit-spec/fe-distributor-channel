@@ -1,5 +1,4 @@
 import { useMemo, useRef, useState } from 'react';
-import * as XLSX from 'xlsx';
 
 // react-bootstrap
 import Badge from 'react-bootstrap/Badge';
@@ -14,6 +13,7 @@ import Table from 'react-bootstrap/Table';
 
 // project-imports
 import FinanceServices from '../../services/FinanceServices';
+import PromoServices from '../../services/PromoServices';
 import { useAlert } from '../../utils/alertContext';
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
@@ -78,96 +78,13 @@ const formatDate = (value) => {
   }).format(new Date(value));
 };
 
-const normalizeStatus = (value) => {
-  const status = String(value || '').toLowerCase();
-
-  if (['claimed', 'sudah klaim', 'claim', 'klaim'].includes(status)) return 'claimed';
-  if (['rejected', 'reject', 'ditolak'].includes(status)) return 'rejected';
-
-  return 'pending';
-};
-
-const parseNumber = (value) => {
-  if (typeof value === 'number') return value;
-
-  const normalizedValue = String(value || '')
-    .replace(/[^\d,-]/g, '')
-    .replace(/\./g, '')
-    .replace(',', '.');
-
-  return Number(normalizedValue) || 0;
-};
-
-const buildClaimsFromRows = (rows) => {
-  const grouped = new Map();
-
-  rows.forEach((row, index) => {
-    const customerCode = row['Kode Customer'] || row.customer_code || row.customerCode || row.distributor_code || row.distributorCode || '';
-    const customerName = row['Nama Customer'] || row.customer_name || row.customerName || row.distributor_name || row.distributorName || '';
-    const itemCode = row['Kode Item'] || row.item_code || row.itemCode || '';
-    const itemName = row['Nama Item'] || row.item_name || row.itemName || '';
-    const transactionDate =
-      row['Transcation Date'] || row.transaction_date || row.transactionDate || row.sell_out_date || row.sellOutDate || '';
-    const customerType = row['Tipe Customer'] || row.customer_type || row.customerType || '';
-    const hasContent = Object.values(row).some((value) => String(value || '').trim());
-    const normalizedCustomerCode = String(customerCode || '')
-      .trim()
-      .toLowerCase();
-    const isTemplateInformationRow =
-      normalizedCustomerCode === 'tipe customer di isi dengan mt/gt' ||
-      normalizedCustomerCode.startsWith('*tipe customer') ||
-      normalizedCustomerCode.startsWith('* untuk kode item');
-
-    if (!hasContent) return;
-    if (isTemplateInformationRow) return;
-
-    const fallbackClaimNo = customerCode ? `CLM-${customerCode}-${transactionDate || index + 1}` : `CLM-UPLOAD-${index + 1}`;
-    const claimNo = row.claim_no || row.claimNo || fallbackClaimNo;
-    const templateAmount = parseNumber(row['Harga Jual (kg)']);
-    const hasExplicitRewardAmount = row.reward_amount || row.rewardAmount;
-    const rewardAmount = parseNumber(hasExplicitRewardAmount) || templateAmount;
-    const sellOutInvoice = row.sell_out_invoice || row.sellOutInvoice || itemCode;
-    const sellOutDate = transactionDate;
-    const sellOutAmount = parseNumber(row.sell_out_amount || row.sellOutAmount) || templateAmount;
-
-    if (!grouped.has(claimNo)) {
-      grouped.set(claimNo, {
-        claimNo,
-        periodStart: row.period_start || row.periodStart || '',
-        periodEnd: row.period_end || row.periodEnd || '',
-        distributorCode: customerCode,
-        distributorName: customerName,
-        rewardAmount: 0,
-        status: normalizeStatus(row.status),
-        sellOut: []
-      });
-    }
-
-    const claim = grouped.get(claimNo);
-    claim.rewardAmount = hasExplicitRewardAmount ? rewardAmount || claim.rewardAmount : claim.rewardAmount + (rewardAmount || 0);
-
-    if (sellOutInvoice || sellOutAmount || itemName) {
-      claim.sellOut.push({
-        invoiceNo: sellOutInvoice || '-',
-        date: sellOutDate || '',
-        amount: sellOutAmount,
-        itemName,
-        customerType
-      });
-    }
-  });
-
-  return Array.from(grouped.values());
-};
-
 export default function RewardList() {
   const { showAlert } = useAlert();
   const fileInputRef = useRef(null);
-  const [claims, setClaims] = useState(initialClaims);
+  const [claims] = useState(initialClaims);
   const [selectedClaim, setSelectedClaim] = useState(null);
   const [showClaimModal, setShowClaimModal] = useState(false);
-  const [uploadedClaims, setUploadedClaims] = useState([]);
-  const [uploadedFileName, setUploadedFileName] = useState('');
+  const [uploadingClaim, setUploadingClaim] = useState(false);
   const [downloadingTemplate, setDownloadingTemplate] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -206,44 +123,38 @@ export default function RewardList() {
 
     if (!file) return;
 
-    try {
-      const buffer = await file.arrayBuffer();
-      const workbook = XLSX.read(buffer);
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
-      const uploadedClaims = buildClaimsFromRows(rows);
+    const extension = file.name.split('.').pop()?.toLowerCase();
 
-      if (!uploadedClaims.length) {
-        showAlert('File template tidak memiliki data reward', 'danger');
+    if (!['xlsx', 'xls'].includes(extension)) {
+      showAlert('Format file harus XLSX atau XLS', 'danger');
+      event.target.value = '';
+      return;
+    }
+
+    const payload = new FormData();
+    payload.append('file', file);
+    setUploadingClaim(true);
+
+    try {
+      const response = await PromoServices.uploadTransactionFile(payload);
+
+      if (!response || response.status < 200 || response.status >= 300 || response?.data?.success === false) {
+        showAlert(response?.data?.message || 'Gagal mengupload claim reward', 'danger');
         return;
       }
 
-      setUploadedClaims(uploadedClaims);
-      setUploadedFileName(file.name);
-      showAlert('File reward berhasil dibaca', 'success');
+      setShowClaimModal(false);
+      showAlert(response?.data?.message || 'Data claim reward berhasil diupload', 'success');
     } catch (error) {
-      showAlert(error?.message || 'Gagal membaca file template reward', 'danger');
+      showAlert(error?.message || 'Gagal mengupload claim reward', 'danger');
     } finally {
+      setUploadingClaim(false);
       event.target.value = '';
     }
   };
 
   const handleCloseClaimModal = () => {
     setShowClaimModal(false);
-    setUploadedClaims([]);
-    setUploadedFileName('');
-  };
-
-  const handleSaveUploadedClaims = () => {
-    if (!uploadedClaims.length) {
-      showAlert('Upload file reward terlebih dahulu', 'danger');
-      return;
-    }
-
-    setClaims(uploadedClaims);
-    setCurrentPage(1);
-    handleCloseClaimModal();
-    showAlert('Data claim reward berhasil disimpan', 'success');
   };
 
   return (
@@ -402,7 +313,15 @@ export default function RewardList() {
         </MainCard>
       </Stack>
 
-      <Modal show={showClaimModal} onHide={handleCloseClaimModal} size="xl" centered fullscreen>
+      <Modal
+        show={showClaimModal}
+        onHide={() => {
+          if (!uploadingClaim) handleCloseClaimModal();
+        }}
+        size="xl"
+        centered
+        fullscreen
+      >
         <Modal.Header closeButton>
           <Modal.Title>Tambah Claim Reward</Modal.Title>
         </Modal.Header>
@@ -452,9 +371,9 @@ export default function RewardList() {
                         <p className="text-muted mb-3">
                           Upload file `.xlsx` atau `.xls` yang sudah diisi untuk menambahkan transaksi claim.
                         </p>
-                        <Button variant="primary" onClick={() => fileInputRef.current?.click()}>
-                          <i className="ti ti-upload me-1" />
-                          Upload Excel
+                        <Button variant="primary" onClick={() => fileInputRef.current?.click()} disabled={uploadingClaim}>
+                          <i className={`${uploadingClaim ? 'ti ti-loader-2' : 'ti ti-upload'} me-1`} />
+                          {uploadingClaim ? 'Mengupload...' : 'Pilih & Upload Excel'}
                         </Button>
                         <Form.Control
                           ref={fileInputRef}
@@ -470,84 +389,10 @@ export default function RewardList() {
               </Stack>
             </Col>
           </Row>
-
-          <Card className="border mb-0 mt-3">
-            <Card.Body>
-              <Stack direction="horizontal" gap={3} className="justify-content-between align-items-start mb-3">
-                <div>
-                  <h6 className="mb-1">Preview Transaksi Sell Out</h6>
-                  <p className="text-muted mb-0">
-                    {uploadedFileName
-                      ? `Data dari file ${uploadedFileName}`
-                      : 'Tabel ini akan terisi otomatis setelah file Excel berhasil diupload.'}
-                  </p>
-                </div>
-                <Badge bg={uploadedClaims.length ? 'primary' : 'secondary'}>{uploadedClaims.length} claim</Badge>
-              </Stack>
-
-              <Table className="mb-0 align-middle" responsive hover>
-                <thead>
-                  <tr>
-                    <th style={{ minWidth: 150 }}>No. Claim</th>
-                    <th style={{ minWidth: 210 }}>Distributor</th>
-                    <th style={{ minWidth: 150 }}>Kode Item</th>
-                    <th style={{ minWidth: 220 }}>Nama Item</th>
-                    <th style={{ minWidth: 140 }}>Tipe Customer</th>
-                    <th style={{ minWidth: 130 }}>Tanggal</th>
-                    <th className="text-end" style={{ minWidth: 150 }}>
-                      Nominal Sell Out
-                    </th>
-                    <th className="text-end" style={{ minWidth: 150 }}>
-                      Reward
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {uploadedClaims.length ? (
-                    uploadedClaims.flatMap((claim) => {
-                      const transactions = claim.sellOut?.length ? claim.sellOut : [{ invoiceNo: '-', date: '', amount: 0 }];
-
-                      return transactions.map((transaction, index) => (
-                        <tr key={`${claim.claimNo}-${transaction.invoiceNo}-${index}`}>
-                          <td className="fw-semibold">{claim.claimNo}</td>
-                          <td>
-                            <div className="fw-semibold">{claim.distributorName || '-'}</div>
-                            <small className="text-muted">{claim.distributorCode || '-'}</small>
-                          </td>
-                          <td>{transaction.invoiceNo || '-'}</td>
-                          <td>{transaction.itemName || '-'}</td>
-                          <td>{transaction.customerType || '-'}</td>
-                          <td>{formatDate(transaction.date)}</td>
-                          <td className="text-end">{formatCurrency(transaction.amount)}</td>
-                          <td className="text-end">{formatCurrency(claim.rewardAmount)}</td>
-                        </tr>
-                      ));
-                    })
-                  ) : (
-                    <tr>
-                      <td colSpan={8}>
-                        <div className="text-center py-4">
-                          <div className="avtar avtar-lg bg-light-primary text-primary mx-auto mb-2">
-                            <i className="ti ti-table-import f-20" />
-                          </div>
-                          <h6 className="mb-1">Belum ada data preview</h6>
-                          <p className="text-muted mb-0">Upload template Excel untuk menampilkan transaksi sell out di sini.</p>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </Table>
-            </Card.Body>
-          </Card>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="light-secondary" onClick={handleCloseClaimModal}>
+          <Button variant="light-secondary" onClick={handleCloseClaimModal} disabled={uploadingClaim}>
             Tutup
-          </Button>
-          <Button variant="primary" disabled={!uploadedClaims.length} onClick={handleSaveUploadedClaims}>
-            <i className="ti ti-device-floppy me-1" />
-            Simpan Claim
           </Button>
         </Modal.Footer>
       </Modal>

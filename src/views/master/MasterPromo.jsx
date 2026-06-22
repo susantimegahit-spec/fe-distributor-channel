@@ -14,6 +14,7 @@ import Table from 'react-bootstrap/Table';
 
 // project-imports
 import MainCard from 'components/MainCard';
+import ConfirmDialog from 'components/ConfirmDialog';
 import TablePagination from 'components/TablePagination';
 import LoaderData from '../../components/LoaderData';
 import ProductServices from '../../services/ProductServices';
@@ -36,7 +37,7 @@ const initialPromoRules = [
     min_qty_kg: '',
     max_qty_kg: '',
     harga_promo_per_kg: '',
-    disckon_per_kg: ''
+    diskon_per_kg: ''
   }
 ];
 
@@ -76,6 +77,8 @@ const formatDate = (value) => {
   }).format(new Date(value));
 };
 
+const formatInputDate = (value) => (value ? String(value).slice(0, 10) : '');
+
 const formatCurrency = (value) =>
   new Intl.NumberFormat('id-ID', {
     style: 'currency',
@@ -103,14 +106,23 @@ const normalizeStatus = (value) => {
 };
 
 const getProgramItems = (program) => {
-  const items = program.items || program.item || program.products || program.program_items || [];
+  const itemCodes = Array.isArray(program.item_code) ? program.item_code : program.item_code ? [program.item_code] : [];
+  const itemNames = Array.isArray(program.item_name) ? program.item_name : program.item_name ? [program.item_name] : [];
+  const programItems = program.items || program.item || program.products || program.program_items;
+  const items = Array.isArray(programItems) && !programItems.length ? itemCodes : programItems || itemCodes;
   const normalizedItems = Array.isArray(items) ? items : [items];
 
-  return normalizedItems.filter(Boolean).map((item) => {
+  return normalizedItems.filter(Boolean).map((item, index) => {
     if (typeof item === 'string') {
+      const itemName = itemNames[index] || '';
+
       return {
         value: item,
-        label: item
+        label: itemName ? `${item} - ${itemName}` : item,
+        item: {
+          item_code: item,
+          item_name: itemName
+        }
       };
     }
 
@@ -125,6 +137,12 @@ const getProgramItems = (program) => {
   });
 };
 
+const getProgramRules = (program) => {
+  const rules = program.strata || program.details || program.rules || program.program_details || [];
+
+  return Array.isArray(rules) ? rules : [rules].filter(Boolean);
+};
+
 const normalizePromo = (program, index) => ({
   id: program.id || program.program_id || index,
   program_name: program.program_name || program.name || '',
@@ -133,14 +151,31 @@ const normalizePromo = (program, index) => ({
   end_date: program.end_date || program.endDate || '',
   description: program.description || program.keterangan || '',
   status: normalizeStatus(program.status),
-  rules: program.details || program.rules || program.program_details || []
+  rules: getProgramRules(program)
 });
+
+const normalizeDetailResponse = (response) => {
+  const payload = response?.data;
+  console.log('payload => ', response.data)
+
+  if (payload?.data && !Array.isArray(payload.data)) return payload.data;
+  if (payload?.program && !Array.isArray(payload.program)) return payload.program;
+  if (payload && !Array.isArray(payload)) return payload;
+
+  return null;
+};
 
 export default function MasterPromo() {
   const { showAlert } = useAlert();
   const [promoPrograms, setPromoPrograms] = useState([]);
   const [loadingData, setLoadingData] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedPromo, setSelectedPromo] = useState(null);
+  const [loadingDetailId, setLoadingDetailId] = useState(null);
+  const [loadingDetailType, setLoadingDetailType] = useState(null);
+  const [editingPromoId, setEditingPromoId] = useState(null);
+  const [promoToDelete, setPromoToDelete] = useState(null);
+  const [deletingPromoId, setDeletingPromoId] = useState(null);
   const [promoInput, setPromoInput] = useState(initialPromoInput);
   const [promoRules, setPromoRules] = useState(initialPromoRules);
   const [listItem, setListItem] = useState([]);
@@ -207,7 +242,115 @@ export default function MasterPromo() {
 
   const handleCloseModal = () => {
     setShowAddModal(false);
+    setEditingPromoId(null);
     resetPromoForm();
+  };
+
+  const handleOpenAddModal = () => {
+    setEditingPromoId(null);
+    resetPromoForm();
+    setShowAddModal(true);
+  };
+
+  const handleViewPromo = async (program) => {
+    setLoadingDetailId(program.id);
+    setLoadingDetailType('view');
+
+    try {
+      const response = await PromoServices.getProgramDetail(program.id);
+
+      if (response?.data?.success === false) {
+        showAlert(response.data.message || 'Gagal mengambil detail program promo', 'danger');
+        return;
+      }
+
+      const detail = normalizeDetailResponse(response);
+
+      if (!detail) {
+        showAlert('Detail program promo tidak ditemukan', 'danger');
+        return;
+      }
+
+      setSelectedPromo(normalizePromo(detail, program.id));
+    } catch (error) {
+      showAlert(error?.message || 'Gagal mengambil detail program promo', 'danger');
+    } finally {
+      setLoadingDetailId(null);
+      setLoadingDetailType(null);
+    }
+  };
+
+  const handleEditPromo = async (program) => {
+    setLoadingDetailId(program.id);
+    setLoadingDetailType('edit');
+
+    try {
+      const response = await PromoServices.getProgramDetail(program.id);
+
+      if (response?.data?.success === false) {
+        showAlert(response.data.message || 'Gagal mengambil detail program promo', 'danger');
+        return;
+      }
+
+      const detail = normalizeDetailResponse(response);
+
+      if (!detail) {
+        showAlert('Detail program promo tidak ditemukan', 'danger');
+        return;
+      }
+
+      const normalizedPromo = normalizePromo(detail, program.id);
+
+      setPromoInput({
+        program_name: normalizedPromo.program_name,
+        items: normalizedPromo.items,
+        start_date: formatInputDate(normalizedPromo.start_date),
+        end_date: formatInputDate(normalizedPromo.end_date),
+        description: normalizedPromo.description
+      });
+      setPromoRules(
+        normalizedPromo.rules.length
+          ? normalizedPromo.rules.map((rule) => ({
+              customer_type: rule.customer_type || 'GT',
+              min_qty_kg: rule.min_qty_kg ?? '',
+              max_qty_kg: rule.max_qty_kg ?? '',
+              harga_promo_per_kg: rule.harga_program_per_kg ?? rule.harga_promo_per_kg ?? '',
+              diskon_per_kg: rule.diskon_per_kg ?? ''
+            }))
+          : initialPromoRules
+      );
+      setEditingPromoId(normalizedPromo.id || program.id);
+      setShowAddModal(true);
+    } catch (error) {
+      showAlert(error?.message || 'Gagal mengambil detail program promo', 'danger');
+    } finally {
+      setLoadingDetailId(null);
+      setLoadingDetailType(null);
+    }
+  };
+
+  const handleDeletePromo = async () => {
+    if (!promoToDelete || deletingPromoId !== null) return;
+
+    const program = promoToDelete;
+    setPromoToDelete(null);
+    setDeletingPromoId(program.id);
+
+    try {
+      const response = await PromoServices.deleteProgram(program.id);
+
+      if (response?.data?.success === false) {
+        showAlert(response.data.message || 'Gagal menghapus program promo', 'danger');
+        return;
+      }
+
+      await fetchPromos();
+      showAlert(response?.data?.message || 'Program promo berhasil dihapus', 'success');
+    } catch (error) {
+      showAlert(error?.message || 'Gagal menghapus program promo', 'danger');
+    } finally {
+      setDeletingPromoId(null);
+    }
   };
 
   const handleChangePromoInput = (field, value) => {
@@ -250,49 +393,49 @@ export default function MasterPromo() {
         item.min_qty_kg === '' ||
         item.max_qty_kg === '' ||
         item.harga_promo_per_kg === '' ||
-        item.disckon_per_kg === ''
+        item.diskon_per_kg === ''
     );
 
     if (hasInvalidRule) {
       showAlert('Lengkapi semua detail aturan promo', 'danger');
       return;
     }
+    const items = promoInput.items.map((item) => item?.value);
 
     const payload = {
       program_name: promoInput.program_name,
       item_name: promoInput.items.map((item) => item.label),
       item_code: promoInput.items.map((item) => item.value),
-      items: promoInput.items.map((item) => ({
-        item_code: item.value,
-        item_name: item.item?.item_name || item.item?.name || item.label
-      })),
+      items,
       start_date: promoInput.start_date,
       end_date: promoInput.end_date,
       description: promoInput.description,
-      details: promoRules.map((item) => ({
+      strata: promoRules.map((item) => ({
         customer_type: item.customer_type,
         min_qty_kg: Number(item.min_qty_kg),
         max_qty_kg: Number(item.max_qty_kg),
-        harga_promo_per_kg: Number(item.harga_promo_per_kg),
-        disckon_per_kg: Number(item.disckon_per_kg)
+        harga_program_per_kg: Number(item.harga_promo_per_kg),
+        diskon_per_kg: Number(item.diskon_per_kg)
       }))
     };
 
     setSubmittingPromo(true);
 
     try {
-      const response = await PromoServices.postPromo(payload);
+      const response = editingPromoId
+        ? await PromoServices.updateProgram(editingPromoId, payload)
+        : await PromoServices.postPromo(payload);
 
       if (response?.data?.success === false) {
-        showAlert(response.data.message || 'Gagal menambahkan program promo', 'danger');
+        showAlert(response.data.message || `Gagal ${editingPromoId ? 'memperbarui' : 'menambahkan'} program promo`, 'danger');
         return;
       }
 
       await fetchPromos();
       handleCloseModal();
-      showAlert(response?.data?.message || 'Program promo berhasil ditambahkan', 'success');
+      showAlert(response?.data?.message || `Program promo berhasil ${editingPromoId ? 'diperbarui' : 'ditambahkan'}`, 'success');
     } catch (error) {
-      showAlert(error?.message || 'Gagal menambahkan program promo', 'danger');
+      showAlert(error?.message || `Gagal ${editingPromoId ? 'memperbarui' : 'menambahkan'} program promo`, 'danger');
     } finally {
       setSubmittingPromo(false);
     }
@@ -309,7 +452,7 @@ export default function MasterPromo() {
             </Stack>
           }
           secondary={
-            <Button variant="primary" onClick={() => setShowAddModal(true)} disabled={loadingData}>
+            <Button variant="primary" onClick={handleOpenAddModal} disabled={loadingData}>
               <i className="ti ti-plus me-1" />
               Tambah Program
             </Button>
@@ -380,12 +523,15 @@ export default function MasterPromo() {
                 <th style={{ minWidth: 260 }}>Item</th>
                 <th style={{ minWidth: 240 }}>Keterangan</th>
                 <th style={{ minWidth: 120 }}>Status</th>
+                <th className="text-center" style={{ minWidth: 150 }}>
+                  Aksi
+                </th>
               </tr>
             </thead>
             <tbody>
               {loadingData ? (
                 <tr>
-                  <td colSpan={5}>
+                  <td colSpan={6}>
                     <LoaderData />
                   </td>
                 </tr>
@@ -415,19 +561,68 @@ export default function MasterPromo() {
                       <td>
                         <Badge bg={statusVariant[program.status] || 'secondary'}>{statusLabel[program.status] || program.status}</Badge>
                       </td>
+                      <td>
+                        <Stack direction="horizontal" gap={2} className="justify-content-center">
+                          <Button
+                            className="rounded-circle"
+                            variant="outline-primary"
+                            size="sm"
+                            title="Lihat detail program"
+                            aria-label={`Lihat detail ${program.program_name || 'program promo'}`}
+                            onClick={() => handleViewPromo(program)}
+                            disabled={loadingDetailId !== null || deletingPromoId !== null}
+                          >
+                            {String(loadingDetailId) === String(program.id) && loadingDetailType === 'view' ? (
+                              <span className="spinner-border spinner-border-sm" aria-hidden="true" />
+                            ) : (
+                              <i className="ti ti-eye" />
+                            )}
+                          </Button>
+                          <Button
+                            className="rounded-circle"
+                            variant="outline-secondary"
+                            size="sm"
+                            title="Edit program"
+                            aria-label={`Edit ${program.program_name || 'program promo'}`}
+                            onClick={() => handleEditPromo(program)}
+                            disabled={loadingDetailId !== null || deletingPromoId !== null}
+                          >
+                            {String(loadingDetailId) === String(program.id) && loadingDetailType === 'edit' ? (
+                              <span className="spinner-border spinner-border-sm" aria-hidden="true" />
+                            ) : (
+                              <i className="ti ti-pencil" />
+                            )}
+                          </Button>
+                          <Button
+                            className="rounded-circle"
+                            variant="outline-danger"
+                            size="sm"
+                            title="Hapus program"
+                            aria-label={`Hapus ${program.program_name || 'program promo'}`}
+                            onClick={() => setPromoToDelete(program)}
+                            disabled={loadingDetailId !== null || deletingPromoId !== null}
+                          >
+                            {String(deletingPromoId) === String(program.id) ? (
+                              <span className="spinner-border spinner-border-sm" aria-hidden="true" />
+                            ) : (
+                              <i className="ti ti-trash" />
+                            )}
+                          </Button>
+                        </Stack>
+                      </td>
                     </tr>
                   );
                 })
               ) : (
                 <tr>
-                  <td colSpan={5}>
+                  <td colSpan={6}>
                     <div className="text-center py-5">
                       <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                         <i className="ti ti-discount-2 f-24" />
                       </div>
                       <h5 className="mb-1">Belum ada program promo</h5>
                       <p className="text-muted mb-3">Tambahkan program promo untuk mengatur harga dan diskon per customer type.</p>
-                      <Button variant="primary" onClick={() => setShowAddModal(true)}>
+                      <Button variant="primary" onClick={handleOpenAddModal}>
                         <i className="ti ti-plus me-1" />
                         Tambah Program
                       </Button>
@@ -451,7 +646,7 @@ export default function MasterPromo() {
 
       <Modal show={showAddModal} onHide={handleCloseModal} size="xl" centered fullscreen="lg-down">
         <Modal.Header closeButton>
-          <Modal.Title>Tambah Program Promo</Modal.Title>
+          <Modal.Title>{editingPromoId ? 'Edit Program Promo' : 'Tambah Program Promo'}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Stack gap={3}>
@@ -539,7 +734,7 @@ export default function MasterPromo() {
                   </thead>
                   <tbody>
                     {promoRules.map((rule, index) => {
-                      const estimatedNet = Number(rule.harga_promo_per_kg || 0) - Number(rule.disckon_per_kg || 0);
+                      const estimatedNet = Number(rule.harga_promo_per_kg || 0) - Number(rule.diskon_per_kg || 0);
 
                       return (
                         <tr key={index}>
@@ -586,8 +781,8 @@ export default function MasterPromo() {
                           <td>
                             <Form.Control
                               type="number"
-                              value={rule.disckon_per_kg}
-                              onChange={(event) => handleChangeRule(index, 'disckon_per_kg', event.target.value)}
+                              value={rule.diskon_per_kg}
+                              onChange={(event) => handleChangeRule(index, 'diskon_per_kg', event.target.value)}
                               min="0"
                               size="sm"
                               placeholder="0"
@@ -620,10 +815,156 @@ export default function MasterPromo() {
           </Button>
           <Button variant="primary" onClick={handleSubmitPromo} disabled={submittingPromo}>
             <i className="ti ti-device-floppy me-1" />
-            {submittingPromo ? 'Menyimpan...' : 'Simpan Program'}
+            {submittingPromo ? 'Menyimpan...' : editingPromoId ? 'Simpan Perubahan' : 'Simpan Program'}
           </Button>
         </Modal.Footer>
       </Modal>
+
+      <Modal show={Boolean(selectedPromo)} onHide={() => setSelectedPromo(null)} size="xl" centered fullscreen="lg-down">
+        <Modal.Header closeButton>
+          <Modal.Title>Detail Program Promo</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="bg-light">
+          {selectedPromo ? (
+            <Stack gap={3}>
+              <Card className="border-0 shadow-sm mb-0">
+                <Card.Body>
+                  <Stack direction="horizontal" gap={3} className="justify-content-between align-items-start flex-wrap">
+                    <div>
+                      <div className="text-muted f-12 mb-1">NAMA PROGRAM</div>
+                      <h4 className="mb-1">{selectedPromo.program_name || '-'}</h4>
+                      <p className="text-muted mb-0">{selectedPromo.description || 'Tidak ada keterangan program.'}</p>
+                    </div>
+                    <Badge bg={statusVariant[selectedPromo.status] || 'secondary'} className="px-3 py-2">
+                      {statusLabel[selectedPromo.status] || selectedPromo.status}
+                    </Badge>
+                  </Stack>
+
+                  <Row className="g-3 mt-2">
+                    <Col md={4}>
+                      <div className="border rounded p-3 h-100 bg-white">
+                        <div className="text-muted f-12 mb-1">TANGGAL MULAI</div>
+                        <div className="fw-semibold">{formatDate(selectedPromo.start_date)}</div>
+                      </div>
+                    </Col>
+                    <Col md={4}>
+                      <div className="border rounded p-3 h-100 bg-white">
+                        <div className="text-muted f-12 mb-1">TANGGAL SELESAI</div>
+                        <div className="fw-semibold">{formatDate(selectedPromo.end_date)}</div>
+                      </div>
+                    </Col>
+                    <Col md={4}>
+                      <div className="border rounded p-3 h-100 bg-white">
+                        <div className="text-muted f-12 mb-1">TOTAL ITEM</div>
+                        <div className="fw-semibold">{selectedPromo.items?.length || 0} item</div>
+                      </div>
+                    </Col>
+                  </Row>
+                </Card.Body>
+              </Card>
+
+              <Card className="border-0 shadow-sm mb-0">
+                <Card.Header className="bg-white py-3">
+                  <h6 className="mb-0">Item Program</h6>
+                </Card.Header>
+                <Card.Body className="p-0">
+                  <Table className="mb-0 align-middle" responsive>
+                    <thead>
+                      <tr>
+                        <th style={{ width: 70 }}>No.</th>
+                        <th style={{ minWidth: 160 }}>Kode Item</th>
+                        <th style={{ minWidth: 260 }}>Nama Item</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedPromo.items?.length ? (
+                        selectedPromo.items.map((item, index) => (
+                          <tr key={`${item.value}-${index}`}>
+                            <td>{index + 1}</td>
+                            <td className="fw-semibold">{item.item?.item_code || item.value || '-'}</td>
+                            <td>{item.item?.item_name || item.label || '-'}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={3} className="text-center text-muted py-4">
+                            Item program tidak tersedia
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </Table>
+                </Card.Body>
+              </Card>
+
+              <Card className="border-0 shadow-sm mb-0">
+                <Card.Header className="bg-white py-3">
+                  <h6 className="mb-0">Aturan Promo</h6>
+                </Card.Header>
+                <Card.Body className="p-0">
+                  <Table className="mb-0 align-middle" responsive>
+                    <thead>
+                      <tr>
+                        <th style={{ width: 70 }}>No.</th>
+                        <th style={{ minWidth: 140 }}>Customer Type</th>
+                        <th className="text-end" style={{ minWidth: 120 }}>
+                          Min Qty
+                        </th>
+                        <th className="text-end" style={{ minWidth: 120 }}>
+                          Max Qty
+                        </th>
+                        <th className="text-end" style={{ minWidth: 180 }}>
+                          Harga Promo / Kg
+                        </th>
+                        <th className="text-end" style={{ minWidth: 160 }}>
+                          Diskon / Kg
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedPromo.rules?.length ? (
+                        selectedPromo.rules.map((rule, index) => (
+                          <tr key={`${rule.id || rule.customer_type || 'rule'}-${index}`}>
+                            <td>{index + 1}</td>
+                            <td>
+                              <Badge bg="light-primary">{rule.customer_type || '-'}</Badge>
+                            </td>
+                            <td className="text-end">{Number(rule.min_qty_kg || 0).toLocaleString('id-ID')} kg</td>
+                            <td className="text-end">{Number(rule.max_qty_kg || 0).toLocaleString('id-ID')} kg</td>
+                            <td className="text-end fw-semibold">
+                              {formatCurrency(rule.harga_program_per_kg ?? rule.harga_promo_per_kg)}
+                            </td>
+                            <td className="text-end">{formatCurrency(rule.diskon_per_kg)}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={6} className="text-center text-muted py-4">
+                            Aturan promo tidak tersedia
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </Table>
+                </Card.Body>
+              </Card>
+            </Stack>
+          ) : null}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" onClick={() => setSelectedPromo(null)}>
+            Tutup
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <ConfirmDialog
+        show={Boolean(promoToDelete)}
+        onCancel={() => setPromoToDelete(null)}
+        onSubmit={handleDeletePromo}
+        title="Hapus Program Promo"
+        subTitle={`Anda yakin ingin menghapus program ${promoToDelete?.program_name || 'ini'}?`}
+      />
     </>
   );
 }
