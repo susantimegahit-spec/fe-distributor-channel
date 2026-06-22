@@ -6,9 +6,10 @@ const rewardTemplateHeaders = [
   'Nama Customer',
   'Kode Item',
   'Nama Item',
-  'Harga Jual (kg)',
-  'Tipe Customer',
-  'Transcation Date'
+  'Qty',
+  'Harga Jual @ Kg',
+  'Type Customer',
+  'Transaction Date'
 ];
 
 const getProductRows = (products) =>
