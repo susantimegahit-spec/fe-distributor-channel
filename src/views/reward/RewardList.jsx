@@ -282,7 +282,7 @@ export default function RewardList() {
             </Button>
           }
         >
-          <Row className="g-3">
+          {/* <Row className="g-3">
             <Col md={6} xl={3}>
               <Card className="border mb-0 h-100">
                 <Card.Body className="py-3">
@@ -298,7 +298,7 @@ export default function RewardList() {
                 </Card.Body>
               </Card>
             </Col>
-          </Row>
+          </Row> */}
         </MainCard>
         <MainCard
           title={
@@ -314,6 +314,7 @@ export default function RewardList() {
                 <th style={{ minWidth: 170 }}>Batch Claim</th>
                 <th style={{ minWidth: 220 }}>File Upload</th>
                 <th style={{ minWidth: 190 }}>Tanggal Upload</th>
+                <th style={{ minWidth: 190 }}>Total Diskon</th>
                 <th className="text-center" style={{ width: 90 }}>
                   Detail
                 </th>
@@ -334,6 +335,7 @@ export default function RewardList() {
                       <div className="fw-semibold">{claim.fileName || '-'}</div>
                     </td>
                     <td>{formatDate(claim.uploadedAt)}</td>
+                    <td>{formatCurrency(claim.rewardAmount)}</td>
                     <td className="text-center">
                       <Button
                         className="rounded-circle"

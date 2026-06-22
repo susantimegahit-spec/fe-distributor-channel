@@ -70,13 +70,26 @@ const normalizeStatus = (value) =>
     .trim()
     .toUpperCase();
 
+const parseAmount = (value) => {
+  if (typeof value === 'number') return value;
+
+  const normalizedValue = String(value ?? '')
+    .replace(/[^\d,.-]/g, '')
+    .replace(/\.(?=\d{3}(?:\D|$))/g, '')
+    .replace(',', '.');
+
+  return Number(normalizedValue) || 0;
+};
+
 const approvalStatusMap = {
   WAITING_OM: 'WAITING_OM',
   WAITING_ASM: 'WAITING_ASM',
   WAITING_FINANCE: 'WAITING_FINANCE',
+  ALL: 'ALL'
 };
 
 export default function OrderList() {
+  const roleId = getCookies('role');
   const { showAlert } = useAlert();
   const [orders, setOrders] = useState([]);
   const [keywords, setKeywords] = useState('');
@@ -139,11 +152,11 @@ export default function OrderList() {
   }, [currentPage, filteredOrders]);
 
   const resetFilters = () => {
-    fetchData()
-    // setKeywords('');
-    // setDistributor('');
-    // setStatus('');
-    // setDate('');
+    setKeywords('');
+    setDistributor('');
+    setStatus('');
+    setDate('');
+    fetchData();
   };
 
   const fetchData = async () => {
@@ -180,6 +193,43 @@ export default function OrderList() {
     const lines = order.details || order.lines || order.document_lines || order.DocumentLines || [];
 
     return Array.isArray(lines) ? lines : [];
+  };
+
+  const getSapDiscounts = (order = {}) => {
+    let discounts = order.sap_dicount ?? order.sap_discount ?? [];
+
+    if (typeof discounts === 'string') {
+      try {
+        discounts = JSON.parse(discounts);
+      } catch {
+        return [];
+      }
+    }
+
+    if (Array.isArray(discounts)) return discounts;
+
+    const nestedDiscounts = discounts?.discounts || discounts?.details || discounts?.items || discounts?.rows || discounts?.data;
+
+    if (Array.isArray(nestedDiscounts)) return nestedDiscounts;
+
+    return discounts && typeof discounts === 'object' ? [discounts] : [];
+  };
+
+  const getSapDiscountTotal = (order = {}) => {
+    let sapDiscount = order.sap_discount;
+
+    if (typeof sapDiscount === 'string') {
+      try {
+        sapDiscount = JSON.parse(sapDiscount);
+      } catch {
+        return parseAmount(sapDiscount);
+      }
+    }
+
+    const rawDetails = sapDiscount?.details;
+    const details = Array.isArray(rawDetails) ? rawDetails : [rawDetails].filter(Boolean);
+
+    return details.reduce((total, detail) => total + parseAmount(getOrderValue(detail, ['total_discount', 'totalDiscount'], 0)), 0);
   };
 
   const buildOrderStatusPayload = (order, nextStatus, actionName) => ({
@@ -346,7 +396,7 @@ export default function OrderList() {
     }
 
     setApprovalLoadingAction(actionName);
-    const payload =buildOrderStatusPayload(selectedOrderDetail, nextStatus, actionName);
+    const payload = buildOrderStatusPayload(selectedOrderDetail, nextStatus, actionName);
     try {
       const response = await OrderServices.putOrder(
         selectedOrderDetail.id,
@@ -358,11 +408,13 @@ export default function OrderList() {
 
         setSelectedOrderDetail(updatedOrder);
         setOrders((prevOrders) =>
-          prevOrders.map((order) => (String(order.id) === String(selectedOrderDetail.id) ? { ...order, ...updatedOrder, status: nextStatus } : order))
+          prevOrders.map((order) =>
+            String(order.id) === String(selectedOrderDetail.id) ? { ...order, ...updatedOrder, status: nextStatus } : order
+          )
         );
         showAlert(response.data.message || 'Status order berhasil diupdate', 'success');
-        fetchData()
-        setSelectedOrderDetail(null)
+        fetchData();
+        setSelectedOrderDetail(null);
       } else {
         showAlert(response?.data?.message || 'Gagal update status order', 'danger');
       }
@@ -397,14 +449,16 @@ export default function OrderList() {
   };
 
   const getPermissionActionList = () => {
-    const rawAction =
+    let rawAction =
       permissionDetail?.role_menu?.approval?.action ||
       permissionDetail?.role_menu?.approval?.actions ||
       permissionDetail?.roleMenu?.approval?.action ||
       permissionDetail?.permissionDetail?.actionList ||
       permissionDetail?.actionList ||
       [];
-
+    if (roleId === 5) {
+      rawAction = 'view, edit, delete, add';
+    }
     if (Array.isArray(rawAction)) {
       return rawAction
         .filter((item) => item?.allowed !== false && item?.is_allowed !== false)
@@ -420,7 +474,10 @@ export default function OrderList() {
 
   const actionList = useMemo(() => getPermissionActionList(), [permissionDetail]);
 
-  const permissionApprovalName = useMemo(() => normalizeStatus(permissionDetail?.role_menu?.approval?.name), [permissionDetail]);
+  const permissionApprovalName = useMemo(
+    () => (roleId === 5 ? 'ALL' : normalizeStatus(permissionDetail?.role_menu?.approval?.name)),
+    [permissionDetail]
+  );
 
   const hasAction = (actionName) => {
     const aliases = actionAliases[actionName] || [actionName];
@@ -430,7 +487,8 @@ export default function OrderList() {
 
   const canCreateOrder = hasAction('create');
 
-  const isOrderStatusSameWithPermission = (order) => Boolean(permissionApprovalName) && normalizeStatus(order.status) === permissionApprovalName;
+  const isOrderStatusSameWithPermission = (order) =>
+    (Boolean(permissionApprovalName) && normalizeStatus(order.status) === permissionApprovalName) || roleId === 5;
 
   const isOrderStatusAllowed = (order) => {
     if (!permissionApprovalName) return true;
@@ -462,6 +520,7 @@ export default function OrderList() {
 
   const getAccessAction = (order) => {
     const button = getButtonVisibility(order);
+
     const hasVisibleButton = button.view || button.download || button.edit || button.delete;
 
     if (!hasVisibleButton) {
@@ -517,6 +576,23 @@ export default function OrderList() {
 
   const canShowSelectedApprovalAction = selectedOrderDetail && isOrderStatusSameWithPermission(selectedOrderDetail);
   const nextSelectedApprovalStatus = selectedOrderDetail ? getNextApprovalStatus(selectedOrderDetail) : '';
+  const selectedSapDiscounts = selectedOrderDetail ? getSapDiscounts(selectedOrderDetail) : [];
+  const selectedSapDiscountTotal = selectedSapDiscounts.reduce(
+    (total, discount) =>
+      total + Number(getOrderValue(discount, ['discount_amount', 'amount', 'discount_sum', 'DiscountSum', 'total_discount'], 0)),
+    0
+  );
+  const selectedOrderTotal = selectedOrderDetail ? parseAmount(getOrderValue(selectedOrderDetail, ['doc_total', 'docTotal'], 0)) : 0;
+  const selectedSapDetailDiscountTotal = selectedOrderDetail ? getSapDiscountTotal(selectedOrderDetail) : 0;
+  const selectedOrderDiscountTotal = selectedOrderDetail?.sap_discount
+    ? selectedSapDetailDiscountTotal
+    : selectedSapDiscountTotal ||
+      parseAmount(
+        selectedOrderDetail
+          ? getOrderValue(selectedOrderDetail, ['discount_total', 'total_discount', 'sap_discount_total', 'discountAmount'], 0)
+          : 0
+      );
+  const selectedOrderGrandTotal = selectedOrderTotal - selectedOrderDiscountTotal;
 
   return (
     <>
@@ -643,13 +719,13 @@ export default function OrderList() {
               </InputGroup>
             </Col>
             {/* <Col lg={3} md={6}>
-            <Form.Label className="f-12 text-muted">Distributor</Form.Label>
-            <Form.Select value={distributor} onChange={(event) => setDistributor(event.target.value)}>
-              <option value="">Semua Distributor</option>
-              <option value="1">Distributor A</option>
-              <option value="2">Distributor B</option>
-            </Form.Select>
-          </Col> */}
+              <Form.Label className="f-12 text-muted">Distributor</Form.Label>
+              <Form.Select value={distributor} onChange={(event) => setDistributor(event.target.value)}>
+                <option value="">Semua Distributor</option>
+                <option value="1">Distributor A</option>
+                <option value="2">Distributor B</option>
+              </Form.Select>
+            </Col>
             <Col lg={2} md={6}>
               <Form.Label className="f-12 text-muted">Status</Form.Label>
               <Form.Select value={status} onChange={(event) => setStatus(event.target.value)}>
@@ -663,9 +739,8 @@ export default function OrderList() {
             <Col lg={2} md={6}>
               <Form.Label className="f-12 text-muted">Tanggal</Form.Label>
               <Form.Control value={date} onChange={(event) => setDate(event.target.value)} type="date" />
-            </Col>
+            </Col> */}
             <Col lg={1} md={12} className="text-lg-end">
-              {/* <Button className="w-100" variant="light-secondary" disabled={!hasActiveFilter} onClick={resetFilters}> */}
               <Button className="w-100" variant="light-primary" onClick={resetFilters}>
                 <i className="ti ti-refresh" />
               </Button>
@@ -675,7 +750,7 @@ export default function OrderList() {
           <Table className="mb-0 align-middle" responsive hover>
             <thead>
               <tr>
-                <th>No. PO</th>
+                <th>No. SO</th>
                 <th>Depo</th>
                 <th>Tanggal</th>
                 <th>Total Item</th>
@@ -699,7 +774,9 @@ export default function OrderList() {
                   paginatedOrders.map((order) => (
                     <tr key={order.id}>
                       <td className="fw-semibold">{order.order_no}</td>
-                      <td>{order.customer_name}</td>
+                      <td>
+                        {order.depo} - {order.customer_name}
+                      </td>
                       <td>{moment(order.doc_date).format('DD MMM YYYY')}</td>
                       <td>{order?.details?.length}</td>
                       <td>{currency(order?.doc_total)}</td>
@@ -707,17 +784,17 @@ export default function OrderList() {
                         <Badge bg={statusVariant[order.status] || 'secondary'}>{order.status}</Badge>
                       </td>
                       <td>
-                        {getButtonVisibility(order).attachment && order.attachments?.length > 0 ? (
-                          <Button
-                            variant="light-primary"
-                            size="sm"
-                            disabled={downloadingAttachmentId === order.id}
-                            onClick={() => handleViewAttachment(order)}
-                          >
-                            <i className={downloadingAttachmentId === order.id ? 'ti ti-loader-2 me-1' : 'ti ti-paperclip me-1'} />
-                            Lihat Lampiran
-                          </Button>
-                        ) : null}
+                        {/* {getButtonVisibility(order).attachment && order.attachments?.length > 0 ? ( */}
+                        <Button
+                          variant="light-primary"
+                          size="sm"
+                          disabled={downloadingAttachmentId === order.id}
+                          onClick={() => handleViewAttachment(order)}
+                        >
+                          <i className={downloadingAttachmentId === order.id ? 'ti ti-loader-2 me-1' : 'ti ti-paperclip me-1'} />
+                          Lihat Lampiran
+                        </Button>
+                        {/* ) : null} */}
                       </td>
                       <td className="text-center">{getAccessAction(order)}</td>
                     </tr>
@@ -791,6 +868,7 @@ export default function OrderList() {
                   <Form.Label className="f-12 text-muted">Customer</Form.Label>
                   <div className="fw-semibold">{getOrderValue(selectedOrderDetail, ['card_code', 'cardCode', 'customer_code'])}</div>
                   <div>{getOrderValue(selectedOrderDetail, ['customer_name', 'card_name', 'CardName'])}</div>
+                  <div>{getOrderValue(selectedOrderDetail, ['depo'])}</div>
                 </Col>
                 <Col md={4}>
                   <Form.Label className="f-12 text-muted">Tanggal Dokumen</Form.Label>
@@ -801,8 +879,8 @@ export default function OrderList() {
                   <div>{formatOrderDate(getOrderValue(selectedOrderDetail, ['doc_due_date', 'docDueDate'], ''))}</div>
                 </Col>
                 <Col md={4}>
-                  <Form.Label className="f-12 text-muted">Kode Sales</Form.Label>
-                  <div>{getOrderValue(selectedOrderDetail, ['slp_code', 'slpCode'])}</div>
+                  <Form.Label className="f-12 text-muted">Sales</Form.Label>
+                  <div>{getOrderValue(selectedOrderDetail, ['sales_employee_name', 'sales_employee_name'])}</div>
                 </Col>
                 <Col md={4}>
                   <Form.Label className="f-12 text-muted">Alamat Tagih</Form.Label>
@@ -856,10 +934,87 @@ export default function OrderList() {
                 </tbody>
               </Table>
 
-              <div className="text-end">
-                <span className="text-muted me-2">Total Order</span>
-                <span className="fw-semibold">{currency(getOrderValue(selectedOrderDetail, ['doc_total', 'docTotal'], 0))}</span>
-              </div>
+              <Card className="border mb-0">
+                <Card.Header className="py-3">
+                  <Stack direction="horizontal" gap={3} className="justify-content-between">
+                    <div>
+                      <h6 className="mb-1">Detail Discount</h6>
+                      <small className="text-muted">Daftar discount yang diterapkan pada order.</small>
+                    </div>
+                    <Badge bg={selectedSapDiscounts.length ? 'primary' : 'secondary'}>{selectedSapDiscounts.length} discount</Badge>
+                  </Stack>
+                </Card.Header>
+                <Card.Body className="p-0">
+                  <Table className="mb-0 align-middle" responsive hover>
+                    <thead>
+                      <tr>
+                        <th style={{ minWidth: 220 }}>Nama Discount</th>
+                        <th className="text-end" style={{ minWidth: 160 }}>
+                          Nominal Discount
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedSapDiscounts.length ? (
+                        selectedSapDiscounts.map((discount, index) => {
+                          const discountType = getOrderValue(discount, ['type_discount', 'type', 'discountType', 'Type'], '-');
+                          const discountPercent = getOrderValue(
+                            discount,
+                            ['discount_percent', 'percentage', 'percent', 'rate', 'DiscountPercent'],
+                            ''
+                          );
+                          const discountValue = getOrderValue(discount, ['discount_value', 'value', 'DiscountValue'], '');
+                          const discountAmount = getOrderValue(
+                            discount,
+                            ['discount_amount', 'amount', 'discount_sum', 'DiscountSum', 'total_discount'],
+                            0
+                          );
+
+                          return (
+                            <tr key={discount.id || discount.discount_code || discount.code || index}>
+                              <td>
+                                <Badge bg="light-primary">{discountType}</Badge>
+                              </td>
+                              <td className="text-end fw-semibold">{currency(discountAmount)}</td>
+                            </tr>
+                          );
+                        })
+                      ) : (
+                        <tr>
+                          <td colSpan={6} className="text-center text-muted py-4">
+                            Detail discount tidak tersedia
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </Table>
+                </Card.Body>
+                <Card.Footer className="text-end bg-white">
+                  <span className="text-muted me-2">Total Discount</span>
+                  <span className="fw-semibold text-primary">{currency(selectedOrderDiscountTotal)}</span>
+                </Card.Footer>
+              </Card>
+
+              <Row className="g-3 justify-content-end">
+                <Col md={4}>
+                  <div className="border rounded p-3 h-100 text-end">
+                    <div className="text-muted f-12 mb-1">Total Order</div>
+                    <div className="fw-semibold">{currency(selectedOrderTotal)}</div>
+                  </div>
+                </Col>
+                <Col md={4}>
+                  <div className="border rounded p-3 h-100 text-end">
+                    <div className="text-muted f-12 mb-1">Total Diskon</div>
+                    <div className="fw-semibold text-danger">- {currency(selectedOrderDiscountTotal)}</div>
+                  </div>
+                </Col>
+                <Col md={4}>
+                  <div className="border border-primary rounded p-3 h-100 text-end bg-light-primary">
+                    <div className="text-muted f-12 mb-1">Grand Total</div>
+                    <h5 className="mb-0 text-primary">{currency(selectedOrderGrandTotal)}</h5>
+                  </div>
+                </Col>
+              </Row>
               {canShowSelectedApprovalAction ? (
                 <Form.Group>
                   <Form.Label className="f-12 text-muted">Notes Approval</Form.Label>
@@ -882,7 +1037,11 @@ export default function OrderList() {
                 <i className={approvalLoadingAction === 'reject' ? 'ti ti-loader-2 me-1' : 'ti ti-x me-1'} />
                 Reject
               </Button>
-              <Button variant="success" disabled={Boolean(approvalLoadingAction) || !nextSelectedApprovalStatus} onClick={handleApproveOrder}>
+              <Button
+                variant="success"
+                disabled={Boolean(approvalLoadingAction) || !nextSelectedApprovalStatus}
+                onClick={handleApproveOrder}
+              >
                 <i className={approvalLoadingAction === 'approve' ? 'ti ti-loader-2 me-1' : 'ti ti-check me-1'} />
                 Approve
               </Button>

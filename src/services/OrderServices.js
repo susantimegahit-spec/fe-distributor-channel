@@ -24,6 +24,10 @@ class OrderServices {
     return DataService.get('/vats');
   }
 
+  getMaxDiscount() {
+    return DataService.get('/sales-orders/max-discount');
+  }
+
   postOrder(payload) {
     console.log('payload => ', payload);
     return DataService.post('/sales-orders', payload);

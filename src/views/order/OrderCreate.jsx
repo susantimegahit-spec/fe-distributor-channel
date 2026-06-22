@@ -14,11 +14,13 @@ import WarehouseServices from '../../services/WarehouseServices';
 import { useNavigate, useParams } from 'react-router-dom';
 import EmployeeServices from '../../services/EmployeeServices';
 import OrderServices from '../../services/OrderServices';
+import PromoServices from '../../services/PromoServices';
 import PriceServices from '../../services/PriceServices';
 import LoaderFull from '../../components/LoaderFull';
 import LoaderButton from '../../components/LoaderButton';
 import { currency } from '../../utils/global';
 import ConfirmDialog from '../../components/ConfirmDialog';
+import CreatableSelect from 'react-select/creatable';
 
 // #FBD43C -> soft yellow
 // #DAA919 -> dark yellow
@@ -34,6 +36,14 @@ export default function OrderPost() {
   const { showAlert } = useAlert();
   const distributorId = getCookies('distributorId');
   const [showDisc, setShowDisc] = useState(false);
+  const [rewardBatches, setRewardBatches] = useState([]);
+  const [selectedRewardBatch, setSelectedRewardBatch] = useState(null);
+  const [selectedRewardTarget, setSelectedRewardTarget] = useState(null);
+  const [rewardDiscountPreview, setRewardDiscountPreview] = useState([]);
+  const [rewardResultCount, setRewardResultCount] = useState(0);
+  const [loadingReward, setLoadingReward] = useState(false);
+  const [maxDiscountPercentage, setMaxDiscountPercentage] = useState(null);
+  const [loadingMaxDiscount, setLoadingMaxDiscount] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loaderDisc, setLoaderDisc] = useState(false);
   const [loadingSubmit, setLoadingSubmit] = useState(false);
@@ -167,6 +177,32 @@ export default function OrderPost() {
     return String(value).slice(0, 10);
   };
 
+  const getSapDiscountDetails = (order = {}) => {
+    let sapDiscount = order.sap_discount;
+
+    if (typeof sapDiscount === 'string') {
+      try {
+        sapDiscount = JSON.parse(sapDiscount);
+      } catch {
+        return [];
+      }
+    }
+
+    const details = sapDiscount?.details;
+
+    return Array.isArray(details) ? details : [details].filter(Boolean);
+  };
+
+  const mapDiscountDetail = (detail = {}) => {
+    const type = getValue(detail, ['type_discount', 'discount_type', 'discountType', 'TypeDiscount', 'Type', 'type', 'name']);
+
+    return {
+      name: type ? { value: type, label: type } : '',
+      value: getValue(detail, ['total_discount', 'totalDiscount', 'discount_amount', 'amount'], ''),
+      remarks: getValue(detail, ['remarks', 'remark', 'description', 'keterangan'], '')
+    };
+  };
+
   const formatFileSize = (size = 0) => {
     if (!size) return '0 KB';
     const units = ['B', 'KB', 'MB', 'GB'];
@@ -261,9 +297,23 @@ export default function OrderPost() {
     const details = getValue(order, ['details', 'lines', 'document_lines', 'DocumentLines'], []);
     const detailLines = Array.isArray(details) ? details : [];
     const orderDocuments = getValue(order, ['documents', 'attachments', 'files', 'order_documents'], []);
+    const orderDiscountId = getValue(order, ['id_discount', 'idDiscount', 'sap_discount.id_discount', 'sap_discount.id'], '');
+    const discountDetails = getSapDiscountDetails(order);
 
     setOrderDetail(order);
     setExistingDocuments(Array.isArray(orderDocuments) ? orderDocuments : []);
+    setDiscId(orderDiscountId);
+    setDetailDisc(
+      discountDetails.length > 0
+        ? discountDetails.map(mapDiscountDetail)
+        : [
+            {
+              name: '',
+              value: '',
+              remarks: ''
+            }
+          ]
+    );
     setOrderInput({
       cardCode,
       poNumber: getValue(order, ['po_number', 'num_at_card', 'numAtCard', 'NumAtCard']),
@@ -274,7 +324,7 @@ export default function OrderPost() {
       address: findOption(listAddressB, billToCode, billToAddress),
       address2: findOption(listAddressS, shipToCode, shipToAddress),
       comments: getValue(order, ['comments', 'Comments']),
-      idDiscount: getValue(order, ['id_discount', 'idDiscount'])
+      idDiscount: orderDiscountId
     });
 
     if (cardCode) {
@@ -678,6 +728,149 @@ export default function OrderPost() {
     setDetailDisc([...detailDisc]);
   };
 
+  const fetchRewardBatches = async () => {
+    if (rewardBatches.length) return;
+
+    setLoadingReward(true);
+    try {
+      const response = await PromoServices.getClaimBatches();
+      const payload = response?.data?.data;
+      const batches = Array.isArray(payload)
+        ? payload
+        : payload?.batches || payload?.items || payload?.rows || payload?.data || [];
+
+      setRewardBatches(
+        batches.map((batch, index) => {
+          const id = batch.id || batch.batch_id || batch.claim_batch_id || batch.upload_batch_id || index;
+          const batchNo = batch.batch_no || batch.batch_code || batch.claim_no || batch.reference_no || `BATCH-${id}`;
+          const fileName = batch.file_name || batch.original_file_name || batch.original_filename || batch.filename || '-';
+
+          return { value: id, label: `${batchNo} · ${fileName}`, batchNo, fileName };
+        })
+      );
+    } catch (error) {
+      showAlert(error?.message || 'Gagal mengambil data Reward', 'danger');
+    } finally {
+      setLoadingReward(false);
+    }
+  };
+
+  const fetchMaxDiscount = async () => {
+    if (maxDiscountPercentage !== null || loadingMaxDiscount) return;
+
+    setLoadingMaxDiscount(true);
+    try {
+      const response = await OrderServices.getMaxDiscount();
+
+      if (response?.data?.success === false) {
+        throw new Error(response.data.message || 'Gagal mengambil maksimal diskon');
+      }
+
+      const payload = response?.data?.data ?? response?.data;
+      const discountConfig = Array.isArray(payload) ? payload[0] : payload;
+      const rawPercentage =
+        typeof discountConfig === 'object'
+          ? discountConfig.max_discount ??
+            discountConfig.maxDiscount ??
+            discountConfig.maximum_discount ??
+            discountConfig.max_discount_percentage ??
+            discountConfig.percentage ??
+            discountConfig.discount_percentage ??
+            discountConfig.value
+          : discountConfig;
+      const parsedPercentage = Number.parseFloat(String(rawPercentage).replace('%', ''));
+
+      if (!Number.isFinite(parsedPercentage)) {
+        throw new Error('Nilai maksimal diskon tidak valid');
+      }
+
+      setMaxDiscountPercentage(parsedPercentage <= 1 ? parsedPercentage * 100 : parsedPercentage);
+    } catch (error) {
+      showAlert(error?.message || 'Gagal mengambil maksimal diskon', 'danger');
+    } finally {
+      setLoadingMaxDiscount(false);
+    }
+  };
+
+  const handleOpenDiscount = () => {
+    setShowDisc(true);
+    fetchRewardBatches();
+    fetchMaxDiscount();
+  };
+
+  const handleSelectRewardBatch = async (option) => {
+    setSelectedRewardBatch(option);
+    setRewardDiscountPreview([]);
+    setRewardResultCount(0);
+
+    if (!option) return;
+
+    setLoadingReward(true);
+    try {
+      const response = await PromoServices.getUploadResult(option.value);
+      const payload = response?.data?.data;
+      const results = Array.isArray(payload)
+        ? payload
+        : payload?.results || payload?.claims || payload?.transactions || payload?.details || [];
+      const customerResults = orderInput.cardCode
+        ? results.filter(
+            (item) =>
+              String(item.customer_code || item.code_customer || item.distributor_code || '') === String(orderInput.cardCode)
+          )
+        : results;
+
+      if (!customerResults.length) {
+        showAlert(`Tidak ada data Reward untuk customer ${orderInput.cardCode || 'yang dipilih'}`, 'danger');
+        return;
+      }
+
+      const groupedDiscounts = customerResults.reduce((groups, item) => {
+        const category =
+          item.program_name || item.program_code || item.category || item.discount_category || item.type_discount || 'REWARD';
+        const directTotal = Number(item.total_discount || item.total_diskon || item.discount_amount || 0);
+        const calculatedTotal = Number(item.diskon_per_kg || item.reward_per_kg || 0) * Number(item.qty_kg || item.qty || 0);
+
+        groups.set(category, (groups.get(category) || 0) + (directTotal || calculatedTotal));
+        return groups;
+      }, new Map());
+      const preview = Array.from(groupedDiscounts, ([category, total]) => ({
+        name: { value: String(category), label: String(category) },
+        value: total,
+        remarks: `${option.batchNo} · ${option.fileName}`
+      })).filter((item) => Number(item.value) > 0);
+
+      setRewardResultCount(customerResults.length);
+      setRewardDiscountPreview(preview);
+    } catch (error) {
+      showAlert(error?.message || 'Gagal mengambil hasil upload Reward', 'danger');
+    } finally {
+      setLoadingReward(false);
+    }
+  };
+
+  const addRewardDiscount = () => {
+    if (!rewardDiscountPreview.length || selectedRewardTarget === null || !applicableRewardDiscount) return;
+
+    setDetailDisc((currentDetails) =>
+      currentDetails.map((item, index) => {
+        if (index !== selectedRewardTarget) return item;
+
+        const rewardReference = `${selectedRewardBatch.batchNo} · ${selectedRewardBatch.fileName}`;
+
+        return {
+          ...item,
+          value: Number(item.value || 0) + applicableRewardDiscount,
+          remarks: [item.remarks, `Reward: ${rewardReference}`].filter(Boolean).join(' | ')
+        };
+      })
+    );
+    setSelectedRewardBatch(null);
+    setSelectedRewardTarget(null);
+    setRewardDiscountPreview([]);
+    setRewardResultCount(0);
+    showAlert(`Reward ${formatCurrency(applicableRewardDiscount)} berhasil diterapkan`, 'success');
+  };
+
   const addItem = () => {
     const item = {
       itemCode: null,
@@ -705,7 +898,8 @@ export default function OrderPost() {
   const addItemDisc = () => {
     const item = {
       name: '',
-      value: ''
+      value: '',
+      remarks: ''
     };
 
     let store = [...detailDisc, item];
@@ -713,6 +907,7 @@ export default function OrderPost() {
   };
 
   const removeItemDisc = (i) => {
+    setSelectedRewardTarget(null);
     setDetailDisc((prevArray) => prevArray.filter((_, index) => index !== i));
   };
 
@@ -754,6 +949,17 @@ export default function OrderPost() {
   }, 0);
 
   const discountTotal = detailDisc.reduce((total, item) => total + (Number(item.value) || 0), 0);
+  const rewardTotal = rewardDiscountPreview.reduce((total, item) => total + (Number(item.value) || 0), 0);
+  const maximumDiscount = orderSubtotal * ((maxDiscountPercentage || 0) / 100);
+  const remainingDiscountLimit = Math.max(maximumDiscount - discountTotal, 0);
+  const applicableRewardDiscount = Math.min(rewardTotal, remainingDiscountLimit);
+  const rewardTargetOptions = detailDisc
+    .map((item, index) => ({
+      value: index,
+      label: item.name?.label || item.name?.value || '',
+      amount: Number(item.value || 0)
+    }))
+    .filter((item) => item.label);
   const grandTotal = Math.max(orderSubtotal - discountTotal, 0);
 
   const createOrderPayload = (type) => {
@@ -870,17 +1076,20 @@ export default function OrderPost() {
   };
 
   const handleSubmitDisc = async () => {
+    const activeDiscounts = detailDisc.filter((item) => Number(item.value) > 0);
+
+    if (activeDiscounts.some((item) => !item.name?.value)) {
+      showAlert('Kategori wajib diisi untuk setiap komponen diskon', 'danger');
+      return;
+    }
+
     setLoaderDisc(true);
-    let dataDisc = [];
-    detailDisc.map((item) => {
-      let data = {
-        TypeDiscount: item?.name?.value,
-        Persentase: 0,
-        TotalDiskon: item?.value,
-        Remarks: item?.remarks
-      };
-      dataDisc.push(data);
-    });
+    const dataDisc = activeDiscounts.map((item) => ({
+      TypeDiscount: item?.name?.value,
+      Persentase: 0,
+      TotalDiskon: item?.value,
+      Remarks: item?.remarks
+    }));
     const payload = {
       CardCode: orderInput.cardCode,
       CardName: orderInput.cnctCode,
@@ -1139,7 +1348,7 @@ export default function OrderPost() {
                           </Stack>
                           <Stack direction="horizontal" className="justify-content-between">
                             <span className="text-muted">Diskon {discId ? `- ${discId}` : ''}</span>
-                            <Button variant="link" className="p-0 text-decoration-none" onClick={() => setShowDisc(true)}>
+                            <Button variant="link" className="p-0 text-decoration-none" onClick={handleOpenDiscount}>
                               {formatCurrency(discountTotal)}
                             </Button>
                           </Stack>
@@ -1149,7 +1358,7 @@ export default function OrderPost() {
                               <h5 className="mb-0 text-primary">{formatCurrency(grandTotal)}</h5>
                             </Stack>
                           </div>
-                          <Button variant="light-primary" onClick={() => setShowDisc(true)}>
+                          <Button variant="light-primary" onClick={handleOpenDiscount}>
                             <i className="ti ti-discount-2 me-1" />
                             Atur Diskon
                           </Button>
@@ -1456,70 +1665,164 @@ export default function OrderPost() {
       </Stack>
       <Modal show={showDisc} onHide={() => setShowDisc(false)} size="lg" centered>
         <Modal.Header closeButton>
-          <Modal.Title>Atur Diskon</Modal.Title>
+          <div>
+            <Modal.Title>Atur Diskon Order</Modal.Title>
+            <small className="text-muted">Gabungkan diskon manual dan Reward menjadi satu diskon order.</small>
+          </div>
         </Modal.Header>
         <Modal.Body>
-          <Table className="mb-0 align-middle" responsive hover>
-            <thead>
-              <tr>
-                <th>Tipe</th>
-                <th>Keterangan</th>
-                <th>Nominal</th>
-                <th className="text-center">#</th>
-              </tr>
-            </thead>
-            <tbody>
-              {detailDisc.map((item, index) => (
-                <tr key={index}>
-                  <td>
+          <Stack gap={3}>
+            <Card className="border mb-0">
+              <Card.Body className="py-3">
+                <Row className="g-3">
+                  <Col md={6}>
+                    <Form.Label className="fw-semibold mb-1">Kategori Tujuan</Form.Label>
                     <Select
-                      styles={customStyles}
-                      value={item.name}
-                      options={listDiscType}
-                      menuPosition="fixed"
-                      onChange={(e) => handleSelectDiscType(e, index)}
-                      placeholder="Pilih Tipe Diskon"
+                      value={rewardTargetOptions.find((option) => option.value === selectedRewardTarget) || null}
+                      options={rewardTargetOptions}
+                      onChange={(option) => setSelectedRewardTarget(option?.value ?? null)}
+                      isClearable
+                      placeholder="Pilih kategori diskon..."
+                      noOptionsMessage={() => 'Isi kategori diskon terlebih dahulu'}
                     />
-                  </td>
-                  <td>
-                    <Form.Control value={item.remarks} onChange={(e) => handleInputRemarks(index, e)} size="sm" placeholder="Keterangan" />
-                  </td>
-                  <td>
-                    <Form.Control
-                      type="number"
-                      value={item.value}
-                      onChange={(e) => handleInputDiscValue(index, e)}
-                      size="sm"
-                      placeholder="0"
-                      min="0"
+                    <Form.Text>Nominal Reward akan dimasukkan ke kategori ini.</Form.Text>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Label className="fw-semibold mb-1">Ambil dari Data Reward</Form.Label>
+                    <Select
+                      value={selectedRewardBatch}
+                      options={rewardBatches}
+                      onChange={handleSelectRewardBatch}
+                      isLoading={loadingReward}
+                      isClearable
+                      placeholder="Cari nomor batch atau nama file Excel..."
+                      noOptionsMessage={() => 'Data Reward tidak tersedia'}
                     />
-                  </td>
-                  <td className="text-center">
-                    {index === 0 ? (
-                      <Button className="rounded-circle" size="sm" variant="outline-primary" onClick={addItemDisc}>
-                        <i className="ti ti-plus"></i>
-                      </Button>
-                    ) : (
-                      <Button className="rounded-circle" size="sm" variant="outline-danger" onClick={() => removeItemDisc(index)}>
-                        <i className="ti ti-trash"></i>
-                      </Button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-          <Stack direction="horizontal" className="justify-content-between border-top mt-3 pt-3">
-            <span className="text-muted">Total Diskon</span>
-            <strong>{formatCurrency(discountTotal)}</strong>
+                    <Form.Text>Data otomatis difilter berdasarkan customer pada order ini.</Form.Text>
+                  </Col>
+                </Row>
+
+                {rewardDiscountPreview.length ? (
+                  <div className="bg-light rounded p-3 mt-3">
+                    <Row className="g-3 align-items-center">
+                      <Col sm={4}>
+                        <small className="text-muted d-block">Total Reward</small>
+                        <strong>{formatCurrency(rewardTotal)}</strong>
+                        <small className="text-muted d-block">{rewardResultCount} data ditemukan</small>
+                      </Col>
+                      <Col sm={4}>
+                        <small className="text-muted d-block">Sisa Maksimal Diskon</small>
+                        <strong>{loadingMaxDiscount ? 'Memuat...' : formatCurrency(remainingDiscountLimit)}</strong>
+                        <small className="text-muted d-block">
+                          {maxDiscountPercentage ?? 0}% total order − diskon sebelumnya
+                        </small>
+                      </Col>
+                      <Col sm={4} className="text-sm-end">
+                        <small className="text-muted d-block">Nominal yang Diterapkan</small>
+                        <h5 className="text-primary mb-2">{formatCurrency(applicableRewardDiscount)}</h5>
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          onClick={addRewardDiscount}
+                          disabled={loadingReward || loadingMaxDiscount || selectedRewardTarget === null || !applicableRewardDiscount}
+                        >
+                          Terapkan ke Kategori
+                        </Button>
+                      </Col>
+                    </Row>
+                  </div>
+                ) : null}
+              </Card.Body>
+            </Card>
+
+            <Card className="border mb-0">
+              <Card.Header className="py-3">
+                <Stack direction="horizontal" className="justify-content-between">
+                  <div>
+                    <h6 className="mb-1">Komponen Diskon</h6>
+                    <small className="text-muted">Semua baris berikut akan disimpan sebagai satu diskon order.</small>
+                  </div>
+                  <Button size="sm" variant="light-primary" onClick={addItemDisc}>
+                    <i className="ti ti-plus me-1" />
+                    Tambah Manual
+                  </Button>
+                </Stack>
+              </Card.Header>
+              <Card.Body className="p-0">
+                <Table className="mb-0 align-middle" responsive hover>
+                  <thead>
+                    <tr>
+                      <th style={{ minWidth: 210 }}>Kategori</th>
+                      <th style={{ minWidth: 170 }}>Keterangan</th>
+                      <th style={{ minWidth: 130 }}>Nominal</th>
+                      <th className="text-center">#</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detailDisc.map((item, index) => (
+                      <tr key={index}>
+                        <td>
+                          <CreatableSelect
+                            styles={customStyles}
+                            value={item.name}
+                            options={listDiscType}
+                            menuPosition="fixed"
+                            onChange={(e) => handleSelectDiscType(e, index)}
+                            placeholder="Pilih atau ketik kategori"
+                            formatCreateLabel={(value) => `Gunakan “${value}”`}
+                          />
+                        </td>
+                        <td>
+                          <Form.Control
+                            value={item.remarks || ''}
+                            onChange={(e) => handleInputRemarks(index, e)}
+                            size="sm"
+                            placeholder="Keterangan"
+                          />
+                        </td>
+                        <td>
+                          <Form.Control
+                            type="number"
+                            value={item.value}
+                            onChange={(e) => handleInputDiscValue(index, e)}
+                            size="sm"
+                            placeholder="0"
+                            min="0"
+                          />
+                        </td>
+                        <td className="text-center">
+                          <Button
+                            className="rounded-circle"
+                            size="sm"
+                            variant="outline-danger"
+                            onClick={() => removeItemDisc(index)}
+                            disabled={detailDisc.length === 1}
+                          >
+                            <i className="ti ti-trash" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              </Card.Body>
+            </Card>
+
+            <Stack direction="horizontal" className="justify-content-between bg-light rounded p-3">
+              <div>
+                <span className="fw-semibold d-block">Total Diskon Gabungan</span>
+                <small className="text-muted">{detailDisc.filter((item) => Number(item.value) > 0).length} komponen diskon</small>
+              </div>
+              <h4 className="mb-0 text-primary">{formatCurrency(discountTotal)}</h4>
+            </Stack>
           </Stack>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="light-secondary" onClick={() => setShowDisc(false)}>
             Batal
           </Button>
-          <Button onClick={() => handleSubmitDisc()} variant="primary" disabled={loaderDisc}>
-            {loaderDisc ? <LoaderButton /> : 'Simpan Diskon'}
+          <Button onClick={() => handleSubmitDisc()} variant="primary" disabled={loaderDisc || loadingReward || !discountTotal}>
+            {loaderDisc ? <LoaderButton /> : 'Simpan sebagai 1 Diskon'}
           </Button>
         </Modal.Footer>
       </Modal>
