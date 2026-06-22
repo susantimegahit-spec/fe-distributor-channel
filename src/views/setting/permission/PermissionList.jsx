@@ -353,7 +353,7 @@ export default function PermissionList() {
                     <th style={{ minWidth: 140 }}>Menu Akses</th>
                     <th style={{ minWidth: 120 }}>Status</th>
                     <th className="text-center" style={{ width: 120 }}>
-                      Aksi
+                      #
                     </th>
                   </tr>
                 </thead>

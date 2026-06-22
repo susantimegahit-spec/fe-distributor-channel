@@ -268,7 +268,7 @@ export default function Dashboard() {
         }
       >
         <Row className="g-3">
-          {summaryItems.map((item) => (
+          {/* {summaryItems.map((item) => (
             <Col sm={6} xl={3} key={item.title}>
               <Card className="border mb-0 h-100">
                 <Card.Body className="py-3">
@@ -289,7 +289,7 @@ export default function Dashboard() {
                 </Card.Body>
               </Card>
             </Col>
-          ))}
+          ))} */}
         </Row>
       </MainCard>
 

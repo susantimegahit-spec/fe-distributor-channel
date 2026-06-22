@@ -462,7 +462,7 @@ export default function MasterEmployee() {
                     <th style={{ minWidth: 260 }}>Depo</th>
                     {/* <th style={{ minWidth: 120 }}>Status</th> */}
                     <th className="text-center" style={{ width: 80 }}>
-                      Aksi
+                      #
                     </th>
                   </tr>
                 </thead>

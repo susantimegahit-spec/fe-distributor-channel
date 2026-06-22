@@ -240,7 +240,7 @@ export default function MasterDistributor() {
                     <th style={{ minWidth: 320 }}>Alamat</th>
                     <th style={{ minWidth: 120 }}>Status</th>
                     <th className="text-center" style={{ width: 80 }}>
-                      Aksi
+                      #
                     </th>
                   </tr>
                 </thead>

@@ -25,8 +25,16 @@ class PromoServices {
     return DataService.post('/claims/upload', payload);
   }
 
-  getUploadResult(payload) {
-    return DataService.get('/claims/results');
+  getUploadResult(batchId) {
+    return DataService.get(`/claims/results?batch_id=${encodeURIComponent(batchId)}`);
+  }
+
+  getBatchDetail(id) {
+    return DataService.get(`/claims/batches/${id}`);
+  }
+
+  getClaimBatches() {
+    return DataService.get('/claims/batches');
   }
 }
 

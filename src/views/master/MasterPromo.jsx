@@ -524,7 +524,7 @@ export default function MasterPromo() {
                 <th style={{ minWidth: 240 }}>Keterangan</th>
                 <th style={{ minWidth: 120 }}>Status</th>
                 <th className="text-center" style={{ minWidth: 150 }}>
-                  Aksi
+                  #
                 </th>
               </tr>
             </thead>
@@ -728,7 +728,7 @@ export default function MasterPromo() {
                       <th style={{ minWidth: 160 }}>Diskon / Kg</th>
                       {/* <th style={{ minWidth: 160 }}>Estimasi Net</th> */}
                       <th className="text-center" style={{ width: 72 }}>
-                        Aksi
+                        #
                       </th>
                     </tr>
                   </thead>

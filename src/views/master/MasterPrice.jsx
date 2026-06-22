@@ -413,7 +413,7 @@ export default function MasterPrice() {
                     <th style={{ minWidth: 100 }}>UOM</th>
                     <th style={{ minWidth: 110 }}>Status</th>
                     <th className="text-center" style={{ width: 80 }}>
-                      Aksi
+                      #
                     </th>
                   </tr>
                 </thead>

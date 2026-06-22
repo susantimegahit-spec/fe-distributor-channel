@@ -926,7 +926,7 @@ export default function OrderCreate() {
                   <th style={{ minWidth: 220 }}>Bisnis Unit</th>
                   <th style={{ minWidth: 220 }}>Department</th>
                   <th className="text-center" style={{ width: 72 }}>
-                    Aksi
+                    #
                   </th>
                 </tr>
               </thead>
@@ -1063,7 +1063,7 @@ export default function OrderCreate() {
                 <th>Tipe</th>
                 <th>Keterangan</th>
                 <th>Nominal</th>
-                <th className="text-center">Aksi</th>
+                <th className="text-center">#</th>
               </tr>
             </thead>
             <tbody>

@@ -534,7 +534,7 @@ export default function UserList() {
                     <th style={{ minWidth: 180 }}>Hak Akses</th>
                     <th style={{ minWidth: 120 }}>Status</th>
                     <th className="text-center" style={{ width: 140 }}>
-                      Aksi
+                      #
                     </th>
                   </tr>
                 </thead>

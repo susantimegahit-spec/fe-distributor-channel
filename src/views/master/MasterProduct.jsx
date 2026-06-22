@@ -221,7 +221,7 @@ export default function MasterProduct() {
                     <th style={{ minWidth: 300 }}>Nama Item</th>
                     <th style={{ minWidth: 120 }}>Status</th>
                     <th className="text-center" style={{ width: 80 }}>
-                      Aksi
+                      #
                     </th>
                   </tr>
                 </thead>

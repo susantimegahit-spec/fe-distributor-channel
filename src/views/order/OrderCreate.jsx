@@ -1465,7 +1465,7 @@ export default function OrderPost() {
                 <th>Tipe</th>
                 <th>Keterangan</th>
                 <th>Nominal</th>
-                <th className="text-center">Aksi</th>
+                <th className="text-center">#</th>
               </tr>
             </thead>
             <tbody>
