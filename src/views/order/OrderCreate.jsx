@@ -286,15 +286,15 @@ export default function OrderPost() {
     const whsName = getValue(line, ['whs_name', 'whsName', 'warehouse_name', 'WhsName', 'warehouse.whs_name', 'warehouse.name'], whs_code);
     const vatGroup = getValue(line, ['vat_group', 'vatGroup', 'VatGroup', 'vat_code', 'vatCode']);
     const vatName = getValue(line, ['vat_name', 'vatName', 'VatName', 'vat_group_name', 'vatGroupName', 'vat.name'], vatGroup);
-    const ocrCode = getValue(line, ['ocr_code', 'ocrCode', 'OcrCode', 'branch_code', 'branchCode']);
+    const ocrCode = getValue(line, ['ocr', 'ocr_code', 'ocrCode', 'OcrCode', 'branch_code', 'branchCode']);
     const ocrName = getValue(line, ['ocr_name', 'ocrName', 'OcrName', 'branch_name', 'branchName', 'cabang', 'branch.name'], ocrCode);
-    const ocrCode2 = getValue(line, ['ocr_code2', 'ocrCode2', 'OcrCode2', 'business_unit_code', 'businessUnitCode']);
+    const ocrCode2 = getValue(line, ['ocr2', 'ocr_code2', 'ocrCode2', 'OcrCode2', 'business_unit_code', 'businessUnitCode']);
     const ocrName2 = getValue(
       line,
       ['ocr_name2', 'ocrName2', 'OcrName2', 'business_unit_name', 'businessUnitName', 'bisnis_unit', 'business_unit.name'],
       ocrCode2
     );
-    const ocrCode3 = getValue(line, ['ocr_code3', 'ocrCode3', 'OcrCode3', 'department_code', 'departmentCode']);
+    const ocrCode3 = getValue(line, ['ocr3', 'ocr_code3', 'ocrCode3', 'OcrCode3', 'department_code', 'departmentCode']);
     const ocrName3 = getValue(line, ['ocr_name3', 'ocrName3', 'OcrName3', 'department_name', 'departmentName'], ocrCode3);
 
     return {
@@ -504,7 +504,7 @@ export default function OrderPost() {
       data.forEach((items) => {
         let arr = {
           value: items.whs_code,
-          label: items?.whs_name
+          label: items?.whs_code + ' - ' + items?.whs_name
         };
         dataArr.push(arr);
       });
