@@ -65,8 +65,10 @@ export default function AuthLoginForm({ className }) {
         Cookies.set('customerCode', response.data.data?.user?.code_customer);
         Cookies.set('distributorName', response.data.data?.user?.name_distributor);
         Cookies.set('distributorId', response.data.data?.user?.id_distributor);
-        showAlert('Login Successful', 'success');
         window.dispatchEvent(new Event(AUTH_STATE_CHANGED_EVENT));
+        setTimeout(() => {
+          showAlert('Login berhasil', 'success');
+        }, 150);
       } else {
         showAlert(response.data.message, 'danger');
       }

@@ -282,7 +282,7 @@ export default function RewardList() {
             </Button>
           }
         >
-          {/* <Row className="g-3">
+          <Row className="g-3">
             <Col md={6} xl={3}>
               <Card className="border mb-0 h-100">
                 <Card.Body className="py-3">
@@ -298,7 +298,7 @@ export default function RewardList() {
                 </Card.Body>
               </Card>
             </Col>
-          </Row> */}
+          </Row>
         </MainCard>
         <MainCard
           title={

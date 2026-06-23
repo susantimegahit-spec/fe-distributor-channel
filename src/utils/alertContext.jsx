@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import Button from 'react-bootstrap/Button';
 
 const AlertContext = createContext(null);
@@ -8,22 +8,22 @@ const alertVariantConfig = {
     icon: 'ti ti-circle-check',
     title: 'Berhasil',
     accent: '#16a34a',
-    background: '#f0fdf4',
-    color: '#166534'
+    background: '#ecfdf5',
+    color: '#047857'
   },
   danger: {
-    icon: 'ti ti-alert-triangle',
+    icon: 'ti ti-alert-circle',
     title: 'Gagal',
-    accent: '#dc2626',
+    accent: '#ef4444',
     background: '#fef2f2',
-    color: '#991b1b'
+    color: '#b91c1c'
   },
   warning: {
     icon: 'ti ti-alert-circle',
     title: 'Perhatian',
-    accent: '#d97706',
+    accent: '#f59e0b',
     background: '#fffbeb',
-    color: '#92400e'
+    color: '#b45309'
   },
   info: {
     icon: 'ti ti-info-circle',
@@ -35,110 +35,112 @@ const alertVariantConfig = {
 };
 
 export const AlertProvider = ({ children }) => {
-  const timerRef = useRef(null);
-  const [alert, setAlert] = useState({ show: false, message: '', variant: 'info', timeout: 4000 });
+  const timersRef = useRef(new Map());
+  const [alerts, setAlerts] = useState([]);
 
-  const hideAlert = useCallback(() => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
+  const clearTimer = useCallback((id) => {
+    const timer = timersRef.current.get(id);
+
+    if (timer) {
+      clearTimeout(timer);
+      timersRef.current.delete(id);
     }
-
-    setAlert((prev) => ({ ...prev, show: false }));
   }, []);
+
+  const dismissAlert = useCallback(
+    (id) => {
+      clearTimer(id);
+      setAlerts((prev) => prev.filter((item) => item.id !== id));
+    },
+    [clearTimer]
+  );
+
+  const hideAlert = useCallback(
+    (id) => {
+      if (id) {
+        dismissAlert(id);
+        return;
+      }
+
+      timersRef.current.forEach((timer) => clearTimeout(timer));
+      timersRef.current.clear();
+      setAlerts([]);
+    },
+    [dismissAlert]
+  );
 
   const showAlert = useCallback(
     (message, variant = 'info', timeout = 4000) => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const safeVariant = alertVariantConfig[variant] ? variant : 'info';
 
-      setAlert({ show: true, message, variant, timeout });
+      setAlerts((prev) => [...prev.slice(-2), { id, message, variant: safeVariant, timeout }]);
 
       if (timeout) {
-        timerRef.current = setTimeout(() => {
-          hideAlert();
+        const timer = setTimeout(() => {
+          dismissAlert(id);
         }, timeout);
+        timersRef.current.set(id, timer);
       }
     },
-    [hideAlert]
+    [dismissAlert]
   );
 
-  const currentVariant = alertVariantConfig[alert.variant] || alertVariantConfig.info;
+  useEffect(() => {
+    return () => {
+      timersRef.current.forEach((timer) => clearTimeout(timer));
+      timersRef.current.clear();
+    };
+  }, []);
 
   return (
     <AlertContext.Provider value={{ showAlert, hideAlert }}>
       {children}
-      {alert.show && (
-        <div
-          className="position-fixed top-0 end-0 p-3"
-          style={{
-            zIndex: 9999,
-            width: 'min(420px, calc(100vw - 24px))'
-          }}
-        >
-          <div
-            className="overflow-hidden"
-            role="alert"
-            aria-live="assertive"
-            style={{
-              background: '#fff',
-              border: '1px solid rgba(15, 23, 42, 0.08)',
-              borderLeft: `4px solid ${currentVariant.accent}`,
-              borderRadius: 10,
-              boxShadow: '0 18px 45px rgba(15, 23, 42, 0.16)'
-            }}
-          >
-            <div className="d-flex align-items-start gap-3 p-3">
-              <span
-                className="d-inline-flex align-items-center justify-content-center flex-shrink-0"
+      {alerts.length > 0 && (
+        <div className="sm-alert-viewport" aria-live="polite" aria-atomic="false">
+          {alerts.map((alert) => {
+            const currentVariant = alertVariantConfig[alert.variant] || alertVariantConfig.info;
+
+            return (
+              <div
+                key={alert.id}
+                className="sm-alert-toast"
+                role="alert"
                 style={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: 8,
-                  background: currentVariant.background,
-                  color: currentVariant.color
+                  '--sm-alert-accent': currentVariant.accent,
+                  '--sm-alert-bg': currentVariant.background,
+                  '--sm-alert-color': currentVariant.color,
+                  '--sm-alert-duration': `${alert.timeout}ms`
                 }}
               >
-                <i className={`${currentVariant.icon} f-20`} />
-              </span>
+                <div className="sm-alert-body">
+                  <span className="sm-alert-icon">
+                    <i className={`${currentVariant.icon} f-20`} />
+                  </span>
 
-              <div className="flex-grow-1 pe-1">
-                <div className="fw-semibold mb-1" style={{ color: '#111827' }}>
-                  {currentVariant.title}
+                  <div className="sm-alert-content">
+                    <div className="sm-alert-title">{currentVariant.title}</div>
+                    <div className="sm-alert-message">{alert.message}</div>
+                  </div>
+
+                  <Button
+                    variant="link-secondary"
+                    className="sm-alert-close btn-icon avatar-s flex-shrink-0 p-0"
+                    onClick={() => hideAlert(alert.id)}
+                    aria-label="Tutup alert"
+                  >
+                    <i className="ti ti-x" />
+                  </Button>
                 </div>
-                <div className="text-muted" style={{ lineHeight: 1.45 }}>
-                  {alert.message}
-                </div>
+
+                {Boolean(alert.timeout) && (
+                  <div className="sm-alert-progress">
+                    <span />
+                  </div>
+                )}
               </div>
-
-              <Button variant="link-secondary" className="btn-icon avatar-s flex-shrink-0 p-0" onClick={hideAlert} aria-label="Tutup alert">
-                <i className="ti ti-x" />
-              </Button>
-            </div>
-
-            {Boolean(alert.timeout) && (
-              <div className="bg-light" style={{ height: 3 }}>
-                <div
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    background: currentVariant.accent,
-                    animation: `alert-progress ${alert.timeout}ms linear forwards`
-                  }}
-                />
-              </div>
-            )}
-          </div>
-
-          <style>
-            {`
-              @keyframes alert-progress {
-                from { width: 100%; }
-                to { width: 0%; }
-              }
-            `}
-          </style>
+            );
+          })}
         </div>
       )}
     </AlertContext.Provider>

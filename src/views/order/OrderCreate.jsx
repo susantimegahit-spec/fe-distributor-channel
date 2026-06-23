@@ -36,8 +36,6 @@ export default function OrderPost() {
   const { showAlert } = useAlert();
   const distributorId = getCookies('distributorId');
   const [showDisc, setShowDisc] = useState(false);
-  const [rewardBatches, setRewardBatches] = useState([]);
-  const [selectedRewardBatch, setSelectedRewardBatch] = useState(null);
   const [selectedRewardTarget, setSelectedRewardTarget] = useState(null);
   const [rewardDiscountPreview, setRewardDiscountPreview] = useState([]);
   const [rewardResultCount, setRewardResultCount] = useState(0);
@@ -62,6 +60,7 @@ export default function OrderPost() {
   const [confirmSubmit, setConfirmSubmit] = useState(false);
   const [documents, setDocuments] = useState([]);
   const [existingDocuments, setExistingDocuments] = useState([]);
+  const [discountSnapshot, setDiscountSnapshot] = useState(null);
 
   const [listAddressB, setListAddressB] = useState([]);
   const [listAddressS, setListAddressS] = useState([]);
@@ -231,6 +230,32 @@ export default function OrderPost() {
     return [];
   };
 
+  const getRewardAmount = (item = {}) => {
+    const directTotal = Number(
+      item.total_reward ||
+        item.totalReward ||
+        item.total_discount ||
+        item.total_diskon ||
+        item.totalDiskon ||
+        item.reward_amount ||
+        item.rewardAmount ||
+        item.discount_amount ||
+        0
+    );
+    const calculatedTotal = Number(item.diskon_per_kg || item.reward_per_kg || 0) * Number(item.qty_kg || item.qty || item.quantity || 0);
+
+    return directTotal || calculatedTotal || 0;
+  };
+
+  const getRewardCustomerCode = (item = {}) =>
+    String(item.customer_code || item.customerCode || item.code_customer || item.distributor_code || item.distributorCode || '');
+
+  const cloneDiscountDetails = (details = []) =>
+    details.map((item) => ({
+      ...item,
+      name: item.name && typeof item.name === 'object' ? { ...item.name } : item.name
+    }));
+
   const findOption = (options, value, label, extra = {}) => {
     if (!value && !label) return null;
     const matchedOption = options.find((option) => String(option.value) === String(value));
@@ -378,7 +403,7 @@ export default function OrderPost() {
       fetchEmployee(response.data?.data.code_customer);
     } else {
       setIsLoading(false);
-      showAlert('Gagal ambil data', 'danger');
+      // showAlert('Gagal ambil data', 'danger');
     }
   };
 
@@ -690,6 +715,8 @@ export default function OrderPost() {
     setListAddressS([]);
     setListEmployee([]);
     setListItem([]);
+    setRewardDiscountPreview([]);
+    setRewardResultCount(0);
     setOrderInput({
       ...orderInput,
       cardCode: e?.value || '',
@@ -728,26 +755,80 @@ export default function OrderPost() {
     setDetailDisc([...detailDisc]);
   };
 
-  const fetchRewardBatches = async () => {
-    if (rewardBatches.length) return;
+  const fetchCustomerRewardDiscount = async () => {
+    setRewardDiscountPreview([]);
+    setRewardResultCount(0);
+
+    if (!orderInput.cardCode) {
+      showAlert('Pilih customer terlebih dahulu untuk mengambil total Reward', 'danger');
+      return;
+    }
 
     setLoadingReward(true);
     try {
       const response = await PromoServices.getClaimBatches();
       const payload = response?.data?.data;
-      const batches = Array.isArray(payload)
-        ? payload
-        : payload?.batches || payload?.items || payload?.rows || payload?.data || [];
+      const normalizedBatches = normalizeList(response);
+      const batches = normalizedBatches.length
+        ? normalizedBatches
+        : Array.isArray(payload)
+          ? payload
+          : payload?.batches || payload?.items || payload?.rows || payload?.data || [];
 
-      setRewardBatches(
+      if (!batches.length) {
+        showAlert('Data Reward tidak tersedia', 'danger');
+        return;
+      }
+
+      const resultResponses = await Promise.all(
         batches.map((batch, index) => {
-          const id = batch.id || batch.batch_id || batch.claim_batch_id || batch.upload_batch_id || index;
-          const batchNo = batch.batch_no || batch.batch_code || batch.claim_no || batch.reference_no || `BATCH-${id}`;
-          const fileName = batch.file_name || batch.original_file_name || batch.original_filename || batch.filename || '-';
-
-          return { value: id, label: `${batchNo} · ${fileName}`, batchNo, fileName };
+          const id = batch.id || batch.batch_id || batch.claim_batch_id || batch.upload_batch_id || batch.upload_id || index;
+          return PromoServices.getUploadResult(id).then((resultResponse) => ({ batch, index, resultResponse }));
         })
       );
+
+      const customerResults = resultResponses.flatMap(({ batch, index, resultResponse }) => {
+        const resultPayload = resultResponse?.data?.data;
+        const results = Array.isArray(resultPayload)
+          ? resultPayload
+          : resultPayload?.results ||
+            resultPayload?.claims ||
+            resultPayload?.transactions ||
+            resultPayload?.details ||
+            resultPayload?.data ||
+            [];
+        const batchNo = batch.batch_no || batch.batch_code || batch.claim_no || batch.reference_no || `BATCH-${batch.id || index + 1}`;
+        const fileName = batch.file_name || batch.original_file_name || batch.original_filename || batch.filename || '-';
+
+        return results
+          .filter((item) => getRewardCustomerCode(item) === String(orderInput.cardCode))
+          .map((item) => ({ ...item, batchNo, fileName }));
+      });
+
+      if (!customerResults.length) {
+        showAlert(`Tidak ada data Reward untuk customer ${orderInput.cardCode}`, 'danger');
+        return;
+      }
+
+      const totalReward = customerResults.reduce((total, item) => total + getRewardAmount(item), 0);
+      const rewardReferences = Array.from(new Set(customerResults.map((item) => `${item.batchNo} · ${item.fileName}`))).filter(Boolean);
+
+      setRewardResultCount(customerResults.length);
+      setRewardDiscountPreview(
+        totalReward > 0
+          ? [
+              {
+                name: { value: 'REWARD', label: 'REWARD' },
+                value: totalReward,
+                remarks: rewardReferences.slice(0, 3).join(' | ')
+              }
+            ]
+          : []
+      );
+
+      if (totalReward <= 0) {
+        showAlert(`Total Reward untuk customer ${orderInput.cardCode} masih 0`, 'danger');
+      }
     } catch (error) {
       showAlert(error?.message || 'Gagal mengambil data Reward', 'danger');
     } finally {
@@ -793,78 +874,40 @@ export default function OrderPost() {
   };
 
   const handleOpenDiscount = () => {
+    setDiscountSnapshot(cloneDiscountDetails(detailDisc));
     setShowDisc(true);
-    fetchRewardBatches();
+    fetchCustomerRewardDiscount();
     fetchMaxDiscount();
   };
 
-  const handleSelectRewardBatch = async (option) => {
-    setSelectedRewardBatch(option);
+  const handleCancelDiscount = () => {
+    if (discountSnapshot) {
+      setDetailDisc(cloneDiscountDetails(discountSnapshot));
+    }
+
+    setSelectedRewardTarget(null);
     setRewardDiscountPreview([]);
     setRewardResultCount(0);
-
-    if (!option) return;
-
-    setLoadingReward(true);
-    try {
-      const response = await PromoServices.getUploadResult(option.value);
-      const payload = response?.data?.data;
-      const results = Array.isArray(payload)
-        ? payload
-        : payload?.results || payload?.claims || payload?.transactions || payload?.details || [];
-      const customerResults = orderInput.cardCode
-        ? results.filter(
-            (item) =>
-              String(item.customer_code || item.code_customer || item.distributor_code || '') === String(orderInput.cardCode)
-          )
-        : results;
-
-      if (!customerResults.length) {
-        showAlert(`Tidak ada data Reward untuk customer ${orderInput.cardCode || 'yang dipilih'}`, 'danger');
-        return;
-      }
-
-      const groupedDiscounts = customerResults.reduce((groups, item) => {
-        const category =
-          item.program_name || item.program_code || item.category || item.discount_category || item.type_discount || 'REWARD';
-        const directTotal = Number(item.total_discount || item.total_diskon || item.discount_amount || 0);
-        const calculatedTotal = Number(item.diskon_per_kg || item.reward_per_kg || 0) * Number(item.qty_kg || item.qty || 0);
-
-        groups.set(category, (groups.get(category) || 0) + (directTotal || calculatedTotal));
-        return groups;
-      }, new Map());
-      const preview = Array.from(groupedDiscounts, ([category, total]) => ({
-        name: { value: String(category), label: String(category) },
-        value: total,
-        remarks: `${option.batchNo} · ${option.fileName}`
-      })).filter((item) => Number(item.value) > 0);
-
-      setRewardResultCount(customerResults.length);
-      setRewardDiscountPreview(preview);
-    } catch (error) {
-      showAlert(error?.message || 'Gagal mengambil hasil upload Reward', 'danger');
-    } finally {
-      setLoadingReward(false);
-    }
+    setShowDisc(false);
+    setDiscountSnapshot(null);
   };
 
   const addRewardDiscount = () => {
     if (!rewardDiscountPreview.length || selectedRewardTarget === null || !applicableRewardDiscount) return;
 
-    setDetailDisc((currentDetails) =>
-      currentDetails.map((item, index) => {
-        if (index !== selectedRewardTarget) return item;
+    setDetailDisc((currentDetails) => {
+      const rewardReference = rewardDiscountPreview[0]?.remarks || `${rewardResultCount} data reward`;
 
-        const rewardReference = `${selectedRewardBatch.batchNo} · ${selectedRewardBatch.fileName}`;
+      return currentDetails.map((item, index) => {
+        if (index !== selectedRewardTarget) return item;
 
         return {
           ...item,
           value: Number(item.value || 0) + applicableRewardDiscount,
           remarks: [item.remarks, `Reward: ${rewardReference}`].filter(Boolean).join(' | ')
         };
-      })
-    );
-    setSelectedRewardBatch(null);
+      });
+    });
     setSelectedRewardTarget(null);
     setRewardDiscountPreview([]);
     setRewardResultCount(0);
@@ -1102,6 +1145,10 @@ export default function OrderPost() {
       setLoaderDisc(false);
       setDiscId(response.data.data.code);
       showAlert(response.data.message, 'success');
+      setDiscountSnapshot(null);
+      setSelectedRewardTarget(null);
+      setRewardDiscountPreview([]);
+      setRewardResultCount(0);
       setShowDisc(false);
     } else {
       setLoaderDisc(false);
@@ -1663,7 +1710,7 @@ export default function OrderPost() {
           </MainCard>
         </>
       </Stack>
-      <Modal show={showDisc} onHide={() => setShowDisc(false)} size="lg" centered>
+      <Modal show={showDisc} onHide={handleCancelDiscount} size="lg" centered>
         <Modal.Header closeButton>
           <div>
             <Modal.Title>Atur Diskon Order</Modal.Title>
@@ -1688,21 +1735,30 @@ export default function OrderPost() {
                     <Form.Text>Nominal Reward akan dimasukkan ke kategori ini.</Form.Text>
                   </Col>
                   <Col md={6}>
-                    <Form.Label className="fw-semibold mb-1">Ambil dari Data Reward</Form.Label>
-                    <Select
-                      value={selectedRewardBatch}
-                      options={rewardBatches}
-                      onChange={handleSelectRewardBatch}
-                      isLoading={loadingReward}
-                      isClearable
-                      placeholder="Cari nomor batch atau nama file Excel..."
-                      noOptionsMessage={() => 'Data Reward tidak tersedia'}
-                    />
-                    <Form.Text>Data otomatis difilter berdasarkan customer pada order ini.</Form.Text>
+                    <Stack direction="horizontal" className="justify-content-between align-items-start gap-3">
+                      <div>
+                        <Form.Label className="fw-semibold mb-1">Total Reward Customer</Form.Label>
+                        <div className="text-muted f-12">
+                          Reward otomatis dihitung dari seluruh data reward yang cocok dengan customer pada order ini.
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="light-primary"
+                        onClick={fetchCustomerRewardDiscount}
+                        disabled={loadingReward || !orderInput.cardCode}
+                      >
+                        {loadingReward ? <LoaderButton /> : 'Refresh'}
+                      </Button>
+                    </Stack>
                   </Col>
                 </Row>
 
-                {rewardDiscountPreview.length ? (
+                {loadingReward ? (
+                  <div className="bg-light rounded p-3 mt-3 text-center">
+                    <LoaderData />
+                  </div>
+                ) : rewardDiscountPreview.length ? (
                   <div className="bg-light rounded p-3 mt-3">
                     <Row className="g-3 align-items-center">
                       <Col sm={4}>
@@ -1731,7 +1787,13 @@ export default function OrderPost() {
                       </Col>
                     </Row>
                   </div>
-                ) : null}
+                ) : (
+                  <div className="bg-light rounded p-3 mt-3 text-muted f-12">
+                    {orderInput.cardCode
+                      ? 'Total Reward belum tersedia untuk customer ini.'
+                      : 'Pilih customer terlebih dahulu untuk mengambil total Reward.'}
+                  </div>
+                )}
               </Card.Body>
             </Card>
 
@@ -1818,7 +1880,7 @@ export default function OrderPost() {
           </Stack>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="light-secondary" onClick={() => setShowDisc(false)}>
+          <Button variant="light-secondary" onClick={handleCancelDiscount}>
             Batal
           </Button>
           <Button onClick={() => handleSubmitDisc()} variant="primary" disabled={loaderDisc || loadingReward || !discountTotal}>

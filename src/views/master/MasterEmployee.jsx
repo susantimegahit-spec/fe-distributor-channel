@@ -626,9 +626,11 @@ export default function MasterEmployee() {
                 </Form.Select>
               </Col>
               <Col xs={12}>
-                <div className="alert alert-info mb-0">
-                  <i className="ti ti-info-circle me-1" />
-                  Pilih sales dan distributor dari data master untuk membuat relasi sales distributor.
+                <div className="sm-inline-alert sm-inline-alert-info">
+                  <span className="sm-inline-alert-icon">
+                    <i className="ti ti-info-circle f-20" />
+                  </span>
+                  <span>Pilih sales dan distributor dari data master untuk membuat relasi sales distributor.</span>
                 </div>
               </Col>
             </Row>

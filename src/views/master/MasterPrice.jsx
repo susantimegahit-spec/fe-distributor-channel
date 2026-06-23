@@ -584,9 +584,13 @@ export default function MasterPrice() {
                 </Form.Select>
               </Col>
               <Col xs={12}>
-                <div className="alert alert-info mb-0">
-                  <i className="ti ti-info-circle me-1" />
-                  Data akan dikirim ke endpoint <strong>distributor-item-prices</strong> melalui Price Services.
+                <div className="sm-inline-alert sm-inline-alert-info">
+                  <span className="sm-inline-alert-icon">
+                    <i className="ti ti-info-circle f-20" />
+                  </span>
+                  <span>
+                    Data akan dikirim ke endpoint <strong>distributor-item-prices</strong> melalui Price Services.
+                  </span>
                 </div>
               </Col>
             </Row>
