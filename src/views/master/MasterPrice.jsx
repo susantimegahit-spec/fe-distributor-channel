@@ -21,6 +21,7 @@ import DistributorServices from '../../services/DistributorServices';
 import PriceServices from '../../services/PriceServices';
 import ProductServices from '../../services/ProductServices';
 import { useAlert } from '../../utils/alertContext';
+import { useConfirm } from '../../utils/confirmContext';
 
 const pageSize = 10;
 const initialPriceInput = {
@@ -37,6 +38,9 @@ const getValue = (item, keys, fallback = '-') => {
 };
 
 const getPriceValue = (item) => Number(getValue(item, ['price', 'item_price', 'selling_price', 'unit_price', 'amount', 'harga'], 0));
+
+const getPriceId = (item) =>
+  getValue(item, ['id', 'price_id', 'distributor_item_price_id', 'distributor_item_prices_id'], '');
 
 const formatCurrency = (value) => {
   const number = Number(value || 0);
@@ -61,12 +65,15 @@ const normalizeList = (response) => {
 
 export default function MasterPrice() {
   const { showAlert } = useAlert();
+  const { showConfirm } = useConfirm();
   const [dataSource, setDataSource] = useState([]);
   const [loadingData, setLoadingData] = useState(false);
   const [keywords, setKeywords] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedPrice, setSelectedPrice] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingPriceId, setEditingPriceId] = useState(null);
+  const [deletingPriceId, setDeletingPriceId] = useState(null);
   const [submittingPrice, setSubmittingPrice] = useState(false);
   const [priceInput, setPriceInput] = useState(initialPriceInput);
   const [listItem, setListItem] = useState([]);
@@ -188,7 +195,7 @@ export default function MasterPrice() {
         setListDistributor(
           normalizeList(distributorResponse).map((item) => ({
             value: item.code_customer,
-            label: `${item.code_customer || '-'} - ${item.name || '-'}`,
+            label: `${item.code_customer || '-'} - ${item?.depo} - ${item.name || '-'}`,
             name: item.name
           }))
         );
@@ -213,7 +220,33 @@ export default function MasterPrice() {
 
   const closeAddModal = () => {
     setShowAddModal(false);
+    setEditingPriceId(null);
     setPriceInput(initialPriceInput);
+  };
+
+  const openAddModal = () => {
+    setEditingPriceId(null);
+    setPriceInput(initialPriceInput);
+    setShowAddModal(true);
+  };
+
+  const openEditModal = (item) => {
+    const priceId = getPriceId(item);
+
+    if (!priceId) {
+      showAlert('ID master price tidak ditemukan', 'danger');
+      return;
+    }
+
+    setEditingPriceId(priceId);
+    setPriceInput({
+      item_code: getValue(item, ['item_code', 'code_item', 'itemCode'], ''),
+      code_customer: getValue(item, ['code_customer', 'customer_code', 'distributor_code'], ''),
+      uom: getValue(item, ['uom', 'unit', 'uom_code', 'uom_name'], ''),
+      price: String(getPriceValue(item) || ''),
+      status: String(getValue(item, ['status', 'is_active'], '1'))
+    });
+    setShowAddModal(true);
   };
 
   const handleSelectItem = (option) => {
@@ -250,20 +283,54 @@ export default function MasterPrice() {
     };
 
     try {
-      const response = await PriceServices.postPrice(payload);
+      const response = editingPriceId ? await PriceServices.putPrice(editingPriceId, payload) : await PriceServices.postPrice(payload);
 
       if (response.data.success) {
-        showAlert('Master price berhasil ditambahkan', 'success');
+        showAlert(editingPriceId ? 'Master price berhasil diperbarui' : 'Master price berhasil ditambahkan', 'success');
         closeAddModal();
         fetchData();
       } else {
-        showAlert(response.data.message || 'Gagal tambah master price', 'danger');
+        showAlert(response.data.message || (editingPriceId ? 'Gagal update master price' : 'Gagal tambah master price'), 'danger');
       }
     } catch (error) {
-      showAlert(error?.message || 'Gagal tambah master price', 'danger');
+      showAlert(error?.message || (editingPriceId ? 'Gagal update master price' : 'Gagal tambah master price'), 'danger');
     } finally {
       setSubmittingPrice(false);
     }
+  };
+
+  const deletePrice = async (item) => {
+    const priceId = getPriceId(item);
+
+    if (!priceId) {
+      showAlert('ID master price tidak ditemukan', 'danger');
+      return;
+    }
+
+    setDeletingPriceId(priceId);
+
+    try {
+      const response = await PriceServices.deletePrice(priceId);
+
+      if (response.data.success) {
+        showAlert(response.data.message || 'Master price berhasil dihapus', 'success');
+        fetchData();
+      } else {
+        showAlert(response.data.message || 'Gagal hapus master price', 'danger');
+      }
+    } catch (error) {
+      showAlert(error?.message || 'Gagal hapus master price', 'danger');
+    } finally {
+      setDeletingPriceId(null);
+    }
+  };
+
+  const confirmDeletePrice = (item) => {
+    showConfirm({
+      title: 'Hapus Master Price',
+      subTitle: `Anda yakin ingin menghapus harga item ${getValue(item, ['item_code', 'code_item', 'itemCode'])}?`,
+      onConfirm: () => deletePrice(item)
+    });
   };
 
   const canSubmitPrice = Boolean(priceInput.item_code && priceInput.code_customer && priceInput.price && !submittingPrice);
@@ -274,13 +341,13 @@ export default function MasterPrice() {
         <MainCard
           title={
             <Stack gap={1}>
-              <h5 className="mb-0">Master Price</h5>
+              <h5 className="mb-0">Daftar Price</h5>
               <span className="text-muted f-12">Kelola daftar harga item distributor berdasarkan data dari Price Services.</span>
             </Stack>
           }
           secondary={
             <Stack direction="horizontal" gap={2} className="flex-wrap">
-              <Button onClick={() => setShowAddModal(true)} variant="primary">
+              <Button onClick={openAddModal} variant="primary">
                 <i className="ti ti-plus me-1" />
                 Tambah Price
               </Button>
@@ -409,11 +476,11 @@ export default function MasterPrice() {
                     <th style={{ minWidth: 140 }}>Kode Item</th>
                     <th style={{ minWidth: 240 }}>Nama Item</th>
                     <th style={{ minWidth: 180 }}>Distributor</th>
-                    <th style={{ minWidth: 140 }}>Harga</th>
-                    <th style={{ minWidth: 100 }}>UOM</th>
+                    <th style={{ minWidth: 140 }}>Depo</th>
+                    <th style={{ minWidth: 100 }}>Harga</th>
                     <th style={{ minWidth: 110 }}>Status</th>
-                    <th className="text-center" style={{ width: 80 }}>
-                      #
+                    <th className="text-center" style={{ minWidth: 150 }}>
+                      Aksi
                     </th>
                   </tr>
                 </thead>
@@ -421,9 +488,11 @@ export default function MasterPrice() {
                   {filteredData.length > 0 ? (
                     paginatedData.map((item, index) => {
                       const status = Number(getValue(item, ['status', 'is_active'], 0));
+                      const priceId = getPriceId(item);
+                      const isDeleting = String(deletingPriceId) === String(priceId);
 
                       return (
-                        <tr key={item.id || item.price_id || `${getValue(item, ['item_code'], 'item')}-${index}`}>
+                        <tr key={priceId || `${getValue(item, ['item_code'], 'item')}-${index}`}>
                           <td className="fw-semibold">{getValue(item, ['item_code', 'code_item', 'itemCode'])}</td>
                           <td style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>
                             {getValue(item, ['item_name', 'name_item', 'itemName', 'product_name'])}
@@ -431,13 +500,33 @@ export default function MasterPrice() {
                           <td style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>
                             {getValue(item, ['distributor_name', 'customer_name', 'card_name', 'name_customer'])}
                           </td>
+                          <td>{getValue(item, ['depo'])}</td>
                           <td className="fw-semibold">{formatCurrency(getPriceValue(item))}</td>
-                          <td>{getValue(item, ['uom', 'unit', 'uom_code', 'uom_name'])}</td>
                           <td>{status === 1 ? <Badge bg="success">Aktif</Badge> : <Badge bg="secondary">Tidak Aktif</Badge>}</td>
                           <td className="text-center">
-                            <Button className="rounded-circle" variant="outline-primary" size="sm" onClick={() => setSelectedPrice(item)}>
-                              <i className="ti ti-eye" />
-                            </Button>
+                            <Stack direction="horizontal" gap={1} className="justify-content-center flex-nowrap">
+                              <Button className="rounded-circle" variant="outline-primary" size="sm" onClick={() => setSelectedPrice(item)}>
+                                <i className="ti ti-eye" />
+                              </Button>
+                              <Button
+                                className="rounded-circle"
+                                variant="outline-warning"
+                                size="sm"
+                                onClick={() => openEditModal(item)}
+                                disabled={submittingPrice || Boolean(deletingPriceId)}
+                              >
+                                <i className="ti ti-edit" />
+                              </Button>
+                              <Button
+                                className="rounded-circle"
+                                variant="outline-danger"
+                                size="sm"
+                                onClick={() => confirmDeletePrice(item)}
+                                disabled={Boolean(deletingPriceId)}
+                              >
+                                {isDeleting ? <span className="spinner-border spinner-border-sm" /> : <i className="ti ti-trash" />}
+                              </Button>
+                            </Stack>
                           </td>
                         </tr>
                       );
@@ -532,7 +621,7 @@ export default function MasterPrice() {
       <Modal show={showAddModal} onHide={closeAddModal} centered size="lg">
         <Form onSubmit={submitPrice}>
           <Modal.Header closeButton>
-            <Modal.Title>Tambah Master Price</Modal.Title>
+            <Modal.Title>{editingPriceId ? 'Edit Harga' : 'Tambah Harga'}</Modal.Title>
           </Modal.Header>
           <Modal.Body>
             <Row className="g-3">
@@ -568,7 +657,7 @@ export default function MasterPrice() {
               </Col>
               <Col md={4}>
                 <Form.Label>UOM</Form.Label>
-                <Form.Control name="uom" value={priceInput.uom} onChange={handlePriceInput} placeholder="PCS / CTN" />
+                <Form.Control readOnly name="uom" value={priceInput.uom} onChange={handlePriceInput} placeholder="PCS / CTN" />
               </Col>
               <Col md={4}>
                 <Form.Label>
@@ -589,7 +678,8 @@ export default function MasterPrice() {
                     <i className="ti ti-info-circle f-20" />
                   </span>
                   <span>
-                    Data akan dikirim ke endpoint <strong>distributor-item-prices</strong> melalui Price Services.
+                    Data akan {editingPriceId ? 'diperbarui' : 'dikirim'} ke endpoint <strong>distributor-item-prices</strong>{' '}
+                    melalui Price Services.
                   </span>
                 </div>
               </Col>
@@ -600,7 +690,7 @@ export default function MasterPrice() {
               Batal
             </Button>
             <Button type="submit" variant="primary" disabled={!canSubmitPrice}>
-              {submittingPrice ? 'Menyimpan...' : 'Simpan Price'}
+              {submittingPrice ? 'Menyimpan...' : editingPriceId ? 'Simpan Perubahan' : 'Simpan Price'}
             </Button>
           </Modal.Footer>
         </Form>

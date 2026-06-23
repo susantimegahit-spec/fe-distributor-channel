@@ -4,7 +4,7 @@ import { Button, Modal, Stack } from 'react-bootstrap';
 
 // ==============================|| BASIC - TABS & PILLS ||============================== //
 
-export default function ConfirmDialog({ show, title, subTitle, onSubmit, onCancel }) {
+export default function ConfirmDialog({ show, title, subTitle, onSubmit, onCancel, loading = false }) {
   const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
@@ -28,7 +28,7 @@ export default function ConfirmDialog({ show, title, subTitle, onSubmit, onCance
     return () => clearInterval(interval);
   }, [show]);
 
-  const isSubmitDisabled = countdown > 0;
+  const isSubmitDisabled = countdown > 0 || loading;
 
   return (
     <Modal show={show} onHide={onCancel} centered contentClassName="border-0 shadow-lg" backdrop="static">
@@ -51,11 +51,11 @@ export default function ConfirmDialog({ show, title, subTitle, onSubmit, onCance
       </Modal.Body>
       <Modal.Footer className="border-0 pt-0 px-4 pb-4">
         <Stack direction="horizontal" gap={2} className="w-100">
-          <Button className="w-100" variant="light-secondary" onClick={onCancel}>
+          <Button className="w-100" variant="light-secondary" onClick={onCancel} disabled={loading}>
             Tidak
           </Button>
           <Button className="w-100" variant="danger" onClick={onSubmit} disabled={isSubmitDisabled}>
-            {isSubmitDisabled ? `Ya (${countdown})` : 'Ya'}
+            {loading ? 'Memproses...' : countdown > 0 ? `Ya (${countdown})` : 'Ya'}
           </Button>
         </Stack>
       </Modal.Footer>

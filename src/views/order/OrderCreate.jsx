@@ -24,6 +24,7 @@ import CreatableSelect from 'react-select/creatable';
 
 // #FBD43C -> soft yellow
 // #DAA919 -> dark yellow
+const maxDocumentUploadSizeBytes = 1024 * 1024;
 
 export default function OrderPost() {
   const roleId = getCookies('role');
@@ -45,6 +46,7 @@ export default function OrderPost() {
   const [isLoading, setIsLoading] = useState(false);
   const [loaderDisc, setLoaderDisc] = useState(false);
   const [loadingSubmit, setLoadingSubmit] = useState(false);
+  const [loadingItemPriceRows, setLoadingItemPriceRows] = useState([false]);
   const [listItem, setListItem] = useState([]);
   const [listOcr1, setListOcr1] = useState([]);
   const [listOcr2, setListOcr2] = useState([]);
@@ -657,18 +659,51 @@ export default function OrderPost() {
     });
   };
 
+  const setItemPriceRowLoading = (index, isLoadingRow) => {
+    setLoadingItemPriceRows((prevState) => {
+      const nextState = [...prevState];
+      nextState[index] = isLoadingRow;
+
+      return nextState;
+    });
+  };
+
   const handleSelectItem = async (e, index) => {
-    const resp = await PriceServices.getPriceByItem(e.value);
-    if (resp.data.success) {
-      itemArr[index].itemCode = e;
-      itemArr[index].unitMsr = e.unitMsr;
-      itemArr[index].unitPrice = resp.data.data[0].price;
-      if (itemArr[index].quantity > 0) {
-        itemArr[index].lineTotal = resp.data.data[0].price * itemArr[index].quantity;
-      }
+    if (!e) {
+      itemArr[index].itemCode = null;
+      itemArr[index].unitMsr = '';
+      itemArr[index].unitPrice = '';
+      itemArr[index].lineTotal = '';
       setItemArr([...itemArr]);
+      return;
     }
-    // const response = await
+
+    itemArr[index].itemCode = e;
+    itemArr[index].unitMsr = e.unitMsr;
+    itemArr[index].unitPrice = '';
+    itemArr[index].lineTotal = '';
+    setItemArr([...itemArr]);
+    setItemPriceRowLoading(index, true);
+
+    try {
+      const resp = await PriceServices.getPriceByItem(e.value);
+
+      if (resp.data.success) {
+        const selectedPrice = resp.data.data?.[0]?.price || 0;
+
+        itemArr[index].unitPrice = selectedPrice;
+        if (itemArr[index].quantity > 0) {
+          itemArr[index].lineTotal = selectedPrice * itemArr[index].quantity;
+        }
+        setItemArr([...itemArr]);
+      } else {
+        showAlert(resp.data.message || 'Gagal ambil harga item', 'danger');
+      }
+    } catch (error) {
+      showAlert(error?.message || 'Gagal ambil harga item', 'danger');
+    } finally {
+      setItemPriceRowLoading(index, false);
+    }
   };
 
   const handleSelectWarehouse = async (e, index) => {
@@ -737,9 +772,21 @@ export default function OrderPost() {
     const files = Array.from(event.target.files || []);
     if (!files.length) return;
 
+    const oversizedFiles = files.filter((file) => file.size > maxDocumentUploadSizeBytes);
+    const validFiles = files.filter((file) => file.size <= maxDocumentUploadSizeBytes);
+
+    if (oversizedFiles.length) {
+      showAlert('Ukuran file maksimal 1MB per file', 'danger');
+    }
+
+    if (!validFiles.length) {
+      event.target.value = '';
+      return;
+    }
+
     setDocuments((prevDocuments) => {
       const existingKeys = new Set(prevDocuments.map((file) => `${file.name}-${file.size}-${file.lastModified}`));
-      const nextFiles = files.filter((file) => !existingKeys.has(`${file.name}-${file.size}-${file.lastModified}`));
+      const nextFiles = validFiles.filter((file) => !existingKeys.has(`${file.name}-${file.size}-${file.lastModified}`));
 
       return [...prevDocuments, ...nextFiles];
     });
@@ -930,10 +977,12 @@ export default function OrderPost() {
 
     let store = [...itemArr, item];
     setItemArr(store);
+    setLoadingItemPriceRows((prevState) => [...prevState, false]);
   };
 
   const removeItem = (i) => {
     setItemArr((prevArray) => prevArray.filter((_, index) => index !== i));
+    setLoadingItemPriceRows((prevArray) => prevArray.filter((_, index) => index !== i));
     // const itm = item.filter((item, index) => index != i);
     // setItemArr(itm)
   };
@@ -972,8 +1021,18 @@ export default function OrderPost() {
     setDetailDisc([...detailDisc]);
   };
 
+  const parseNumberInput = (value) => String(value || '').replace(/\D/g, '');
+
+  const formatNumberInput = (value) => {
+    const numberValue = parseNumberInput(value);
+
+    if (!numberValue) return '';
+
+    return new Intl.NumberFormat('id-ID').format(Number(numberValue));
+  };
+
   const handleInputDiscValue = (index, e) => {
-    detailDisc[index].value = e.target.value;
+    detailDisc[index].value = parseNumberInput(e.target.value);
     setDetailDisc([...detailDisc]);
   };
 
@@ -1422,7 +1481,9 @@ export default function OrderPost() {
             title={
               <Stack gap={1}>
                 <h5 className="mb-0">Dokumen Order</h5>
-                <span className="text-muted f-12">Upload dokumen pendukung seperti PO, surat jalan, atau lampiran approval.</span>
+                <span className="text-muted f-12">
+                  Upload dokumen pendukung seperti PO, surat jalan, atau lampiran approval. Maksimal 1MB per file.
+                </span>
               </Stack>
             }
           >
@@ -1437,7 +1498,7 @@ export default function OrderPost() {
                         </div>
                         <div>
                           <h6 className="mb-1">Upload Dokumen</h6>
-                          <small className="text-muted">Bisa upload lebih dari satu file.</small>
+                          {/* <small className="text-muted">Bisa upload lebih dari satu file, maksimal 1MB per file.</small> */}
                         </div>
                       </div>
                       <Form.Group>
@@ -1448,7 +1509,7 @@ export default function OrderPost() {
                           accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
                           onChange={handleSelectDocuments}
                         />
-                        <Form.Text className="text-muted">Format: PDF, Word, Excel, PNG, JPG, JPEG.</Form.Text>
+                        <Form.Text className="text-muted">Format: PDF, Word, Excel, PNG, JPG, JPEG. Maksimal 1MB per file.</Form.Text>
                       </Form.Group>
                     </Stack>
                   </Card.Body>
@@ -1595,7 +1656,9 @@ export default function OrderPost() {
                         options={listItem}
                         menuPosition="fixed"
                         onChange={(e) => handleSelectItem(e, index)}
-                        placeholder="Pilih item"
+                        placeholder={loadingItemPriceRows[index] ? 'Memuat harga...' : 'Pilih item'}
+                        isLoading={Boolean(loadingItemPriceRows[index])}
+                        isDisabled={Boolean(loadingItemPriceRows[index])}
                       />
                     </td>
                     <td>
@@ -1719,7 +1782,7 @@ export default function OrderPost() {
         </Modal.Header>
         <Modal.Body>
           <Stack gap={3}>
-            <Card className="border mb-0">
+            {/* <Card className="border mb-0">
               <Card.Body className="py-3">
                 <Row className="g-3">
                   <Col md={6}>
@@ -1795,7 +1858,7 @@ export default function OrderPost() {
                   </div>
                 )}
               </Card.Body>
-            </Card>
+            </Card> */}
 
             <Card className="border mb-0">
               <Card.Header className="py-3">
@@ -1844,12 +1907,12 @@ export default function OrderPost() {
                         </td>
                         <td>
                           <Form.Control
-                            type="number"
-                            value={item.value}
+                            type="text"
+                            inputMode="numeric"
+                            value={formatNumberInput(item.value)}
                             onChange={(e) => handleInputDiscValue(index, e)}
                             size="sm"
                             placeholder="0"
-                            min="0"
                           />
                         </td>
                         <td className="text-center">

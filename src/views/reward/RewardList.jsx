@@ -20,6 +20,7 @@ import TablePagination from 'components/TablePagination';
 import LoaderData from '../../components/LoaderData';
 
 const pageSize = 10;
+const maxUploadSizeBytes = 1024 * 1024;
 
 const statusVariant = {
   claimed: 'success',
@@ -238,6 +239,12 @@ export default function RewardList() {
       return;
     }
 
+    // if (file.size > maxUploadSizeBytes) {
+    //   showAlert('Ukuran file maksimal 1MB', 'danger');
+    //   event.target.value = '';
+    //   return;
+    // }
+
     const payload = new FormData();
     payload.append('file', file);
     setUploadingClaim(true);
@@ -439,9 +446,9 @@ export default function RewardList() {
                       </span>
                       <div className="flex-grow-1">
                         <h6 className="mb-1">Upload File Claim</h6>
-                        <p className="text-muted mb-3">
-                          Upload file `.xlsx` atau `.xls` yang sudah diisi untuk menambahkan transaksi claim.
-                        </p>
+                        {/* <p className="text-muted mb-3">
+                          Upload file `.xlsx` atau `.xls` yang sudah diisi untuk menambahkan transaksi claim. Maksimal ukuran file 1MB.
+                        </p> */}
                         <Button variant="primary" onClick={() => fileInputRef.current?.click()} disabled={uploadingClaim}>
                           <i className={`${uploadingClaim ? 'ti ti-loader-2' : 'ti ti-upload'} me-1`} />
                           {uploadingClaim ? 'Mengupload...' : 'Pilih & Upload Excel'}

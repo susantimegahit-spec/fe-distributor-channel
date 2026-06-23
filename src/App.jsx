@@ -6,6 +6,7 @@ import router from 'routes';
 import { getCookies } from './utils/cookies';
 import AuthRoutes from './routes/AuthRoutes';
 import { AlertProvider } from './utils/alertContext';
+import { ConfirmProvider } from './utils/confirmContext';
 import ErrorBoundary from './views/ErrorBoundary';
 import { AUTH_STATE_CHANGED_EVENT } from './utils/authEvents';
 
@@ -31,7 +32,9 @@ function App() {
   return (
     <ErrorBoundary>
       <AlertProvider>
-        <ProviderConfig />
+        <ConfirmProvider>
+          <ProviderConfig />
+        </ConfirmProvider>
       </AlertProvider>
     </ErrorBoundary>
   );
