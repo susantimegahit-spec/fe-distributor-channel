@@ -20,6 +20,14 @@ class EmployeeServices {
   postSalesDistributor(payload) {
     return DataService.post('/sales-distributors', payload);
   }
+
+  putSalesDistributor(id, payload) {
+    return DataService.put(`/sales-distributors/${id}`, payload);
+  }
+
+  deleteSalesDistributor(id) {
+    return DataService.delete(`/sales-distributors/${id}`);
+  }
 }
 
 export default new EmployeeServices();

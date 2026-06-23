@@ -20,6 +20,7 @@ import LoaderData from '../../components/LoaderData';
 import DistributorServices from '../../services/DistributorServices';
 import EmployeeServices from '../../services/EmployeeServices';
 import { useAlert } from '../../utils/alertContext';
+import { useConfirm } from '../../utils/confirmContext';
 
 const initialSalesInput = {
   slpCode: [],
@@ -43,7 +44,6 @@ const normalizeList = (response) => {
 };
 
 const getValue = (item, keys, fallback = '') => {
-  console.log('item => ', item);
   const key = keys.find((field) => item?.[field] !== undefined && item?.[field] !== null && item?.[field] !== '');
   return key ? item[key] : fallback;
 };
@@ -51,6 +51,7 @@ const getValue = (item, keys, fallback = '') => {
 const getSalesCode = (item) => getValue(item, ['slp_code', 'sales_code', 'code_sales', 'employee_code', 'code']);
 // const getSalesName = (item) => getValue(item, ['slp_name', 'sales_name', 'name_sales', 'employee_name', 'name']);
 const getSalesName = (item) => getValue(item, ['slp_name']) || item?.sales_employee?.slp_name || '';
+const getSalesDistributorId = (item) => getValue(item, ['id', 'sales_distributor_id', 'salesDistributorId'], '');
 const getDistributorCode = (item) =>
   getValue(item, ['code_customer', 'distributor_code', 'customer_code', 'card_code']) ||
   item?.distributor?.code_customer ||
@@ -64,6 +65,7 @@ const getDistributorName = (item) =>
 
 export default function MasterEmployee() {
   const { showAlert } = useAlert();
+  const { showConfirm } = useConfirm();
   const [dataSource, setDataSource] = useState([]);
   const [loadingData, setLoadingData] = useState(false);
   const [loadingOptions, setLoadingOptions] = useState(false);
@@ -72,6 +74,8 @@ export default function MasterEmployee() {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [selectedDistributorSearch, setSelectedDistributorSearch] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingSalesId, setEditingSalesId] = useState(null);
+  const [deletingSalesId, setDeletingSalesId] = useState(null);
   const [submittingSales, setSubmittingSales] = useState(false);
   const [salesInput, setSalesInput] = useState(initialSalesInput);
   const [listSales, setListSales] = useState([]);
@@ -226,11 +230,43 @@ export default function MasterEmployee() {
 
   const closeAddModal = () => {
     setShowAddModal(false);
+    setEditingSalesId(null);
     setSalesInput(initialSalesInput);
   };
 
+  const openAddModal = () => {
+    setEditingSalesId(null);
+    setSalesInput(initialSalesInput);
+    setShowAddModal(true);
+  };
+
+  const openEditModal = (item) => {
+    const salesDistributorId = getSalesDistributorId(item);
+    const salesCode = getSalesCode(item);
+    const salesName = getSalesName(item);
+    const distributorCode = getDistributorCode(item);
+    const distributorName = getDistributorName(item);
+
+    if (!salesDistributorId) {
+      showAlert('ID relasi sales tidak ditemukan', 'danger');
+      return;
+    }
+
+    setEditingSalesId(salesDistributorId);
+    setSalesInput({
+      slpCode: salesCode ? [salesCode] : [],
+      slpName: salesName ? [salesName] : [],
+      salesId: [item?.sales_employee_id || item?.employee_id || item?.sales_employee?.id || ''],
+      distributorCode,
+      distributorName,
+      distributorId: item?.distributor_id || item?.distributor?.id || '',
+      status: String(getValue(item, ['status'], '1'))
+    });
+    setShowAddModal(true);
+  };
+
   const handleSelectSales = (options) => {
-    const selectedOptions = options || [];
+    const selectedOptions = Array.isArray(options) ? options : options ? [options] : [];
 
     setSalesInput((prevState) => ({
       ...prevState,
@@ -279,47 +315,116 @@ export default function MasterEmployee() {
     }
 
     setSubmittingSales(true);
-    if (salesInput?.salesId?.length > 0) {
-      for (let index = 0; index < salesInput?.salesId.length; index++) {
-        // const element = array[index];
-        const payloads = salesInput.slpCode.map((slpCode) => ({
-          slp_code: slpCode,
-          code_customer: salesInput.distributorCode,
-          status: Number(salesInput.status)
-        }));
-        try {
-          const responses = await Promise.allSettled(payloads.map((payload) => EmployeeServices.postSalesDistributor(payload)));
-          const fulfilledResponses = responses.filter((response) => response.status === 'fulfilled').map((response) => response.value);
-          const failedResponses = fulfilledResponses.filter((response) => !response.data.success);
-          const rejectedResponses = responses.filter((response) => response.status === 'rejected');
-          if (!failedResponses.length && !rejectedResponses.length) {
-            showAlert(
-              fulfilledResponses.length > 1
-                ? `${fulfilledResponses.length} sales berhasil ditambahkan`
-                : fulfilledResponses[0].data.message || 'Sales berhasil ditambahkan',
-              'success'
-            );
-            closeAddModal();
-            fetchData();
-          } else {
-            showAlert(
-              failedResponses[0]?.data?.message || rejectedResponses[0]?.reason?.message || 'Sebagian sales gagal ditambahkan',
-              'danger'
-            );
-          }
-        } catch (error) {
-          showAlert(error?.message || 'Gagal tambah sales', 'danger');
-        } finally {
-          setSubmittingSales(false);
+
+    const payloads = salesInput.slpCode.map((slpCode) => ({
+      slp_code: slpCode,
+      code_customer: salesInput.distributorCode,
+      status: Number(salesInput.status)
+    }));
+
+    try {
+      if (editingSalesId) {
+        const response = await EmployeeServices.putSalesDistributor(editingSalesId, payloads[0]);
+
+        if (response.data.success) {
+          showAlert(response.data.message || 'Sales berhasil diperbarui', 'success');
+          closeAddModal();
+          fetchData();
+        } else {
+          showAlert(response.data.message || 'Gagal update sales', 'danger');
         }
+
+        return;
       }
+
+      const responses = await Promise.allSettled(payloads.map((payload) => EmployeeServices.postSalesDistributor(payload)));
+      const fulfilledResponses = responses.filter((response) => response.status === 'fulfilled').map((response) => response.value);
+      const failedResponses = fulfilledResponses.filter((response) => !response.data.success);
+      const rejectedResponses = responses.filter((response) => response.status === 'rejected');
+
+      if (!failedResponses.length && !rejectedResponses.length) {
+        showAlert(
+          fulfilledResponses.length > 1
+            ? `${fulfilledResponses.length} sales berhasil ditambahkan`
+            : fulfilledResponses[0].data.message || 'Sales berhasil ditambahkan',
+          'success'
+        );
+        closeAddModal();
+        fetchData();
+      } else {
+        showAlert(
+          failedResponses[0]?.data?.message || rejectedResponses[0]?.reason?.message || 'Sebagian sales gagal ditambahkan',
+          'danger'
+        );
+      }
+    } catch (error) {
+      showAlert(error?.message || (editingSalesId ? 'Gagal update sales' : 'Gagal tambah sales'), 'danger');
+    } finally {
+      setSubmittingSales(false);
     }
   };
 
+  const deleteSales = async (item) => {
+    const salesDistributorId = getSalesDistributorId(item);
+
+    if (!salesDistributorId) {
+      showAlert('ID relasi sales tidak ditemukan', 'danger');
+      return;
+    }
+
+    setDeletingSalesId(salesDistributorId);
+
+    try {
+      const response = await EmployeeServices.deleteSalesDistributor(salesDistributorId);
+
+      if (response.data.success) {
+        showAlert(response.data.message || 'Sales berhasil dihapus', 'success');
+        fetchData();
+      } else {
+        showAlert(response.data.message || 'Gagal hapus sales', 'danger');
+      }
+    } catch (error) {
+      showAlert(error?.message || 'Gagal hapus sales', 'danger');
+    } finally {
+      setDeletingSalesId(null);
+    }
+  };
+
+  const confirmDeleteSales = (item) => {
+    showConfirm({
+      title: 'Hapus Sales',
+      subTitle: `Anda yakin ingin menghapus sales ${getSalesName(item) || getSalesCode(item) || 'ini'} dari customer ${
+        getDistributorCode(item) || '-'
+      }?`,
+      onConfirm: () => deleteSales(item)
+    });
+  };
+
   const canSubmitSales = Boolean(salesInput.slpCode.length && salesInput.distributorCode && !submittingSales);
-  const submitButtonText = salesInput.slpCode.length ? `Simpan ${salesInput.slpCode.length} Sales` : 'Simpan Sales';
-  const selectedSalesOption = listSales.filter((item) => salesInput.slpCode.includes(item.value));
-  const selectedDistributorOption = listDistributor.find((item) => item.value === salesInput.distributorCode) || null;
+  const submitButtonText = editingSalesId
+    ? 'Simpan Perubahan'
+    : salesInput.slpCode.length
+      ? `Simpan ${salesInput.slpCode.length} Sales`
+      : 'Simpan Sales';
+  const selectedSalesOption = salesInput.slpCode.map(
+    (slpCode, index) =>
+      listSales.find((item) => item.value === slpCode) || {
+        value: slpCode,
+        label: `${slpCode || '-'} - ${salesInput.slpName[index] || '-'}`,
+        id: salesInput.salesId[index],
+        name: salesInput.slpName[index]
+      }
+  );
+  const selectedDistributorOption =
+    listDistributor.find((item) => item.value === salesInput.distributorCode) ||
+    (salesInput.distributorCode
+      ? {
+          value: salesInput.distributorCode,
+          label: [salesInput.distributorCode, salesInput.distributorName].filter(Boolean).join(' - '),
+          id: salesInput.distributorId,
+          name: salesInput.distributorName
+        }
+      : null);
 
   return (
     <>
@@ -333,7 +438,7 @@ export default function MasterEmployee() {
           }
           secondary={
             <Stack direction="horizontal" gap={2}>
-              <Button onClick={() => setShowAddModal(true)} variant="success" disabled={loadingData}>
+              <Button onClick={openAddModal} variant="success" disabled={loadingData}>
                 <i className="ti ti-plus me-1" />
                 Tambah Sales
               </Button>
@@ -461,28 +566,53 @@ export default function MasterEmployee() {
                     <th style={{ minWidth: 260 }}>Nama Customer</th>
                     <th style={{ minWidth: 260 }}>Depo</th>
                     {/* <th style={{ minWidth: 120 }}>Status</th> */}
-                    <th className="text-center" style={{ width: 80 }}>
-                      #
+                    <th className="text-center" style={{ minWidth: 150 }}>
+                      Aksi
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredData.length > 0 ? (
-                    paginatedData.map((item, index) => (
-                      <tr key={item.id || item.slp_code || index}>
-                        <td className="fw-semibold">{getSalesCode(item) || '-'}</td>
-                        <td style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>{getSalesName(item) || '-'}</td>
-                        <td className="fw-semibold">{getDistributorCode(item) || '-'}</td>
-                        <td style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>{getDistributorName(item) || '-'}</td>
-                        <td className="fw-semibold">{item?.depo || ''}</td>
-                        {/* <td>{item.status === 1 ? <Badge bg="success">Aktif</Badge> : <Badge bg="secondary">Tidak Aktif</Badge>}</td> */}
-                        <td className="text-center">
-                          <Button className="rounded-circle" variant="outline-primary" size="sm" onClick={() => setSelectedEmployee(item)}>
-                            <i className="ti ti-eye" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))
+                    paginatedData.map((item, index) => {
+                      const salesDistributorId = getSalesDistributorId(item);
+                      const isDeleting = String(deletingSalesId) === String(salesDistributorId);
+
+                      return (
+                        <tr key={salesDistributorId || item.slp_code || index}>
+                          <td className="fw-semibold">{getSalesCode(item) || '-'}</td>
+                          <td style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>{getSalesName(item) || '-'}</td>
+                          <td className="fw-semibold">{getDistributorCode(item) || '-'}</td>
+                          <td style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>{getDistributorName(item) || '-'}</td>
+                          <td className="fw-semibold">{item?.depo || ''}</td>
+                          {/* <td>{item.status === 1 ? <Badge bg="success">Aktif</Badge> : <Badge bg="secondary">Tidak Aktif</Badge>}</td> */}
+                          <td className="text-center">
+                            <Stack direction="horizontal" gap={1} className="justify-content-center flex-nowrap">
+                              <Button className="rounded-circle" variant="outline-primary" size="sm" onClick={() => setSelectedEmployee(item)}>
+                                <i className="ti ti-eye" />
+                              </Button>
+                              <Button
+                                className="rounded-circle"
+                                variant="outline-warning"
+                                size="sm"
+                                onClick={() => openEditModal(item)}
+                                disabled={submittingSales || Boolean(deletingSalesId)}
+                              >
+                                <i className="ti ti-edit" />
+                              </Button>
+                              <Button
+                                className="rounded-circle"
+                                variant="outline-danger"
+                                size="sm"
+                                onClick={() => confirmDeleteSales(item)}
+                                disabled={Boolean(deletingSalesId)}
+                              >
+                                {isDeleting ? <span className="spinner-border spinner-border-sm" /> : <i className="ti ti-trash" />}
+                              </Button>
+                            </Stack>
+                          </td>
+                        </tr>
+                      );
+                    })
                   ) : (
                     <tr>
                       <td colSpan={6}>
@@ -501,7 +631,7 @@ export default function MasterEmployee() {
                               Reset Filter
                             </Button>
                           ) : (
-                            <Button onClick={() => setShowAddModal(true)} variant="success" disabled={loadingData}>
+                            <Button onClick={openAddModal} variant="success" disabled={loadingData}>
                               <i className="ti ti-plus me-1" />
                               Tambah Sales
                             </Button>
@@ -544,7 +674,9 @@ export default function MasterEmployee() {
               </Col>
               <Col md={6}>
                 <Form.Label className="f-12 text-muted">Status</Form.Label>
-                <div>{selectedEmployee.status === 1 ? <Badge bg="success">Aktif</Badge> : <Badge bg="secondary">Tidak Aktif</Badge>}</div>
+                <div>
+                  {Number(selectedEmployee.status) === 1 ? <Badge bg="success">Aktif</Badge> : <Badge bg="secondary">Tidak Aktif</Badge>}
+                </div>
               </Col>
               <Col md={12}>
                 <Form.Label className="f-12 text-muted">Nama Sales</Form.Label>
@@ -557,6 +689,10 @@ export default function MasterEmployee() {
               <Col md={6}>
                 <Form.Label className="f-12 text-muted">Nama Distributor</Form.Label>
                 <div>{getDistributorName(selectedEmployee) || '-'}</div>
+              </Col>
+              <Col md={6}>
+                <Form.Label className="f-12 text-muted">Depo</Form.Label>
+                <div>{selectedEmployee?.depo || selectedEmployee?.distributor?.depo || '-'}</div>
               </Col>
             </Row>
           )}
@@ -571,7 +707,7 @@ export default function MasterEmployee() {
       <Modal show={showAddModal} onHide={closeAddModal} centered size="lg">
         <Form onSubmit={submitSales}>
           <Modal.Header closeButton>
-            <Modal.Title>Tambah Sales</Modal.Title>
+            <Modal.Title>{editingSalesId ? 'Edit Sales' : 'Tambah Sales'}</Modal.Title>
           </Modal.Header>
           <Modal.Body>
             <Row className="g-3">
@@ -582,9 +718,9 @@ export default function MasterEmployee() {
                 <Select
                   styles={selectStyles}
                   options={listSales}
-                  value={selectedSalesOption}
+                  value={editingSalesId ? selectedSalesOption[0] || null : selectedSalesOption}
                   onChange={handleSelectSales}
-                  isMulti
+                  isMulti={!editingSalesId}
                   isClearable
                   isLoading={loadingOptions}
                   placeholder="Pilih sales"
