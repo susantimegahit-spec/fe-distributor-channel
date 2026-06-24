@@ -7,6 +7,7 @@ import { RouteErrorBoundary } from 'views/ErrorBoundary';
 
 // render - other pages
 const OrderCreate = Loadable(lazy(() => import('views/order/OrderCreate')));
+const NotificationList = Loadable(lazy(() => import('views/notification/NotificationList')));
 // ==============================|| OTHER ROUTING ||============================== //
 
 const OtherRoutes = {
@@ -22,6 +23,10 @@ const OtherRoutes = {
       path: 'order/order-create',
       element: <OrderCreate />
     },
+    {
+      path: 'notifications',
+      element: <NotificationList />
+    }
   ]
 };
 

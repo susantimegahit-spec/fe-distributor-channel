@@ -42,7 +42,7 @@ const statusVariant = {
   WAITING_ADMIN_SALES: 'primary',
   WAITING_FINANCE: 'light-primary',
   DELIVERY: 'info',
-  COMPLETED: 'success',
+  ORDER_APPROVED: 'success',
   ARRIVED: 'success',
   REJECTED: 'orange',
   FAILED: 'danger'
@@ -781,7 +781,7 @@ export default function OrderList() {
                       <td>{order?.details?.length}</td>
                       <td>{currency(order?.doc_total)}</td>
                       <td>
-                        <Badge bg={statusVariant[order.status] || 'secondary'}>{order.status}</Badge>
+                        <Badge bg={statusVariant[order.status] || 'secondary'}>{order.status.replace('_', ' ')}</Badge>
                       </td>
                       <td>
                         {order.attachments.length > 0 ? (

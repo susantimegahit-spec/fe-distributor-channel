@@ -113,7 +113,7 @@ const normalizeUploadResult = (item, index) => {
     amount1: Number(item?.harga_program_per_kg),
     amount2: Number(item?.sell_price_per_kg),
     rewardAmount: Number(item.diskon_per_kg),
-    status: item.status.replace("_", " ")
+    status: item.status.replace('_', ' ')
   };
 };
 
@@ -141,7 +141,7 @@ export default function RewardList() {
       }
 
       const batches = getResponseList(response, ['batches', 'items', 'rows']).map(normalizeBatch);
-      console.log('batches => ', batches)
+      console.log('batches => ', batches);
       setClaims(batches);
       setCurrentPage(1);
     } catch (error) {
@@ -201,7 +201,7 @@ export default function RewardList() {
   const summary = useMemo(
     () => ({
       totalClaimed: claims.reduce((total, item) => total + Number(item.rewardAmount), 0),
-      totalClaims: claims.length,
+      totalClaims: claims.length
     }),
     [claims]
   );
@@ -556,6 +556,7 @@ export default function RewardList() {
                       {selectedClaim.sellOut?.length ? (
                         selectedClaim.sellOut.map((transaction, index) => (
                           <tr key={transaction.id || `${selectedClaim.claimNo}-${index}`}>
+                            {console.log('trans => ', transaction)}
                             <td>{transaction.customerType}</td>
                             <td>
                               <div className="fw-semibold">{transaction.customerName || '-'}</div>
@@ -568,7 +569,9 @@ export default function RewardList() {
                             <td className="text-end">{formatCurrency(transaction.amount1)}</td>
                             <td className="text-end">{formatCurrency(transaction.amount2)}</td>
                             <td className="text-end">{formatCurrency(transaction.rewardAmount)}</td>
-                            <td className="text-end">{transaction.status}</td>
+                            <td className="text-end">
+                              <Badge bg={transaction.status == 'VALID PROGRAM' ? 'success' : 'danger'}>{transaction.status}</Badge>
+                            </td>
                           </tr>
                         ))
                       ) : (

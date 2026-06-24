@@ -23,85 +23,13 @@ import NotificationServices from '../../services/NotificationServices';
 import LoaderButton from '../../components/LoaderButton';
 import { useAlert } from '../../utils/alertContext';
 import { createEchoClient, getNotificationChannelName } from '../../config/echo';
-
-const getResponsePayload = (response) => response?.data?.data ?? response?.data ?? {};
-
-const getNotificationItems = (payload) => {
-  if (Array.isArray(payload)) return payload;
-  if (Array.isArray(payload?.notifications)) return payload.notifications;
-  if (Array.isArray(payload?.data)) return payload.data;
-  if (Array.isArray(payload?.items)) return payload.items;
-  return [];
-};
-
-const isUnreadNotification = (notification) => {
-  if (typeof notification?.is_read === 'boolean') return !notification.is_read;
-  if (typeof notification?.read === 'boolean') return !notification.read;
-  return !notification?.read_at;
-};
-
-const formatNotificationTime = (value) => {
-  if (!value) return '';
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-
-  return date.toLocaleString('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-};
-
-const getNotificationSectionDate = (value) => {
-  if (!value) return 'Terbaru';
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Terbaru';
-
-  const today = new Date();
-  const yesterday = new Date();
-  yesterday.setDate(today.getDate() - 1);
-
-  if (date.toDateString() === today.toDateString()) return 'Hari ini';
-  if (date.toDateString() === yesterday.toDateString()) return 'Kemarin';
-
-  return date.toLocaleDateString('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric'
-  });
-};
-
-const normalizeNotification = (notification) => {
-  const data = notification?.data || {};
-  const createdAt = notification?.created_at || notification?.createdAt || notification?.time || data.created_at;
-
-  return {
-    id: notification?.id,
-    title: notification?.title || data.title || data.subject || 'Notifikasi',
-    description: notification?.message || notification?.description || data.message || data.description || '-',
-    url: notification?.url || data.url || data.link || '#',
-    createdAt,
-    time: formatNotificationTime(createdAt),
-    date: getNotificationSectionDate(createdAt),
-    unread: isUnreadNotification(notification)
-  };
-};
-
-const getUnreadCount = (payload, items) => {
-  const count = payload?.unread_count ?? payload?.unreadCount ?? payload?.unread;
-
-  if (count !== undefined && count !== null && !Number.isNaN(Number(count))) {
-    return Number(count);
-  }
-
-  return items.filter((notification) => notification.unread).length;
-};
-
-const getNotificationKey = (notification) => notification?.id || `${notification?.title}-${notification?.createdAt}`;
+import {
+  getNotificationItems,
+  getNotificationKey,
+  getNotificationResponsePayload,
+  getUnreadNotificationCount,
+  normalizeNotification
+} from '../../utils/notification';
 
 // =============================|| MAIN LAYOUT - HEADER ||============================== //
 
@@ -177,7 +105,7 @@ export default function Header() {
 
     try {
       const response = await NotificationServices.getNotifications();
-      const payload = getResponsePayload(response);
+      const payload = getNotificationResponsePayload(response);
       const items = getNotificationItems(payload).map(normalizeNotification);
       const incomingKeys = items.map(getNotificationKey).filter(Boolean);
       const hasNewUnreadNotification = items.some((item) => {
@@ -193,7 +121,7 @@ export default function Header() {
       hasLoadedNotificationsRef.current = true;
 
       setNotifications(items);
-      setUnreadCount(getUnreadCount(payload, items));
+      setUnreadCount(getUnreadNotificationCount(payload, items));
     } catch (error) {
       setNotificationError('Notifikasi belum bisa dimuat.');
     } finally {
@@ -529,6 +457,9 @@ return (
               </SimpleBarScroll>
 
               <div className="text-center py-2 sm-notification-footer">
+                <Button as={Link} to="/notifications" variant="link" size="sm">
+                  Lihat semua
+                </Button>
                 <Button variant="link" size="sm" onClick={() => fetchNotifications(true)}>
                   Refresh
                 </Button>
