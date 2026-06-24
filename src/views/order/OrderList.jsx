@@ -784,17 +784,17 @@ export default function OrderList() {
                         <Badge bg={statusVariant[order.status] || 'secondary'}>{order.status}</Badge>
                       </td>
                       <td>
-                        {/* {getButtonVisibility(order).attachment && order.attachments?.length > 0 ? ( */}
-                        <Button
-                          variant="light-primary"
-                          size="sm"
-                          disabled={downloadingAttachmentId === order.id}
-                          onClick={() => handleViewAttachment(order)}
-                        >
-                          <i className={downloadingAttachmentId === order.id ? 'ti ti-loader-2 me-1' : 'ti ti-paperclip me-1'} />
-                          Lihat Lampiran
-                        </Button>
-                        {/* ) : null} */}
+                        {order.attachments.length > 0 ? (
+                          <Button
+                            variant="light-primary"
+                            size="sm"
+                            disabled={downloadingAttachmentId === order.id}
+                            onClick={() => handleViewAttachment(order)}
+                          >
+                            <i className={downloadingAttachmentId === order.id ? 'ti ti-loader-2 me-1' : 'ti ti-paperclip me-1'} />
+                            Lihat Lampiran
+                          </Button>
+                        ) : null}
                       </td>
                       <td className="text-center">{getAccessAction(order)}</td>
                     </tr>

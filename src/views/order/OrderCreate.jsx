@@ -173,6 +173,40 @@ export default function OrderPost() {
     return defaultValue;
   };
 
+  const getPrimitiveValue = (data, keys, defaultValue = '') => {
+    const visited = new Set();
+
+    const normalize = (value) => {
+      if (value === undefined || value === null || value === '') return defaultValue;
+      if (typeof value !== 'object') return value;
+      if (visited.has(value)) return defaultValue;
+
+      visited.add(value);
+
+      for (const key of keys) {
+        const nestedValue = String(key)
+          .split('.')
+          .reduce((current, path) => current?.[path], value);
+        const normalizedValue = normalize(nestedValue);
+
+        if (normalizedValue !== undefined && normalizedValue !== null && normalizedValue !== '') {
+          return normalizedValue;
+        }
+      }
+
+      return defaultValue;
+    };
+
+    return normalize(data);
+  };
+
+  const ocrValueKeys = ['value', 'ocr_code', 'ocrCode', 'OcrCode', 'branch_code', 'branchCode', 'code'];
+  const ocrNameKeys = ['label', 'ocr_name', 'ocrName', 'OcrName', 'branch_name', 'branchName', 'name'];
+  const ocr2ValueKeys = ['value', 'ocr_code2', 'ocrCode2', 'OcrCode2', 'business_unit_code', 'businessUnitCode', 'ocr_code', 'ocrCode', 'code'];
+  const ocr2NameKeys = ['label', 'ocr_name2', 'ocrName2', 'OcrName2', 'business_unit_name', 'businessUnitName', 'ocr_name', 'ocrName', 'name'];
+  const ocr3ValueKeys = ['value', 'ocr_code3', 'ocrCode3', 'OcrCode3', 'department_code', 'departmentCode', 'ocr_code', 'ocrCode', 'code'];
+  const ocr3NameKeys = ['label', 'ocr_name3', 'ocrName3', 'OcrName3', 'department_name', 'departmentName', 'ocr_name', 'ocrName', 'name'];
+
   const formatDateInput = (value) => {
     if (!value) return '';
     return String(value).slice(0, 10);
@@ -286,16 +320,31 @@ export default function OrderPost() {
     const whsName = getValue(line, ['whs_name', 'whsName', 'warehouse_name', 'WhsName', 'warehouse.whs_name', 'warehouse.name'], whs_code);
     const vatGroup = getValue(line, ['vat_group', 'vatGroup', 'VatGroup', 'vat_code', 'vatCode']);
     const vatName = getValue(line, ['vat_name', 'vatName', 'VatName', 'vat_group_name', 'vatGroupName', 'vat.name'], vatGroup);
-    const ocrCode = getValue(line, ['ocr', 'ocr_code', 'ocrCode', 'OcrCode', 'branch_code', 'branchCode']);
-    const ocrName = getValue(line, ['ocr_name', 'ocrName', 'OcrName', 'branch_name', 'branchName', 'cabang', 'branch.name'], ocrCode);
-    const ocrCode2 = getValue(line, ['ocr2', 'ocr_code2', 'ocrCode2', 'OcrCode2', 'business_unit_code', 'businessUnitCode']);
-    const ocrName2 = getValue(
-      line,
-      ['ocr_name2', 'ocrName2', 'OcrName2', 'business_unit_name', 'businessUnitName', 'bisnis_unit', 'business_unit.name'],
+    const rawOcrCode = getValue(line, ['ocr', 'ocr_code', 'ocrCode', 'OcrCode', 'branch_code', 'branchCode']);
+    const ocrCode = getPrimitiveValue(rawOcrCode, ocrValueKeys);
+    const ocrName = getPrimitiveValue(
+      getValue(line, ['ocr_name', 'ocrName', 'OcrName', 'branch_name', 'branchName', 'cabang', 'branch.name', 'ocr'], rawOcrCode),
+      ocrNameKeys,
+      ocrCode
+    );
+    const rawOcrCode2 = getValue(line, ['ocr2', 'ocr_code2', 'ocrCode2', 'OcrCode2', 'business_unit_code', 'businessUnitCode']);
+    const ocrCode2 = getPrimitiveValue(rawOcrCode2, ocr2ValueKeys);
+    const ocrName2 = getPrimitiveValue(
+      getValue(
+        line,
+        ['ocr_name2', 'ocrName2', 'OcrName2', 'business_unit_name', 'businessUnitName', 'bisnis_unit', 'business_unit.name', 'ocr2'],
+        rawOcrCode2
+      ),
+      ocr2NameKeys,
       ocrCode2
     );
-    const ocrCode3 = getValue(line, ['ocr3', 'ocr_code3', 'ocrCode3', 'OcrCode3', 'department_code', 'departmentCode']);
-    const ocrName3 = getValue(line, ['ocr_name3', 'ocrName3', 'OcrName3', 'department_name', 'departmentName'], ocrCode3);
+    const rawOcrCode3 = getValue(line, ['ocr3', 'ocr_code3', 'ocrCode3', 'OcrCode3', 'department_code', 'departmentCode']);
+    const ocrCode3 = getPrimitiveValue(rawOcrCode3, ocr3ValueKeys);
+    const ocrName3 = getPrimitiveValue(
+      getValue(line, ['ocr_name3', 'ocrName3', 'OcrName3', 'department_name', 'departmentName', 'ocr3'], rawOcrCode3),
+      ocr3NameKeys,
+      ocrCode3
+    );
 
     return {
       itemCode: findOption(listItem, itemCode, itemName, {
@@ -1075,10 +1124,11 @@ export default function OrderPost() {
       vat_group: item?.vatGroup?.value,
       line_total: item?.lineTotal,
       free_text: item?.freeText,
-      ocr_code: item?.ocrCode?.value,
-      ocr_code2: item?.ocrCode2?.value,
-      ocr_code3: item?.ocrCode3?.value
+      ocr_code: getPrimitiveValue(item?.ocrCode, ocrValueKeys),
+      ocr_code2: getPrimitiveValue(item?.ocrCode2, ocr2ValueKeys),
+      ocr_code3: getPrimitiveValue(item?.ocrCode3, ocr3ValueKeys)
     }));
+    console.log('item => ', itemArr)
 
     return {
       card_code: orderInput.cardCode,
@@ -1134,6 +1184,7 @@ export default function OrderPost() {
   const handleSubmitOrder = async () => {
     const payload = buildOrderRequestPayload(createOrderPayload(statusType));
     if (id) {
+      console.log('payload => ', payload)
       const resp = await OrderServices.putOrder(id, payload);
       handleOrderResponse(resp);
     } else {
