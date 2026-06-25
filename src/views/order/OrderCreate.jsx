@@ -1267,7 +1267,71 @@ export default function OrderPost() {
     // setShowDisc(false);
   };
 
+  const validateForm = () => {
+    if (!orderInput.cardCode) {
+      return 'Kode Customer wajib diisi.';
+    }
+    if (!orderInput.poNumber) {
+      return 'Nomor PO wajib diisi.';
+    }
+    if (canSelectSales && !orderInput.slpCode) {
+      return 'Kode Sales wajib diisi.';
+    }
+    if (!orderInput.cnctCode) {
+      return 'Kontak Pelanggan wajib diisi.';
+    }
+    if (!orderInput.docDate) {
+      return 'Tanggal Dokumen wajib diisi.';
+    }
+    if (!orderInput.docDueDate) {
+      return 'Request Tanggal Kirim wajib diisi.';
+    }
+    if (!orderInput.address) {
+      return 'Alamat Tagih wajib diisi.';
+    }
+    if (!orderInput.address2) {
+      return 'Alamat Kirim wajib diisi.';
+    }
+    
+    // Check Dokumen Order
+    const totalDocsCount = (documents?.length || 0) + (existingDocuments?.length || 0);
+    if (totalDocsCount === 0) {
+      return 'Dokumen Order wajib diisi.';
+    }
+
+    // Check Products
+    if (!itemArr || itemArr.length === 0) {
+      return 'Minimal harus menambahkan 1 item produk.';
+    }
+
+    for (let i = 0; i < itemArr.length; i++) {
+      const item = itemArr[i];
+      const rowNum = i + 1;
+      if (!item.itemCode) {
+        return `Item pada baris ${rowNum} wajib diisi.`;
+      }
+      if (!item.quantity || Number(item.quantity) <= 0) {
+        return `Qty pada baris ${rowNum} harus lebih dari 0.`;
+      }
+      if (!isCustomerRole) {
+        if (!item.whs_code) {
+          return `Warehouse pada baris ${rowNum} wajib diisi.`;
+        }
+        if (!item.vatGroup) {
+          return `Vat pada baris ${rowNum} wajib diisi.`;
+        }
+      }
+    }
+
+    return null; // No errors
+  };
+
   const handleShowConfirm = (type) => {
+    const errorMsg = validateForm();
+    if (errorMsg) {
+      showAlert(errorMsg, 'danger');
+      return;
+    }
     setStatusType(type);
     setConfirmSubmit(true);
   };
@@ -1531,7 +1595,9 @@ export default function OrderPost() {
           <MainCard
             title={
               <Stack gap={1}>
-                <h5 className="mb-0">Dokumen Order</h5>
+                <h5 className="mb-0">
+                  <RequiredLabel>Dokumen Order</RequiredLabel>
+                </h5>
                 <span className="text-muted f-12">
                   Upload dokumen pendukung seperti PO, surat jalan, atau lampiran approval. Maksimal 1MB per file.
                 </span>

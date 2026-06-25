@@ -28,8 +28,13 @@ import RoleServices from '../../services/RoleServices';
 const statusOptions = [
   { value: '', label: 'Semua Status' },
   { value: 'DRAFT', label: 'Draft' },
-  { value: 'WAITING_APPROVAL', label: 'Waiting Approval' },
-  { value: 'APPROVED', label: 'Approved' },
+  { value: 'WAITING_OM', label: 'Waiting OM' },
+  { value: 'WAITING_ASM', label: 'Waiting ASM' },
+  { value: 'WAITING_ADMIN_SALES', label: 'Waiting Admin Sales' },
+  { value: 'WAITING_FINANCE', label: 'Waiting Finance' },
+  { value: 'WAITING_APPROVAL', label: 'Waiting Approval SM' },
+  { value: 'ORDER_APPROVED', label: 'Order Approved' },
+  { value: 'DELIVERY', label: 'Delivery' },
   { value: 'ARRIVED', label: 'Arrived' },
   { value: 'REJECTED', label: 'Rejected' },
   { value: 'FAILED', label: 'Failed' }
@@ -134,8 +139,8 @@ export default function OrderList() {
     () => ({
       total: orders.length,
       DRAFT: orders.filter((order) => order.status === 'DRAFT').length,
-      APPROVED: orders.filter((order) => order.status === 'APPROVED').length,
-      WAITING_APPROVAL: orders.filter((order) => order.status === 'WAITING_APPROVAL').length,
+      APPROVED: orders.filter((order) => order.status === 'APPROVED' || order.status === 'ORDER_APPROVED').length,
+      WAITING_APPROVAL: orders.filter((order) => String(order.status).startsWith('WAITING_')).length,
       REJECTED: orders.filter((order) => order.status === 'REJECTED').length,
       FAILED: orders.filter((order) => order.status === 'FAILED').length
       // waiti: orders.filter((order) => order.status === 'rejected').length
@@ -348,13 +353,22 @@ export default function OrderList() {
     setDownloadingPdfId(order.id);
 
     try {
-      const response = await OrderServices.getDetailOrder(order.id);
+      const response = await OrderServices.downloadPdf(order.id);
 
-      if (response?.data?.success) {
-        downloadSalesOrderPdf(response.data.data);
+      if (response && response.data) {
+        const blob = new Blob([response.data], { type: 'application/pdf' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const customerName = (order.customer_name || 'customer').replace(/[\s\\/]+/g, '-');
+        link.download = `PI-${customerName}-${order.order_no || order.id}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
         showAlert('PDF berhasil didownload', 'success');
       } else {
-        showAlert(response?.data?.message || 'Gagal mengambil detail order', 'danger');
+        showAlert('Gagal mengunduh file PDF', 'danger');
       }
     } catch (error) {
       showAlert(error?.message || 'Gagal download PDF order', 'danger');
@@ -498,12 +512,17 @@ export default function OrderList() {
 
   const getButtonVisibility = (order) => {
     const view = hasAction('view');
+    const isApprovedByFinance =
+      order.status === 'ORDER_APPROVED' ||
+      order.status === 'APPROVED' ||
+      order.status === 'DELIVERY' ||
+      order.status === 'ARRIVED';
 
     if (!isOrderStatusAllowed(order)) {
       return {
         view,
         attachment: false,
-        download: false,
+        download: isApprovedByFinance,
         edit: false,
         delete: false
       };
@@ -512,8 +531,8 @@ export default function OrderList() {
     return {
       view,
       attachment: hasAction('attachment') || hasAction('download'),
-      download: hasAction('download'),
-      edit: hasAction('edit') && order.status !== 'APPROVED' && order.status !== 'ARRIVED',
+      download: hasAction('download') || isApprovedByFinance,
+      edit: hasAction('edit') && order.status !== 'APPROVED' && order.status !== 'ARRIVED' && order.status !== 'ORDER_APPROVED',
       delete: hasAction('delete')
     };
   };
@@ -718,15 +737,7 @@ export default function OrderList() {
                 <Form.Control value={keywords} onChange={(event) => setKeywords(event.target.value)} type="text" placeholder="No. PO" />
               </InputGroup>
             </Col>
-            {/* <Col lg={3} md={6}>
-              <Form.Label className="f-12 text-muted">Distributor</Form.Label>
-              <Form.Select value={distributor} onChange={(event) => setDistributor(event.target.value)}>
-                <option value="">Semua Distributor</option>
-                <option value="1">Distributor A</option>
-                <option value="2">Distributor B</option>
-              </Form.Select>
-            </Col>
-            <Col lg={2} md={6}>
+            <Col lg={4} md={6}>
               <Form.Label className="f-12 text-muted">Status</Form.Label>
               <Form.Select value={status} onChange={(event) => setStatus(event.target.value)}>
                 {statusOptions.map((item) => (
@@ -736,10 +747,10 @@ export default function OrderList() {
                 ))}
               </Form.Select>
             </Col>
-            <Col lg={2} md={6}>
+            <Col lg={3} md={6}>
               <Form.Label className="f-12 text-muted">Tanggal</Form.Label>
               <Form.Control value={date} onChange={(event) => setDate(event.target.value)} type="date" />
-            </Col> */}
+            </Col>
             <Col lg={1} md={12} className="text-lg-end">
               <Button className="w-100" variant="light-primary" onClick={resetFilters}>
                 <i className="ti ti-refresh" />

@@ -44,6 +44,10 @@ class OrderServices {
       return DataService.post(`/sales-orders/post-sap`, payload);
     }
   }
+
+  downloadPdf(id) {
+    return DataService.getBlob(`/sales-orders/${id}/pdf`);
+  }
 }
 
 export default new OrderServices();

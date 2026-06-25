@@ -38,6 +38,15 @@ class DataService {
     });
   }
 
+  static getBlob(path = '') {
+    return client({
+      method: 'GET',
+      url: path,
+      headers: { ...authHeader() },
+      responseType: 'blob'
+    });
+  }
+
   static post(path = '', data = {}, optionalHeader = {}) {
     return client({
       method: 'POST',
