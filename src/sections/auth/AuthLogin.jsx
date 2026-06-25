@@ -7,6 +7,7 @@ import Button from 'react-bootstrap/Button';
 import Form from 'react-bootstrap/Form';
 import Image from 'react-bootstrap/Image';
 import InputGroup from 'react-bootstrap/InputGroup';
+import Modal from 'react-bootstrap/Modal';
 
 // third-party
 import { useForm } from 'react-hook-form';
@@ -30,6 +31,7 @@ export default function AuthLoginForm({ className }) {
   const { showAlert } = useAlert();
   const [isLoading, setIsLoading] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const {
     register,
@@ -42,17 +44,20 @@ export default function AuthLoginForm({ className }) {
     setShowPassword((prevState) => !prevState);
   };
 
-  const onSubmit = async () => {
+  const onSubmit = async (force = false) => {
+    const isForce = force === true;
     setIsLoading(true);
     const payload = {
       username: getValues().username,
       password: getValues().password,
       code_customer: getValues().customerCode,
-      cf_turnstile_response: turnstileToken
+      cf_turnstile_response: turnstileToken,
+      force: isForce
     };
 
     try {
       const response = await DataService.post('/auth/login', payload);
+      console.log('Login Response:', response);
 
       if (response.data.success === true) {
         Cookies.set('isLoggedIn', true);
@@ -69,6 +74,11 @@ export default function AuthLoginForm({ className }) {
         setTimeout(() => {
           showAlert('Login berhasil', 'success');
         }, 150);
+      } else if (
+        response.data.active_session === true ||
+        response.data.message === 'Akun ini sedang aktif di perangkat lain. Silakan logout terlebih dahulu dari perangkat tersebut.'
+      ) {
+        setShowConfirmModal(true);
       } else {
         showAlert(response.data.message, 'danger');
       }
@@ -79,6 +89,11 @@ export default function AuthLoginForm({ className }) {
     }
   };
 
+  const handleForceLogin = () => {
+    setShowConfirmModal(false);
+    onSubmit(true);
+  };
+
   return (
     <MainCard className="sm-login-card mb-0">
       <div className="text-center mb-4">
@@ -86,7 +101,7 @@ export default function AuthLoginForm({ className }) {
         {/* <span className="sm-auth-eyebrow d-block mt-3">Selamat Datang</span> */}
         <p className="text-muted mb-0">Gunakan akun yang sudah terdaftar.</p>
       </div>
-      <Form onSubmit={handleSubmit(onSubmit)}>
+      <Form onSubmit={handleSubmit(() => onSubmit(false))}>
         <Form.Group className="mb-3" controlId="formUsername">
           <Form.Label>Username</Form.Label>
           <InputGroup className="sm-input-group">
@@ -158,6 +173,28 @@ export default function AuthLoginForm({ className }) {
           </Button>
         </div>
       </Form>
+      <Modal show={showConfirmModal} onHide={() => setShowConfirmModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Konfirmasi Login</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="text-center py-4">
+          <div className="text-warning mb-3">
+            <i className="ti ti-alert-triangle" style={{ fontSize: '3.5rem' }} />
+          </div>
+          <h5 className="mb-2">Akun Sedang Aktif</h5>
+          <p className="text-muted mb-0">
+            Akun ini sedang aktif di perangkat lain. Apakah Anda ingin mengeluarkan (logout) perangkat tersebut dan masuk di perangkat ini?
+          </p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowConfirmModal(false)}>
+            Batal
+          </Button>
+          <Button variant="danger" onClick={handleForceLogin}>
+            Ya, Keluarkan
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </MainCard>
   );
 }
