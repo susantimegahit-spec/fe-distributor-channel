@@ -30,6 +30,7 @@ import {
   getUnreadNotificationCount,
   normalizeNotification
 } from '../../utils/notification';
+import { DataService } from '../../config/dataService';
 
 // =============================|| MAIN LAYOUT - HEADER ||============================== //
 
@@ -168,18 +169,24 @@ export default function Header() {
     showAlert(`${notification.title}: ${notification.description}`, 'info', 8000);
   }, [playNotificationSound, showAlert]);
 
-const handleLogout = () => {
-  Cookies.remove('isLoggedIn');
-  Cookies.remove('accessToken');
-  Cookies.remove('id');
-  Cookies.remove('name');
-  Cookies.remove('email');
-  Cookies.remove('role');
-  Cookies.remove('menu');
-  Cookies.remove('customerCode');
-  Cookies.remove('distributorName');
-  Cookies.remove('distributorId');
-  window.location.replace('/');
+const handleLogout = async () => {
+  try {
+    await DataService.post('/auth/logout');
+  } catch (error) {
+    console.error('Failed to logout on server:', error);
+  } finally {
+    Cookies.remove('isLoggedIn');
+    Cookies.remove('accessToken');
+    Cookies.remove('id');
+    Cookies.remove('name');
+    Cookies.remove('email');
+    Cookies.remove('role');
+    Cookies.remove('menu');
+    Cookies.remove('customerCode');
+    Cookies.remove('distributorName');
+    Cookies.remove('distributorId');
+    window.location.replace('/');
+  }
 };
 
 const handleNotificationDropdownToggle = (isOpen) => {
