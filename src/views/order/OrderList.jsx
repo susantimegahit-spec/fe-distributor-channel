@@ -124,7 +124,6 @@ export default function OrderList() {
     const normalizedKeyword = keywords.trim().toLowerCase();
 
     return orders.filter((order) => {
-      console.log('order => ', order);
       const matchesKeyword = !normalizedKeyword || order.order_no?.toLowerCase().includes(normalizedKeyword);
       // ||order.distributor?.toLowerCase().includes(normalizedKeyword);
       const matchesDistributor = !distributor || order.distributorId === distributor;
@@ -354,7 +353,6 @@ export default function OrderList() {
 
     try {
       const response = await OrderServices.downloadPdf(order.id);
-
       if (response && response.data) {
         const blob = new Blob([response.data], { type: 'application/pdf' });
         const url = window.URL.createObjectURL(blob);
@@ -513,10 +511,7 @@ export default function OrderList() {
   const getButtonVisibility = (order) => {
     const view = hasAction('view');
     const isApprovedByFinance =
-      order.status === 'ORDER_APPROVED' ||
-      order.status === 'APPROVED' ||
-      order.status === 'DELIVERY' ||
-      order.status === 'ARRIVED';
+      order.status === 'ORDER_APPROVED' || order.status === 'APPROVED' || order.status === 'DELIVERY' || order.status === 'ARRIVED';
 
     if (!isOrderStatusAllowed(order)) {
       return {
@@ -562,7 +557,7 @@ export default function OrderList() {
             &nbsp;
           </>
         ) : null}
-        {button.download ? (
+        {order.status === 'ORDER_APPROVED' ? (
           <>
             <Button
               className="rounded-circle"

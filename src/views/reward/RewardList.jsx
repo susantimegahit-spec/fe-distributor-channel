@@ -141,7 +141,6 @@ export default function RewardList() {
       }
 
       const batches = getResponseList(response, ['batches', 'items', 'rows']).map(normalizeBatch);
-      console.log('batches => ', batches);
       setClaims(batches);
       setCurrentPage(1);
     } catch (error) {
@@ -556,7 +555,6 @@ export default function RewardList() {
                       {selectedClaim.sellOut?.length ? (
                         selectedClaim.sellOut.map((transaction, index) => (
                           <tr key={transaction.id || `${selectedClaim.claimNo}-${index}`}>
-                            {console.log('trans => ', transaction)}
                             <td>{transaction.customerType}</td>
                             <td>
                               <div className="fw-semibold">{transaction.customerName || '-'}</div>

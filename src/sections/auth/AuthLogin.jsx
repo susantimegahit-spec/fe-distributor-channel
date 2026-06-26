@@ -57,7 +57,6 @@ export default function AuthLoginForm({ className }) {
 
     try {
       const response = await DataService.post('/auth/login', payload);
-      console.log('Login Response:', response);
 
       if (response.data.success === true) {
         Cookies.set('isLoggedIn', true);

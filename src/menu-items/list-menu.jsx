@@ -89,16 +89,6 @@ const listMenu = [
         icon: 'ti ti-discount-2',
         url: '/master/promo'
       },
-      {
-        id: 'master-signature',
-        title: 'Setting TTD PI',
-        type: 'item',
-        value: 'master-signature',
-        label: 'Setting TTD PI',
-        selected: true,
-        icon: 'ti ti-signature',
-        url: '/master/signature'
-      }
       // {
       //   id: 'master-buying-price',
       //   title: 'Daftar Harga Beli',

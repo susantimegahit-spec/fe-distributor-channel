@@ -2,26 +2,30 @@ import { lazy } from 'react';
 
 // project-imports
 import Loadable from 'components/Loadable';
-import AuthLayout from 'layout/Auth';
-import { createBrowserRouter } from 'react-router-dom';
-import { getCookies } from '../utils/cookies';
 import DashboardLayout from 'layout/Dashboard';
 
-const PermissionList = Loadable(lazy(() => import('views/setting/permission/PermissionList')));
-const UserList = Loadable(lazy(() => import('views/setting/users/UserList')));
+const SettingPage = Loadable(lazy(() => import('views/setting/SettingPage')));
 
 const SettingRoutes = {
   path: '/',
   element: <DashboardLayout />,
   children: [
     {
+      path: 'setting',
+      element: <SettingPage />
+    },
+    {
+      path: 'setting/:activeTab',
+      element: <SettingPage />
+    },
+    {
       path: 'setting/role-permission',
-      element: <PermissionList />
+      element: <SettingPage defaultTab="permissions" />
     },
     {
       path: 'setting/user-list',
-      element: <UserList />
-    },
+      element: <SettingPage defaultTab="users" />
+    }
   ]
 };
 

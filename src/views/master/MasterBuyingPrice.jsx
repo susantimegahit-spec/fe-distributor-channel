@@ -6,7 +6,7 @@ import MainCard from 'components/MainCard';
 
 export default function MasterBuyingPrice() {
   useEffect(() => {
-    console.log('Buying Price component mounted');
+    
   }, []);
 
   return (

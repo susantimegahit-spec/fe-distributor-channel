@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import Select from 'react-select';
 
 // react-bootstrap
 import Button from 'react-bootstrap/Button';
@@ -13,30 +14,129 @@ import MainCard from 'components/MainCard';
 import LoaderData from '../../components/LoaderData';
 import { useAlert } from '../../utils/alertContext';
 import PiSettingServices from '../../services/PiSettingServices';
+import UserServices from '../../services/UserServices';
+import { getCookies } from '../../utils/cookies';
+
+const adminRoleId = 5;
+
+const documentTagOptions = [
+  { value: 'PROFORMA_INVOICE', label: 'Proforma Invoice' },
+  { value: 'PURCHASE_ORDER', label: 'Purchase Order' },
+  { value: 'SALES_ORDER', label: 'Sales Order' },
+  { value: 'DELIVERY_ORDER', label: 'Surat Jalan' },
+  { value: 'INVOICE', label: 'Invoice' },
+  { value: 'RECEIPT', label: 'Kwitansi' }
+];
+
+const normalizeDocumentTags = (value) => {
+  if (Array.isArray(value)) return value.map((item) => (typeof item === 'string' ? item : item?.value)).filter(Boolean);
+  if (typeof value === 'string') {
+    try {
+      const parsedValue = JSON.parse(value);
+      return normalizeDocumentTags(parsedValue);
+    } catch (error) {
+      return value
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+    }
+  }
+
+  return [];
+};
 
 export default function MasterSignature() {
   const { showAlert } = useAlert();
+  const roleId = getCookies('role');
+  const loggedInUserId = getCookies('id');
+  const loggedInUserName = getCookies('name');
+  const loggedInUserEmail = getCookies('email');
+  const isAdministrator = Number(roleId) === adminRoleId;
+
   const [loading, setLoading] = useState(false);
+  const [loadingUsers, setLoadingUsers] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [signerName, setSignerName] = useState('');
+  const [users, setUsers] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState(loggedInUserId || '');
+  const [signerName, setSignerName] = useState(loggedInUserName || '');
   const [signerTitle, setSignerTitle] = useState('');
+  const [documentTags, setDocumentTags] = useState([]);
   const [signatureUrl, setSignatureUrl] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState('');
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const userOptions = useMemo(
+    () =>
+      users.map((user) => ({
+        value: user.id,
+        label: user.name || user.username || user.email || `User ${user.id}`,
+        email: user.email || '',
+        username: user.username || ''
+      })),
+    [users]
+  );
 
-  const fetchData = async () => {
+  const selectedUserOption =
+    userOptions.find((option) => String(option.value) === String(selectedUserId)) ||
+    (selectedUserId
+      ? {
+          value: selectedUserId,
+          label: loggedInUserName || loggedInUserEmail || `User ${selectedUserId}`,
+          email: loggedInUserEmail || ''
+        }
+      : null);
+
+  const selectedDocumentTags = useMemo(
+    () => documentTagOptions.filter((option) => documentTags.includes(option.value)),
+    [documentTags]
+  );
+
+  useEffect(() => {
+    if (isAdministrator) {
+      fetchUsers();
+    }
+  }, [isAdministrator]);
+
+  useEffect(() => {
+    if (!selectedUserId) return;
+    fetchData(selectedUserId);
+  }, [selectedUserId, userOptions.length]);
+
+  const getFallbackSignerName = (userId = selectedUserId) => {
+    if (!isAdministrator) return loggedInUserName || '';
+
+    const selectedUser = userOptions.find((option) => String(option.value) === String(userId));
+    return selectedUser?.label || '';
+  };
+
+  const fetchUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const response = await UserServices.getAllUser();
+      if (response?.data?.success) {
+        setUsers(response.data.data || []);
+      } else {
+        showAlert(response?.data?.message || 'Gagal mengambil data user', 'danger');
+      }
+    } catch (error) {
+      showAlert('Terjadi kesalahan saat memuat data user', 'danger');
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const fetchData = async (userId = selectedUserId) => {
     setLoading(true);
     try {
-      const response = await PiSettingServices.getSetting();
+      const response = await PiSettingServices.getSetting({ user_id: userId });
       if (response?.data?.success) {
-        const data = response.data.data;
-        setSignerName(data.signer_name || '');
+        const data = response.data.data || {};
+        setSignerName(data.signer_name || getFallbackSignerName(userId));
         setSignerTitle(data.signer_title || '');
+        setDocumentTags(normalizeDocumentTags(data.document_tags || data.documentTags || data.tags));
         setSignatureUrl(data.signature_url || '');
+        setSelectedFile(null);
+        setPreviewUrl('');
       } else {
         showAlert('Gagal mengambil data konfigurasi', 'danger');
       }
@@ -55,8 +155,28 @@ export default function MasterSignature() {
     }
   };
 
+  const handleSelectUser = (option) => {
+    if (!option) {
+      setSelectedUserId('');
+      setSignerName('');
+      setSignerTitle('');
+      setDocumentTags([]);
+      setSignatureUrl('');
+      setSelectedFile(null);
+      setPreviewUrl('');
+      return;
+    }
+
+    setSelectedUserId(option.value);
+    setSignerName(option.label || '');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!selectedUserId) {
+      showAlert('Pilih user terlebih dahulu', 'warning');
+      return;
+    }
     if (!signerName.trim()) {
       showAlert('Nama penandatangan wajib diisi', 'warning');
       return;
@@ -69,8 +189,11 @@ export default function MasterSignature() {
     setSaving(true);
     try {
       const formData = new FormData();
+      formData.append('user_id', selectedUserId);
       formData.append('signer_name', signerName);
       formData.append('signer_title', signerTitle);
+      formData.append('document_tags', JSON.stringify(documentTags));
+      documentTags.forEach((tag) => formData.append('document_tags[]', tag));
       if (selectedFile) {
         formData.append('signature_file', selectedFile);
       }
@@ -81,7 +204,7 @@ export default function MasterSignature() {
         setSelectedFile(null);
         setPreviewUrl('');
         // Reload data to get latest signature_url
-        fetchData();
+        fetchData(selectedUserId);
       } else {
         showAlert(response?.data?.message || 'Gagal memperbarui konfigurasi', 'danger');
       }
@@ -92,7 +215,7 @@ export default function MasterSignature() {
     }
   };
 
-  if (loading) {
+  if (loading || loadingUsers) {
     return (
       <MainCard title="Setting TTD PI">
         <LoaderData />
@@ -114,6 +237,27 @@ export default function MasterSignature() {
           <Row className="g-4">
             <Col lg={7}>
               <Stack gap={3}>
+                {isAdministrator && (
+                  <Form.Group controlId="signatureUser">
+                    <Form.Label className="fw-semibold">User</Form.Label>
+                    <Select
+                      value={selectedUserOption}
+                      options={userOptions}
+                      menuPosition="fixed"
+                      onChange={handleSelectUser}
+                      placeholder="Cari nama user"
+                      isClearable
+                      isSearchable
+                      formatOptionLabel={(option) => (
+                        <div>
+                          <div className="fw-semibold">{option.label}</div>
+                          {option.email && <small className="text-muted">{option.email}</small>}
+                        </div>
+                      )}
+                    />
+                  </Form.Group>
+                )}
+
                 <Form.Group controlId="signerName">
                   <Form.Label className="fw-semibold">Nama Penandatangan</Form.Label>
                   <Form.Control
@@ -136,6 +280,19 @@ export default function MasterSignature() {
                   />
                 </Form.Group>
 
+                <Form.Group controlId="documentTags">
+                  <Form.Label className="fw-semibold">Tag Dokumen</Form.Label>
+                  <Select
+                    isMulti
+                    value={selectedDocumentTags}
+                    options={documentTagOptions}
+                    menuPosition="fixed"
+                    onChange={(options) => setDocumentTags((options || []).map((option) => option.value))}
+                    placeholder="Pilih tag dokumen"
+                    closeMenuOnSelect={false}
+                  />
+                </Form.Group>
+
                 <Form.Group controlId="signatureFile">
                   <Form.Label className="fw-semibold">Gambar Tanda Tangan (JPEG/PNG/WebP)</Form.Label>
                   <Form.Control
@@ -149,7 +306,7 @@ export default function MasterSignature() {
                 </Form.Group>
 
                 <div className="mt-2">
-                  <Button type="submit" variant="primary" disabled={saving}>
+                  <Button type="submit" variant="primary" disabled={saving || !selectedUserId}>
                     {saving ? (
                       <>
                         <i className="ti ti-loader-2 me-1 spinner-border spinner-border-sm" role="status" aria-hidden="true" />

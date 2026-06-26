@@ -265,7 +265,7 @@ export const downloadSalesOrderPdf = (order) => {
   writer.text('Hormat kami,', 385, 210, 9.5);
   writer.text('PT. SUSANTI MEGAH', 350, 185, 9.5, { bold: true, color: BLUE });
   writer.line(360, 142, 475, 142, 0.5);
-  writer.text('Kushan Wijono', 385, 128, 9.5);
+  writer.text('Kushan Wijonosssss', 385, 128, 9.5);
 
   writer.line(28, 74, 566, 74, 1.2, BLUE);
   writer.text('Branch Factory', 32, 54, 6.8, { bold: true, color: BLUE });

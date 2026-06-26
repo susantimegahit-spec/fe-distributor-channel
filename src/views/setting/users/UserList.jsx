@@ -354,7 +354,6 @@ export default function UserList() {
     if (input.password) {
       payload.password = input.password;
     }
-    console.log('payload => ', payload)
     const response = await UserServices.putEditUser(selectedUserId, payload);
     if (response.data.success) {
       showAlert('User berhasil diubah', 'success');

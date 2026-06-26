@@ -308,7 +308,6 @@ export default function OrderPost() {
   };
 
   const mapOrderLine = (line) => {
-    console.log('line => ', line);
     const itemCode = getValue(line, ['item_code', 'itemCode', 'ItemCode', 'item.item_code', 'item.code', 'code']);
     const itemName = getValue(
       line,
@@ -665,7 +664,6 @@ export default function OrderPost() {
   const fetchAddress = async (code, shouldSetDefault = true) => {
     setIsLoading(true);
     const response = await DistributorServices.getAddress(code);
-    console.log('resp => ', response.data.data)
     if (response.data.success) {
       const data = response.data.data;
       let dataB = [];
@@ -1128,7 +1126,6 @@ export default function OrderPost() {
       ocr_code2: getPrimitiveValue(item?.ocrCode2, ocr2ValueKeys),
       ocr_code3: getPrimitiveValue(item?.ocrCode3, ocr3ValueKeys)
     }));
-    console.log('item => ', itemArr)
 
     return {
       card_code: orderInput.cardCode,
@@ -1184,7 +1181,6 @@ export default function OrderPost() {
   const handleSubmitOrder = async () => {
     const payload = buildOrderRequestPayload(createOrderPayload(statusType));
     if (id) {
-      console.log('payload => ', payload)
       const resp = await OrderServices.putOrder(id, payload);
       handleOrderResponse(resp);
     } else {
@@ -1899,7 +1895,7 @@ export default function OrderPost() {
         </Modal.Header>
         <Modal.Body>
           <Stack gap={3}>
-            {/* <Card className="border mb-0">
+            <Card className="border mb-0">
               <Card.Body className="py-3">
                 <Row className="g-3">
                   <Col md={6}>
@@ -1975,7 +1971,7 @@ export default function OrderPost() {
                   </div>
                 )}
               </Card.Body>
-            </Card> */}
+            </Card>
 
             <Card className="border mb-0">
               <Card.Header className="py-3">
