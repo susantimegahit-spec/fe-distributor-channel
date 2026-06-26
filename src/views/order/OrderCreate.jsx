@@ -226,9 +226,13 @@ export default function OrderPost() {
 
   const formatSeriesDate = (value) => formatDateInput(value).replace(/-/g, '');
 
+  const seriesNameKeys = ['series_name', 'seriesName', 'SeriesName', 'name', 'description'];
+  const orderSeriesNameKeys = ['series_label', 'seriesLabel', 'series_name', 'seriesName', 'SeriesName'];
+  const seriesValueKeys = ['series', 'Series', 'series_code', 'seriesCode', 'value', 'code', 'id'];
+
   const mapSeriesOption = (item) => {
-    const value = getValue(item, ['value', 'series', 'Series', 'series_code', 'seriesCode', 'code', 'id']);
-    const label = getValue(item, ['label', 'series_name', 'seriesName', 'SeriesName', 'name', 'description'], value);
+    const value = getValue(item, seriesValueKeys);
+    const label = getValue(item, ['label', ...seriesNameKeys], value);
 
     return value
       ? {
@@ -262,6 +266,19 @@ export default function OrderPost() {
     } finally {
       setLoadingSeries(false);
     }
+  };
+
+  const getSelectedSeriesOption = () => {
+    const selectedOption = listSeries.find((item) => String(item.value) === String(orderInput.series));
+    if (selectedOption) return selectedOption;
+    if (!orderInput.series) return null;
+
+    const fallbackLabel = getValue(orderDetail, [...orderSeriesNameKeys, 'series', 'Series', 'series_code', 'seriesCode'], orderInput.series);
+
+    return {
+      value: orderInput.series,
+      label: String(fallbackLabel || orderInput.series)
+    };
   };
 
   const getSapDiscountDetails = (order = {}) => {
@@ -1200,7 +1217,7 @@ export default function OrderPost() {
       po_number: orderInput.poNumber,
       doc_date: orderInput.docDate,
       doc_due_date: orderInput.docDueDate,
-      series: orderInput.series,
+      Series: orderInput.series,
       slp_code: orderInput.slpCode,
       cntct: orderInput.cnctCode,
       pay_to_code: orderInput.address?.value,
@@ -1249,7 +1266,9 @@ export default function OrderPost() {
 
   const handleSubmitOrder = async () => {
     const payload = buildOrderRequestPayload(createOrderPayload(statusType));
+
     if (id) {
+      // console.log('payload => ', payload)
       const resp = await OrderServices.putOrder(id, payload);
       handleOrderResponse(resp);
     } else {
@@ -1414,6 +1433,9 @@ export default function OrderPost() {
                     ? `Menampilkan detail ${orderDetail?.order_no || orderDetail?.doc_num || 'order'} yang dipilih.`
                     : 'Lengkapi informasi pelanggan, alamat, dan detail produk sebelum menyimpan order.'}
                 </span>
+                {isDetailMode && orderInput.series ? (
+                  <span className="text-muted f-12">Series: {getSelectedSeriesOption()?.label || orderInput.series}</span>
+                ) : null}
               </Stack>
             }
             secondary={
@@ -1602,7 +1624,7 @@ export default function OrderPost() {
                           <Form.Group>
                             <Form.Label className="small text-muted">Series Sales Order</Form.Label>
                             <Select
-                              value={listSeries.find((item) => String(item.value) === String(orderInput.series)) || null}
+                              value={getSelectedSeriesOption()}
                               options={listSeries}
                               isLoading={loadingSeries}
                               isDisabled={!orderInput.docDueDate || loadingSeries}

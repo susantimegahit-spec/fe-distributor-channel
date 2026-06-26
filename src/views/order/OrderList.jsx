@@ -97,6 +97,9 @@ const creditLimitKeys = ['credit_limit_data.credit_limit'];
 
 const creditRemainingKeys = ['creditLimitData.SisaCredit'];
 
+const seriesDisplayKeys = ['series_name', 'seriesName', 'SeriesName', 'series', 'Series', 'series_code', 'seriesCode'];
+const seriesValueKeys = ['series', 'Series', 'series_code', 'seriesCode'];
+
 export default function OrderList() {
   const roleId = getCookies('role');
   const { showAlert } = useAlert();
@@ -116,6 +119,7 @@ export default function OrderList() {
   const [creditLimitError, setCreditLimitError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [permissionDetail, setPermissionDetail] = useState(null);
+  const [isDefaultStatusApplied, setIsDefaultStatusApplied] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -285,6 +289,7 @@ export default function OrderList() {
     ship_to_code: getOrderValue(order, ['ship_to_code', 'shipToCode', 'address2_code', 'ShipToCode'], ''),
     address2: getOrderValue(order, ['address2', 'ship_to_address', 'Address2'], ''),
     comments: getOrderValue(order, ['comments', 'Comments'], ''),
+    series: getOrderValue(order, seriesValueKeys, ''),
     status: nextStatus,
     action: actionName,
     notes: approvalNotes,
@@ -545,7 +550,7 @@ export default function OrderList() {
       permissionDetail?.permissionDetail?.actionList ||
       permissionDetail?.actionList ||
       [];
-    if (roleId === 5) {
+    if (Number(roleId) === 5) {
       rawAction = 'view, edit, delete, add';
     }
     if (Array.isArray(rawAction)) {
@@ -564,8 +569,8 @@ export default function OrderList() {
   const actionList = useMemo(() => getPermissionActionList(), [permissionDetail]);
 
   const permissionApprovalName = useMemo(
-    () => (roleId === 5 ? 'ALL' : normalizeStatus(permissionDetail?.role_menu?.approval?.name)),
-    [permissionDetail]
+    () => (Number(roleId) === 5 ? 'ALL' : normalizeStatus(permissionDetail?.role_menu?.approval?.name)),
+    [permissionDetail, roleId]
   );
 
   const roleName = useMemo(
@@ -574,6 +579,19 @@ export default function OrderList() {
   );
   const isAdministrator = Number(roleId) === 5;
   const isFinanceUser = permissionApprovalName === 'WAITING_FINANCE' || roleName.includes('FINANCE');
+
+  const defaultStatusByAccess = useMemo(() => {
+    if (!permissionApprovalName || permissionApprovalName === 'ALL') return '';
+
+    return statusOptions.some((item) => item.value === permissionApprovalName) ? permissionApprovalName : '';
+  }, [permissionApprovalName]);
+
+  useEffect(() => {
+    if (isDefaultStatusApplied || !permissionDetail) return;
+
+    setStatus(defaultStatusByAccess);
+    setIsDefaultStatusApplied(true);
+  }, [defaultStatusByAccess, isDefaultStatusApplied, permissionDetail]);
 
   const hasAction = (actionName) => {
     const aliases = actionAliases[actionName] || [actionName];
@@ -584,7 +602,7 @@ export default function OrderList() {
   const canCreateOrder = hasAction('create');
 
   const isOrderStatusSameWithPermission = (order) =>
-    (Boolean(permissionApprovalName) && normalizeStatus(order.status) === permissionApprovalName) || roleId === 5;
+    (Boolean(permissionApprovalName) && normalizeStatus(order.status) === permissionApprovalName) || Number(roleId) === 5;
 
   const isOrderStatusAllowed = (order) => {
     if (!permissionApprovalName) return true;
@@ -973,6 +991,10 @@ export default function OrderList() {
                 <Col md={4}>
                   <Form.Label className="f-12 text-muted">Request Tanggal Kirim</Form.Label>
                   <div>{formatOrderDate(getOrderValue(selectedOrderDetail, ['doc_due_date', 'docDueDate'], ''))}</div>
+                </Col>
+                <Col md={4}>
+                  <Form.Label className="f-12 text-muted">Series Sales Order</Form.Label>
+                  <div>{getOrderValue(selectedOrderDetail, seriesDisplayKeys)}</div>
                 </Col>
                 <Col md={4}>
                   <Form.Label className="f-12 text-muted">Sales</Form.Label>
