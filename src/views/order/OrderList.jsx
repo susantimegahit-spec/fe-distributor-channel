@@ -94,6 +94,14 @@ const approvalStatusMap = {
 };
 
 const creditLimitKeys = [
+  'credit_limit_data.credit_limit',
+  'creditLimitData.credit_limit',
+  'credit_limit_data.creditLimit',
+  'creditLimitData.creditLimit',
+  'credit_limit_data.CreditLine',
+  'creditLimitData.CreditLine',
+  'credit_limit_data.limit',
+  'creditLimitData.limit',
   'credit_limit',
   'limit_credit',
   'creditLimit',
@@ -105,6 +113,18 @@ const creditLimitKeys = [
 ];
 
 const creditRemainingKeys = [
+  'credit_limit_data.remaining_credit_limit',
+  'creditLimitData.remaining_credit_limit',
+  'credit_limit_data.remainingCreditLimit',
+  'creditLimitData.remainingCreditLimit',
+  'credit_limit_data.remaining_limit',
+  'creditLimitData.remaining_limit',
+  'credit_limit_data.remainingLimit',
+  'creditLimitData.remainingLimit',
+  'credit_limit_data.available_credit',
+  'creditLimitData.available_credit',
+  'credit_limit_data.availableCredit',
+  'creditLimitData.availableCredit',
   'remaining_credit_limit',
   'remainingCreditLimit',
   'credit_remaining',
@@ -130,6 +150,8 @@ export default function OrderList() {
   const [approvalLoadingAction, setApprovalLoadingAction] = useState('');
   const [approvalNotes, setApprovalNotes] = useState('');
   const [selectedOrderDetail, setSelectedOrderDetail] = useState(null);
+  const [isLoadingCreditLimit, setIsLoadingCreditLimit] = useState(false);
+  const [creditLimitError, setCreditLimitError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [permissionDetail, setPermissionDetail] = useState(null);
 
@@ -226,6 +248,22 @@ export default function OrderList() {
     }
 
     return defaultValue;
+  };
+
+  const getOrderCustomerCode = (order = {}) =>
+    getOrderValue(order, ['card_code', 'cardCode', 'customer_code', 'customerCode', 'code_customer', 'CardCode'], '');
+
+  const getResponsePayload = (response) => {
+    const payload = response?.data?.data ?? response?.data;
+
+    if (Array.isArray(payload)) return payload[0] || {};
+
+    const nestedPayload = payload?.data || payload?.result || payload?.payload || payload?.credit_limit || payload?.creditLimit;
+
+    if (Array.isArray(nestedPayload)) return nestedPayload[0] || {};
+    if (nestedPayload && typeof nestedPayload === 'object') return nestedPayload;
+
+    return payload && typeof payload === 'object' ? payload : {};
   };
 
   const getOrderLines = (order = {}) => {
@@ -413,12 +451,50 @@ export default function OrderList() {
   const handleViewOrder = async (order) => {
     setLoadingDetailId(order.id);
     setApprovalNotes('');
+    setCreditLimitError('');
+    setIsLoadingCreditLimit(false);
 
     try {
       const response = await OrderServices.getDetailOrder(order.id);
 
       if (response?.data?.success) {
-        setSelectedOrderDetail(response.data.data);
+        const orderDetail = response.data.data;
+        const shouldLoadCreditLimit =
+          normalizeStatus(orderDetail?.status || order?.status) === 'WAITING_FINANCE' && (isAdministrator || isFinanceUser);
+        const customerCode = getOrderCustomerCode(orderDetail) || getOrderCustomerCode(order);
+
+        setSelectedOrderDetail(orderDetail);
+
+        if (shouldLoadCreditLimit && customerCode) {
+          setIsLoadingCreditLimit(true);
+
+          try {
+            const creditLimitResponse = await OrderServices.getCreditLimit(customerCode);
+
+            if (creditLimitResponse?.data?.success === false) {
+              setCreditLimitError(creditLimitResponse?.data?.message || 'Gagal mengambil limit kredit');
+              return;
+            }
+
+            const creditLimitData = getResponsePayload(creditLimitResponse);
+
+            setSelectedOrderDetail((currentDetail) =>
+              currentDetail?.id === orderDetail.id
+                ? {
+                    ...currentDetail,
+                    credit_limit_data: creditLimitData,
+                    creditLimitData: creditLimitData
+                  }
+                : currentDetail
+            );
+          } catch (error) {
+            setCreditLimitError(error?.response?.data?.message || error?.message || 'Gagal mengambil limit kredit');
+          } finally {
+            setIsLoadingCreditLimit(false);
+          }
+        } else if (shouldLoadCreditLimit && !customerCode) {
+          setCreditLimitError('Customer code tidak ditemukan untuk mengambil limit kredit');
+        }
       } else {
         showAlert(response?.data?.message || 'Gagal mengambil detail order', 'danger');
       }
@@ -432,6 +508,8 @@ export default function OrderList() {
   const closeDetailModal = () => {
     setSelectedOrderDetail(null);
     setApprovalNotes('');
+    setCreditLimitError('');
+    setIsLoadingCreditLimit(false);
   };
 
   const getNextApprovalStatus = (order) => approvalStatusMap[normalizeStatus(order.status)];
@@ -1086,6 +1164,18 @@ export default function OrderList() {
                   {canShowCreditLimitInfo ? (
                     <Card className="border border-primary mb-0">
                       <Card.Body>
+                        {isLoadingCreditLimit ? (
+                          <div className="text-muted mb-3">
+                            <i className="ti ti-loader-2 me-1" />
+                            Mengambil data limit kredit...
+                          </div>
+                        ) : null}
+                        {creditLimitError ? (
+                          <div className="text-danger mb-3">
+                            <i className="ti ti-alert-circle me-1" />
+                            {creditLimitError}
+                          </div>
+                        ) : null}
                         <Stack direction="horizontal" gap={3} className="justify-content-between align-items-start flex-wrap">
                           <div>
                             <div className="text-muted f-12 mb-1">Limit Kredit</div>

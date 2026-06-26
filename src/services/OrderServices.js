@@ -22,6 +22,12 @@ class OrderServices {
     return DataService.get(`/sales-orders/series?${query}`);
   }
 
+  getCreditLimit(customerCode) {
+    const query = new URLSearchParams({ CustomQuery: customerCode || '' }).toString();
+
+    return DataService.get(`/sales-orders/credit-limit?${query}`);
+  }
+
   getDetailOrder(id) {
     return DataService.get(`/sales-orders/${id}`);
   }
