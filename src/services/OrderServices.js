@@ -16,6 +16,12 @@ class OrderServices {
     return DataService.get('/sales-orders');
   }
 
+  getSalesOrderSeries(date) {
+    const query = new URLSearchParams({ CustomQuery: date || '' }).toString();
+
+    return DataService.get(`/sales-orders/series?${query}`);
+  }
+
   getDetailOrder(id) {
     return DataService.get(`/sales-orders/${id}`);
   }

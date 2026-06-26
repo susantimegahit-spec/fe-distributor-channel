@@ -43,6 +43,7 @@ export default function OrderPost() {
   const [loadingReward, setLoadingReward] = useState(false);
   const [maxDiscountPercentage, setMaxDiscountPercentage] = useState(null);
   const [loadingMaxDiscount, setLoadingMaxDiscount] = useState(false);
+  const [loadingSeries, setLoadingSeries] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loaderDisc, setLoaderDisc] = useState(false);
   const [loadingSubmit, setLoadingSubmit] = useState(false);
@@ -56,6 +57,7 @@ export default function OrderPost() {
   const [discId, setDiscId] = useState('');
   const [listDiscType, setListDiscType] = useState([]);
   const [listVats, setListVats] = useState([]);
+  const [listSeries, setListSeries] = useState([]);
   const [listDistributor, setListDistributor] = useState([]);
   const [orderDetail, setOrderDetail] = useState(null);
   const [statusType, setStatusType] = useState('');
@@ -120,6 +122,7 @@ export default function OrderPost() {
     poNumber: '',
     docDate: '',
     docDueDate: '',
+    series: '',
     slpCode: '',
     cnctCode: '',
     address: '',
@@ -158,6 +161,15 @@ export default function OrderPost() {
       fetchOrderDetail(id);
     }
   }, [id]);
+
+  useEffect(() => {
+    if (!orderInput.docDueDate) {
+      setListSeries([]);
+      return;
+    }
+
+    fetchSalesOrderSeries(orderInput.docDueDate);
+  }, [orderInput.docDueDate]);
 
   const getValue = (data, keys, defaultValue = '') => {
     for (const key of keys) {
@@ -210,6 +222,46 @@ export default function OrderPost() {
   const formatDateInput = (value) => {
     if (!value) return '';
     return String(value).slice(0, 10);
+  };
+
+  const formatSeriesDate = (value) => formatDateInput(value).replace(/-/g, '');
+
+  const mapSeriesOption = (item) => {
+    const value = getValue(item, ['value', 'series', 'Series', 'series_code', 'seriesCode', 'code', 'id']);
+    const label = getValue(item, ['label', 'series_name', 'seriesName', 'SeriesName', 'name', 'description'], value);
+
+    return value
+      ? {
+          value,
+          label: String(label || value),
+          raw: item
+        }
+      : null;
+  };
+
+  const fetchSalesOrderSeries = async (date) => {
+    const formattedDate = formatSeriesDate(date);
+    if (!formattedDate) return;
+
+    setLoadingSeries(true);
+    try {
+      const response = await OrderServices.getSalesOrderSeries(formattedDate);
+      if (response?.data?.success) {
+        const seriesData = response.data.data || response.data.series || [];
+        const normalizedSeries = (Array.isArray(seriesData) ? seriesData : [seriesData]).map(mapSeriesOption).filter(Boolean);
+
+        setListSeries(normalizedSeries);
+        return;
+      }
+
+      setListSeries([]);
+      showAlert(response?.data?.message || 'Gagal mengambil data series', 'danger');
+    } catch (error) {
+      setListSeries([]);
+      showAlert('Terjadi kesalahan saat mengambil data series', 'danger');
+    } finally {
+      setLoadingSeries(false);
+    }
   };
 
   const getSapDiscountDetails = (order = {}) => {
@@ -394,6 +446,7 @@ export default function OrderPost() {
       poNumber: getValue(order, ['po_number', 'num_at_card', 'numAtCard', 'NumAtCard']),
       docDate: formatDateInput(getValue(order, ['doc_date', 'docDate', 'DocDate'])),
       docDueDate: formatDateInput(getValue(order, ['doc_due_date', 'docDueDate', 'DocDueDate'])),
+      series: getValue(order, ['series', 'Series', 'series_code', 'seriesCode']),
       slpCode: getValue(order, ['slp_code', 'slpCode', 'SlpCode']),
       cnctCode: getValue(order, ['cntct', 'cnctCode', 'contact_name', 'customer_name', 'CardName']),
       address: findOption(listAddressB, billToCode, billToAddress),
@@ -703,6 +756,21 @@ export default function OrderPost() {
     setOrderInput({
       ...orderInput,
       [key]: e.target.value
+    });
+  };
+
+  const handleSetDocDueDate = (e) => {
+    setOrderInput({
+      ...orderInput,
+      docDueDate: e.target.value,
+      series: ''
+    });
+  };
+
+  const handleSelectSeries = (e) => {
+    setOrderInput({
+      ...orderInput,
+      series: e?.value || ''
     });
   };
 
@@ -1132,6 +1200,7 @@ export default function OrderPost() {
       po_number: orderInput.poNumber,
       doc_date: orderInput.docDate,
       doc_due_date: orderInput.docDueDate,
+      series: orderInput.series,
       slp_code: orderInput.slpCode,
       cntct: orderInput.cnctCode,
       pay_to_code: orderInput.address?.value,
@@ -1493,7 +1562,7 @@ export default function OrderPost() {
                               <RequiredLabel>Request Tanggal Kirim</RequiredLabel>
                             </Form.Label>
                             <Form.Control
-                              onChange={(e) => handleSetInput(e, 'docDueDate')}
+                              onChange={handleSetDocDueDate}
                               value={orderInput.docDueDate}
                               type="date"
                               min={todayDate}
@@ -1526,6 +1595,21 @@ export default function OrderPost() {
                               menuPosition="fixed"
                               onChange={(e) => handleSelectAddress(e, 'address2')}
                               placeholder="Pilih alamat kirim"
+                            />
+                          </Form.Group>
+                        </Col>
+                        <Col md={6} xl={4}>
+                          <Form.Group>
+                            <Form.Label className="small text-muted">Series Sales Order</Form.Label>
+                            <Select
+                              value={listSeries.find((item) => String(item.value) === String(orderInput.series)) || null}
+                              options={listSeries}
+                              isLoading={loadingSeries}
+                              isDisabled={!orderInput.docDueDate || loadingSeries}
+                              menuPosition="fixed"
+                              onChange={handleSelectSeries}
+                              placeholder={orderInput.docDueDate ? 'Pilih series' : 'Pilih tanggal kirim dahulu'}
+                              isClearable
                             />
                           </Form.Group>
                         </Col>

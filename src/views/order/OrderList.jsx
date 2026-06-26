@@ -93,6 +93,28 @@ const approvalStatusMap = {
   ALL: 'ALL'
 };
 
+const creditLimitKeys = [
+  'credit_limit',
+  'limit_credit',
+  'creditLimit',
+  'limitCredit',
+  'customer_credit_limit',
+  'customerCreditLimit',
+  'credit.limit',
+  'customer.credit_limit'
+];
+
+const creditRemainingKeys = [
+  'remaining_credit_limit',
+  'remainingCreditLimit',
+  'credit_remaining',
+  'creditRemaining',
+  'available_credit',
+  'availableCredit',
+  'credit.remaining',
+  'customer.remaining_credit_limit'
+];
+
 export default function OrderList() {
   const roleId = getCookies('role');
   const { showAlert } = useAlert();
@@ -134,17 +156,30 @@ export default function OrderList() {
     });
   }, [date, distributor, keywords, orders, status]);
 
+  const selectedStatusOption = useMemo(() => statusOptions.find((item) => item.value === status), [status]);
+
   const summary = useMemo(
     () => ({
-      total: orders.length,
-      DRAFT: orders.filter((order) => order.status === 'DRAFT').length,
-      APPROVED: orders.filter((order) => order.status === 'APPROVED' || order.status === 'ORDER_APPROVED').length,
-      WAITING_APPROVAL: orders.filter((order) => String(order.status).startsWith('WAITING_')).length,
-      REJECTED: orders.filter((order) => order.status === 'REJECTED').length,
-      FAILED: orders.filter((order) => order.status === 'FAILED').length
+      total: filteredOrders.length,
+      DRAFT: filteredOrders.filter((order) => order.status === 'DRAFT').length,
+      APPROVED: filteredOrders.filter((order) => ['APPROVED', 'ORDER_APPROVED', 'DELIVERY', 'ARRIVED'].includes(order.status)).length,
+      WAITING_APPROVAL: filteredOrders.filter((order) => String(order.status).startsWith('WAITING_')).length,
+      REJECTED: filteredOrders.filter((order) => order.status === 'REJECTED').length,
+      FAILED: filteredOrders.filter((order) => order.status === 'FAILED').length
       // waiti: orders.filter((order) => order.status === 'rejected').length
     }),
-    [orders]
+    [filteredOrders]
+  );
+
+  const summaryLabels = useMemo(
+    () => ({
+      DRAFT: status === 'DRAFT' ? selectedStatusOption?.label || 'Draft' : 'Draft',
+      WAITING_APPROVAL: String(status).startsWith('WAITING_') ? selectedStatusOption?.label || 'Waiting' : 'Waiting',
+      APPROVED: ['APPROVED', 'ORDER_APPROVED', 'DELIVERY', 'ARRIVED'].includes(status) ? selectedStatusOption?.label || 'Approved' : 'Approved',
+      REJECTED: status === 'REJECTED' ? selectedStatusOption?.label || 'Rejected' : 'Rejected',
+      FAILED: status === 'FAILED' ? selectedStatusOption?.label || 'Failed' : 'Failed'
+    }),
+    [selectedStatusOption?.label, status]
   );
 
   const hasActiveFilter = Boolean(keywords || distributor || status || date);
@@ -491,6 +526,13 @@ export default function OrderList() {
     [permissionDetail]
   );
 
+  const roleName = useMemo(
+    () => normalizeStatus(permissionDetail?.name || permissionDetail?.role?.name || permissionDetail?.role_name),
+    [permissionDetail]
+  );
+  const isAdministrator = Number(roleId) === 5;
+  const isFinanceUser = permissionApprovalName === 'WAITING_FINANCE' || roleName.includes('FINANCE');
+
   const hasAction = (actionName) => {
     const aliases = actionAliases[actionName] || [actionName];
 
@@ -607,6 +649,11 @@ export default function OrderList() {
           : 0
       );
   const selectedOrderGrandTotal = selectedOrderTotal - selectedOrderDiscountTotal;
+  const selectedCreditLimit = selectedOrderDetail ? getOrderValue(selectedOrderDetail, creditLimitKeys, '') : '';
+  const selectedCreditRemaining = selectedOrderDetail ? getOrderValue(selectedOrderDetail, creditRemainingKeys, '') : '';
+  const canShowCreditLimitInfo =
+    selectedOrderDetail && normalizeStatus(selectedOrderDetail.status) === 'WAITING_FINANCE' && (isAdministrator || isFinanceUser);
+  const formatCreditAmount = (value) => (value !== undefined && value !== null && value !== '' ? currency(parseAmount(value)) : '-');
 
   return (
     <>
@@ -648,7 +695,7 @@ export default function OrderList() {
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <div className="text-muted f-12">Draft</div>
+                      <div className="text-muted f-12">{summaryLabels.DRAFT}</div>
                       <h4 className="mb-0">{summary.DRAFT}</h4>
                     </div>
                     <span className="avtar avtar-s bg-light-secondary text-secondary">
@@ -663,7 +710,7 @@ export default function OrderList() {
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <div className="text-muted f-12">Waiting</div>
+                      <div className="text-muted f-12">{summaryLabels.WAITING_APPROVAL}</div>
                       <h4 className="mb-0">{summary.WAITING_APPROVAL}</h4>
                     </div>
                     <span className="avtar avtar-s bg-light-warning text-warning">
@@ -678,7 +725,7 @@ export default function OrderList() {
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <div className="text-muted f-12">Approved</div>
+                      <div className="text-muted f-12">{summaryLabels.APPROVED}</div>
                       <h4 className="mb-0">{summary.APPROVED}</h4>
                     </div>
                     <span className="avtar avtar-s bg-light-primary text-primary">
@@ -693,7 +740,7 @@ export default function OrderList() {
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <div className="text-muted f-12">Rejected</div>
+                      <div className="text-muted f-12">{summaryLabels.REJECTED}</div>
                       <h4 className="mb-0">{summary.REJECTED}</h4>
                     </div>
                     <span className="avtar avtar-s bg-light-orange text-orange">
@@ -708,7 +755,7 @@ export default function OrderList() {
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <div className="text-muted f-12">Failed</div>
+                      <div className="text-muted f-12">{summaryLabels.FAILED}</div>
                       <h4 className="mb-0">{summary.FAILED}</h4>
                     </div>
                     <span className="avtar avtar-s bg-light-danger text-danger">
@@ -1021,17 +1068,40 @@ export default function OrderList() {
                   </div>
                 </Col>
               </Row>
-              {canShowSelectedApprovalAction ? (
-                <Form.Group>
-                  <Form.Label className="f-12 text-muted">Notes Approval</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={3}
-                    value={approvalNotes}
-                    onChange={(event) => setApprovalNotes(event.target.value)}
-                    placeholder="Tambahkan catatan approval atau rejection"
-                  />
-                </Form.Group>
+              {canShowSelectedApprovalAction || canShowCreditLimitInfo ? (
+                <>
+                  {canShowSelectedApprovalAction ? (
+                    <Form.Group>
+                      <Form.Label className="f-12 text-muted">Notes Approval</Form.Label>
+                      <Form.Control
+                        as="textarea"
+                        rows={3}
+                        value={approvalNotes}
+                        onChange={(event) => setApprovalNotes(event.target.value)}
+                        placeholder="Tambahkan catatan approval atau rejection"
+                      />
+                    </Form.Group>
+                  ) : null}
+
+                  {canShowCreditLimitInfo ? (
+                    <Card className="border border-primary mb-0">
+                      <Card.Body>
+                        <Stack direction="horizontal" gap={3} className="justify-content-between align-items-start flex-wrap">
+                          <div>
+                            <div className="text-muted f-12 mb-1">Limit Kredit</div>
+                            <h4 className="mb-0 text-primary">{formatCreditAmount(selectedCreditLimit)}</h4>
+                          </div>
+                          {selectedCreditRemaining !== '' ? (
+                            <div className="text-end">
+                              <div className="text-muted f-12 mb-1">Sisa Limit Kredit</div>
+                              <h4 className="mb-0 text-success">{formatCreditAmount(selectedCreditRemaining)}</h4>
+                            </div>
+                          ) : null}
+                        </Stack>
+                      </Card.Body>
+                    </Card>
+                  ) : null}
+                </>
               ) : null}
             </Stack>
           ) : null}
