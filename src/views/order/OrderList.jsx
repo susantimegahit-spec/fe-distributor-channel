@@ -779,7 +779,7 @@ export default function OrderList() {
                 {paginatedOrders.length > 0 ? (
                   paginatedOrders.map((order) => (
                     <tr key={order.id}>
-                      <td className="fw-semibold">{order.order_no}</td>
+                      <td className="fw-semibold">{order.sap_doc_num ?? '-'}</td>
                       <td>
                         {order.depo} - {order.customer_name}
                       </td>
