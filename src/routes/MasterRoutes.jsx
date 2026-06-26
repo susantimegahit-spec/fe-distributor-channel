@@ -1,10 +1,8 @@
 import { lazy } from 'react';
+import { Navigate } from 'react-router-dom';
 
 // project-imports
 import Loadable from 'components/Loadable';
-import AuthLayout from 'layout/Auth';
-import { createBrowserRouter } from 'react-router-dom';
-import { getCookies } from '../utils/cookies';
 import DashboardLayout from 'layout/Dashboard';
 
 const MasterProduct = Loadable(lazy(() => import('views/master/MasterProduct')));
@@ -21,36 +19,68 @@ const MasterRoutes = {
   element: <DashboardLayout />,
   children: [
     {
-      path: 'master/product',
+      path: 'customer-portal/master/product',
       element: <MasterProduct />
     },
     {
-      path: 'master/price',
+      path: 'customer-portal/master/price',
       element: <MasterPrice />
     },
     {
-      path: 'master/buying-price',
+      path: 'customer-portal/master/buying-price',
       element: <MasterBuyingPrice />
     },
     {
-      path: 'master/distributor',
+      path: 'customer-portal/master/distributor',
       element: <MasterDistributor />
     },
     {
-      path: 'master/employee',
+      path: 'customer-portal/master/employee',
       element: <MasterEmployee />
     },
     {
-      path: 'master/warehouse',
+      path: 'customer-portal/master/warehouse',
       element: <MasterWarehouse />
     },
     {
-      path: 'master/promo',
+      path: 'customer-portal/master/promo',
       element: <MasterPromo />
     },
     {
-      path: 'master/signature',
+      path: 'customer-portal/master/signature',
       element: <MasterSignature />
+    },
+    {
+      path: 'master/product',
+      element: <Navigate to="/customer-portal/master/product" replace />
+    },
+    {
+      path: 'master/price',
+      element: <Navigate to="/customer-portal/master/price" replace />
+    },
+    {
+      path: 'master/buying-price',
+      element: <Navigate to="/customer-portal/master/buying-price" replace />
+    },
+    {
+      path: 'master/distributor',
+      element: <Navigate to="/customer-portal/master/distributor" replace />
+    },
+    {
+      path: 'master/employee',
+      element: <Navigate to="/customer-portal/master/employee" replace />
+    },
+    {
+      path: 'master/warehouse',
+      element: <Navigate to="/customer-portal/master/warehouse" replace />
+    },
+    {
+      path: 'master/promo',
+      element: <Navigate to="/customer-portal/master/promo" replace />
+    },
+    {
+      path: 'master/signature',
+      element: <Navigate to="/customer-portal/master/signature" replace />
     }
   ]
 };

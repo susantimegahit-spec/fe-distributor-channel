@@ -29,7 +29,7 @@ const tabs = [
 ];
 
 const defaultGeneralSettings = {
-  appName: 'Distributor Channel',
+  appName: 'sm-connect',
   notificationEmail: '',
   timezone: 'Asia/Jakarta',
   language: 'id',
@@ -167,7 +167,7 @@ export default function SettingPage({ defaultTab = 'users' }) {
 
   const handleSelect = (tabKey) => {
     if (!tabKey) return;
-    navigate(`/setting/${tabKey}`);
+    navigate(`/customer-portal/setting/${tabKey}`);
   };
 
   return (

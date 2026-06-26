@@ -66,6 +66,7 @@ export default function AuthLoginForm({ className }) {
         Cookies.set('email', response.data.data.user.email);
         Cookies.set('role', response.data.data.user.role_id);
         Cookies.set('menu', JSON.stringify(response.data.data?.menu));
+        Cookies.set('systems', JSON.stringify(response.data.data?.systems || response.data.data?.system_permissions || []));
         Cookies.set('customerCode', response.data.data?.user?.code_customer);
         Cookies.set('distributorName', response.data.data?.user?.name_distributor);
         Cookies.set('distributorId', response.data.data?.user?.id_distributor);
@@ -96,7 +97,7 @@ export default function AuthLoginForm({ className }) {
   return (
     <MainCard className="sm-login-card mb-0">
       <div className="text-center mb-4">
-        <Image src={CustomerPortalMark} alt="Customer Portal" className="sm-login-logo mb-3" />
+        <Image src={CustomerPortalMark} alt="sm-connect" className="sm-login-logo mb-3" />
         {/* <span className="sm-auth-eyebrow d-block mt-3">Selamat Datang</span> */}
         <p className="text-muted mb-0">Gunakan akun yang sudah terdaftar.</p>
       </div>

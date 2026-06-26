@@ -188,6 +188,7 @@ export default function Header() {
       Cookies.remove('email');
       Cookies.remove('role');
       Cookies.remove('menu');
+      Cookies.remove('systems');
       Cookies.remove('customerCode');
       Cookies.remove('distributorName');
       Cookies.remove('distributorId');
@@ -524,8 +525,18 @@ export default function Header() {
                   </div>
 
                   <div className="profile-notification-scroll position-relative">
+                    <Dropdown.Item as={Link} to="/systems" className="sm-account-item">
+                      <span className="sm-account-item-icon">
+                        <i className="ti ti-apps" />
+                      </span>
+
+                      <span>
+                        <strong>Pilih Sistem</strong>
+                        <small>Customer portal atau ekspedisi</small>
+                      </span>
+                    </Dropdown.Item>
                     {/* {roleId === 5 && ( */}
-                    <Dropdown.Item as={Link} to="/setting" className="sm-account-item">
+                    <Dropdown.Item as={Link} to="/customer-portal/setting" className="sm-account-item">
                       <span className="sm-account-item-icon">
                         <i className="ti ti-settings" />
                       </span>

@@ -126,6 +126,7 @@ client.interceptors.response.use(
         Cookies.remove('email');
         Cookies.remove('role');
         Cookies.remove('menu');
+        Cookies.remove('systems');
         window.location.replace('/');
       } else if (response.status === 400) {
         return response;

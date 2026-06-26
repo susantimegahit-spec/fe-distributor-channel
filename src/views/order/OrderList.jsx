@@ -573,7 +573,7 @@ export default function OrderList() {
         ) : null}
         {button.edit ? (
           <>
-            <Button as={Link} to={`/order/order-create/${order.id}`} className="rounded-circle" variant="outline-success" size="sm">
+            <Button as={Link} to={`/customer-portal/order/order-create/${order.id}`} className="rounded-circle" variant="outline-success" size="sm">
               <i className="ti ti-pencil" />
             </Button>
             &nbsp;
@@ -620,7 +620,7 @@ export default function OrderList() {
           }
           secondary={
             canCreateOrder ? (
-              <Button variant="primary" as={Link} to={`/order/order-create`}>
+              <Button variant="primary" as={Link} to={`/customer-portal/order/order-create`}>
                 <i className="ti ti-plus me-1" />
                 Tambah Order
               </Button>
@@ -823,7 +823,7 @@ export default function OrderList() {
                             Reset Filter
                           </Button>
                         ) : canCreateOrder ? (
-                          <Button variant="primary" as={Link} to={`/order/order-create`}>
+                          <Button variant="primary" as={Link} to={`/customer-portal/order/order-create`}>
                             <i className="ti ti-plus me-1" />
                             Tambah Order
                           </Button>

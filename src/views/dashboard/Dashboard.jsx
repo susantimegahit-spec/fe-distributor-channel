@@ -96,28 +96,28 @@ const summaryItems = [
     description: 'Kelola data pelanggan distributor, status aktif, depo, dan detail alamat.',
     icon: 'ti ti-building-store',
     color: 'primary',
-    url: '/master/distributor'
+    url: '/customer-portal/master/distributor'
   },
   {
     title: 'Item',
     description: 'Pantau daftar item produk dan sinkronkan data produk terbaru dari pusat.',
     icon: 'ti ti-clipboard-list',
     color: 'success',
-    url: '/master/product'
+    url: '/customer-portal/master/product'
   },
   {
     title: 'Sales',
     description: 'Lihat dan sinkronkan data sales yang menangani aktivitas distributor.',
     icon: 'ti ti-users',
     color: 'info',
-    url: '/master/employee'
+    url: '/customer-portal/master/employee'
   },
   {
     title: 'Warehouse',
     description: 'Kelola daftar warehouse sebagai referensi operasional distribusi.',
     icon: 'ti ti-building-warehouse',
     color: 'warning',
-    url: '/master/warehouse'
+    url: '/customer-portal/master/warehouse'
   }
 ];
 
@@ -261,7 +261,7 @@ export default function Dashboard() {
           </Stack>
         }
         secondary={
-          <Button as={Link} to="/order/order-list" variant="primary">
+          <Button as={Link} to="/customer-portal/order/order-list" variant="primary">
             <i className="ph ph-list-bullets me-1" />
             Lihat Pesanan
           </Button>
