@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Cookies from 'js-cookie';
 
@@ -8,78 +8,38 @@ import Card from 'react-bootstrap/Card';
 import Col from 'react-bootstrap/Col';
 import Dropdown from 'react-bootstrap/Dropdown';
 import Form from 'react-bootstrap/Form';
-import Image from 'react-bootstrap/Image';
 import Nav from 'react-bootstrap/Nav';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 
 // project-imports
-import MainCard from 'components/MainCard';
 import SimpleBarScroll from 'components/third-party/SimpleBar';
 import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
 
-// assets
-import Img1 from 'assets/images/user/avatar-1.png';
-import Img2 from 'assets/images/user/avatar-2.png';
-import Img3 from 'assets/images/user/avatar-3.png';
-import Img4 from 'assets/images/user/avatar-4.png';
-import Img5 from 'assets/images/user/avatar-5.png';
 import { getCookies } from '../../utils/cookies';
 import { InputGroup, Modal } from 'react-bootstrap';
 import UserServices from '../../services/UserServices';
+import NotificationServices from '../../services/NotificationServices';
 import LoaderButton from '../../components/LoaderButton';
 import { useAlert } from '../../utils/alertContext';
-
-const notifications = [
-  {
-    id: 1,
-    avatar: Img1,
-    time: '2 min ago',
-    title: 'UI/UX Design',
-    description: "Lorem Ipsum has been the industry's standard dummy text ever since the 1500s.",
-    date: 'Today'
-  },
-  {
-    id: 2,
-    avatar: Img2,
-    time: '1 hour ago',
-    title: 'Message',
-    description: "Lorem Ipsum has been the industry's standard dummy text ever since the 1500s.",
-    date: 'Today'
-  },
-  {
-    id: 3,
-    avatar: Img3,
-    time: '2 hour ago',
-    title: 'Forms',
-    description: "Lorem Ipsum has been the industry's standard dummy text ever since the 1500s.",
-    date: 'Yesterday'
-  },
-  {
-    id: 4,
-    avatar: Img4,
-    time: '12 hour ago',
-    title: 'Challenge invitation',
-    description: 'Jonny aber invites you to join the challenge',
-    actions: true,
-    date: 'Yesterday'
-  },
-  {
-    id: 5,
-    avatar: Img5,
-    time: '5 hour ago',
-    title: 'Security',
-    description: "Lorem Ipsum has been the industry's standard dummy text ever since the 1500s.",
-    date: 'Yesterday'
-  }
-];
+import { createEchoClient, getNotificationChannelName } from '../../config/echo';
+import {
+  getNotificationItems,
+  getNotificationKey,
+  getNotificationResponsePayload,
+  getUnreadNotificationCount,
+  normalizeNotification
+} from '../../utils/notification';
+import { DataService } from '../../config/dataService';
 
 // =============================|| MAIN LAYOUT - HEADER ||============================== //
 
 export default function Header() {
+  const roleId = getCookies('role');
   const { menuMaster } = useGetMenuMaster();
   const { showAlert } = useAlert();
   const drawerOpen = menuMaster?.isDashboardDrawerOpened;
+  const userId = getCookies('id');
   const userName = getCookies('name');
   const userEmail = getCookies('email');
   const customerCode = getCookies('customerCode');
@@ -96,20 +56,201 @@ export default function Header() {
 
   const [showChangePass, setShowChangePass] = useState(false);
   const [loadingSubmit, setLoadingSubmit] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [notificationError, setNotificationError] = useState('');
+  const [sendingTestNotification, setSendingTestNotification] = useState(false);
+  const notificationAudioContextRef = useRef(null);
+  const knownNotificationIdsRef = useRef(new Set());
+  const hasLoadedNotificationsRef = useRef(false);
   const canSubmitPassword = Boolean(oldPass && newPass && confirmPass && newPass === confirmPass);
 
-  const handleLogout = () => {
-    Cookies.remove('isLoggedIn');
-    Cookies.remove('accessToken');
-    Cookies.remove('id');
-    Cookies.remove('name');
-    Cookies.remove('email');
-    Cookies.remove('role');
-    Cookies.remove('menu');
-    Cookies.remove('customerCode');
-    Cookies.remove('distributorName');
-    Cookies.remove('distributorId');
-    window.location.replace('/');
+  const playNotificationSound = useCallback(() => {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+
+      if (!notificationAudioContextRef.current) {
+        notificationAudioContextRef.current = new AudioContext();
+      }
+
+      const audioContext = notificationAudioContextRef.current;
+      if (audioContext.state === 'suspended') {
+        audioContext.resume();
+      }
+
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      const startTime = audioContext.currentTime;
+
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(880, startTime);
+      oscillator.frequency.setValueAtTime(1175, startTime + 0.08);
+      gainNode.gain.setValueAtTime(0.001, startTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.2, startTime + 0.02);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + 0.32);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      oscillator.start(startTime);
+      oscillator.stop(startTime + 0.34);
+    } catch (error) {
+      // Browser can block audio until the user interacts with the page.
+    }
+  }, []);
+
+  const fetchNotifications = useCallback(
+    async (silent = false) => {
+      if (!silent) setLoadingNotifications(true);
+      setNotificationError('');
+
+      try {
+        const response = await NotificationServices.getNotifications();
+        const payload = getNotificationResponsePayload(response);
+        const items = getNotificationItems(payload).map(normalizeNotification);
+        const incomingKeys = items.map(getNotificationKey).filter(Boolean);
+        const hasNewUnreadNotification = items.some((item) => {
+          const key = getNotificationKey(item);
+          return item.unread && key && !knownNotificationIdsRef.current.has(key);
+        });
+
+        if (hasLoadedNotificationsRef.current && hasNewUnreadNotification) {
+          playNotificationSound();
+        }
+
+        incomingKeys.forEach((key) => knownNotificationIdsRef.current.add(key));
+        hasLoadedNotificationsRef.current = true;
+
+        setNotifications(items);
+        setUnreadCount(getUnreadNotificationCount(payload, items));
+      } catch (error) {
+        setNotificationError('Notifikasi belum bisa dimuat.');
+      } finally {
+        if (!silent) setLoadingNotifications(false);
+      }
+    },
+    [playNotificationSound]
+  );
+
+  const handleIncomingNotification = useCallback(
+    (payload) => {
+      const notification = normalizeNotification({
+        ...payload,
+        read_at: payload?.read_at ?? null,
+        created_at: payload?.created_at || payload?.createdAt || new Date().toISOString()
+      });
+      const notificationKey = getNotificationKey(notification);
+      const isNewNotification = notificationKey && !knownNotificationIdsRef.current.has(notificationKey);
+
+      if (notificationKey) {
+        knownNotificationIdsRef.current.add(notificationKey);
+      }
+
+      if (notification.unread && isNewNotification) {
+        playNotificationSound();
+      }
+
+      setNotifications((prevState) => {
+        const existingNotification = notification.id ? prevState.find((item) => item.id === notification.id) : null;
+
+        if (existingNotification) {
+          if (!existingNotification.unread && notification.unread) {
+            setUnreadCount((prevCount) => prevCount + 1);
+          }
+
+          return prevState.map((item) => (item.id === notification.id ? notification : item));
+        }
+
+        if (notification.unread) {
+          setUnreadCount((prevCount) => prevCount + 1);
+        }
+
+        return [notification, ...prevState];
+      });
+
+      // Tampilkan popup notifikasi secara real-time
+      showAlert(`${notification.title}: ${notification.description}`, 'info', 8000);
+    },
+    [playNotificationSound, showAlert]
+  );
+
+  const handleLogout = async () => {
+    try {
+      await DataService.post('/auth/logout');
+    } catch (error) {
+      console.error('Failed to logout on server:', error);
+    } finally {
+      Cookies.remove('isLoggedIn');
+      Cookies.remove('accessToken');
+      Cookies.remove('id');
+      Cookies.remove('name');
+      Cookies.remove('email');
+      Cookies.remove('role');
+      Cookies.remove('menu');
+      Cookies.remove('customerCode');
+      Cookies.remove('distributorName');
+      Cookies.remove('distributorId');
+      window.location.replace('/');
+    }
+  };
+
+  const handleNotificationDropdownToggle = (isOpen) => {
+    if (isOpen) {
+      fetchNotifications(true);
+    }
+  };
+
+  const handleMarkAsRead = async (notification) => {
+    if (!notification?.id) return;
+
+    if (notification.unread) {
+      setNotifications((prevState) => prevState.map((item) => (item.id === notification.id ? { ...item, unread: false } : item)));
+      setUnreadCount((prevState) => Math.max(prevState - 1, 0));
+    }
+
+    try {
+      await NotificationServices.markAsRead(notification.id);
+      fetchNotifications(true);
+    } catch (error) {
+      fetchNotifications(true);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    setNotifications((prevState) => prevState.map((item) => ({ ...item, unread: false })));
+    setUnreadCount(0);
+
+    try {
+      await NotificationServices.markAllAsRead();
+      fetchNotifications(true);
+    } catch (error) {
+      fetchNotifications(true);
+    }
+  };
+
+  const handleSendTestNotification = async () => {
+    setSendingTestNotification(true);
+
+    try {
+      const response = await NotificationServices.sendTestNotification({
+        title: 'Test Push Notification',
+        message: 'Notifikasi test berhasil dikirim dari backend.'
+      });
+      const payload = getResponsePayload(response);
+
+      if (payload?.id) {
+        handleIncomingNotification(payload);
+      } else {
+        fetchNotifications(true);
+      }
+
+      showAlert('Notifikasi test berhasil dikirim', 'success');
+    } catch (error) {
+      showAlert('Gagal mengirim notifikasi test', 'danger');
+    } finally {
+      setSendingTestNotification(false);
+    }
   };
 
   const toggleOldPass = () => {
@@ -143,7 +284,7 @@ export default function Header() {
     };
 
     const response = await UserServices.postChangePassword(payload);
-    console.log('resp => ', response.data.message)
+
     try {
       if (response.data.success) {
         setLoadingSubmit(false);
@@ -154,10 +295,83 @@ export default function Header() {
         showAlert(response.data.message, 'danger');
       }
     } catch (error) {
-      console.log(error)
+      console.log(error);
       setLoadingSubmit(false);
     }
   };
+
+  useEffect(() => {
+    // fetchNotifications();
+  }, [fetchNotifications]);
+
+  // useEffect(() => {
+  //   const intervalId = window.setInterval(() => {
+  //     fetchNotifications(true);
+  //   }, 15000);
+
+  //   return () => window.clearInterval(intervalId);
+  // }, [fetchNotifications]);
+
+  useEffect(() => {
+    const unlockNotificationAudio = () => {
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+
+        if (!notificationAudioContextRef.current) {
+          notificationAudioContextRef.current = new AudioContext();
+        }
+
+        if (notificationAudioContextRef.current.state === 'suspended') {
+          notificationAudioContextRef.current.resume();
+        }
+      } catch (error) {
+        // Ignore browsers that block or do not support Web Audio.
+      }
+
+      window.removeEventListener('pointerdown', unlockNotificationAudio);
+      window.removeEventListener('keydown', unlockNotificationAudio);
+    };
+
+    window.addEventListener('pointerdown', unlockNotificationAudio);
+    window.addEventListener('keydown', unlockNotificationAudio);
+
+    return () => {
+      window.removeEventListener('pointerdown', unlockNotificationAudio);
+      window.removeEventListener('keydown', unlockNotificationAudio);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!userId) return undefined;
+
+    const echo = createEchoClient();
+    const channelName = getNotificationChannelName(userId);
+
+    if (!echo) {
+      return undefined;
+    }
+
+    const channel = echo.private(channelName);
+    const customEvent = import.meta.env.VITE_ECHO_NOTIFICATION_EVENT || '.NotificationCreated';
+
+    channel.notification(handleIncomingNotification);
+
+    if (customEvent) {
+      channel.listen(customEvent, handleIncomingNotification);
+    }
+
+    return () => {
+      channel.stopListeningForNotification(handleIncomingNotification);
+
+      if (customEvent) {
+        channel.stopListening(customEvent);
+      }
+
+      echo.leave(channelName);
+      echo.disconnect();
+    };
+  }, [handleIncomingNotification, userId]);
 
   return (
     <header className="pc-header">
@@ -198,55 +412,75 @@ export default function Header() {
         </div>
         <div className="ms-auto">
           <Nav className="list-unstyled">
-            <Dropdown className="pc-h-item" align="end">
-              {/* <Dropdown.Toggle className="pc-head-link me-0 arrow-none" variant="link" id="notification-dropdown">
+            <Dropdown className="pc-h-item" align="end" onToggle={handleNotificationDropdownToggle}>
+              <Dropdown.Toggle className="pc-head-link sm-notification-toggle me-0 arrow-none" variant="link" id="notification-dropdown">
                 <i className="ph ph-bell" />
-                <span className="badge bg-success pc-h-badge">3</span>
-              </Dropdown.Toggle> */}
+                {unreadCount > 0 && <span className="badge bg-danger pc-h-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>}
+              </Dropdown.Toggle>
 
               <Dropdown.Menu className="dropdown-notification pc-h-dropdown">
                 <Dropdown.Header className="d-flex align-items-center justify-content-between">
-                  <h5 className="m-0">Notifications</h5>
-                  <Link className="btn btn-link btn-sm" to="#">
-                    Mark all read
-                  </Link>
+                  <div>
+                    <h5 className="m-0">Notifikasi</h5>
+                    <small className="text-muted">{unreadCount > 0 ? `${unreadCount} belum dibaca` : 'Semua sudah dibaca'}</small>
+                  </div>
+                  <Button variant="link" size="sm" className="p-0 text-primary" disabled={!unreadCount} onClick={handleMarkAllAsRead}>
+                    Tandai dibaca
+                  </Button>
                 </Dropdown.Header>
                 <SimpleBarScroll style={{ maxHeight: 'calc(100vh - 215px)' }}>
                   <div className="dropdown-body text-wrap position-relative">
-                    {notifications.map((notification, index) => (
-                      <React.Fragment key={notification.id}>
-                        {index === 0 || notifications[index - 1].date !== notification.date ? (
-                          <p className="text-span">{notification.date}</p>
-                        ) : null}
-                        <MainCard className="mb-0">
-                          <Stack direction="horizontal" gap={3}>
-                            <Image className="img-radius avatar rounded-0" src={notification.avatar} alt="Generic placeholder image" />
-                            <div>
-                              <span className="float-end text-sm text-muted">{notification.time}</span>
-                              <h5 className="text-body mb-2">{notification.title}</h5>
-                              <p className="mb-0">{notification.description}</p>
-                              {notification.actions && (
-                                <div className="mt-2">
-                                  <Button variant="outline-secondary" size="sm" className="me-2">
-                                    Decline
-                                  </Button>
-                                  <Button variant="primary" size="sm">
-                                    Accept
-                                  </Button>
-                                </div>
-                              )}
-                            </div>
-                          </Stack>
-                        </MainCard>
-                      </React.Fragment>
-                    ))}
+                    {loadingNotifications && <div className="sm-notification-state">Memuat notifikasi...</div>}
+
+                    {!loadingNotifications && notificationError && (
+                      <div className="sm-notification-state text-danger">{notificationError}</div>
+                    )}
+
+                    {!loadingNotifications && !notificationError && notifications.length === 0 && (
+                      <div className="sm-notification-state">
+                        <span className="sm-notification-empty-icon">
+                          <i className="ph ph-bell-simple" />
+                        </span>
+                        <strong>Belum ada notifikasi</strong>
+                        <small>Notifikasi dari backend akan tampil di sini.</small>
+                      </div>
+                    )}
+
+                    {!loadingNotifications &&
+                      !notificationError &&
+                      notifications.map((notification, index) => (
+                        <React.Fragment key={notification.id || `${notification.title}-${index}`}>
+                          {index === 0 || notifications[index - 1].date !== notification.date ? (
+                            <p className="text-span">{notification.date}</p>
+                          ) : null}
+                          <button type="button" className="sm-notification-item" onClick={() => handleMarkAsRead(notification)}>
+                            <span className={`sm-notification-icon ${notification.unread ? 'is-unread' : ''}`}>
+                              <i className="ph ph-bell-ringing" />
+                            </span>
+                            <span className="sm-notification-content">
+                              <span className="d-flex align-items-start justify-content-between gap-2">
+                                <strong>{notification.title}</strong>
+                                {notification.unread && <span className="sm-notification-dot" />}
+                              </span>
+                              <span>{notification.description}</span>
+                              {notification.time && <small>{notification.time}</small>}
+                            </span>
+                          </button>
+                        </React.Fragment>
+                      ))}
                   </div>
                 </SimpleBarScroll>
 
-                <div className="text-center py-2">
-                  <Link to="#!" className="link-danger">
-                    Clear all Notifications
-                  </Link>
+                <div className="text-center py-2 sm-notification-footer">
+                  <Button as={Link} to="/notifications" variant="link" size="sm">
+                    Lihat semua
+                  </Button>
+                  <Button variant="link" size="sm" onClick={() => fetchNotifications(true)}>
+                    Refresh
+                  </Button>
+                  <Button variant="link" size="sm" disabled={sendingTestNotification} onClick={handleSendTestNotification}>
+                    {sendingTestNotification ? 'Mengirim...' : 'Test'}
+                  </Button>
                 </div>
               </Dropdown.Menu>
             </Dropdown>
@@ -290,24 +524,18 @@ export default function Header() {
                   </div>
 
                   <div className="profile-notification-scroll position-relative">
-                    <Dropdown.Item as={Link} to="/setting/user-list" className="sm-account-item">
+                    {/* {roleId === 5 && ( */}
+                    <Dropdown.Item as={Link} to="/setting" className="sm-account-item">
                       <span className="sm-account-item-icon">
-                        <i className="ti ti-users-group" />
+                        <i className="ti ti-settings" />
                       </span>
+
                       <span>
-                        <strong>Users</strong>
-                        <small>Kelola daftar pengguna</small>
+                        <strong>Setting</strong>
+                        <small>User, hak akses, dan TTD</small>
                       </span>
                     </Dropdown.Item>
-                    <Dropdown.Item as={Link} to="/setting/role-permission" className="sm-account-item">
-                      <span className="sm-account-item-icon">
-                        <i className="ph ph-gear" />
-                      </span>
-                      <span>
-                        <strong>Hak Akses</strong>
-                        <small>Atur role dan permission</small>
-                      </span>
-                    </Dropdown.Item>
+                    {/* )} */}
                     <Dropdown.Item as="button" className="sm-account-item" onClick={() => setShowChangePass(true)}>
                       <span className="sm-account-item-icon">
                         <i className="ph ph-lock-key" />

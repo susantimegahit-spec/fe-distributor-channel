@@ -16,6 +16,10 @@ class PriceServices {
   putPrice(id, payload) {
     return DataService.put(`/distributor-item-prices/${id}`, payload);
   }
+
+  deletePrice(id) {
+    return DataService.delete(`/distributor-item-prices/${id}`);
+  }
 }
 
 export default new PriceServices();

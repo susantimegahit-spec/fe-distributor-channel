@@ -1,0 +1,44 @@
+name: Deploy React App via SSH/SFTP
+
+on:
+  push:
+    branches:
+      - main # Jalankan deploy ketika push ke branch main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Ambil source code terbaru dari GitHub
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      # 2. Install Node.js untuk build React
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      # 3. Jalankan install dependencies dan compile/build project
+      - name: Install and Build
+        run: |
+          npm install
+          npm run build
+
+      # 4. Deploy hasil build ke VPS menggunakan SSH Key
+      - name: Deploy to VPS via SSH/SFTP
+        uses: easingthemes/ssh-deploy@main
+        with:
+          # Menggunakan Private Key yang disimpan di GitHub Secrets
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          REMOTE_HOST: ${{ secrets.SSH_HOST }}
+          REMOTE_USER: ${{ secrets.SSH_USERNAME }}
+          REMOTE_PORT: ${{ secrets.SSH_PORT }}
+          # Folder asal yang ingin di-upload (hasil build)
+          SOURCE: "dist/" # Ganti menjadi "build/" jika Anda menggunakan Create React App lama
+          # Folder tujuan di VPS Anda
+          TARGET: "/home/username_cpanel/public_html/" # Ganti username_cpanel sesuai dengan username cPanel Anda
+          # Opsi tambahan agar menghapus file lama di server yang tidak ada di build baru
+          ARGS: "-rlgoDzvO --delete"

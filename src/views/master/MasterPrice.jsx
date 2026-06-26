@@ -8,7 +8,6 @@ import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
 import InputGroup from 'react-bootstrap/InputGroup';
 import Modal from 'react-bootstrap/Modal';
-import Pagination from 'react-bootstrap/Pagination';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
@@ -16,11 +15,13 @@ import Select from 'react-select';
 
 // project-imports
 import MainCard from 'components/MainCard';
+import TablePagination from 'components/TablePagination';
 import LoaderData from '../../components/LoaderData';
 import DistributorServices from '../../services/DistributorServices';
 import PriceServices from '../../services/PriceServices';
 import ProductServices from '../../services/ProductServices';
 import { useAlert } from '../../utils/alertContext';
+import { useConfirm } from '../../utils/confirmContext';
 
 const pageSize = 10;
 const initialPriceInput = {
@@ -37,6 +38,9 @@ const getValue = (item, keys, fallback = '-') => {
 };
 
 const getPriceValue = (item) => Number(getValue(item, ['price', 'item_price', 'selling_price', 'unit_price', 'amount', 'harga'], 0));
+
+const getPriceId = (item) =>
+  getValue(item, ['id', 'price_id', 'distributor_item_price_id', 'distributor_item_prices_id'], '');
 
 const formatCurrency = (value) => {
   const number = Number(value || 0);
@@ -61,12 +65,15 @@ const normalizeList = (response) => {
 
 export default function MasterPrice() {
   const { showAlert } = useAlert();
+  const { showConfirm } = useConfirm();
   const [dataSource, setDataSource] = useState([]);
   const [loadingData, setLoadingData] = useState(false);
   const [keywords, setKeywords] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedPrice, setSelectedPrice] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingPriceId, setEditingPriceId] = useState(null);
+  const [deletingPriceId, setDeletingPriceId] = useState(null);
   const [submittingPrice, setSubmittingPrice] = useState(false);
   const [priceInput, setPriceInput] = useState(initialPriceInput);
   const [listItem, setListItem] = useState([]);
@@ -188,7 +195,7 @@ export default function MasterPrice() {
         setListDistributor(
           normalizeList(distributorResponse).map((item) => ({
             value: item.code_customer,
-            label: `${item.code_customer || '-'} - ${item.name || '-'}`,
+            label: `${item.code_customer || '-'} - ${item?.depo} - ${item.name || '-'}`,
             name: item.name
           }))
         );
@@ -213,7 +220,33 @@ export default function MasterPrice() {
 
   const closeAddModal = () => {
     setShowAddModal(false);
+    setEditingPriceId(null);
     setPriceInput(initialPriceInput);
+  };
+
+  const openAddModal = () => {
+    setEditingPriceId(null);
+    setPriceInput(initialPriceInput);
+    setShowAddModal(true);
+  };
+
+  const openEditModal = (item) => {
+    const priceId = getPriceId(item);
+
+    if (!priceId) {
+      showAlert('ID master price tidak ditemukan', 'danger');
+      return;
+    }
+
+    setEditingPriceId(priceId);
+    setPriceInput({
+      item_code: getValue(item, ['item_code', 'code_item', 'itemCode'], ''),
+      code_customer: getValue(item, ['code_customer', 'customer_code', 'distributor_code'], ''),
+      uom: getValue(item, ['uom', 'unit', 'uom_code', 'uom_name'], ''),
+      price: String(getPriceValue(item) || ''),
+      status: String(getValue(item, ['status', 'is_active'], '1'))
+    });
+    setShowAddModal(true);
   };
 
   const handleSelectItem = (option) => {
@@ -250,20 +283,54 @@ export default function MasterPrice() {
     };
 
     try {
-      const response = await PriceServices.postPrice(payload);
+      const response = editingPriceId ? await PriceServices.putPrice(editingPriceId, payload) : await PriceServices.postPrice(payload);
 
       if (response.data.success) {
-        showAlert('Master price berhasil ditambahkan', 'success');
+        showAlert(editingPriceId ? 'Master price berhasil diperbarui' : 'Master price berhasil ditambahkan', 'success');
         closeAddModal();
         fetchData();
       } else {
-        showAlert(response.data.message || 'Gagal tambah master price', 'danger');
+        showAlert(response.data.message || (editingPriceId ? 'Gagal update master price' : 'Gagal tambah master price'), 'danger');
       }
     } catch (error) {
-      showAlert(error?.message || 'Gagal tambah master price', 'danger');
+      showAlert(error?.message || (editingPriceId ? 'Gagal update master price' : 'Gagal tambah master price'), 'danger');
     } finally {
       setSubmittingPrice(false);
     }
+  };
+
+  const deletePrice = async (item) => {
+    const priceId = getPriceId(item);
+
+    if (!priceId) {
+      showAlert('ID master price tidak ditemukan', 'danger');
+      return;
+    }
+
+    setDeletingPriceId(priceId);
+
+    try {
+      const response = await PriceServices.deletePrice(priceId);
+
+      if (response.data.success) {
+        showAlert(response.data.message || 'Master price berhasil dihapus', 'success');
+        fetchData();
+      } else {
+        showAlert(response.data.message || 'Gagal hapus master price', 'danger');
+      }
+    } catch (error) {
+      showAlert(error?.message || 'Gagal hapus master price', 'danger');
+    } finally {
+      setDeletingPriceId(null);
+    }
+  };
+
+  const confirmDeletePrice = (item) => {
+    showConfirm({
+      title: 'Hapus Master Price',
+      subTitle: `Anda yakin ingin menghapus harga item ${getValue(item, ['item_code', 'code_item', 'itemCode'])}?`,
+      onConfirm: () => deletePrice(item)
+    });
   };
 
   const canSubmitPrice = Boolean(priceInput.item_code && priceInput.code_customer && priceInput.price && !submittingPrice);
@@ -274,13 +341,13 @@ export default function MasterPrice() {
         <MainCard
           title={
             <Stack gap={1}>
-              <h5 className="mb-0">Master Price</h5>
+              <h5 className="mb-0">Daftar Price</h5>
               <span className="text-muted f-12">Kelola daftar harga item distributor berdasarkan data dari Price Services.</span>
             </Stack>
           }
           secondary={
             <Stack direction="horizontal" gap={2} className="flex-wrap">
-              <Button onClick={() => setShowAddModal(true)} variant="primary">
+              <Button onClick={openAddModal} variant="primary">
                 <i className="ti ti-plus me-1" />
                 Tambah Price
               </Button>
@@ -291,7 +358,7 @@ export default function MasterPrice() {
             </Stack>
           }
         >
-          <Row className="g-3">
+          {/* <Row className="g-3">
             <Col sm={6} xl={3}>
               <Card className="border mb-0 h-100">
                 <Card.Body className="py-3">
@@ -352,7 +419,7 @@ export default function MasterPrice() {
                 </Card.Body>
               </Card>
             </Col>
-          </Row>
+          </Row> */}
         </MainCard>
 
         <MainCard>
@@ -371,21 +438,21 @@ export default function MasterPrice() {
                 />
               </InputGroup>
             </Col>
-            <Col lg={3} md={6}>
+            {/* <Col lg={3} md={6}>
               <Form.Label className="f-12 text-muted">Status</Form.Label>
               <Form.Select value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value)}>
                 <option value="">Semua Status</option>
                 <option value="1">Aktif</option>
                 <option value="0">Tidak Aktif</option>
               </Form.Select>
-            </Col>
+            </Col> */}
             <Col lg={2} md={6}>
               <Button className="w-100" variant="light-secondary" disabled={!hasActiveFilter} onClick={resetFilters}>
                 <i className="ti ti-refresh me-1" />
                 Reset
               </Button>
             </Col>
-            <Col lg={2} md={6} className="text-lg-end">
+            <Col lg={5} md={6} className="text-lg-end">
               <span className="text-muted f-12">Menampilkan</span>
               <div className="fw-semibold">
                 {filteredData.length} dari {dataSource.length}
@@ -409,10 +476,10 @@ export default function MasterPrice() {
                     <th style={{ minWidth: 140 }}>Kode Item</th>
                     <th style={{ minWidth: 240 }}>Nama Item</th>
                     <th style={{ minWidth: 180 }}>Distributor</th>
-                    <th style={{ minWidth: 140 }}>Harga</th>
-                    <th style={{ minWidth: 100 }}>UOM</th>
+                    <th style={{ minWidth: 140 }}>Depo</th>
+                    <th style={{ minWidth: 100 }}>Harga</th>
                     <th style={{ minWidth: 110 }}>Status</th>
-                    <th className="text-center" style={{ width: 80 }}>
+                    <th className="text-center" style={{ minWidth: 150 }}>
                       Aksi
                     </th>
                   </tr>
@@ -421,9 +488,11 @@ export default function MasterPrice() {
                   {filteredData.length > 0 ? (
                     paginatedData.map((item, index) => {
                       const status = Number(getValue(item, ['status', 'is_active'], 0));
+                      const priceId = getPriceId(item);
+                      const isDeleting = String(deletingPriceId) === String(priceId);
 
                       return (
-                        <tr key={item.id || item.price_id || `${getValue(item, ['item_code'], 'item')}-${index}`}>
+                        <tr key={priceId || `${getValue(item, ['item_code'], 'item')}-${index}`}>
                           <td className="fw-semibold">{getValue(item, ['item_code', 'code_item', 'itemCode'])}</td>
                           <td style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>
                             {getValue(item, ['item_name', 'name_item', 'itemName', 'product_name'])}
@@ -431,13 +500,33 @@ export default function MasterPrice() {
                           <td style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>
                             {getValue(item, ['distributor_name', 'customer_name', 'card_name', 'name_customer'])}
                           </td>
+                          <td>{getValue(item, ['depo'])}</td>
                           <td className="fw-semibold">{formatCurrency(getPriceValue(item))}</td>
-                          <td>{getValue(item, ['uom', 'unit', 'uom_code', 'uom_name'])}</td>
                           <td>{status === 1 ? <Badge bg="success">Aktif</Badge> : <Badge bg="secondary">Tidak Aktif</Badge>}</td>
                           <td className="text-center">
-                            <Button className="rounded-circle" variant="outline-primary" size="sm" onClick={() => setSelectedPrice(item)}>
-                              <i className="ti ti-eye" />
-                            </Button>
+                            <Stack direction="horizontal" gap={1} className="justify-content-center flex-nowrap">
+                              <Button className="rounded-circle" variant="outline-primary" size="sm" onClick={() => setSelectedPrice(item)}>
+                                <i className="ti ti-eye" />
+                              </Button>
+                              <Button
+                                className="rounded-circle"
+                                variant="outline-warning"
+                                size="sm"
+                                onClick={() => openEditModal(item)}
+                                disabled={submittingPrice || Boolean(deletingPriceId)}
+                              >
+                                <i className="ti ti-edit" />
+                              </Button>
+                              <Button
+                                className="rounded-circle"
+                                variant="outline-danger"
+                                size="sm"
+                                onClick={() => confirmDeletePrice(item)}
+                                disabled={Boolean(deletingPriceId)}
+                              >
+                                {isDeleting ? <span className="spinner-border spinner-border-sm" /> : <i className="ti ti-trash" />}
+                              </Button>
+                            </Stack>
                           </td>
                         </tr>
                       );
@@ -451,9 +540,14 @@ export default function MasterPrice() {
                           </div>
                           <h5 className="mb-1">{hasActiveFilter ? 'Data harga tidak ditemukan' : 'Belum ada data harga'}</h5>
                           <p className="text-muted mb-3">
-                            {hasActiveFilter ? 'Ubah kata kunci atau status untuk melihat data lain.' : 'Klik refresh untuk mengambil data harga terbaru.'}
+                            {hasActiveFilter
+                              ? 'Ubah kata kunci atau status untuk melihat data lain.'
+                              : 'Klik refresh untuk mengambil data harga terbaru.'}
                           </p>
-                          <Button variant={hasActiveFilter ? 'light-primary' : 'primary'} onClick={hasActiveFilter ? resetFilters : fetchData}>
+                          <Button
+                            variant={hasActiveFilter ? 'light-primary' : 'primary'}
+                            onClick={hasActiveFilter ? resetFilters : fetchData}
+                          >
                             <i className="ti ti-refresh me-1" />
                             {hasActiveFilter ? 'Reset Filter' : 'Refresh'}
                           </Button>
@@ -466,25 +560,14 @@ export default function MasterPrice() {
             )}
           </Table>
 
-          <Stack direction="horizontal" gap={2} className="flex-wrap justify-content-between mt-3">
-            <small className="text-muted">
-              Menampilkan {filteredData.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}-
-              {Math.min(currentPage * pageSize, filteredData.length)} dari {filteredData.length} harga
-            </small>
-            <Pagination className="mb-0">
-              <Pagination.Prev disabled={currentPage === 1} onClick={() => setCurrentPage((page) => Math.max(page - 1, 1))} />
-              {Array.from({ length: pageCount }).map((_, index) => {
-                const page = index + 1;
-
-                return (
-                  <Pagination.Item key={page} active={page === currentPage} onClick={() => setCurrentPage(page)}>
-                    {page}
-                  </Pagination.Item>
-                );
-              })}
-              <Pagination.Next disabled={currentPage === pageCount} onClick={() => setCurrentPage((page) => Math.min(page + 1, pageCount))} />
-            </Pagination>
-          </Stack>
+          <TablePagination
+            currentPage={currentPage}
+            onPageChange={setCurrentPage}
+            pageCount={pageCount}
+            pageSize={pageSize}
+            total={filteredData.length}
+            itemLabel="harga"
+          />
         </MainCard>
       </Stack>
 
@@ -538,12 +621,14 @@ export default function MasterPrice() {
       <Modal show={showAddModal} onHide={closeAddModal} centered size="lg">
         <Form onSubmit={submitPrice}>
           <Modal.Header closeButton>
-            <Modal.Title>Tambah Master Price</Modal.Title>
+            <Modal.Title>{editingPriceId ? 'Edit Harga' : 'Tambah Harga'}</Modal.Title>
           </Modal.Header>
           <Modal.Body>
             <Row className="g-3">
               <Col md={6}>
-                <Form.Label>Kode Item <span className="text-danger">*</span></Form.Label>
+                <Form.Label>
+                  Kode Item <span className="text-danger">*</span>
+                </Form.Label>
                 <Select
                   styles={selectStyles}
                   options={listItem}
@@ -556,7 +641,9 @@ export default function MasterPrice() {
                 />
               </Col>
               <Col md={6}>
-                <Form.Label>Kode Distributor <span className="text-danger">*</span></Form.Label>
+                <Form.Label>
+                  Kode Distributor <span className="text-danger">*</span>
+                </Form.Label>
                 <Select
                   styles={selectStyles}
                   options={listDistributor}
@@ -570,18 +657,13 @@ export default function MasterPrice() {
               </Col>
               <Col md={4}>
                 <Form.Label>UOM</Form.Label>
-                <Form.Control name="uom" value={priceInput.uom} onChange={handlePriceInput} placeholder="PCS / CTN" />
+                <Form.Control readOnly name="uom" value={priceInput.uom} onChange={handlePriceInput} placeholder="PCS / CTN" />
               </Col>
               <Col md={4}>
-                <Form.Label>Harga <span className="text-danger">*</span></Form.Label>
-                <Form.Control
-                  name="price"
-                  value={priceInput.price}
-                  onChange={handlePriceInput}
-                  type="number"
-                  min="0"
-                  placeholder="0"
-                />
+                <Form.Label>
+                  Harga <span className="text-danger">*</span>
+                </Form.Label>
+                <Form.Control name="price" value={priceInput.price} onChange={handlePriceInput} type="number" min="0" placeholder="0" />
               </Col>
               <Col md={4}>
                 <Form.Label>Status</Form.Label>
@@ -591,9 +673,14 @@ export default function MasterPrice() {
                 </Form.Select>
               </Col>
               <Col xs={12}>
-                <div className="alert alert-info mb-0">
-                  <i className="ti ti-info-circle me-1" />
-                  Data akan dikirim ke endpoint <strong>distributor-item-prices</strong> melalui Price Services.
+                <div className="sm-inline-alert sm-inline-alert-info">
+                  <span className="sm-inline-alert-icon">
+                    <i className="ti ti-info-circle f-20" />
+                  </span>
+                  <span>
+                    Data akan {editingPriceId ? 'diperbarui' : 'dikirim'} ke endpoint <strong>distributor-item-prices</strong>{' '}
+                    melalui Price Services.
+                  </span>
                 </div>
               </Col>
             </Row>
@@ -603,7 +690,7 @@ export default function MasterPrice() {
               Batal
             </Button>
             <Button type="submit" variant="primary" disabled={!canSubmitPrice}>
-              {submittingPrice ? 'Menyimpan...' : 'Simpan Price'}
+              {submittingPrice ? 'Menyimpan...' : editingPriceId ? 'Simpan Perubahan' : 'Simpan Price'}
             </Button>
           </Modal.Footer>
         </Form>

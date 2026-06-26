@@ -79,6 +79,16 @@ const listMenu = [
         icon: 'ti ti-building-warehouse',
         url: '/master/warehouse'
       },
+      {
+        id: 'master-promo',
+        title: 'Program Promo',
+        type: 'item',
+        value: 'master-promo',
+        label: 'Program Promo',
+        selected: true,
+        icon: 'ti ti-discount-2',
+        url: '/master/promo'
+      },
       // {
       //   id: 'master-buying-price',
       //   title: 'Daftar Harga Beli',
@@ -139,7 +149,7 @@ const listMenu = [
         icon: 'ph ph-list-bullets',
         url: '/order/order-list',
         activeUrls: ['/order/order-list', '/order/order-create', '/order/order-create/:id']
-      },
+      }
       // {
       //   id: 'order-retur',
       //   title: 'Daftar Retur',
@@ -152,26 +162,26 @@ const listMenu = [
       // }
     ]
   },
-  // {
-  //   id: 'finance',
-  //   title: 'Finance',
-  //   value: 'finance',
-  //   label: 'Finance',
-  //   type: 'group',
-  //   selected: true,
-  //   children: [
-  //     {
-  //       id: 'finance-reward',
-  //       title: 'Reward',
-  //       value: 'finance-reward',
-  //       label: 'Reward',
-  //       type: 'item',
-  //       selected: true,
-  //       icon: 'ti ti-tag',
-  //       url: '/finance/reward'
-  //     }
-  //   ]
-  // }
+  {
+    id: 'finance',
+    title: 'Finance',
+    value: 'finance',
+    label: 'Finance',
+    type: 'group',
+    selected: true,
+    children: [
+      {
+        id: 'finance-reward',
+        title: 'Reward',
+        value: 'finance-reward',
+        label: 'Reward',
+        type: 'item',
+        selected: true,
+        icon: 'ti ti-tag',
+        url: '/finance/reward'
+      }
+    ]
+  }
 ];
 
 export default listMenu;

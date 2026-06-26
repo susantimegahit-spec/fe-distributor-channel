@@ -12,8 +12,7 @@ const GoogleMaps = Loadable(lazy(() => import('views/maps/GoogleMap')));
 const MasterProduct = Loadable(lazy(() => import('views/master/MasterProduct')));
 const MasterBuyingPrice = Loadable(lazy(() => import('views/master/MasterBuyingPrice')));
 const MasterDistributor = Loadable(lazy(() => import('views/master/MasterDistributor')));
-const PermissionList = Loadable(lazy(() => import('views/setting/permission/PermissionList')));
-const UserList = Loadable(lazy(() => import('views/setting/users/UserList')));
+const SettingPage = Loadable(lazy(() => import('views/setting/SettingPage')));
 const OrderList = Loadable(lazy(() => import('views/order/OrderList')));
 const OrderRetur = Loadable(lazy(() => import('views/order/OrderRetur')));
 const RewardList = Loadable(lazy(() => import('views/reward/RewardList')));
@@ -37,11 +36,19 @@ const MenuRoutes = {
     },
     {
       path: 'setting/role-permission',
-      element: <PermissionList />
+      element: <SettingPage defaultTab="permissions" />
     },
     {
       path: 'setting/user-list',
-      element: <UserList />
+      element: <SettingPage defaultTab="users" />
+    },
+    {
+      path: 'setting',
+      element: <SettingPage />
+    },
+    {
+      path: 'setting/:activeTab',
+      element: <SettingPage />
     },
     {
       path: 'order/order-list',

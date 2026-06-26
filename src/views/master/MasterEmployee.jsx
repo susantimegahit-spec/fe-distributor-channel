@@ -8,31 +8,99 @@ import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
 import InputGroup from 'react-bootstrap/InputGroup';
 import Modal from 'react-bootstrap/Modal';
-import Pagination from 'react-bootstrap/Pagination';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
+import Select from 'react-select';
 
 // project-imports
 import MainCard from 'components/MainCard';
+import TablePagination from 'components/TablePagination';
 import LoaderData from '../../components/LoaderData';
+import DistributorServices from '../../services/DistributorServices';
 import EmployeeServices from '../../services/EmployeeServices';
 import { useAlert } from '../../utils/alertContext';
+import { useConfirm } from '../../utils/confirmContext';
+
+const initialSalesInput = {
+  slpCode: [],
+  slpName: [],
+  salesId: [],
+  distributorCode: '',
+  distributorName: '',
+  distributorId: '',
+  status: '1'
+};
+
+const normalizeList = (response) => {
+  const data = response?.data?.data;
+
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.rows)) return data.rows;
+
+  return [];
+};
+
+const getValue = (item, keys, fallback = '') => {
+  const key = keys.find((field) => item?.[field] !== undefined && item?.[field] !== null && item?.[field] !== '');
+  return key ? item[key] : fallback;
+};
+
+const getSalesCode = (item) => getValue(item, ['slp_code', 'sales_code', 'code_sales', 'employee_code', 'code']);
+// const getSalesName = (item) => getValue(item, ['slp_name', 'sales_name', 'name_sales', 'employee_name', 'name']);
+const getSalesName = (item) => getValue(item, ['slp_name']) || item?.sales_employee?.slp_name || '';
+const getSalesDistributorId = (item) => getValue(item, ['id', 'sales_distributor_id', 'salesDistributorId'], '');
+const getDistributorCode = (item) =>
+  getValue(item, ['code_customer', 'distributor_code', 'customer_code', 'card_code']) ||
+  item?.distributor?.code_customer ||
+  item?.distributor?.customer_code ||
+  '';
+const getDistributorName = (item) =>
+  getValue(item, ['distributor_name', 'name_distributor', 'customer_name', 'card_name']) ||
+  item?.distributor?.name ||
+  item?.distributor?.name_distributor ||
+  '';
 
 export default function MasterEmployee() {
   const { showAlert } = useAlert();
+  const { showConfirm } = useConfirm();
   const [dataSource, setDataSource] = useState([]);
   const [loadingData, setLoadingData] = useState(false);
+  const [loadingOptions, setLoadingOptions] = useState(false);
   const [keywords, setKeywords] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [selectedDistributorSearch, setSelectedDistributorSearch] = useState(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingSalesId, setEditingSalesId] = useState(null);
+  const [deletingSalesId, setDeletingSalesId] = useState(null);
+  const [submittingSales, setSubmittingSales] = useState(false);
+  const [salesInput, setSalesInput] = useState(initialSalesInput);
+  const [listSales, setListSales] = useState([]);
+  const [listDistributor, setListDistributor] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
+  const selectStyles = {
+    control: (provided) => ({
+      ...provided,
+      minHeight: '43px'
+    }),
+    valueContainer: (provided) => ({
+      ...provided,
+      paddingTop: 0,
+      paddingBottom: 0
+    }),
+    menu: (provided) => ({
+      ...provided,
+      zIndex: 1060
+    })
+  };
 
   useEffect(() => {
     setCurrentPage(1);
-
-    if (keywords) {
+    if (keywords || selectedDistributorSearch) {
       const delayTimer = setTimeout(() => {
         fetchData();
       }, 700);
@@ -41,23 +109,82 @@ export default function MasterEmployee() {
     }
 
     fetchData();
-  }, [keywords]);
+  }, [keywords, selectedDistributorSearch]);
 
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedStatus]);
 
   const fetchData = async () => {
+    const payload = {
+      keywords: keywords,
+      codeCustomer: selectedDistributorSearch?.value || ''
+    };
     setLoadingData(true);
-    const response = await EmployeeServices.getAllEmployee(keywords);
-    if (response.data.success) {
-      setDataSource(response.data.data);
+    try {
+      const response = await EmployeeServices.getSalesDistributor(payload);
+      if (response.data.success) {
+        // let spliceData = normalizeList(response).slice(1);
+        let spliceData = response.data.data.data;
+        setDataSource(spliceData);
+        setLoadingData(false);
+      } else {
+        setLoadingData(false);
+        showAlert('Gagal ambil data', 'danger');
+      }
+    } catch (error) {
       setLoadingData(false);
-    } else {
-      setLoadingData(false);
-      showAlert('Gagal ambil data', 'danger');
+      showAlert(error?.message || 'Gagal ambil data', 'danger');
     }
   };
+
+  const fetchOptions = async () => {
+    setLoadingOptions(true);
+
+    try {
+      const [employeeResponse, distributorResponse] = await Promise.all([
+        EmployeeServices.getAllEmployee(''),
+        DistributorServices.getAllDistributor('')
+      ]);
+
+      if (employeeResponse.data.success) {
+        setListSales(
+          normalizeList(employeeResponse)
+            .slice(1)
+            .map((item) => ({
+              value: getSalesCode(item),
+              label: `${getSalesCode(item) || '-'} - ${getSalesName(item) || '-'}`,
+              id: item.id || item.sales_employee_id || item.employee_id,
+              name: getSalesName(item)
+            }))
+            .filter((item) => item.value)
+        );
+      } else {
+        showAlert(employeeResponse.data.message || 'Gagal ambil data sales', 'danger');
+      }
+
+      if (distributorResponse.data.success) {
+        setListDistributor(
+          normalizeList(distributorResponse).map((item) => ({
+            value: item.code_customer,
+            label: `${item.code_customer} - ${item.depo} - ${item.name}`,
+            id: item.id,
+            name: item.name
+          }))
+        );
+      } else {
+        showAlert(distributorResponse.data.message || 'Gagal ambil data distributor', 'danger');
+      }
+    } catch (error) {
+      showAlert(error?.message || 'Gagal ambil data dropdown tambah sales', 'danger');
+    } finally {
+      setLoadingOptions(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOptions();
+  }, []);
 
   const syncData = async () => {
     setLoadingData(true);
@@ -93,12 +220,211 @@ export default function MasterEmployee() {
     return filteredData.slice(startIndex, startIndex + pageSize);
   }, [currentPage, filteredData]);
 
-  const hasActiveFilter = Boolean(keywords || selectedStatus);
+  const hasActiveFilter = Boolean(keywords || selectedStatus || selectedDistributorSearch);
 
   const resetFilters = () => {
     setKeywords('');
     setSelectedStatus('');
+    setSelectedDistributorSearch(null);
   };
+
+  const closeAddModal = () => {
+    setShowAddModal(false);
+    setEditingSalesId(null);
+    setSalesInput(initialSalesInput);
+  };
+
+  const openAddModal = () => {
+    setEditingSalesId(null);
+    setSalesInput(initialSalesInput);
+    setShowAddModal(true);
+  };
+
+  const openEditModal = (item) => {
+    const salesDistributorId = getSalesDistributorId(item);
+    const salesCode = getSalesCode(item);
+    const salesName = getSalesName(item);
+    const distributorCode = getDistributorCode(item);
+    const distributorName = getDistributorName(item);
+
+    if (!salesDistributorId) {
+      showAlert('ID relasi sales tidak ditemukan', 'danger');
+      return;
+    }
+
+    setEditingSalesId(salesDistributorId);
+    setSalesInput({
+      slpCode: salesCode ? [salesCode] : [],
+      slpName: salesName ? [salesName] : [],
+      salesId: [item?.sales_employee_id || item?.employee_id || item?.sales_employee?.id || ''],
+      distributorCode,
+      distributorName,
+      distributorId: item?.distributor_id || item?.distributor?.id || '',
+      status: String(getValue(item, ['status'], '1'))
+    });
+    setShowAddModal(true);
+  };
+
+  const handleSelectSales = (options) => {
+    const selectedOptions = Array.isArray(options) ? options : options ? [options] : [];
+
+    setSalesInput((prevState) => ({
+      ...prevState,
+      slpCode: selectedOptions.map((option) => option.value),
+      slpName: selectedOptions.map((option) => option.name),
+      salesId: selectedOptions.map((option) => option.id)
+    }));
+  };
+
+  const handleSelectDistributor = (option) => {
+    setSalesInput((prevState) => ({
+      ...prevState,
+      distributorCode: option?.value || '',
+      distributorName: option?.name || '',
+      distributorId: option?.id || ''
+    }));
+  };
+
+  const handleSelectSearchDistributor = (option) => {
+    if (!option) {
+      setSelectedDistributorSearch(null);
+      return;
+    }
+
+    setSelectedDistributorSearch({
+      value: option.value,
+      label: option.label
+    });
+  };
+
+  const handleSalesInput = (event) => {
+    const { name, value } = event.target;
+
+    setSalesInput((prevState) => ({
+      ...prevState,
+      [name]: value
+    }));
+  };
+
+  const submitSales = async (event) => {
+    event.preventDefault();
+
+    if (!salesInput.slpCode.length || !salesInput.distributorCode) {
+      showAlert('Nama sales dan distributor wajib dipilih', 'danger');
+      return;
+    }
+
+    setSubmittingSales(true);
+
+    const payloads = salesInput.slpCode.map((slpCode) => ({
+      slp_code: slpCode,
+      code_customer: salesInput.distributorCode,
+      status: Number(salesInput.status)
+    }));
+
+    try {
+      if (editingSalesId) {
+        const response = await EmployeeServices.putSalesDistributor(editingSalesId, payloads[0]);
+
+        if (response.data.success) {
+          showAlert(response.data.message || 'Sales berhasil diperbarui', 'success');
+          closeAddModal();
+          fetchData();
+        } else {
+          showAlert(response.data.message || 'Gagal update sales', 'danger');
+        }
+
+        return;
+      }
+
+      const responses = await Promise.allSettled(payloads.map((payload) => EmployeeServices.postSalesDistributor(payload)));
+      const fulfilledResponses = responses.filter((response) => response.status === 'fulfilled').map((response) => response.value);
+      const failedResponses = fulfilledResponses.filter((response) => !response.data.success);
+      const rejectedResponses = responses.filter((response) => response.status === 'rejected');
+
+      if (!failedResponses.length && !rejectedResponses.length) {
+        showAlert(
+          fulfilledResponses.length > 1
+            ? `${fulfilledResponses.length} sales berhasil ditambahkan`
+            : fulfilledResponses[0].data.message || 'Sales berhasil ditambahkan',
+          'success'
+        );
+        closeAddModal();
+        fetchData();
+      } else {
+        showAlert(
+          failedResponses[0]?.data?.message || rejectedResponses[0]?.reason?.message || 'Sebagian sales gagal ditambahkan',
+          'danger'
+        );
+      }
+    } catch (error) {
+      showAlert(error?.message || (editingSalesId ? 'Gagal update sales' : 'Gagal tambah sales'), 'danger');
+    } finally {
+      setSubmittingSales(false);
+    }
+  };
+
+  const deleteSales = async (item) => {
+    const salesDistributorId = getSalesDistributorId(item);
+
+    if (!salesDistributorId) {
+      showAlert('ID relasi sales tidak ditemukan', 'danger');
+      return;
+    }
+
+    setDeletingSalesId(salesDistributorId);
+
+    try {
+      const response = await EmployeeServices.deleteSalesDistributor(salesDistributorId);
+
+      if (response.data.success) {
+        showAlert(response.data.message || 'Sales berhasil dihapus', 'success');
+        fetchData();
+      } else {
+        showAlert(response.data.message || 'Gagal hapus sales', 'danger');
+      }
+    } catch (error) {
+      showAlert(error?.message || 'Gagal hapus sales', 'danger');
+    } finally {
+      setDeletingSalesId(null);
+    }
+  };
+
+  const confirmDeleteSales = (item) => {
+    showConfirm({
+      title: 'Hapus Sales',
+      subTitle: `Anda yakin ingin menghapus sales ${getSalesName(item) || getSalesCode(item) || 'ini'} dari customer ${
+        getDistributorCode(item) || '-'
+      }?`,
+      onConfirm: () => deleteSales(item)
+    });
+  };
+
+  const canSubmitSales = Boolean(salesInput.slpCode.length && salesInput.distributorCode && !submittingSales);
+  const submitButtonText = editingSalesId
+    ? 'Simpan Perubahan'
+    : salesInput.slpCode.length
+      ? `Simpan ${salesInput.slpCode.length} Sales`
+      : 'Simpan Sales';
+  const selectedSalesOption = salesInput.slpCode.map(
+    (slpCode, index) =>
+      listSales.find((item) => item.value === slpCode) || {
+        value: slpCode,
+        label: `${slpCode || '-'} - ${salesInput.slpName[index] || '-'}`,
+        id: salesInput.salesId[index],
+        name: salesInput.slpName[index]
+      }
+  );
+  const selectedDistributorOption =
+    listDistributor.find((item) => item.value === salesInput.distributorCode) ||
+    (salesInput.distributorCode
+      ? {
+          value: salesInput.distributorCode,
+          label: [salesInput.distributorCode, salesInput.distributorName].filter(Boolean).join(' - '),
+          id: salesInput.distributorId,
+          name: salesInput.distributorName
+        }
+      : null);
 
   return (
     <>
@@ -111,10 +437,16 @@ export default function MasterEmployee() {
             </Stack>
           }
           secondary={
-            <Button onClick={syncData} variant="primary" disabled={loadingData}>
-              <i className="ti ti-refresh me-1" />
-              Synchronize
-            </Button>
+            <Stack direction="horizontal" gap={2}>
+              <Button onClick={openAddModal} variant="success" disabled={loadingData}>
+                <i className="ti ti-plus me-1" />
+                Tambah Sales
+              </Button>
+              {/* <Button onClick={syncData} variant="primary" disabled={loadingData}>
+                <i className="ti ti-refresh me-1" />
+                Synchronize
+              </Button> */}
+            </Stack>
           }
         >
           <Row className="g-3">
@@ -133,7 +465,7 @@ export default function MasterEmployee() {
                 </Card.Body>
               </Card>
             </Col>
-            <Col md={4}>
+            {/* <Col md={4}>
               <Card className="border mb-0 h-100">
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
@@ -162,36 +494,52 @@ export default function MasterEmployee() {
                   </Stack>
                 </Card.Body>
               </Card>
-            </Col>
+            </Col> */}
           </Row>
         </MainCard>
 
         <MainCard>
           <Row className="g-2 align-items-end mb-3">
-            <Col lg={5} md={6}>
+            <Col lg={3} md={6}>
               <Form.Label className="f-12 text-muted">Cari Sales</Form.Label>
               <InputGroup>
                 <InputGroup.Text>
                   <i className="ti ti-search" />
                 </InputGroup.Text>
-                <Form.Control value={keywords} onChange={(event) => setKeywords(event.target.value)} type="text" placeholder="Kode atau nama sales" />
+                <Form.Control
+                  value={keywords}
+                  onChange={(event) => setKeywords(event.target.value)}
+                  type="text"
+                  placeholder="Kode atau nama sales"
+                />
               </InputGroup>
             </Col>
             <Col lg={3} md={6}>
-              <Form.Label className="f-12 text-muted">Status</Form.Label>
-              <Form.Select value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value)}>
+              <Form.Label className="f-12 text-muted">Customer</Form.Label>
+              <Select
+                styles={selectStyles}
+                options={listDistributor}
+                value={selectedDistributorSearch}
+                onChange={handleSelectSearchDistributor}
+                isClearable
+                isLoading={loadingOptions}
+                placeholder="Pilih Customer"
+                noOptionsMessage={() => 'Customer tidak ditemukan'}
+              />
+
+              {/* <Form.Select value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value)}>
                 <option value="">Semua Status</option>
                 <option value="1">Aktif</option>
                 <option value="0">Tidak Aktif</option>
-              </Form.Select>
+              </Form.Select> */}
             </Col>
-            <Col lg={2} md={6}>
+            {/* <Col lg={2} md={6}>
               <Button className="w-100" variant="light-secondary" disabled={!hasActiveFilter} onClick={resetFilters}>
                 <i className="ti ti-refresh me-1" />
                 Reset
               </Button>
-            </Col>
-            <Col lg={2} md={6} className="text-lg-end">
+            </Col> */}
+            <Col lg={5} md={6} className="text-lg-end">
               <span className="text-muted f-12">Menampilkan</span>
               <div className="fw-semibold">
                 {filteredData.length} dari {dataSource.length}
@@ -203,7 +551,7 @@ export default function MasterEmployee() {
             {loadingData ? (
               <tbody>
                 <tr>
-                  <td colSpan={4}>
+                  <td colSpan={6}>
                     <LoaderData />
                   </td>
                 </tr>
@@ -213,47 +561,85 @@ export default function MasterEmployee() {
                 <thead>
                   <tr>
                     <th style={{ minWidth: 160 }}>Kode Sales</th>
-                    <th style={{ minWidth: 300 }}>Nama Sales</th>
-                    <th style={{ minWidth: 120 }}>Status</th>
-                    <th className="text-center" style={{ width: 80 }}>
+                    <th style={{ minWidth: 240 }}>Nama Sales</th>
+                    <th style={{ minWidth: 180 }}>Kode Customer</th>
+                    <th style={{ minWidth: 260 }}>Nama Customer</th>
+                    <th style={{ minWidth: 260 }}>Depo</th>
+                    {/* <th style={{ minWidth: 120 }}>Status</th> */}
+                    <th className="text-center" style={{ minWidth: 150 }}>
                       Aksi
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredData.length > 0 ? (
-                    paginatedData.map((item, index) => (
-                      <tr key={item.id || item.slp_code || index}>
-                        <td className="fw-semibold">{item.slp_code || '-'}</td>
-                        <td style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>{item.slp_name || '-'}</td>
-                        <td>{item.status === 1 ? <Badge bg="success">Aktif</Badge> : <Badge bg="secondary">Tidak Aktif</Badge>}</td>
-                        <td className="text-center">
-                          <Button className="rounded-circle" variant="outline-primary" size="sm" onClick={() => setSelectedEmployee(item)}>
-                            <i className="ti ti-eye" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))
+                    paginatedData.map((item, index) => {
+                      const salesDistributorId = getSalesDistributorId(item);
+                      const isDeleting = String(deletingSalesId) === String(salesDistributorId);
+
+                      return (
+                        <tr key={salesDistributorId || item.slp_code || index}>
+                          <td className="fw-semibold">{getSalesCode(item) || '-'}</td>
+                          <td style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>{getSalesName(item) || '-'}</td>
+                          <td className="fw-semibold">{getDistributorCode(item) || '-'}</td>
+                          <td style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>{getDistributorName(item) || '-'}</td>
+                          <td className="fw-semibold">{item?.depo || ''}</td>
+                          {/* <td>{item.status === 1 ? <Badge bg="success">Aktif</Badge> : <Badge bg="secondary">Tidak Aktif</Badge>}</td> */}
+                          <td className="text-center">
+                            <Stack direction="horizontal" gap={1} className="justify-content-center flex-nowrap">
+                              <Button className="rounded-circle" variant="outline-primary" size="sm" onClick={() => setSelectedEmployee(item)}>
+                                <i className="ti ti-eye" />
+                              </Button>
+                              <Button
+                                className="rounded-circle"
+                                variant="outline-warning"
+                                size="sm"
+                                onClick={() => openEditModal(item)}
+                                disabled={submittingSales || Boolean(deletingSalesId)}
+                              >
+                                <i className="ti ti-edit" />
+                              </Button>
+                              <Button
+                                className="rounded-circle"
+                                variant="outline-danger"
+                                size="sm"
+                                onClick={() => confirmDeleteSales(item)}
+                                disabled={Boolean(deletingSalesId)}
+                              >
+                                {isDeleting ? <span className="spinner-border spinner-border-sm" /> : <i className="ti ti-trash" />}
+                              </Button>
+                            </Stack>
+                          </td>
+                        </tr>
+                      );
+                    })
                   ) : (
                     <tr>
-                      <td colSpan={4}>
+                      <td colSpan={6}>
                         <div className="text-center py-5">
                           <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                             <i className="ti ti-users f-24" />
                           </div>
                           <h5 className="mb-1">{hasActiveFilter ? 'Sales tidak ditemukan' : 'Belum ada data sales'}</h5>
                           <p className="text-muted mb-3">
-                            {hasActiveFilter ? 'Ubah kata kunci atau status untuk melihat data lain.' : 'Gunakan synchronize untuk mengambil data sales terbaru.'}
+                            {hasActiveFilter
+                              ? 'Ubah kata kunci atau status untuk melihat data lain.'
+                              : 'Gunakan synchronize untuk mengambil data sales terbaru.'}
                           </p>
                           {hasActiveFilter ? (
                             <Button variant="light-primary" onClick={resetFilters}>
                               Reset Filter
                             </Button>
                           ) : (
-                            <Button variant="primary" onClick={syncData}>
-                              <i className="ti ti-refresh me-1" />
-                              Synchronize
+                            <Button onClick={openAddModal} variant="success" disabled={loadingData}>
+                              <i className="ti ti-plus me-1" />
+                              Tambah Sales
                             </Button>
+
+                            // <Button variant="primary" onClick={syncData}>
+                            //   <i className="ti ti-refresh me-1" />
+                            //   Synchronize
+                            // </Button>
                           )}
                         </div>
                       </td>
@@ -264,25 +650,14 @@ export default function MasterEmployee() {
             )}
           </Table>
 
-          <Stack direction="horizontal" gap={2} className="flex-wrap justify-content-between mt-3">
-            <small className="text-muted">
-              Menampilkan {filteredData.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}-
-              {Math.min(currentPage * pageSize, filteredData.length)} dari {filteredData.length} sales
-            </small>
-            <Pagination className="mb-0">
-              <Pagination.Prev disabled={currentPage === 1} onClick={() => setCurrentPage((page) => Math.max(page - 1, 1))} />
-              {Array.from({ length: pageCount }).map((_, index) => {
-                const page = index + 1;
-
-                return (
-                  <Pagination.Item key={page} active={page === currentPage} onClick={() => setCurrentPage(page)}>
-                    {page}
-                  </Pagination.Item>
-                );
-              })}
-              <Pagination.Next disabled={currentPage === pageCount} onClick={() => setCurrentPage((page) => Math.min(page + 1, pageCount))} />
-            </Pagination>
-          </Stack>
+          <TablePagination
+            currentPage={currentPage}
+            onPageChange={setCurrentPage}
+            pageCount={pageCount}
+            pageSize={pageSize}
+            total={filteredData.length}
+            itemLabel="sales"
+          />
         </MainCard>
       </Stack>
 
@@ -295,15 +670,29 @@ export default function MasterEmployee() {
             <Row className="g-3">
               <Col md={6}>
                 <Form.Label className="f-12 text-muted">Kode Sales</Form.Label>
-                <div className="fw-semibold">{selectedEmployee.slp_code || '-'}</div>
+                <div className="fw-semibold">{getSalesCode(selectedEmployee) || '-'}</div>
               </Col>
               <Col md={6}>
                 <Form.Label className="f-12 text-muted">Status</Form.Label>
-                <div>{selectedEmployee.status === 1 ? <Badge bg="success">Aktif</Badge> : <Badge bg="secondary">Tidak Aktif</Badge>}</div>
+                <div>
+                  {Number(selectedEmployee.status) === 1 ? <Badge bg="success">Aktif</Badge> : <Badge bg="secondary">Tidak Aktif</Badge>}
+                </div>
               </Col>
               <Col md={12}>
                 <Form.Label className="f-12 text-muted">Nama Sales</Form.Label>
-                <div>{selectedEmployee.slp_name || '-'}</div>
+                <div>{getSalesName(selectedEmployee) || '-'}</div>
+              </Col>
+              <Col md={6}>
+                <Form.Label className="f-12 text-muted">Kode Distributor</Form.Label>
+                <div className="fw-semibold">{getDistributorCode(selectedEmployee) || '-'}</div>
+              </Col>
+              <Col md={6}>
+                <Form.Label className="f-12 text-muted">Nama Distributor</Form.Label>
+                <div>{getDistributorName(selectedEmployee) || '-'}</div>
+              </Col>
+              <Col md={6}>
+                <Form.Label className="f-12 text-muted">Depo</Form.Label>
+                <div>{selectedEmployee?.depo || selectedEmployee?.distributor?.depo || '-'}</div>
               </Col>
             </Row>
           )}
@@ -313,6 +702,84 @@ export default function MasterEmployee() {
             Tutup
           </Button>
         </Modal.Footer>
+      </Modal>
+
+      <Modal show={showAddModal} onHide={closeAddModal} centered size="lg">
+        <Form onSubmit={submitSales}>
+          <Modal.Header closeButton>
+            <Modal.Title>{editingSalesId ? 'Edit Sales' : 'Tambah Sales'}</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <Row className="g-3">
+              <Col md={6}>
+                <Form.Label>
+                  Nama Sales <span className="text-danger">*</span>
+                </Form.Label>
+                <Select
+                  styles={selectStyles}
+                  options={listSales}
+                  value={editingSalesId ? selectedSalesOption[0] || null : selectedSalesOption}
+                  onChange={handleSelectSales}
+                  isMulti={!editingSalesId}
+                  isClearable
+                  isLoading={loadingOptions}
+                  placeholder="Pilih sales"
+                  noOptionsMessage={() => 'Sales tidak ditemukan'}
+                />
+              </Col>
+              <Col md={6}>
+                <Form.Label>
+                  Customer <span className="text-danger">*</span>
+                </Form.Label>
+                <Select
+                  styles={selectStyles}
+                  options={listDistributor}
+                  value={selectedDistributorOption}
+                  onChange={handleSelectDistributor}
+                  isClearable
+                  isLoading={loadingOptions}
+                  placeholder="Pilih distributor"
+                  noOptionsMessage={() => 'Distributor tidak ditemukan'}
+                />
+              </Col>
+              <Col md={6}>
+                <Form.Label>Kode Sales</Form.Label>
+                <Form.Control value={salesInput.slpCode.join(', ')} disabled placeholder="Terisi otomatis dari pilihan sales" />
+              </Col>
+              <Col md={6}>
+                <Form.Label>Kode Distributor</Form.Label>
+                <Form.Control value={salesInput.distributorCode} disabled placeholder="Terisi otomatis dari pilihan distributor" />
+              </Col>
+              <Col md={6}>
+                <Form.Label>Nama Distributor</Form.Label>
+                <Form.Control value={salesInput.distributorName} disabled placeholder="Terisi otomatis dari pilihan distributor" />
+              </Col>
+              <Col md={6}>
+                <Form.Label>Status</Form.Label>
+                <Form.Select name="status" value={salesInput.status} onChange={handleSalesInput}>
+                  <option value="1">Aktif</option>
+                  <option value="0">Tidak Aktif</option>
+                </Form.Select>
+              </Col>
+              <Col xs={12}>
+                <div className="sm-inline-alert sm-inline-alert-info">
+                  <span className="sm-inline-alert-icon">
+                    <i className="ti ti-info-circle f-20" />
+                  </span>
+                  <span>Pilih sales dan distributor dari data master untuk membuat relasi sales distributor.</span>
+                </div>
+              </Col>
+            </Row>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="light-secondary" onClick={closeAddModal} disabled={submittingSales}>
+              Batal
+            </Button>
+            <Button type="submit" variant="primary" disabled={!canSubmitSales}>
+              {submittingSales ? 'Menyimpan...' : submitButtonText}
+            </Button>
+          </Modal.Footer>
+        </Form>
       </Modal>
     </>
   );

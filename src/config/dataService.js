@@ -2,6 +2,7 @@ import axios from 'axios';
 import { getCookies } from '../utils/cookies';
 import QueryString from 'qs';
 import Cookies from 'js-cookie';
+import { useAlert } from '../utils/alertContext';
 
 const API_ENDPOINT = import.meta.env.VITE_APP_API_ENDPOINT_DEVELOPMENT;
 
@@ -16,6 +17,18 @@ const client = axios.create({
   }
 });
 
+const isFormData = (data) => typeof FormData !== 'undefined' && data instanceof FormData;
+
+const buildHeaders = (data, optionalHeader = {}) => {
+  const headers = { ...authHeader(), ...optionalHeader };
+
+  if (isFormData(data)) {
+    delete headers['Content-Type'];
+  }
+
+  return headers;
+};
+
 class DataService {
   static get(path = '') {
     return client({
@@ -25,12 +38,21 @@ class DataService {
     });
   }
 
+  static getBlob(path = '') {
+    return client({
+      method: 'GET',
+      url: path,
+      headers: { ...authHeader() },
+      responseType: 'blob'
+    });
+  }
+
   static post(path = '', data = {}, optionalHeader = {}) {
     return client({
       method: 'POST',
       url: path,
       data,
-      headers: { ...authHeader(), ...optionalHeader }
+      headers: buildHeaders(data, optionalHeader)
     });
   }
 
@@ -56,8 +78,8 @@ class DataService {
     return client({
       method: 'PUT',
       url: path,
-      data: JSON.stringify(data),
-      headers: { ...authHeader(), ...optionalHeader }
+      data: isFormData(data) ? data : JSON.stringify(data),
+      headers: buildHeaders(data, optionalHeader)
     });
   }
 }
@@ -73,6 +95,11 @@ client.interceptors.request.use((config) => {
   const { headers } = config;
   requestConfig.headers = { ...headers, Authorization: `Bearer ${getCookies('accessToken')}` };
 
+  if (isFormData(config.data)) {
+    delete requestConfig.headers['Content-Type'];
+    delete requestConfig.headers['content-type'];
+  }
+
   return requestConfig;
 });
 
@@ -86,7 +113,7 @@ client.interceptors.response.use(
     const { response } = error;
     const originalRequest = error.config;
     if (response) {
-      console.log('response error => ', response);
+      // console.log('response error => ', response);
       if (response.status === 500) {
         // do something here
       } else if (response.status === 429) {
@@ -100,6 +127,8 @@ client.interceptors.response.use(
         Cookies.remove('role');
         Cookies.remove('menu');
         window.location.replace('/');
+      } else if (response.status === 400) {
+        return response;
       } else {
         return originalRequest;
       }

@@ -8,13 +8,13 @@ import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
 import InputGroup from 'react-bootstrap/InputGroup';
 import Modal from 'react-bootstrap/Modal';
-import Pagination from 'react-bootstrap/Pagination';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
 
 // project-imports
 import MainCard from 'components/MainCard';
+import TablePagination from 'components/TablePagination';
 import LoaderData from '../../components/LoaderData';
 import WarehouseServices from '../../services/WarehouseServices';
 import { useAlert } from '../../utils/alertContext';
@@ -133,7 +133,7 @@ export default function MasterWarehouse() {
                 </Card.Body>
               </Card>
             </Col>
-            <Col md={4}>
+            {/* <Col md={4}>
               <Card className="border mb-0 h-100">
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
@@ -162,7 +162,7 @@ export default function MasterWarehouse() {
                   </Stack>
                 </Card.Body>
               </Card>
-            </Col>
+            </Col> */}
           </Row>
         </MainCard>
 
@@ -182,21 +182,21 @@ export default function MasterWarehouse() {
                 />
               </InputGroup>
             </Col>
-            <Col lg={3} md={6}>
+            {/* <Col lg={3} md={6}>
               <Form.Label className="f-12 text-muted">Status</Form.Label>
               <Form.Select value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value)}>
                 <option value="">Semua Status</option>
                 <option value="1">Aktif</option>
                 <option value="0">Tidak Aktif</option>
               </Form.Select>
-            </Col>
+            </Col> */}
             <Col lg={2} md={6}>
               <Button className="w-100" variant="light-secondary" disabled={!hasActiveFilter} onClick={resetFilters}>
                 <i className="ti ti-refresh me-1" />
                 Reset
               </Button>
             </Col>
-            <Col lg={2} md={6} className="text-lg-end">
+            <Col lg={5} md={6} className="text-lg-end">
               <span className="text-muted f-12">Menampilkan</span>
               <div className="fw-semibold">
                 {filteredData.length} dari {dataSource.length}
@@ -221,7 +221,7 @@ export default function MasterWarehouse() {
                     <th style={{ minWidth: 260 }}>Nama Warehouse</th>
                     <th style={{ minWidth: 120 }}>Status</th>
                     <th className="text-center" style={{ width: 80 }}>
-                      Aksi
+                      #
                     </th>
                   </tr>
                 </thead>
@@ -271,25 +271,14 @@ export default function MasterWarehouse() {
             )}
           </Table>
 
-          <Stack direction="horizontal" gap={2} className="flex-wrap justify-content-between mt-3">
-            <small className="text-muted">
-              Menampilkan {filteredData.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}-
-              {Math.min(currentPage * pageSize, filteredData.length)} dari {filteredData.length} warehouse
-            </small>
-            <Pagination className="mb-0">
-              <Pagination.Prev disabled={currentPage === 1} onClick={() => setCurrentPage((page) => Math.max(page - 1, 1))} />
-              {Array.from({ length: pageCount }).map((_, index) => {
-                const page = index + 1;
-
-                return (
-                  <Pagination.Item key={page} active={page === currentPage} onClick={() => setCurrentPage(page)}>
-                    {page}
-                  </Pagination.Item>
-                );
-              })}
-              <Pagination.Next disabled={currentPage === pageCount} onClick={() => setCurrentPage((page) => Math.min(page + 1, pageCount))} />
-            </Pagination>
-          </Stack>
+          <TablePagination
+            currentPage={currentPage}
+            onPageChange={setCurrentPage}
+            pageCount={pageCount}
+            pageSize={pageSize}
+            total={filteredData.length}
+            itemLabel="warehouse"
+          />
         </MainCard>
       </Stack>
 

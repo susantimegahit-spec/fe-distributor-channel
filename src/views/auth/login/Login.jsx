@@ -2,7 +2,22 @@
 import AuthLoginForm from 'sections/auth/AuthLogin';
 
 // assets
-import SusantiMegahLogo from 'assets/images/susanti-megah-logo.svg';
+import CustomerPortalWordmark from 'assets/images/customer-portal-wordmark.png';
+import CapKapalLogo from 'assets/images/cap-kapal.png';
+import GaramJempol from 'assets/images/garam-jempol.png';
+import Garami from 'assets/images/garami.png';
+import GaramCapTangan from 'assets/images/garam-cap-tangan.png';
+import Garamku from 'assets/images/garamku.png';
+import CapLayar from 'assets/images/cap_layar.png';
+
+const brandLogos = [
+  { src: CapKapalLogo, alt: 'Cap Kapal' },
+  { src: GaramJempol, alt: 'Garam Jempol' },
+  { src: Garami, alt: 'Garami' },
+  { src: GaramCapTangan, alt: 'Garam Cap Tangan' },
+  { src: Garamku, alt: 'Garamku' },
+  { src: CapLayar, alt: 'Cap Layar' }
+];
 
 // ===========================|| AUTH - LOGIN PAGE ||=========================== //
 
@@ -12,25 +27,17 @@ export default function LoginPage() {
       <div className="sm-auth-shell">
         <section className="sm-auth-brand">
           <div className="sm-auth-brand-inner">
-            <img src={SusantiMegahLogo} alt="PT. Susanti Megah" className="sm-auth-brand-logo" />
+            <img src={CustomerPortalWordmark} alt="Customer Portal" className="sm-auth-brand-logo" />
             <div>
-              <span className="sm-auth-eyebrow">PT. Susanti Megah</span>
-              <h1>Distributor Channel</h1>
+              {/* <span className="sm-auth-eyebrow">PT. Susanti Megah</span> */}
               <p>Portal distribusi untuk mengelola data pelanggan, sales, item, warehouse, dan pesanan dengan lebih terarah.</p>
             </div>
-            <div className="sm-auth-highlights">
-              <div>
-                <i className="ti ti-building-store" />
-                <span>Distributor</span>
-              </div>
-              <div>
-                <i className="ti ti-clipboard-list" />
-                <span>Master Item</span>
-              </div>
-              <div>
-                <i className="ti ti-package" />
-                <span>Pesanan</span>
-              </div>
+            <div className="sm-brand-showcase" aria-label="Brand">
+              {brandLogos.map((brand) => (
+                <div className="sm-brand-logo-tile" key={brand.alt}>
+                  <img src={brand.src} alt={brand.alt} />
+                </div>
+              ))}
             </div>
           </div>
         </section>

@@ -8,13 +8,13 @@ import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
 import InputGroup from 'react-bootstrap/InputGroup';
 import Modal from 'react-bootstrap/Modal';
-import Pagination from 'react-bootstrap/Pagination';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
 
 // project-imports
 import MainCard from 'components/MainCard';
+import TablePagination from 'components/TablePagination';
 import LoaderData from '../../components/LoaderData';
 import DistributorServices from '../../services/DistributorServices';
 import { useAlert } from '../../utils/alertContext';
@@ -134,7 +134,7 @@ export default function MasterDistributor() {
                 </Card.Body>
               </Card>
             </Col>
-            <Col sm={6} xl={3}>
+            {/* <Col sm={6} xl={3}>
               <Card className="border mb-0 h-100">
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
@@ -163,7 +163,7 @@ export default function MasterDistributor() {
                   </Stack>
                 </Card.Body>
               </Card>
-            </Col>
+            </Col> */}
             <Col sm={6} xl={3}>
               <Card className="border mb-0 h-100">
                 <Card.Body className="py-3">
@@ -198,21 +198,21 @@ export default function MasterDistributor() {
                 />
               </InputGroup>
             </Col>
-            <Col lg={3} md={6}>
+            {/* <Col lg={3} md={6}>
               <Form.Label className="f-12 text-muted">Status</Form.Label>
               <Form.Select value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value)}>
                 <option value="">Semua Status</option>
                 <option value="1">Aktif</option>
                 <option value="0">Tidak Aktif</option>
               </Form.Select>
-            </Col>
+            </Col> */}
             <Col lg={2} md={6}>
               <Button className="w-100" variant="light-secondary" disabled={!hasActiveFilter} onClick={resetFilters}>
                 <i className="ti ti-refresh me-1" />
                 Reset
               </Button>
             </Col>
-            <Col lg={2} md={6} className="text-lg-end">
+            <Col lg={5} md={6} className="text-lg-end">
               <span className="text-muted f-12">Menampilkan</span>
               <div className="fw-semibold">
                 {filteredData.length} dari {dataSource.length}
@@ -240,7 +240,7 @@ export default function MasterDistributor() {
                     <th style={{ minWidth: 320 }}>Alamat</th>
                     <th style={{ minWidth: 120 }}>Status</th>
                     <th className="text-center" style={{ width: 80 }}>
-                      Aksi
+                      #
                     </th>
                   </tr>
                 </thead>
@@ -253,11 +253,14 @@ export default function MasterDistributor() {
                         <td>{item.phone || '-'}</td>
                         <td>{item.depo || '-'}</td>
                         <td style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>{item.address || '-'}</td>
-                        <td>
-                          {item.status === 1 ? <Badge bg="success">Aktif</Badge> : <Badge bg="secondary">Tidak Aktif</Badge>}
-                        </td>
+                        <td>{item.status === 1 ? <Badge bg="success">Aktif</Badge> : <Badge bg="secondary">Tidak Aktif</Badge>}</td>
                         <td className="text-center">
-                          <Button className="rounded-circle" variant="outline-primary" size="sm" onClick={() => setSelectedDistributor(item)}>
+                          <Button
+                            className="rounded-circle"
+                            variant="outline-primary"
+                            size="sm"
+                            onClick={() => setSelectedDistributor(item)}
+                          >
                             <i className="ti ti-eye" />
                           </Button>
                         </td>
@@ -295,25 +298,14 @@ export default function MasterDistributor() {
             )}
           </Table>
 
-          <Stack direction="horizontal" gap={2} className="flex-wrap justify-content-between mt-3">
-            <small className="text-muted">
-              Menampilkan {filteredData.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}-
-              {Math.min(currentPage * pageSize, filteredData.length)} dari {filteredData.length} distributor
-            </small>
-            <Pagination className="mb-0">
-              <Pagination.Prev disabled={currentPage === 1} onClick={() => setCurrentPage((page) => Math.max(page - 1, 1))} />
-              {Array.from({ length: pageCount }).map((_, index) => {
-                const page = index + 1;
-
-                return (
-                  <Pagination.Item key={page} active={page === currentPage} onClick={() => setCurrentPage(page)}>
-                    {page}
-                  </Pagination.Item>
-                );
-              })}
-              <Pagination.Next disabled={currentPage === pageCount} onClick={() => setCurrentPage((page) => Math.min(page + 1, pageCount))} />
-            </Pagination>
-          </Stack>
+          <TablePagination
+            currentPage={currentPage}
+            onPageChange={setCurrentPage}
+            pageCount={pageCount}
+            pageSize={pageSize}
+            total={filteredData.length}
+            itemLabel="distributor"
+          />
         </MainCard>
       </Stack>
 
