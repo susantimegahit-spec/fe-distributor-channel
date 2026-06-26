@@ -297,6 +297,7 @@ export default function OrderList() {
     notes: approvalNotes,
     id_discount: getOrderValue(order, ['id_discount', 'idDiscount'], ''),
     approval_id: permissionDetail?.role_menu?.approval_id,
+    DocTotal: getOrderValue(order, ['DocTotal'], ''),
     lines: getOrderLines(order).map((line) => ({
       item_code: getOrderValue(line, ['item_code', 'itemCode', 'ItemCode'], ''),
       quantity: getOrderValue(line, ['quantity', 'qty', 'Quantity'], ''),
@@ -433,7 +434,7 @@ export default function OrderList() {
         const shouldLoadCreditLimit =
           normalizeStatus(orderDetail?.status || order?.status) === 'WAITING_FINANCE' && (isAdministrator || isFinanceUser);
         const customerCode = getOrderCustomerCode(orderDetail) || getOrderCustomerCode(order);
-
+        console.log('detail => ', orderDetail)
         setSelectedOrderDetail(orderDetail);
 
         if (shouldLoadCreditLimit && customerCode) {
