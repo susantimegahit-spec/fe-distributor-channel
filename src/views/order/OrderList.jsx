@@ -93,47 +93,9 @@ const approvalStatusMap = {
   ALL: 'ALL'
 };
 
-const creditLimitKeys = [
-  'credit_limit_data.credit_limit',
-  'creditLimitData.credit_limit',
-  'credit_limit_data.creditLimit',
-  'creditLimitData.creditLimit',
-  'credit_limit_data.CreditLine',
-  'creditLimitData.CreditLine',
-  'credit_limit_data.limit',
-  'creditLimitData.limit',
-  'credit_limit',
-  'limit_credit',
-  'creditLimit',
-  'limitCredit',
-  'customer_credit_limit',
-  'customerCreditLimit',
-  'credit.limit',
-  'customer.credit_limit'
-];
+const creditLimitKeys = ['credit_limit_data.credit_limit'];
 
-const creditRemainingKeys = [
-  'credit_limit_data.remaining_credit_limit',
-  'creditLimitData.remaining_credit_limit',
-  'credit_limit_data.remainingCreditLimit',
-  'creditLimitData.remainingCreditLimit',
-  'credit_limit_data.remaining_limit',
-  'creditLimitData.remaining_limit',
-  'credit_limit_data.remainingLimit',
-  'creditLimitData.remainingLimit',
-  'credit_limit_data.available_credit',
-  'creditLimitData.available_credit',
-  'credit_limit_data.availableCredit',
-  'creditLimitData.availableCredit',
-  'remaining_credit_limit',
-  'remainingCreditLimit',
-  'credit_remaining',
-  'creditRemaining',
-  'available_credit',
-  'availableCredit',
-  'credit.remaining',
-  'customer.remaining_credit_limit'
-];
+const creditRemainingKeys = ['creditLimitData.SisaCredit'];
 
 export default function OrderList() {
   const roleId = getCookies('role');
@@ -197,7 +159,9 @@ export default function OrderList() {
     () => ({
       DRAFT: status === 'DRAFT' ? selectedStatusOption?.label || 'Draft' : 'Draft',
       WAITING_APPROVAL: String(status).startsWith('WAITING_') ? selectedStatusOption?.label || 'Waiting' : 'Waiting',
-      APPROVED: ['APPROVED', 'ORDER_APPROVED', 'DELIVERY', 'ARRIVED'].includes(status) ? selectedStatusOption?.label || 'Approved' : 'Approved',
+      APPROVED: ['APPROVED', 'ORDER_APPROVED', 'DELIVERY', 'ARRIVED'].includes(status)
+        ? selectedStatusOption?.label || 'Approved'
+        : 'Approved',
       REJECTED: status === 'REJECTED' ? selectedStatusOption?.label || 'Rejected' : 'Rejected',
       FAILED: status === 'FAILED' ? selectedStatusOption?.label || 'Failed' : 'Failed'
     }),
@@ -728,10 +692,11 @@ export default function OrderList() {
       );
   const selectedOrderGrandTotal = selectedOrderTotal - selectedOrderDiscountTotal;
   const selectedCreditLimit = selectedOrderDetail ? getOrderValue(selectedOrderDetail, creditLimitKeys, '') : '';
-  const selectedCreditRemaining = selectedOrderDetail ? getOrderValue(selectedOrderDetail, creditRemainingKeys, '') : '';
+  const selectedCreditRemaining = selectedOrderDetail?.creditLimitData?.SisaCredit;
   const canShowCreditLimitInfo =
     selectedOrderDetail && normalizeStatus(selectedOrderDetail.status) === 'WAITING_FINANCE' && (isAdministrator || isFinanceUser);
   const formatCreditAmount = (value) => (value !== undefined && value !== null && value !== '' ? currency(parseAmount(value)) : '-');
+  console.log('credit => ', selectedOrderDetail);
 
   return (
     <>
@@ -1176,18 +1141,12 @@ export default function OrderList() {
                             {creditLimitError}
                           </div>
                         ) : null}
-                        <Stack direction="horizontal" gap={3} className="justify-content-between align-items-start flex-wrap">
-                          <div>
-                            <div className="text-muted f-12 mb-1">Limit Kredit</div>
-                            <h4 className="mb-0 text-primary">{formatCreditAmount(selectedCreditLimit)}</h4>
+                        {selectedCreditRemaining !== '' ? (
+                          <div className="text-end">
+                            <div className="text-muted f-12 mb-1">Sisa Limit Kredit</div>
+                            <h4 className={`mb-0 ${selectedCreditRemaining > 0 ? 'text-success' : 'text-danger'}`}>{formatCreditAmount(selectedCreditRemaining)}</h4>
                           </div>
-                          {selectedCreditRemaining !== '' ? (
-                            <div className="text-end">
-                              <div className="text-muted f-12 mb-1">Sisa Limit Kredit</div>
-                              <h4 className="mb-0 text-success">{formatCreditAmount(selectedCreditRemaining)}</h4>
-                            </div>
-                          ) : null}
-                        </Stack>
+                        ) : null}
                       </Card.Body>
                     </Card>
                   ) : null}
