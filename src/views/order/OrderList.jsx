@@ -97,7 +97,8 @@ const creditLimitKeys = ['credit_limit_data.credit_limit'];
 
 const creditRemainingKeys = ['creditLimitData.SisaCredit'];
 
-const seriesDisplayKeys = ['series_name', 'seriesName', 'SeriesName', 'series', 'Series', 'series_code', 'seriesCode'];
+const seriesNameKeys = ['series_name', 'seriesName', 'SeriesName'];
+const seriesDisplayKeys = [...seriesNameKeys, 'series', 'Series', 'series_code', 'seriesCode'];
 const seriesValueKeys = ['series', 'Series', 'series_code', 'seriesCode'];
 
 export default function OrderList() {
@@ -290,6 +291,7 @@ export default function OrderList() {
     address2: getOrderValue(order, ['address2', 'ship_to_address', 'Address2'], ''),
     comments: getOrderValue(order, ['comments', 'Comments'], ''),
     series: getOrderValue(order, seriesValueKeys, ''),
+    series_name: getOrderValue(order, seriesDisplayKeys, ''),
     status: nextStatus,
     action: actionName,
     notes: approvalNotes,
@@ -993,8 +995,8 @@ export default function OrderList() {
                   <div>{formatOrderDate(getOrderValue(selectedOrderDetail, ['doc_due_date', 'docDueDate'], ''))}</div>
                 </Col>
                 <Col md={4}>
-                  <Form.Label className="f-12 text-muted">Series Sales Order</Form.Label>
-                  <div>{getOrderValue(selectedOrderDetail, seriesDisplayKeys)}</div>
+                  <Form.Label className="f-12 text-muted">Series Name</Form.Label>
+                  <div>{getOrderValue(selectedOrderDetail, seriesNameKeys)}</div>
                 </Col>
                 <Col md={4}>
                   <Form.Label className="f-12 text-muted">Sales</Form.Label>

@@ -123,6 +123,7 @@ export default function OrderPost() {
     docDate: '',
     docDueDate: '',
     series: '',
+    seriesName: '',
     slpCode: '',
     cnctCode: '',
     address: '',
@@ -464,6 +465,7 @@ export default function OrderPost() {
       docDate: formatDateInput(getValue(order, ['doc_date', 'docDate', 'DocDate'])),
       docDueDate: formatDateInput(getValue(order, ['doc_due_date', 'docDueDate', 'DocDueDate'])),
       series: getValue(order, ['series', 'Series', 'series_code', 'seriesCode']),
+      seriesName: getValue(order, orderSeriesNameKeys, ''),
       slpCode: getValue(order, ['slp_code', 'slpCode', 'SlpCode']),
       cnctCode: getValue(order, ['cntct', 'cnctCode', 'contact_name', 'customer_name', 'CardName']),
       address: findOption(listAddressB, billToCode, billToAddress),
@@ -780,14 +782,16 @@ export default function OrderPost() {
     setOrderInput({
       ...orderInput,
       docDueDate: e.target.value,
-      series: ''
+      series: '',
+      seriesName: ''
     });
   };
 
   const handleSelectSeries = (e) => {
     setOrderInput({
       ...orderInput,
-      series: e?.value || ''
+      series: e?.value || '',
+      seriesName: e?.label || ''
     });
   };
 
@@ -1218,6 +1222,7 @@ export default function OrderPost() {
       doc_date: orderInput.docDate,
       doc_due_date: orderInput.docDueDate,
       Series: orderInput.series,
+      series_name: orderInput.seriesName || getSelectedSeriesOption()?.label || '',
       slp_code: orderInput.slpCode,
       cntct: orderInput.cnctCode,
       pay_to_code: orderInput.address?.value,
@@ -1268,7 +1273,6 @@ export default function OrderPost() {
     const payload = buildOrderRequestPayload(createOrderPayload(statusType));
 
     if (id) {
-      // console.log('payload => ', payload)
       const resp = await OrderServices.putOrder(id, payload);
       handleOrderResponse(resp);
     } else {
