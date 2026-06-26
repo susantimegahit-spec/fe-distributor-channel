@@ -15,6 +15,7 @@ import Select from 'react-select';
 
 // project-imports
 import MainCard from 'components/MainCard';
+import TablePagination from 'components/TablePagination';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import LoaderButton from '../../../components/LoaderButton';
 import LoaderData from '../../../components/LoaderData';
@@ -29,15 +30,112 @@ const initialInput = {
   email: '',
   password: '',
   roleId: '',
-  distributorCode: '',
-  distributorId: ''
+  distributorCodes: [],
+  distributorIds: []
+};
+
+const pageSize = 10;
+const ALL_DISTRIBUTORS_VALUE = 'ALL';
+const allDistributorOption = {
+  value: ALL_DISTRIBUTORS_VALUE,
+  label: 'All Distributor',
+  id: ALL_DISTRIBUTORS_VALUE,
+  name: 'All Distributor',
+  isAll: true
 };
 
 const getUserDistributorCode = (item) =>
-  item?.code_customer || item?.customer_code || item?.distributor_code || item?.distributor?.code_customer || item?.distributor?.customer_code || '';
+  item?.code_customer ||
+  item?.customer_code ||
+  item?.distributor_code ||
+  item?.distributor?.code_customer ||
+  item?.distributor?.customer_code ||
+  '';
 
 const getUserDistributorName = (item) =>
   item?.name_distributor || item?.distributor_name || item?.distributor?.name || item?.distributor?.name_distributor || '';
+
+const normalizeArray = (value) => {
+  if (Array.isArray(value)) return value.filter((item) => item !== undefined && item !== null && item !== '');
+  if (value === undefined || value === null || value === '') return [];
+  return [value];
+};
+
+const getUserDistributors = (item) => {
+  const distributors =
+    item?.distributors || item?.user_distributors || item?.userDistributors || item?.distributor_users || item?.distributorUsers || [];
+
+  if (Array.isArray(distributors) && distributors.length) {
+    return distributors.map((distributor) => {
+      const source = distributor?.distributor || distributor;
+
+      return {
+        id: source?.id || distributor?.id_distributor || distributor?.distributor_id || distributor?.id || '',
+        code:
+          source?.code_customer ||
+          source?.customer_code ||
+          source?.distributor_code ||
+          distributor?.code_customer ||
+          distributor?.customer_code ||
+          distributor?.distributor_code ||
+          '',
+        name:
+          source?.name ||
+          source?.name_distributor ||
+          source?.distributor_name ||
+          distributor?.name ||
+          distributor?.name_distributor ||
+          distributor?.distributor_name ||
+          ''
+      };
+    });
+  }
+
+  const codes = normalizeArray(item?.code_customers || item?.code_customer || item?.customer_code || item?.distributor_code);
+  const ids = normalizeArray(item?.id_distributors || item?.id_distributor || item?.distributor_id);
+  const names = normalizeArray(item?.name_distributors || item?.name_distributor || item?.distributor_name);
+
+  if (codes.length || ids.length || names.length) {
+    const maxLength = Math.max(codes.length, ids.length, names.length);
+
+    return Array.from({ length: maxLength }, (_, index) => ({
+      id: ids[index] || '',
+      code: codes[index] || '',
+      name: names[index] || ''
+    }));
+  }
+
+  const code = getUserDistributorCode(item);
+  const name = getUserDistributorName(item);
+
+  return code || name
+    ? [
+        {
+          id: item?.id_distributor || item?.distributor_id || item?.distributor?.id || '',
+          code,
+          name
+        }
+      ]
+    : [];
+};
+
+const formatDistributorCodes = (item) => {
+  const distributors = getUserDistributors(item);
+
+  return distributors
+    .map((distributor) => distributor.code)
+    .filter(Boolean)
+    .join(', ');
+};
+
+const formatDistributorNames = (item) => {
+  const distributors = getUserDistributors(item);
+
+  return distributors
+    .map((distributor) => distributor.name)
+    .filter(Boolean)
+    .join(', ');
+};
 
 export default function UserList() {
   const { showAlert } = useAlert();
@@ -57,12 +155,17 @@ export default function UserList() {
   const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedRole, setSelectedRole] = useState('');
   const [input, setInput] = useState(initialInput);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     fetchData();
     getListRole();
     getListDistributor();
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [keywords, selectedRole, selectedStatus]);
 
   const fetchData = async () => {
     setLoadingData(true);
@@ -87,7 +190,7 @@ export default function UserList() {
     if (response.data.success) {
       const options = response.data.data.map((item) => ({
         value: item.code_customer,
-        label: `${item.code_customer || '-'} - ${item.name || '-'}`,
+        label: `${item.code_customer || '-'} - ${item.name || '-'} - ${item?.depo}`,
         id: item.id,
         name: item.name
       }));
@@ -104,8 +207,8 @@ export default function UserList() {
         item.username?.toLowerCase().includes(keyword) ||
         item.email?.toLowerCase().includes(keyword) ||
         item.role?.name?.toLowerCase().includes(keyword) ||
-        getUserDistributorCode(item).toLowerCase().includes(keyword) ||
-        getUserDistributorName(item).toLowerCase().includes(keyword);
+        formatDistributorCodes(item).toLowerCase().includes(keyword) ||
+        formatDistributorNames(item).toLowerCase().includes(keyword);
       const matchStatus = selectedStatus ? String(item.is_active) === selectedStatus : true;
       const matchRole = selectedRole ? String(item.role?.id) === selectedRole || String(item.role_id) === selectedRole : true;
 
@@ -124,6 +227,12 @@ export default function UserList() {
   );
 
   const hasActiveFilter = Boolean(keywords || selectedStatus || selectedRole);
+  const pageCount = Math.max(Math.ceil(filteredData.length / pageSize), 1);
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+
+    return filteredData.slice(startIndex, startIndex + pageSize);
+  }, [currentPage, filteredData]);
 
   const resetFilters = () => {
     setKeywords('');
@@ -148,13 +257,26 @@ export default function UserList() {
     });
   };
 
-  const handleSelectDistributor = (option) => {
+  const handleSelectDistributor = (options) => {
+    const selectedOptions = options || [];
+    const hasAllDistributor = selectedOptions.some((option) => option.value === ALL_DISTRIBUTORS_VALUE);
+
     setInput({
       ...input,
-      distributorCode: option?.value || '',
-      distributorId: option?.id || ''
+      distributorCodes: hasAllDistributor ? [ALL_DISTRIBUTORS_VALUE] : selectedOptions.map((option) => option.value),
+      distributorIds: hasAllDistributor ? [ALL_DISTRIBUTORS_VALUE] : selectedOptions.map((option) => option.id)
     });
   };
+
+  const distributorOptions = [allDistributorOption, ...listDistributor];
+  const isAllDistributorSelected = input.distributorCodes.includes(ALL_DISTRIBUTORS_VALUE);
+  const selectedDistributor = isAllDistributorSelected
+    ? [allDistributorOption]
+    : listDistributor.filter((item) => input.distributorCodes.includes(item.value));
+  const getSelectedDistributorPayload = () => ({
+    code_customer: isAllDistributorSelected ? listDistributor.map((item) => item.value) : input.distributorCodes,
+    id_distributor: isAllDistributorSelected ? listDistributor.map((item) => item.id) : input.distributorIds
+  });
 
   const openCreateModal = () => {
     setFormMode('create');
@@ -164,6 +286,14 @@ export default function UserList() {
   };
 
   const openEditModal = (item) => {
+    const distributors = getUserDistributors(item);
+    const distributorCodes = distributors.map((distributor) => distributor.code).filter(Boolean);
+    const distributorIds = distributors.map((distributor) => distributor.id).filter(Boolean);
+    const hasAllDistributors =
+      listDistributor.length > 0 &&
+      distributorCodes.length === listDistributor.length &&
+      listDistributor.every((distributor) => distributorCodes.includes(distributor.value));
+
     setFormMode('edit');
     setSelectedUserId(item.id);
     setShowView(false);
@@ -173,8 +303,8 @@ export default function UserList() {
       email: item.email || '',
       password: '',
       roleId: item.role?.id || item.role_id || '',
-      distributorCode: getUserDistributorCode(item),
-      distributorId: item.id_distributor || item.distributor_id || item.distributor?.id || ''
+      distributorCodes: hasAllDistributors ? [ALL_DISTRIBUTORS_VALUE] : distributorCodes,
+      distributorIds: hasAllDistributors ? [ALL_DISTRIBUTORS_VALUE] : distributorIds
     });
     setShowPassword(false);
     setShowMenu(true);
@@ -187,14 +317,15 @@ export default function UserList() {
 
   const handleCreate = async () => {
     setLoadingSubmit(true);
+    const distributorPayload = getSelectedDistributorPayload();
     const payload = {
       name: input.name,
       username: input.username,
       email: input.email,
       password: input.password,
       role_id: input.roleId,
-      code_customer: input.distributorCode,
-      id_distributor: input.distributorId
+      code_customer: distributorPayload.code_customer?.toString(),
+      id_distributor: distributorPayload.id_distributor?.toString()
     };
 
     const response = await UserServices.postCreateUser(payload);
@@ -210,19 +341,19 @@ export default function UserList() {
 
   const handleEdit = async () => {
     setLoadingSubmit(true);
+    const distributorPayload = getSelectedDistributorPayload();
     const payload = {
       name: input.name,
       username: input.username,
       email: input.email,
       role_id: input.roleId,
-      code_customer: input.distributorCode,
-      id_distributor: input.distributorId
+      code_customer: distributorPayload.code_customer?.toString(),
+      id_distributor: distributorPayload.id_distributor?.toString()
     };
 
     if (input.password) {
       payload.password = input.password;
     }
-
     const response = await UserServices.putEditUser(selectedUserId, payload);
     if (response.data.success) {
       showAlert('User berhasil diubah', 'success');
@@ -251,9 +382,8 @@ export default function UserList() {
     }
   };
 
-  const selectedDistributor = listDistributor.find((item) => item.value === input.distributorCode) || null;
   const formIsValid = Boolean(
-    input.name && input.username && input.email && input.roleId && input.distributorCode && (formMode === 'edit' || input.password)
+    input.name && input.username && input.email && input.roleId && input.distributorCodes.length && (formMode === 'edit' || input.password)
   );
 
   return (
@@ -403,13 +533,13 @@ export default function UserList() {
                     <th style={{ minWidth: 180 }}>Hak Akses</th>
                     <th style={{ minWidth: 120 }}>Status</th>
                     <th className="text-center" style={{ width: 140 }}>
-                      Aksi
+                      #
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredData.length > 0 ? (
-                    filteredData.map((item) => (
+                  {paginatedData.length > 0 ? (
+                    paginatedData.map((item) => (
                       <tr key={item.id}>
                         <td>
                           <Stack direction="horizontal" gap={2}>
@@ -422,8 +552,8 @@ export default function UserList() {
                         </td>
                         <td>{item.email || '-'}</td>
                         <td>
-                          <div className="fw-semibold">{getUserDistributorCode(item) || '-'}</div>
-                          <small className="text-muted">{getUserDistributorName(item) || '-'}</small>
+                          <div className="fw-semibold">{formatDistributorCodes(item) || '-'}</div>
+                          <small className="text-muted">{formatDistributorNames(item) || '-'}</small>
                         </td>
                         <td>
                           <Badge bg="light" text="dark">
@@ -439,7 +569,12 @@ export default function UserList() {
                             <Button className="rounded-circle" variant="outline-secondary" size="sm" onClick={() => openEditModal(item)}>
                               <i className="ti ti-pencil" />
                             </Button>
-                            <Button className="rounded-circle" variant="outline-danger" size="sm" onClick={() => handleShowConfirm(item.id)}>
+                            <Button
+                              className="rounded-circle"
+                              variant="outline-danger"
+                              size="sm"
+                              onClick={() => handleShowConfirm(item.id)}
+                            >
                               <i className="ti ti-trash" />
                             </Button>
                           </Stack>
@@ -475,6 +610,14 @@ export default function UserList() {
               </>
             )}
           </Table>
+          <TablePagination
+            currentPage={currentPage}
+            onPageChange={setCurrentPage}
+            pageCount={pageCount}
+            pageSize={pageSize}
+            total={filteredData.length}
+            itemLabel="user"
+          />
         </MainCard>
       </Stack>
 
@@ -499,15 +642,30 @@ export default function UserList() {
               <Row className="g-3">
                 <Col md={6}>
                   <Form.Label className="f-12 text-muted">Nama</Form.Label>
-                  <Form.Control type="text" placeholder="Nama lengkap" value={input.name} onChange={(event) => handleSetState('name', event)} />
+                  <Form.Control
+                    type="text"
+                    placeholder="Nama lengkap"
+                    value={input.name}
+                    onChange={(event) => handleSetState('name', event)}
+                  />
                 </Col>
                 <Col md={6}>
                   <Form.Label className="f-12 text-muted">Username</Form.Label>
-                  <Form.Control type="text" placeholder="Username login" value={input.username} onChange={(event) => handleSetState('username', event)} />
+                  <Form.Control
+                    type="text"
+                    placeholder="Username login"
+                    value={input.username}
+                    onChange={(event) => handleSetState('username', event)}
+                  />
                 </Col>
                 <Col md={6}>
                   <Form.Label className="f-12 text-muted">Email</Form.Label>
-                  <Form.Control type="email" placeholder="nama@email.com" value={input.email} onChange={(event) => handleSetState('email', event)} />
+                  <Form.Control
+                    type="email"
+                    placeholder="nama@email.com"
+                    value={input.email}
+                    onChange={(event) => handleSetState('email', event)}
+                  />
                 </Col>
                 <Col md={6}>
                   <Form.Label className="f-12 text-muted">Hak Akses</Form.Label>
@@ -520,17 +678,21 @@ export default function UserList() {
                     ))}
                   </Form.Select>
                 </Col>
+                {/* {input.roleId == 1 ? ( */}
                 <Col md={12}>
-                  <Form.Label className="f-12 text-muted">Distributor Code</Form.Label>
+                  <Form.Label className="f-12 text-muted">Distributor</Form.Label>
                   <Select
                     value={selectedDistributor}
-                    options={listDistributor}
+                    options={distributorOptions}
                     menuPosition="fixed"
                     onChange={handleSelectDistributor}
                     placeholder="Pilih distributor"
                     isClearable
+                    isMulti
+                    closeMenuOnSelect={false}
                   />
                 </Col>
+                {/* ) : null} */}
                 <Col md={12}>
                   <Form.Label className="f-12 text-muted">{formMode === 'edit' ? 'Password Baru' : 'Password'}</Form.Label>
                   <InputGroup className="sm-input-group">
@@ -592,11 +754,11 @@ export default function UserList() {
                   </Col>
                   <Col md={6}>
                     <Form.Label className="f-12 text-muted">Distributor Code</Form.Label>
-                    <div className="fw-semibold">{getUserDistributorCode(selectedUser) || '-'}</div>
+                    <div className="fw-semibold">{formatDistributorCodes(selectedUser) || '-'}</div>
                   </Col>
                   <Col md={6}>
                     <Form.Label className="f-12 text-muted">Nama Distributor</Form.Label>
-                    <div>{getUserDistributorName(selectedUser) || '-'}</div>
+                    <div>{formatDistributorNames(selectedUser) || '-'}</div>
                   </Col>
                   <Col md={6}>
                     <Form.Label className="f-12 text-muted">Status</Form.Label>

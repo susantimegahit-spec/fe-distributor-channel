@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Spinner } from 'react-bootstrap';
 // react-bootstrap
 import ProgressBar from 'react-bootstrap/ProgressBar';
 
@@ -26,7 +27,7 @@ export default function LoaderFull() {
       style={{ zIndex: 9999, }}
     >
       <div className="w-50" style={{ maxWidth: '420px', minWidth: '240px' }}>
-        <ProgressBar animated now={progress} label={`${progress}%`} />
+        <Spinner animation="border" variant="primary" />
       </div>
     </div>
   );

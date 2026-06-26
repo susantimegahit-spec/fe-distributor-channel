@@ -2,21 +2,19 @@ import { Link } from 'react-router-dom';
 
 // react-bootstrap
 import Image from 'react-bootstrap/Image';
+import CustomerPortalMark from 'assets/images/customer-portal-mark.png';
 
 // project-import
 import { APP_DEFAULT_PATH } from 'config';
-
-// assets
-import SusantiMegahLogo from 'assets/images/susanti-megah-logo.svg';
 
 export const DrawerHeader = () => {
   return (
     <div className="m-header">
       <Link to={APP_DEFAULT_PATH} className="b-brand sm-sidebar-brand">
-        <Image src={SusantiMegahLogo} alt="PT. Susanti Megah" className="sm-sidebar-logo" />
+        <Image src={CustomerPortalMark} alt="Customer Portal" className="sm-sidebar-logo" />
         <span className="sm-sidebar-brand-text">
-          <strong>Susanti Megah</strong>
-          <small>Distributor Channel</small>
+          <strong>SM-Connect</strong>
+          <small>Customer Portal</small>
         </span>
       </Link>
     </div>
