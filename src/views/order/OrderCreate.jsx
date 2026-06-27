@@ -164,13 +164,13 @@ export default function OrderPost() {
   }, [id]);
 
   useEffect(() => {
-    if (!orderInput.docDueDate) {
+    if (!orderInput.docDate) {
       setListSeries([]);
       return;
     }
 
-    fetchSalesOrderSeries(orderInput.docDueDate);
-  }, [orderInput.docDueDate]);
+    fetchSalesOrderSeries(orderInput.docDate);
+  }, [orderInput.docDate]);
 
   const getValue = (data, keys, defaultValue = '') => {
     for (const key of keys) {
@@ -778,12 +778,19 @@ export default function OrderPost() {
     });
   };
 
+  const handleSetDocDate = (e) => {
+    setOrderInput({
+      ...orderInput,
+      docDate: e.target.value,
+      series: '',
+      seriesName: ''
+    });
+  };
+
   const handleSetDocDueDate = (e) => {
     setOrderInput({
       ...orderInput,
-      docDueDate: e.target.value,
-      series: '',
-      seriesName: ''
+      docDueDate: e.target.value
     });
   };
 
@@ -1574,7 +1581,7 @@ export default function OrderPost() {
                               <RequiredLabel>Tanggal Dokumen</RequiredLabel>
                             </Form.Label>
                             <Form.Control
-                              onChange={(e) => handleSetInput(e, 'docDate')}
+                              onChange={handleSetDocDate}
                               value={orderInput.docDate}
                               type="date"
                               min={todayDate}
@@ -1631,10 +1638,10 @@ export default function OrderPost() {
                               value={getSelectedSeriesOption()}
                               options={listSeries}
                               isLoading={loadingSeries}
-                              isDisabled={!orderInput.docDueDate || loadingSeries}
+                              isDisabled={!orderInput.docDate || loadingSeries}
                               menuPosition="fixed"
                               onChange={handleSelectSeries}
-                              placeholder={orderInput.docDueDate ? 'Pilih series' : 'Pilih tanggal kirim dahulu'}
+                              placeholder={orderInput.docDate ? 'Pilih series' : 'Pilih tanggal dokumen dahulu'}
                               isClearable
                             />
                           </Form.Group>
