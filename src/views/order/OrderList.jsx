@@ -278,6 +278,19 @@ export default function OrderList() {
     return details.reduce((total, detail) => total + parseAmount(getOrderValue(detail, ['total_discount', 'totalDiscount'], 0)), 0);
   };
 
+  const getLineVatTotal = (line = {}) => {
+    const vatTotal = getOrderValue(line, ['vat_total', 'vatTotal', 'VatTotal', 'tax_total', 'taxTotal'], '');
+
+    if (vatTotal !== '') return vatTotal;
+
+    const lineTotal = parseAmount(getOrderValue(line, ['line_total', 'lineTotal', 'LineTotal'], 0));
+    const quantity = parseAmount(getOrderValue(line, ['quantity', 'qty', 'Quantity'], 0));
+    const unitPrice = parseAmount(getOrderValue(line, ['unit_price', 'unitPrice', 'price', 'Price'], 0));
+    const calculatedVatTotal = lineTotal - quantity * unitPrice;
+
+    return calculatedVatTotal > 0 ? calculatedVatTotal : 0;
+  };
+
   const buildOrderStatusPayload = (order, nextStatus, actionName) => ({
     card_code: getOrderValue(order, ['card_code', 'cardCode', 'customer_code', 'CardCode'], ''),
     po_number: getOrderValue(order, ['po_number', 'num_at_card', 'numAtCard', 'NumAtCard'], ''),
@@ -306,6 +319,8 @@ export default function OrderList() {
       whs_code: getOrderValue(line, ['whs_code', 'warehouse_code', 'WhsCode'], ''),
       unit_price: getOrderValue(line, ['unit_price', 'unitPrice', 'price', 'Price'], ''),
       vat_group: getOrderValue(line, ['vat_group', 'vatGroup', 'VatGroup'], ''),
+      vat_rate: getOrderValue(line, ['vat_rate', 'vatRate', 'VatRate', 'rate'], ''),
+      vat_total: getLineVatTotal(line),
       line_total: getOrderValue(line, ['line_total', 'lineTotal', 'LineTotal'], ''),
       free_text: getOrderValue(line, ['free_text', 'freeText', 'FreeTxt'], ''),
       ocr_code: getOrderValue(line, ['ocr_code', 'ocrCode', 'OcrCode'], ''),
@@ -434,7 +449,7 @@ export default function OrderList() {
         const shouldLoadCreditLimit =
           normalizeStatus(orderDetail?.status || order?.status) === 'WAITING_FINANCE' && (isAdministrator || isFinanceUser);
         const customerCode = getOrderCustomerCode(orderDetail) || getOrderCustomerCode(order);
-        console.log('detail => ', orderDetail)
+        console.log('detail => ', orderDetail);
         setSelectedOrderDetail(orderDetail);
 
         if (shouldLoadCreditLimit && customerCode) {
@@ -967,7 +982,7 @@ export default function OrderList() {
               <Row className="g-3">
                 <Col md={4}>
                   <Form.Label className="f-12 text-muted">No. Order</Form.Label>
-                  <div className="fw-semibold">{getOrderValue(selectedOrderDetail, ['order_no', 'doc_num', 'docNum'])}</div>
+                  <div className="fw-semibold">{getOrderValue(selectedOrderDetail, ['sap_doc_num'])}</div>
                 </Col>
                 <Col md={4}>
                   <Form.Label className="f-12 text-muted">No. PO</Form.Label>
@@ -1023,6 +1038,8 @@ export default function OrderList() {
                     <th>Item</th>
                     <th className="text-end">Qty</th>
                     <th>Satuan</th>
+                    <th className="text-center">Vat</th>
+                    <th className="text-end">Total VAT</th>
                     <th className="text-end">Harga</th>
                     <th className="text-end">Total</th>
                     <th>Warehouse</th>
@@ -1040,6 +1057,8 @@ export default function OrderList() {
                         </td>
                         <td className="text-end">{Math.round(getOrderValue(line, ['quantity', 'qty', 'Quantity'], 0))}</td>
                         <td>{getOrderValue(line, ['unit_msr', 'unitMsr', 'uom_code', 'UomCode'])}</td>
+                        <td className="text-center">{getOrderValue(line, ['vat_name', 'vatName', 'VatName', 'vat_group', 'vatGroup'], '-')}</td>
+                        <td className="text-end">{currency(getLineVatTotal(line))}</td>
                         <td className="text-end">{currency(getOrderValue(line, ['unit_price', 'unitPrice', 'price', 'Price'], 0))}</td>
                         <td className="text-end">{currency(getOrderValue(line, ['line_total', 'lineTotal', 'LineTotal'], 0))}</td>
                         <td>{getOrderValue(line, ['whs_code', 'warehouse_code', 'WhsCode'])}</td>
@@ -1047,7 +1066,7 @@ export default function OrderList() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={6} className="text-center text-muted py-4">
+                      <td colSpan={8} className="text-center text-muted py-4">
                         Detail item tidak tersedia
                       </td>
                     </tr>
@@ -1169,7 +1188,9 @@ export default function OrderList() {
                         {selectedCreditRemaining !== '' ? (
                           <div className="text-end">
                             <div className="text-muted f-12 mb-1">Sisa Limit Kredit</div>
-                            <h4 className={`mb-0 ${selectedCreditRemaining > 0 ? 'text-success' : 'text-danger'}`}>{formatCreditAmount(selectedCreditRemaining)}</h4>
+                            <h4 className={`mb-0 ${selectedCreditRemaining > 0 ? 'text-success' : 'text-danger'}`}>
+                              {formatCreditAmount(selectedCreditRemaining)}
+                            </h4>
                           </div>
                         ) : null}
                       </Card.Body>

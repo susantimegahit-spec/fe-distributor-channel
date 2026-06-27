@@ -101,6 +101,25 @@ export default function OrderPost() {
 
   const todayDate = getTodayDate();
 
+  const getVatRate = (vatGroup) => {
+    const rate = vatGroup?.rate ?? vatGroup?.Rate ?? vatGroup?.percentage ?? vatGroup?.percent ?? 0;
+
+    return Number(String(rate).replace('%', '')) || 0;
+  };
+
+  const calculateLineTotals = (item = {}) => {
+    const quantity = Number(item.quantity || 0);
+    const unitPrice = Number(item.unitPrice || 0);
+    const subtotal = quantity * unitPrice;
+    const vatRate = getVatRate(item.vatGroup);
+    const vatTotal = subtotal * (vatRate / 100);
+
+    return {
+      lineTotal: subtotal + vatTotal,
+      vatTotal
+    };
+  };
+
   const [itemArr, setItemArr] = useState([
     {
       itemCode: null,
@@ -109,6 +128,7 @@ export default function OrderPost() {
       unitPrice: '',
       whs_code: null,
       lineTotal: '',
+      vatTotal: '',
       freeText: '',
       ocrCode: null,
       ocrCode2: null,
@@ -389,6 +409,7 @@ export default function OrderPost() {
     const whsName = getValue(line, ['whs_name', 'whsName', 'warehouse_name', 'WhsName', 'warehouse.whs_name', 'warehouse.name'], whs_code);
     const vatGroup = getValue(line, ['vat_group', 'vatGroup', 'VatGroup', 'vat_code', 'vatCode']);
     const vatName = getValue(line, ['vat_name', 'vatName', 'VatName', 'vat_group_name', 'vatGroupName', 'vat.name'], vatGroup);
+    const vatRate = getValue(line, ['vat_rate', 'vatRate', 'VatRate', 'rate', 'vat.rate'], '');
     const rawOcrCode = getValue(line, ['ocr', 'ocr_code', 'ocrCode', 'OcrCode', 'branch_code', 'branchCode']);
     const ocrCode = getPrimitiveValue(rawOcrCode, ocrValueKeys);
     const ocrName = getPrimitiveValue(
@@ -425,11 +446,12 @@ export default function OrderPost() {
       unitPrice: getValue(line, ['unit_price', 'unitPrice', 'price', 'Price'], ''),
       whs_code: findOption(listWarehouse, whs_code, whsName),
       lineTotal: getValue(line, ['line_total', 'lineTotal', 'LineTotal'], ''),
+      vatTotal: getValue(line, ['vat_total', 'vatTotal', 'VatTotal', 'tax_total', 'taxTotal'], ''),
       freeText: getValue(line, ['free_text', 'freeText', 'FreeTxt'], ''),
       ocrCode: findOption(listOcr1, ocrCode, ocrName),
       ocrCode2: findOption(listOcr2, ocrCode2, ocrName2),
       ocrCode3: findOption(listOcr3, ocrCode3, ocrName3),
-      vatGroup: findOption(listVats, vatGroup, vatName)
+      vatGroup: findOption(listVats, vatGroup, vatName, vatRate !== '' ? { rate: vatRate } : {})
     };
   };
 
@@ -722,7 +744,9 @@ export default function OrderPost() {
       const data = response.data.data;
       const dataArr = data.map((item) => ({
         value: item?.code,
-        label: item?.name
+        label: item?.name,
+        rate: item?.rate ?? item?.Rate ?? item?.percentage ?? item?.percent ?? 0,
+        raw: item
       }));
 
       setListVats(dataArr);
@@ -817,6 +841,7 @@ export default function OrderPost() {
       itemArr[index].unitMsr = '';
       itemArr[index].unitPrice = '';
       itemArr[index].lineTotal = '';
+      itemArr[index].vatTotal = '';
       setItemArr([...itemArr]);
       return;
     }
@@ -825,6 +850,7 @@ export default function OrderPost() {
     itemArr[index].unitMsr = e.unitMsr;
     itemArr[index].unitPrice = '';
     itemArr[index].lineTotal = '';
+    itemArr[index].vatTotal = '';
     setItemArr([...itemArr]);
     setItemPriceRowLoading(index, true);
 
@@ -835,9 +861,9 @@ export default function OrderPost() {
         const selectedPrice = resp.data.data?.[0]?.price || 0;
 
         itemArr[index].unitPrice = selectedPrice;
-        if (itemArr[index].quantity > 0) {
-          itemArr[index].lineTotal = selectedPrice * itemArr[index].quantity;
-        }
+        const calculatedTotals = calculateLineTotals(itemArr[index]);
+        itemArr[index].lineTotal = calculatedTotals.lineTotal;
+        itemArr[index].vatTotal = calculatedTotals.vatTotal;
         setItemArr([...itemArr]);
       } else {
         showAlert(resp.data.message || 'Gagal ambil harga item', 'danger');
@@ -871,6 +897,9 @@ export default function OrderPost() {
 
   const handleSelectVat = (e, index) => {
     itemArr[index].vatGroup = e;
+    const calculatedTotals = calculateLineTotals(itemArr[index]);
+    itemArr[index].lineTotal = calculatedTotals.lineTotal;
+    itemArr[index].vatTotal = calculatedTotals.vatTotal;
     setItemArr([...itemArr]);
   };
 
@@ -1112,10 +1141,12 @@ export default function OrderPost() {
       uomEntry: '',
       whs_code: null,
       lineTotal: '',
+      vatTotal: '',
       freeText: '',
       ocrCode: null,
       ocrCode2: null,
-      ocrCode3: null
+      ocrCode3: null,
+      vatGroup: null
     };
 
     let store = [...itemArr, item];
@@ -1148,8 +1179,10 @@ export default function OrderPost() {
 
   const handleChangeInputLine = (index, key, e) => {
     itemArr[index][key] = e.target.value;
-    if (key === 'quantity') {
-      itemArr[index].lineTotal = e.target.value * itemArr[index].unitPrice;
+    if (key === 'quantity' || key === 'unitPrice') {
+      const calculatedTotals = calculateLineTotals(itemArr[index]);
+      itemArr[index].lineTotal = calculatedTotals.lineTotal;
+      itemArr[index].vatTotal = calculatedTotals.vatTotal;
     }
     setItemArr([...itemArr]);
   };
@@ -1187,11 +1220,10 @@ export default function OrderPost() {
     }).format(Number(value) || 0);
 
   const orderSubtotal = itemArr.reduce((total, item) => {
-    const lineTotal = Number(item.lineTotal);
-    const calculatedTotal = Number(item.quantity || 0) * Number(item.unitPrice || 0);
-
-    return total + (Number.isFinite(lineTotal) && lineTotal > 0 ? lineTotal : calculatedTotal);
+    return total + Number(item.quantity || 0) * Number(item.unitPrice || 0);
   }, 0);
+  const orderVatTotal = itemArr.reduce((total, item) => total + Number(item.vatTotal || calculateLineTotals(item).vatTotal || 0), 0);
+  const orderTotalAfterVat = orderSubtotal + orderVatTotal;
 
   const discountTotal = detailDisc.reduce((total, item) => total + (Number(item.value) || 0), 0);
   const rewardTotal = rewardDiscountPreview.reduce((total, item) => total + (Number(item.value) || 0), 0);
@@ -1205,7 +1237,7 @@ export default function OrderPost() {
       amount: Number(item.value || 0)
     }))
     .filter((item) => item.label);
-  const grandTotal = Math.max(orderSubtotal - discountTotal, 0);
+  const grandTotal = Math.max(orderTotalAfterVat - discountTotal, 0);
 
   const createOrderPayload = (type) => {
     const arrItem = itemArr.map((item) => ({
@@ -1216,6 +1248,8 @@ export default function OrderPost() {
       whs_code: item?.whs_code?.value,
       unit_price: item?.unitPrice,
       vat_group: item?.vatGroup?.value,
+      vat_rate: getVatRate(item?.vatGroup),
+      vat_total: item?.vatTotal,
       line_total: item?.lineTotal,
       free_text: item?.freeText,
       ocr_code: getPrimitiveValue(item?.ocrCode, ocrValueKeys),
@@ -1238,6 +1272,8 @@ export default function OrderPost() {
       address2: orderInput.address2?.label,
       comments: orderInput.comments,
       status: type,
+      doc_total: grandTotal,
+      DocTotal: grandTotal,
       id_discount: discId,
       action: type === 'WAITING_OM' ? 'submit' : type === 'WAITING_FINANCE' ? 'approve' : '',
       lines: arrItem
@@ -1681,6 +1717,14 @@ export default function OrderPost() {
                             <strong>{formatCurrency(orderSubtotal)}</strong>
                           </Stack>
                           <Stack direction="horizontal" className="justify-content-between">
+                            <span className="text-muted">Total VAT</span>
+                            <strong>{formatCurrency(orderVatTotal)}</strong>
+                          </Stack>
+                          <Stack direction="horizontal" className="justify-content-between">
+                            <span className="text-muted">Total Setelah VAT</span>
+                            <strong>{formatCurrency(orderTotalAfterVat)}</strong>
+                          </Stack>
+                          <Stack direction="horizontal" className="justify-content-between">
                             <span className="text-muted">Diskon {discId ? `- ${discId}` : ''}</span>
                             <Button variant="link" className="p-0 text-decoration-none" onClick={handleOpenDiscount}>
                               {formatCurrency(discountTotal)}
@@ -1865,6 +1909,7 @@ export default function OrderPost() {
                       <th style={{ minWidth: 160 }}>
                         <RequiredLabel>Vat</RequiredLabel>
                       </th>
+                      <th style={{ minWidth: 160 }}>Total VAT</th>
                       <th style={{ minWidth: 220 }}>Catatan</th>
                       <th style={{ minWidth: 220 }}>Cabang</th>
                       <th style={{ minWidth: 220 }}>Bisnis Unit</th>
@@ -1920,7 +1965,7 @@ export default function OrderPost() {
                         value={currency(item.lineTotal)}
                         size="sm"
                         min="0"
-                        placeholder={String(Number(item.quantity || 0) * Number(item.unitPrice || 0))}
+                        placeholder={String(calculateLineTotals(item).lineTotal)}
                       />
                     </td>
                     {!isCustomerRole && (
@@ -1944,6 +1989,9 @@ export default function OrderPost() {
                             onChange={(e) => handleSelectVat(e, index)}
                             placeholder="Vat"
                           />
+                        </td>
+                        <td>
+                          <Form.Control readOnly type="text" value={currency(item.vatTotal)} size="sm" />
                         </td>
                         <td>
                           <Form.Control
