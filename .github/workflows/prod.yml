@@ -25,6 +25,7 @@ jobs:
           corepack enable
           yarn set version 4.12.0           
           yarn install --no-immutable
+          cp .env.example .env
           sed -i 's/api-dev.susantimegah.com/api-sm-connect.susantimegah.com/g' .env
           sed -i 's/VITE_TURNSTILE_ENABLED=false/VITE_TURNSTILE_ENABLED=true/g' .env
           yarn build
