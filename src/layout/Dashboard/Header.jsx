@@ -247,7 +247,7 @@ export default function Header() {
 
       showAlert('Notifikasi test berhasil dikirim', 'success');
     } catch (error) {
-      showAlert('Gagal mengirim notifikasi test', 'danger');
+      showAlert(error, 'danger');
     } finally {
       setSendingTestNotification(false);
     }

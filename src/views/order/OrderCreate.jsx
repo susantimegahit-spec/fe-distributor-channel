@@ -56,7 +56,7 @@ export default function OrderPost() {
   const [listEmployee, setListEmployee] = useState([]);
   const [discId, setDiscId] = useState('');
   const [listDiscType, setListDiscType] = useState([]);
-  const [listVats, setListVats] = useState([]);
+  // VAT disabled: const [listVats, setListVats] = useState([]);
   const [listSeries, setListSeries] = useState([]);
   const [listDistributor, setListDistributor] = useState([]);
   const [orderDetail, setOrderDetail] = useState(null);
@@ -101,22 +101,24 @@ export default function OrderPost() {
 
   const todayDate = getTodayDate();
 
-  const getVatRate = (vatGroup) => {
-    const rate = vatGroup?.rate ?? vatGroup?.Rate ?? vatGroup?.percentage ?? vatGroup?.percent ?? 0;
-
-    return Number(String(rate).replace('%', '')) || 0;
-  };
+  // VAT disabled
+  // const getVatRate = (vatGroup) => {
+  //   const rate = vatGroup?.rate ?? vatGroup?.Rate ?? vatGroup?.percentage ?? vatGroup?.percent ?? 0;
+  //
+  //   return Number(String(rate).replace('%', '')) || 0;
+  // };
 
   const calculateLineTotals = (item = {}) => {
     const quantity = Number(item.quantity || 0);
     const unitPrice = Number(item.unitPrice || 0);
     const subtotal = quantity * unitPrice;
-    const vatRate = getVatRate(item.vatGroup);
-    const vatTotal = subtotal * (vatRate / 100);
+    // VAT disabled
+    // const vatRate = getVatRate(item.vatGroup);
+    // const vatTotal = subtotal * (vatRate / 100);
 
     return {
       lineTotal: subtotal,
-      vatTotal
+      vatTotal: 0
     };
   };
 
@@ -171,7 +173,7 @@ export default function OrderPost() {
     fetchOcr3();
     fetchWarehouse();
     fetchDiscType();
-    fetchVats();
+    // VAT disabled: fetchVats();
     if (!isCustomerRole) {
       fetchListDistributor();
     }
@@ -407,9 +409,10 @@ export default function OrderPost() {
     const unitMsr = getValue(line, ['unit_msr', 'unitMsr', 'unit', 'UomCode', 'uom_code']);
     const whs_code = getValue(line, ['whs_code', 'whs_code', 'warehouse_code', 'whs_code']);
     const whsName = getValue(line, ['whs_name', 'whsName', 'warehouse_name', 'WhsName', 'warehouse.whs_name', 'warehouse.name'], whs_code);
-    const vatGroup = getValue(line, ['vat_group', 'vatGroup', 'VatGroup', 'vat_code', 'vatCode']);
-    const vatName = getValue(line, ['vat_name', 'vatName', 'VatName', 'vat_group_name', 'vatGroupName', 'vat.name'], vatGroup);
-    const vatRate = getValue(line, ['vat_rate', 'vatRate', 'VatRate', 'rate', 'vat.rate'], '');
+    // VAT disabled
+    // const vatGroup = getValue(line, ['vat_group', 'vatGroup', 'VatGroup', 'vat_code', 'vatCode']);
+    // const vatName = getValue(line, ['vat_name', 'vatName', 'VatName', 'vat_group_name', 'vatGroupName', 'vat.name'], vatGroup);
+    // const vatRate = getValue(line, ['vat_rate', 'vatRate', 'VatRate', 'rate', 'vat.rate'], '');
     const rawOcrCode = getValue(line, ['ocr', 'ocr_code', 'ocrCode', 'OcrCode', 'branch_code', 'branchCode']);
     const ocrCode = getPrimitiveValue(rawOcrCode, ocrValueKeys);
     const ocrName = getPrimitiveValue(
@@ -446,12 +449,14 @@ export default function OrderPost() {
       unitPrice: getValue(line, ['unit_price', 'unitPrice', 'price', 'Price'], ''),
       whs_code: findOption(listWarehouse, whs_code, whsName),
       lineTotal: getValue(line, ['line_total', 'lineTotal', 'LineTotal'], ''),
-      vatTotal: getValue(line, ['vat_total', 'vatTotal', 'VatTotal', 'tax_total', 'taxTotal'], ''),
+      // VAT disabled: vatTotal: getValue(line, ['vat_total', 'vatTotal', 'VatTotal', 'tax_total', 'taxTotal'], ''),
+      vatTotal: 0,
       freeText: getValue(line, ['free_text', 'freeText', 'FreeTxt'], ''),
       ocrCode: findOption(listOcr1, ocrCode, ocrName),
       ocrCode2: findOption(listOcr2, ocrCode2, ocrName2),
       ocrCode3: findOption(listOcr3, ocrCode3, ocrName3),
-      vatGroup: findOption(listVats, vatGroup, vatName, vatRate !== '' ? { rate: vatRate } : {})
+      // VAT disabled: vatGroup: findOption(listVats, vatGroup, vatName, vatRate !== '' ? { rate: vatRate } : {})
+      vatGroup: null
     };
   };
 
@@ -737,25 +742,26 @@ export default function OrderPost() {
     }
   };
 
-  const fetchVats = async () => {
-    setIsLoading(true);
-    const response = await OrderServices.getVats();
-    if (response.data.success) {
-      const data = response.data.data;
-      const dataArr = data.map((item) => ({
-        value: item?.code,
-        label: item?.name,
-        rate: item?.rate ?? item?.Rate ?? item?.percentage ?? item?.percent ?? 0,
-        raw: item
-      }));
-
-      setListVats(dataArr);
-      setIsLoading(false);
-    } else {
-      setIsLoading(false);
-      showAlert('Gagal ambil data sales', 'danger');
-    }
-  };
+  // VAT disabled
+  // const fetchVats = async () => {
+  //   setIsLoading(true);
+  //   const response = await OrderServices.getVats();
+  //   if (response.data.success) {
+  //     const data = response.data.data;
+  //     const dataArr = data.map((item) => ({
+  //       value: item?.code,
+  //       label: item?.name,
+  //       rate: item?.rate ?? item?.Rate ?? item?.percentage ?? item?.percent ?? 0,
+  //       raw: item
+  //     }));
+  //
+  //     setListVats(dataArr);
+  //     setIsLoading(false);
+  //   } else {
+  //     setIsLoading(false);
+  //     showAlert('Gagal ambil data sales', 'danger');
+  //   }
+  // };
 
   const fetchAddress = async (code, shouldSetDefault = true) => {
     setIsLoading(true);
@@ -895,13 +901,14 @@ export default function OrderPost() {
     setItemArr([...itemArr]);
   };
 
-  const handleSelectVat = (e, index) => {
-    itemArr[index].vatGroup = e;
-    const calculatedTotals = calculateLineTotals(itemArr[index]);
-    itemArr[index].lineTotal = calculatedTotals.lineTotal;
-    itemArr[index].vatTotal = calculatedTotals.vatTotal;
-    setItemArr([...itemArr]);
-  };
+  // VAT disabled
+  // const handleSelectVat = (e, index) => {
+  //   itemArr[index].vatGroup = e;
+  //   const calculatedTotals = calculateLineTotals(itemArr[index]);
+  //   itemArr[index].lineTotal = calculatedTotals.lineTotal;
+  //   itemArr[index].vatTotal = calculatedTotals.vatTotal;
+  //   setItemArr([...itemArr]);
+  // };
 
   const handleSelectAddress = (e, key) => {
     setOrderInput({
@@ -1222,8 +1229,9 @@ export default function OrderPost() {
   const orderSubtotal = itemArr.reduce((total, item) => {
     return total + Number(item.quantity || 0) * Number(item.unitPrice || 0);
   }, 0);
-  const orderVatTotal = itemArr.reduce((total, item) => total + Number(item.vatTotal || calculateLineTotals(item).vatTotal || 0), 0);
-  const orderTotalAfterVat = orderSubtotal + orderVatTotal;
+  // VAT disabled
+  // const orderVatTotal = itemArr.reduce((total, item) => total + Number(item.vatTotal || calculateLineTotals(item).vatTotal || 0), 0);
+  // const orderTotalAfterVat = orderSubtotal + orderVatTotal;
 
   const discountTotal = detailDisc.reduce((total, item) => total + (Number(item.value) || 0), 0);
   const rewardTotal = rewardDiscountPreview.reduce((total, item) => total + (Number(item.value) || 0), 0);
@@ -1237,7 +1245,7 @@ export default function OrderPost() {
       amount: Number(item.value || 0)
     }))
     .filter((item) => item.label);
-  const grandTotal = Math.max(orderTotalAfterVat - discountTotal, 0);
+  const grandTotal = Math.max(orderSubtotal - discountTotal, 0);
 
   const createOrderPayload = (type) => {
     const arrItem = itemArr.map((item) => ({
@@ -1247,9 +1255,10 @@ export default function OrderPost() {
       uom_entry: item?.itemCode?.uomEntry,
       whs_code: item?.whs_code?.value,
       unit_price: item?.unitPrice,
-      vat_group: item?.vatGroup?.value,
-      vat_rate: getVatRate(item?.vatGroup),
-      vat_total: item?.vatTotal,
+      // VAT disabled
+      // vat_group: item?.vatGroup?.value,
+      // vat_rate: getVatRate(item?.vatGroup),
+      // vat_total: item?.vatTotal,
       line_total: item?.lineTotal,
       free_text: item?.freeText,
       ocr_code: getPrimitiveValue(item?.ocrCode, ocrValueKeys),
@@ -1448,9 +1457,10 @@ export default function OrderPost() {
         if (!item.whs_code) {
           return `Warehouse pada baris ${rowNum} wajib diisi.`;
         }
-        if (!item.vatGroup) {
-          return `Vat pada baris ${rowNum} wajib diisi.`;
-        }
+        // VAT disabled
+        // if (!item.vatGroup) {
+        //   return `Vat pada baris ${rowNum} wajib diisi.`;
+        // }
       }
     }
 
@@ -1720,10 +1730,10 @@ export default function OrderPost() {
                             <span className="text-muted">Total VAT</span>
                             <strong>{formatCurrency(orderVatTotal)}</strong>
                           </Stack> */}
-                          <Stack direction="horizontal" className="justify-content-between">
+                          {/* <Stack direction="horizontal" className="justify-content-between">
                             <span className="text-muted">Total Setelah VAT</span>
                             <strong>{formatCurrency(orderTotalAfterVat)}</strong>
-                          </Stack>
+                          </Stack> */}
                           <Stack direction="horizontal" className="justify-content-between">
                             <span className="text-muted">Diskon {discId ? `- ${discId}` : ''}</span>
                             <Button variant="link" className="p-0 text-decoration-none" onClick={handleOpenDiscount}>
@@ -1906,9 +1916,9 @@ export default function OrderPost() {
                       <th style={{ minWidth: 220 }}>
                         <RequiredLabel>Warehouse</RequiredLabel>
                       </th>
-                      <th style={{ minWidth: 160 }}>
+                      {/* <th style={{ minWidth: 160 }}>
                         <RequiredLabel>Vat</RequiredLabel>
-                      </th>
+                      </th> */}
                       {/* <th style={{ minWidth: 160 }}>Total VAT</th> */}
                       <th style={{ minWidth: 220 }}>Catatan</th>
                       <th style={{ minWidth: 220 }}>Cabang</th>
@@ -1980,7 +1990,7 @@ export default function OrderPost() {
                             placeholder="Pilih warehouse"
                           />
                         </td>
-                        <td>
+                        {/* <td>
                           <Select
                             styles={customStyles}
                             value={item.vatGroup}
@@ -1989,7 +1999,7 @@ export default function OrderPost() {
                             onChange={(e) => handleSelectVat(e, index)}
                             placeholder="Vat"
                           />
-                        </td>
+                        </td> */}
                         {/* <td>
                           <Form.Control readOnly type="text" value={currency(item.vatTotal)} size="sm" />
                         </td> */}

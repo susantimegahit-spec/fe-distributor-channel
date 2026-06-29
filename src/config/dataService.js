@@ -4,7 +4,7 @@ import QueryString from 'qs';
 import Cookies from 'js-cookie';
 import { useAlert } from '../utils/alertContext';
 
-const API_ENDPOINT = import.meta.env.VITE_APP_API_ENDPOINT_PRODUCTION;
+const API_ENDPOINT = import.meta.env.VITE_APP_API_ENDPOINT_DEVELOPMENT;
 
 const authHeader = () => ({
   Authorization: `Bearer ${getCookies('session-token')}`
