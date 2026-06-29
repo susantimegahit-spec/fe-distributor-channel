@@ -237,7 +237,7 @@ export default function Header() {
         title: 'Test Push Notification',
         message: 'Notifikasi test berhasil dikirim dari backend.'
       });
-      const payload = getResponsePayload(response);
+      const payload = getNotificationResponsePayload(response);
 
       if (payload?.id) {
         handleIncomingNotification(payload);
@@ -247,7 +247,7 @@ export default function Header() {
 
       showAlert('Notifikasi test berhasil dikirim', 'success');
     } catch (error) {
-      showAlert(error, 'danger');
+      showAlert(error?.response?.data?.message || error?.message || 'Gagal mengirim notifikasi test', 'danger');
     } finally {
       setSendingTestNotification(false);
     }
