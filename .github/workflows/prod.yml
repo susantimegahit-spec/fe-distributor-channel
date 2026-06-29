@@ -35,4 +35,4 @@ jobs:
           port: 22
           ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }} # 👈 Diubah dari 'key' menjadi 'ssh_private_key'
           local_path: 'dist/*'
-          remote_path: '/home/susantimegah/public_html/customerportal.susantimegah.com/'
+          remote_path: '/home/susantimegah/public_html/sm-connect.susantimegah.com/'
