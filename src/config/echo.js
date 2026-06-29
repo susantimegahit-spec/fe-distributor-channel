@@ -2,7 +2,7 @@ import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
 import { getCookies } from '../utils/cookies';
 
-const API_ENDPOINT = import.meta.env.VITE_APP_API_ENDPOINT_DEVELOPMENT || '';
+const API_ENDPOINT = import.meta.env.VITE_APP_API_ENDPOINT_PRODUCTION || '';
 
 const trimTrailingSlash = (value = '') => value.replace(/\/+$/, '');
 

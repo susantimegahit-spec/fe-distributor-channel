@@ -358,7 +358,7 @@ export default function OrderList() {
     if (/^https?:\/\//i.test(rawUrl)) return rawUrl;
 
     try {
-      return new URL(rawUrl, import.meta.env.VITE_APP_API_ENDPOINT_DEVELOPMENT).href;
+      return new URL(rawUrl, import.meta.env.VITE_APP_API_ENDPOINT_PRODUCTION).href;
     } catch {
       return rawUrl;
     }
