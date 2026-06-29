@@ -115,7 +115,7 @@ export default function OrderPost() {
     const vatTotal = subtotal * (vatRate / 100);
 
     return {
-      lineTotal: subtotal + vatTotal,
+      lineTotal: subtotal,
       vatTotal
     };
   };
@@ -1716,10 +1716,10 @@ export default function OrderPost() {
                             <span className="text-muted">Subtotal</span>
                             <strong>{formatCurrency(orderSubtotal)}</strong>
                           </Stack>
-                          <Stack direction="horizontal" className="justify-content-between">
+                          {/* <Stack direction="horizontal" className="justify-content-between">
                             <span className="text-muted">Total VAT</span>
                             <strong>{formatCurrency(orderVatTotal)}</strong>
-                          </Stack>
+                          </Stack> */}
                           <Stack direction="horizontal" className="justify-content-between">
                             <span className="text-muted">Total Setelah VAT</span>
                             <strong>{formatCurrency(orderTotalAfterVat)}</strong>
@@ -1909,7 +1909,7 @@ export default function OrderPost() {
                       <th style={{ minWidth: 160 }}>
                         <RequiredLabel>Vat</RequiredLabel>
                       </th>
-                      <th style={{ minWidth: 160 }}>Total VAT</th>
+                      {/* <th style={{ minWidth: 160 }}>Total VAT</th> */}
                       <th style={{ minWidth: 220 }}>Catatan</th>
                       <th style={{ minWidth: 220 }}>Cabang</th>
                       <th style={{ minWidth: 220 }}>Bisnis Unit</th>
@@ -1990,9 +1990,9 @@ export default function OrderPost() {
                             placeholder="Vat"
                           />
                         </td>
-                        <td>
+                        {/* <td>
                           <Form.Control readOnly type="text" value={currency(item.vatTotal)} size="sm" />
-                        </td>
+                        </td> */}
                         <td>
                           <Form.Control
                             onChange={(e) => handleChangeInputLine(index, 'freeText', e)}
