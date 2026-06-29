@@ -34,7 +34,7 @@ export default function OrderCreate() {
   const [listEmployee, setListEmployee] = useState([]);
   const [discId, setDiscId] = useState('');
   const [listDiscType, setListDiscType] = useState([]);
-  const [listVats, setListVats] = useState([]);
+  // VAT disabled: const [listVats, setListVats] = useState([]);
   const [orderDetail, setOrderDetail] = useState(null);
 
   const [listAddressB, setListAddressB] = useState([]);
@@ -105,7 +105,7 @@ export default function OrderCreate() {
     fetchWarehouse();
     fetchEmployee();
     fetchDiscType();
-    fetchVats();
+    // VAT disabled: fetchVats();
   }, [isDetailMode]);
 
   useEffect(() => {
@@ -144,8 +144,9 @@ export default function OrderCreate() {
     const unitMsr = getValue(line, ['unit_msr', 'unitMsr', 'unit', 'UomCode']);
     const whsCode = getValue(line, ['whs_code', 'whsCode', 'warehouse_code', 'WhsCode']);
     const whsName = getValue(line, ['whs_name', 'whsName', 'warehouse_name'], whsCode);
-    const vatGroup = getValue(line, ['vat_group', 'vatGroup', 'VatGroup']);
-    const vatName = getValue(line, ['vat_name', 'vatName'], vatGroup);
+    // VAT disabled
+    // const vatGroup = getValue(line, ['vat_group', 'vatGroup', 'VatGroup']);
+    // const vatName = getValue(line, ['vat_name', 'vatName'], vatGroup);
     const ocrCode = getValue(line, ['ocr_code', 'ocrCode', 'OcrCode']);
     const ocrName = getValue(line, ['ocr_name', 'ocrName'], ocrCode);
     const ocrCode2 = getValue(line, ['ocr_code2', 'ocrCode2', 'OcrCode2']);
@@ -167,7 +168,8 @@ export default function OrderCreate() {
       ocrCode: findOption(listOcr1, ocrCode, ocrName),
       ocrCode2: findOption(listOcr2, ocrCode2, ocrName2),
       ocrCode3: findOption(listOcr3, ocrCode3, ocrName3),
-      vatGroup: findOption(listVats, vatGroup, vatName)
+      // VAT disabled: vatGroup: findOption(listVats, vatGroup, vatName)
+      vatGroup: null
     };
   };
 
@@ -390,23 +392,24 @@ export default function OrderCreate() {
     }
   };
 
-  const fetchVats = async () => {
-    setIsLoading(true);
-    const response = await OrderServices.getVats();
-    if (response.data.success) {
-      const data = response.data.data;
-      const dataArr = data.map((item) => ({
-        value: item?.code,
-        label: item?.name
-      }));
-
-      setListVats(dataArr);
-      setIsLoading(false);
-    } else {
-      setIsLoading(false);
-      showAlert('Gagal ambil data sales', 'danger');
-    }
-  };
+  // VAT disabled
+  // const fetchVats = async () => {
+  //   setIsLoading(true);
+  //   const response = await OrderServices.getVats();
+  //   if (response.data.success) {
+  //     const data = response.data.data;
+  //     const dataArr = data.map((item) => ({
+  //       value: item?.code,
+  //       label: item?.name
+  //     }));
+  //
+  //     setListVats(dataArr);
+  //     setIsLoading(false);
+  //   } else {
+  //     setIsLoading(false);
+  //     showAlert('Gagal ambil data sales', 'danger');
+  //   }
+  // };
 
   const fetchAddress = async (code) => {
     setIsLoading(true);
@@ -477,10 +480,11 @@ export default function OrderCreate() {
     setItemArr([...itemArr]);
   };
 
-  const handleSelectVat = (e, index) => {
-    itemArr[index].vatGroup = e;
-    setItemArr([...itemArr]);
-  };
+  // VAT disabled
+  // const handleSelectVat = (e, index) => {
+  //   itemArr[index].vatGroup = e;
+  //   setItemArr([...itemArr]);
+  // };
 
   const handleSelectAddress = (e, key) => {
     setOrderInput({
@@ -592,7 +596,7 @@ export default function OrderCreate() {
             uom_entry: item?.itemCode?.uomEntry,
             whs_code: item?.whsCode?.value,
             unit_price: item?.unitPrice,
-            vat_group: item?.vatGroup?.value,
+            // VAT disabled: vat_group: item?.vatGroup?.value,
             line_total: item?.lineTotal,
             free_text: item?.freeText,
             ocr_code: item?.ocrCode?.value,
@@ -635,7 +639,7 @@ export default function OrderCreate() {
             uom_entry: item?.itemCode?.uomEntry,
             whs_code: item?.whsCode?.value,
             unit_price: item?.unitPrice,
-            vat_group: item?.vatGroup?.value,
+            // VAT disabled: vat_group: item?.vatGroup?.value,
             line_total: item?.lineTotal,
             free_text: item?.freeText,
             ocr_code: item?.ocrCode?.value,
@@ -986,7 +990,7 @@ export default function OrderCreate() {
                         placeholder={String(Number(item.quantity || 0) * Number(item.unitPrice || 0))}
                       />
                     </td>
-                    <td>
+                    {/* <td>
                       <Select
                         styles={customStyles}
                         value={item.vatGroup}
@@ -995,7 +999,7 @@ export default function OrderCreate() {
                         onChange={(e) => handleSelectVat(e, index)}
                         placeholder="Vat"
                       />
-                    </td>
+                    </td> */}
                     <td>
                       <Form.Control
                         onChange={(e) => handleChangeInputLine(index, 'freeText', e)}
