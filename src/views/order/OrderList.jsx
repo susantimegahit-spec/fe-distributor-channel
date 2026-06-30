@@ -449,7 +449,6 @@ export default function OrderList() {
         const shouldLoadCreditLimit =
           normalizeStatus(orderDetail?.status || order?.status) === 'WAITING_FINANCE' && (isAdministrator || isFinanceUser);
         const customerCode = getOrderCustomerCode(orderDetail) || getOrderCustomerCode(order);
-        console.log('detail => ', orderDetail);
         setSelectedOrderDetail(orderDetail);
 
         if (shouldLoadCreditLimit && customerCode) {
@@ -732,7 +731,6 @@ export default function OrderList() {
   const canShowCreditLimitInfo =
     selectedOrderDetail && normalizeStatus(selectedOrderDetail.status) === 'WAITING_FINANCE' && (isAdministrator || isFinanceUser);
   const formatCreditAmount = (value) => (value !== undefined && value !== null && value !== '' ? currency(parseAmount(value)) : '-');
-  console.log('credit => ', selectedOrderDetail);
 
   return (
     <>

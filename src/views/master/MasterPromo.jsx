@@ -156,7 +156,6 @@ const normalizePromo = (program, index) => ({
 
 const normalizeDetailResponse = (response) => {
   const payload = response?.data;
-  console.log('payload => ', response.data)
 
   if (payload?.data && !Array.isArray(payload.data)) return payload.data;
   if (payload?.program && !Array.isArray(payload.program)) return payload.program;
