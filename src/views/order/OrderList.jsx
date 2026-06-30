@@ -32,7 +32,7 @@ const statusOptions = [
   { value: 'WAITING_ASM', label: 'Waiting ASM' },
   { value: 'WAITING_ADMIN_SALES', label: 'Waiting Admin Sales' },
   { value: 'WAITING_FINANCE', label: 'Waiting Finance' },
-  { value: 'WAITING_APPROVAL', label: 'Waiting Approval SM' },
+  // { value: 'WAITING_APPROVAL', label: 'Waiting Approval SM' },
   { value: 'ORDER_APPROVED', label: 'Order Approved' },
   { value: 'DELIVERY', label: 'Delivery' },
   { value: 'ARRIVED', label: 'Arrived' },
@@ -93,6 +93,14 @@ const approvalStatusMap = {
   ALL: 'ALL'
 };
 
+const creditLimitKeys = ['credit_limit_data.credit_limit'];
+
+const creditRemainingKeys = ['creditLimitData.SisaCredit'];
+
+const seriesNameKeys = ['series_name', 'seriesName', 'SeriesName'];
+const seriesDisplayKeys = [...seriesNameKeys, 'series', 'Series', 'series_code', 'seriesCode'];
+const seriesValueKeys = ['series', 'Series', 'series_code', 'seriesCode'];
+
 export default function OrderList() {
   const roleId = getCookies('role');
   const { showAlert } = useAlert();
@@ -108,8 +116,11 @@ export default function OrderList() {
   const [approvalLoadingAction, setApprovalLoadingAction] = useState('');
   const [approvalNotes, setApprovalNotes] = useState('');
   const [selectedOrderDetail, setSelectedOrderDetail] = useState(null);
+  const [isLoadingCreditLimit, setIsLoadingCreditLimit] = useState(false);
+  const [creditLimitError, setCreditLimitError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [permissionDetail, setPermissionDetail] = useState(null);
+  const [isDefaultStatusApplied, setIsDefaultStatusApplied] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -134,17 +145,32 @@ export default function OrderList() {
     });
   }, [date, distributor, keywords, orders, status]);
 
+  const selectedStatusOption = useMemo(() => statusOptions.find((item) => item.value === status), [status]);
+
   const summary = useMemo(
     () => ({
-      total: orders.length,
-      DRAFT: orders.filter((order) => order.status === 'DRAFT').length,
-      APPROVED: orders.filter((order) => order.status === 'APPROVED' || order.status === 'ORDER_APPROVED').length,
-      WAITING_APPROVAL: orders.filter((order) => String(order.status).startsWith('WAITING_')).length,
-      REJECTED: orders.filter((order) => order.status === 'REJECTED').length,
-      FAILED: orders.filter((order) => order.status === 'FAILED').length
+      total: filteredOrders.length,
+      DRAFT: filteredOrders.filter((order) => order.status === 'DRAFT').length,
+      APPROVED: filteredOrders.filter((order) => ['APPROVED', 'ORDER_APPROVED', 'DELIVERY', 'ARRIVED'].includes(order.status)).length,
+      WAITING_APPROVAL: filteredOrders.filter((order) => String(order.status).startsWith('WAITING_')).length,
+      REJECTED: filteredOrders.filter((order) => order.status === 'REJECTED').length,
+      FAILED: filteredOrders.filter((order) => order.status === 'FAILED').length
       // waiti: orders.filter((order) => order.status === 'rejected').length
     }),
-    [orders]
+    [filteredOrders]
+  );
+
+  const summaryLabels = useMemo(
+    () => ({
+      DRAFT: status === 'DRAFT' ? selectedStatusOption?.label || 'Draft' : 'Draft',
+      WAITING_APPROVAL: String(status).startsWith('WAITING_') ? selectedStatusOption?.label || 'Waiting' : 'Waiting',
+      APPROVED: ['APPROVED', 'ORDER_APPROVED', 'DELIVERY', 'ARRIVED'].includes(status)
+        ? selectedStatusOption?.label || 'Approved'
+        : 'Approved',
+      REJECTED: status === 'REJECTED' ? selectedStatusOption?.label || 'Rejected' : 'Rejected',
+      FAILED: status === 'FAILED' ? selectedStatusOption?.label || 'Failed' : 'Failed'
+    }),
+    [selectedStatusOption?.label, status]
   );
 
   const hasActiveFilter = Boolean(keywords || distributor || status || date);
@@ -193,6 +219,22 @@ export default function OrderList() {
     return defaultValue;
   };
 
+  const getOrderCustomerCode = (order = {}) =>
+    getOrderValue(order, ['card_code', 'cardCode', 'customer_code', 'customerCode', 'code_customer', 'CardCode'], '');
+
+  const getResponsePayload = (response) => {
+    const payload = response?.data?.data ?? response?.data;
+
+    if (Array.isArray(payload)) return payload[0] || {};
+
+    const nestedPayload = payload?.data || payload?.result || payload?.payload || payload?.credit_limit || payload?.creditLimit;
+
+    if (Array.isArray(nestedPayload)) return nestedPayload[0] || {};
+    if (nestedPayload && typeof nestedPayload === 'object') return nestedPayload;
+
+    return payload && typeof payload === 'object' ? payload : {};
+  };
+
   const getOrderLines = (order = {}) => {
     const lines = order.details || order.lines || order.document_lines || order.DocumentLines || [];
 
@@ -236,6 +278,19 @@ export default function OrderList() {
     return details.reduce((total, detail) => total + parseAmount(getOrderValue(detail, ['total_discount', 'totalDiscount'], 0)), 0);
   };
 
+  const getLineVatTotal = (line = {}) => {
+    const vatTotal = getOrderValue(line, ['vat_total', 'vatTotal', 'VatTotal', 'tax_total', 'taxTotal'], '');
+
+    if (vatTotal !== '') return vatTotal;
+
+    const lineTotal = parseAmount(getOrderValue(line, ['line_total', 'lineTotal', 'LineTotal'], 0));
+    const quantity = parseAmount(getOrderValue(line, ['quantity', 'qty', 'Quantity'], 0));
+    const unitPrice = parseAmount(getOrderValue(line, ['unit_price', 'unitPrice', 'price', 'Price'], 0));
+    const calculatedVatTotal = lineTotal - quantity * unitPrice;
+
+    return calculatedVatTotal > 0 ? calculatedVatTotal : 0;
+  };
+
   const buildOrderStatusPayload = (order, nextStatus, actionName) => ({
     card_code: getOrderValue(order, ['card_code', 'cardCode', 'customer_code', 'CardCode'], ''),
     po_number: getOrderValue(order, ['po_number', 'num_at_card', 'numAtCard', 'NumAtCard'], ''),
@@ -248,11 +303,14 @@ export default function OrderList() {
     ship_to_code: getOrderValue(order, ['ship_to_code', 'shipToCode', 'address2_code', 'ShipToCode'], ''),
     address2: getOrderValue(order, ['address2', 'ship_to_address', 'Address2'], ''),
     comments: getOrderValue(order, ['comments', 'Comments'], ''),
+    series: getOrderValue(order, seriesValueKeys, ''),
+    series_name: getOrderValue(order, seriesDisplayKeys, ''),
     status: nextStatus,
     action: actionName,
     notes: approvalNotes,
     id_discount: getOrderValue(order, ['id_discount', 'idDiscount'], ''),
     approval_id: permissionDetail?.role_menu?.approval_id,
+    DocTotal: getOrderValue(order, ['DocTotal'], ''),
     lines: getOrderLines(order).map((line) => ({
       item_code: getOrderValue(line, ['item_code', 'itemCode', 'ItemCode'], ''),
       quantity: getOrderValue(line, ['quantity', 'qty', 'Quantity'], ''),
@@ -261,6 +319,8 @@ export default function OrderList() {
       whs_code: getOrderValue(line, ['whs_code', 'warehouse_code', 'WhsCode'], ''),
       unit_price: getOrderValue(line, ['unit_price', 'unitPrice', 'price', 'Price'], ''),
       vat_group: getOrderValue(line, ['vat_group', 'vatGroup', 'VatGroup'], ''),
+      vat_rate: getOrderValue(line, ['vat_rate', 'vatRate', 'VatRate', 'rate'], ''),
+      vat_total: getLineVatTotal(line),
       line_total: getOrderValue(line, ['line_total', 'lineTotal', 'LineTotal'], ''),
       free_text: getOrderValue(line, ['free_text', 'freeText', 'FreeTxt'], ''),
       ocr_code: getOrderValue(line, ['ocr_code', 'ocrCode', 'OcrCode'], ''),
@@ -298,7 +358,7 @@ export default function OrderList() {
     if (/^https?:\/\//i.test(rawUrl)) return rawUrl;
 
     try {
-      return new URL(rawUrl, import.meta.env.VITE_APP_API_ENDPOINT_DEVELOPMENT).href;
+      return new URL(rawUrl, import.meta.env.VITE_APP_API_ENDPOINT_PRODUCTION).href;
     } catch {
       return rawUrl;
     }
@@ -378,12 +438,50 @@ export default function OrderList() {
   const handleViewOrder = async (order) => {
     setLoadingDetailId(order.id);
     setApprovalNotes('');
+    setCreditLimitError('');
+    setIsLoadingCreditLimit(false);
 
     try {
       const response = await OrderServices.getDetailOrder(order.id);
 
       if (response?.data?.success) {
-        setSelectedOrderDetail(response.data.data);
+        const orderDetail = response.data.data;
+        const shouldLoadCreditLimit =
+          normalizeStatus(orderDetail?.status || order?.status) === 'WAITING_FINANCE' && (isAdministrator || isFinanceUser);
+        const customerCode = getOrderCustomerCode(orderDetail) || getOrderCustomerCode(order);
+        console.log('detail => ', orderDetail);
+        setSelectedOrderDetail(orderDetail);
+
+        if (shouldLoadCreditLimit && customerCode) {
+          setIsLoadingCreditLimit(true);
+
+          try {
+            const creditLimitResponse = await OrderServices.getCreditLimit(customerCode);
+
+            if (creditLimitResponse?.data?.success === false) {
+              setCreditLimitError(creditLimitResponse?.data?.message || 'Gagal mengambil limit kredit');
+              return;
+            }
+
+            const creditLimitData = getResponsePayload(creditLimitResponse);
+
+            setSelectedOrderDetail((currentDetail) =>
+              currentDetail?.id === orderDetail.id
+                ? {
+                    ...currentDetail,
+                    credit_limit_data: creditLimitData,
+                    creditLimitData: creditLimitData
+                  }
+                : currentDetail
+            );
+          } catch (error) {
+            setCreditLimitError(error?.response?.data?.message || error?.message || 'Gagal mengambil limit kredit');
+          } finally {
+            setIsLoadingCreditLimit(false);
+          }
+        } else if (shouldLoadCreditLimit && !customerCode) {
+          setCreditLimitError('Customer code tidak ditemukan untuk mengambil limit kredit');
+        }
       } else {
         showAlert(response?.data?.message || 'Gagal mengambil detail order', 'danger');
       }
@@ -397,6 +495,8 @@ export default function OrderList() {
   const closeDetailModal = () => {
     setSelectedOrderDetail(null);
     setApprovalNotes('');
+    setCreditLimitError('');
+    setIsLoadingCreditLimit(false);
   };
 
   const getNextApprovalStatus = (order) => approvalStatusMap[normalizeStatus(order.status)];
@@ -468,7 +568,7 @@ export default function OrderList() {
       permissionDetail?.permissionDetail?.actionList ||
       permissionDetail?.actionList ||
       [];
-    if (roleId === 5) {
+    if (Number(roleId) === 5) {
       rawAction = 'view, edit, delete, add';
     }
     if (Array.isArray(rawAction)) {
@@ -487,9 +587,29 @@ export default function OrderList() {
   const actionList = useMemo(() => getPermissionActionList(), [permissionDetail]);
 
   const permissionApprovalName = useMemo(
-    () => (roleId === 5 ? 'ALL' : normalizeStatus(permissionDetail?.role_menu?.approval?.name)),
+    () => (Number(roleId) === 5 ? 'ALL' : normalizeStatus(permissionDetail?.role_menu?.approval?.name)),
+    [permissionDetail, roleId]
+  );
+
+  const roleName = useMemo(
+    () => normalizeStatus(permissionDetail?.name || permissionDetail?.role?.name || permissionDetail?.role_name),
     [permissionDetail]
   );
+  const isAdministrator = Number(roleId) === 5;
+  const isFinanceUser = permissionApprovalName === 'WAITING_FINANCE' || roleName.includes('FINANCE');
+
+  const defaultStatusByAccess = useMemo(() => {
+    if (!permissionApprovalName || permissionApprovalName === 'ALL') return '';
+
+    return statusOptions.some((item) => item.value === permissionApprovalName) ? permissionApprovalName : '';
+  }, [permissionApprovalName]);
+
+  useEffect(() => {
+    if (isDefaultStatusApplied || !permissionDetail) return;
+
+    setStatus(defaultStatusByAccess);
+    setIsDefaultStatusApplied(true);
+  }, [defaultStatusByAccess, isDefaultStatusApplied, permissionDetail]);
 
   const hasAction = (actionName) => {
     const aliases = actionAliases[actionName] || [actionName];
@@ -500,7 +620,7 @@ export default function OrderList() {
   const canCreateOrder = hasAction('create');
 
   const isOrderStatusSameWithPermission = (order) =>
-    (Boolean(permissionApprovalName) && normalizeStatus(order.status) === permissionApprovalName) || roleId === 5;
+    (Boolean(permissionApprovalName) && normalizeStatus(order.status) === permissionApprovalName) || Number(roleId) === 5;
 
   const isOrderStatusAllowed = (order) => {
     if (!permissionApprovalName) return true;
@@ -607,6 +727,12 @@ export default function OrderList() {
           : 0
       );
   const selectedOrderGrandTotal = selectedOrderTotal - selectedOrderDiscountTotal;
+  const selectedCreditLimit = selectedOrderDetail ? getOrderValue(selectedOrderDetail, creditLimitKeys, '') : '';
+  const selectedCreditRemaining = selectedOrderDetail?.creditLimitData?.SisaCredit;
+  const canShowCreditLimitInfo =
+    selectedOrderDetail && normalizeStatus(selectedOrderDetail.status) === 'WAITING_FINANCE' && (isAdministrator || isFinanceUser);
+  const formatCreditAmount = (value) => (value !== undefined && value !== null && value !== '' ? currency(parseAmount(value)) : '-');
+  console.log('credit => ', selectedOrderDetail);
 
   return (
     <>
@@ -648,7 +774,7 @@ export default function OrderList() {
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <div className="text-muted f-12">Draft</div>
+                      <div className="text-muted f-12">{summaryLabels.DRAFT}</div>
                       <h4 className="mb-0">{summary.DRAFT}</h4>
                     </div>
                     <span className="avtar avtar-s bg-light-secondary text-secondary">
@@ -663,7 +789,7 @@ export default function OrderList() {
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <div className="text-muted f-12">Waiting</div>
+                      <div className="text-muted f-12">{summaryLabels.WAITING_APPROVAL}</div>
                       <h4 className="mb-0">{summary.WAITING_APPROVAL}</h4>
                     </div>
                     <span className="avtar avtar-s bg-light-warning text-warning">
@@ -678,7 +804,7 @@ export default function OrderList() {
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <div className="text-muted f-12">Approved</div>
+                      <div className="text-muted f-12">{summaryLabels.APPROVED}</div>
                       <h4 className="mb-0">{summary.APPROVED}</h4>
                     </div>
                     <span className="avtar avtar-s bg-light-primary text-primary">
@@ -693,7 +819,7 @@ export default function OrderList() {
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <div className="text-muted f-12">Rejected</div>
+                      <div className="text-muted f-12">{summaryLabels.REJECTED}</div>
                       <h4 className="mb-0">{summary.REJECTED}</h4>
                     </div>
                     <span className="avtar avtar-s bg-light-orange text-orange">
@@ -708,7 +834,7 @@ export default function OrderList() {
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <div className="text-muted f-12">Failed</div>
+                      <div className="text-muted f-12">{summaryLabels.FAILED}</div>
                       <h4 className="mb-0">{summary.FAILED}</h4>
                     </div>
                     <span className="avtar avtar-s bg-light-danger text-danger">
@@ -779,7 +905,7 @@ export default function OrderList() {
                 {paginatedOrders.length > 0 ? (
                   paginatedOrders.map((order) => (
                     <tr key={order.id}>
-                      <td className="fw-semibold">{order.order_no}</td>
+                      <td className="fw-semibold">{order.sap_doc_num ?? '-'}</td>
                       <td>
                         {order.depo} - {order.customer_name}
                       </td>
@@ -856,7 +982,7 @@ export default function OrderList() {
               <Row className="g-3">
                 <Col md={4}>
                   <Form.Label className="f-12 text-muted">No. Order</Form.Label>
-                  <div className="fw-semibold">{getOrderValue(selectedOrderDetail, ['order_no', 'doc_num', 'docNum'])}</div>
+                  <div className="fw-semibold">{getOrderValue(selectedOrderDetail, ['sap_doc_num'])}</div>
                 </Col>
                 <Col md={4}>
                   <Form.Label className="f-12 text-muted">No. PO</Form.Label>
@@ -883,6 +1009,10 @@ export default function OrderList() {
                 <Col md={4}>
                   <Form.Label className="f-12 text-muted">Request Tanggal Kirim</Form.Label>
                   <div>{formatOrderDate(getOrderValue(selectedOrderDetail, ['doc_due_date', 'docDueDate'], ''))}</div>
+                </Col>
+                <Col md={4}>
+                  <Form.Label className="f-12 text-muted">Series Name</Form.Label>
+                  <div>{getOrderValue(selectedOrderDetail, seriesNameKeys)}</div>
                 </Col>
                 <Col md={4}>
                   <Form.Label className="f-12 text-muted">Sales</Form.Label>
@@ -1021,17 +1151,48 @@ export default function OrderList() {
                   </div>
                 </Col>
               </Row>
-              {canShowSelectedApprovalAction ? (
-                <Form.Group>
-                  <Form.Label className="f-12 text-muted">Notes Approval</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={3}
-                    value={approvalNotes}
-                    onChange={(event) => setApprovalNotes(event.target.value)}
-                    placeholder="Tambahkan catatan approval atau rejection"
-                  />
-                </Form.Group>
+              {canShowSelectedApprovalAction || canShowCreditLimitInfo ? (
+                <>
+                  {canShowSelectedApprovalAction ? (
+                    <Form.Group>
+                      <Form.Label className="f-12 text-muted">Notes Approval</Form.Label>
+                      <Form.Control
+                        as="textarea"
+                        rows={3}
+                        value={approvalNotes}
+                        onChange={(event) => setApprovalNotes(event.target.value)}
+                        placeholder="Tambahkan catatan approval atau rejection"
+                      />
+                    </Form.Group>
+                  ) : null}
+
+                  {canShowCreditLimitInfo ? (
+                    <Card className="border border-primary mb-0">
+                      <Card.Body>
+                        {isLoadingCreditLimit ? (
+                          <div className="text-muted mb-3">
+                            <i className="ti ti-loader-2 me-1" />
+                            Mengambil data limit kredit...
+                          </div>
+                        ) : null}
+                        {creditLimitError ? (
+                          <div className="text-danger mb-3">
+                            <i className="ti ti-alert-circle me-1" />
+                            {creditLimitError}
+                          </div>
+                        ) : null}
+                        {selectedCreditRemaining !== '' ? (
+                          <div className="text-end">
+                            <div className="text-muted f-12 mb-1">Sisa Limit Kredit</div>
+                            <h4 className={`mb-0 ${selectedCreditRemaining > 0 ? 'text-success' : 'text-danger'}`}>
+                              {formatCreditAmount(selectedCreditRemaining)}
+                            </h4>
+                          </div>
+                        ) : null}
+                      </Card.Body>
+                    </Card>
+                  ) : null}
+                </>
               ) : null}
             </Stack>
           ) : null}

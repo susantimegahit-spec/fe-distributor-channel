@@ -34,6 +34,16 @@ const alertVariantConfig = {
   }
 };
 
+const getAlertMessage = (message) => {
+  if (message instanceof Error) return message.response?.data?.message || message.message || 'Terjadi kesalahan.';
+  if (typeof message === 'string' || typeof message === 'number') return String(message);
+  if (React.isValidElement(message)) return message;
+  if (message?.response?.data?.message) return String(message.response.data.message);
+  if (message?.message) return String(message.message);
+
+  return 'Terjadi kesalahan.';
+};
+
 export const AlertProvider = ({ children }) => {
   const timersRef = useRef(new Map());
   const [alerts, setAlerts] = useState([]);
@@ -73,8 +83,9 @@ export const AlertProvider = ({ children }) => {
     (message, variant = 'info', timeout = 4000) => {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const safeVariant = alertVariantConfig[variant] ? variant : 'info';
+      const safeMessage = getAlertMessage(message);
 
-      setAlerts((prev) => [...prev.slice(-2), { id, message, variant: safeVariant, timeout }]);
+      setAlerts((prev) => [...prev.slice(-2), { id, message: safeMessage, variant: safeVariant, timeout }]);
 
       if (timeout) {
         const timer = setTimeout(() => {

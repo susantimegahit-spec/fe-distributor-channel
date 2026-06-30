@@ -43,6 +43,7 @@ export default function OrderPost() {
   const [loadingReward, setLoadingReward] = useState(false);
   const [maxDiscountPercentage, setMaxDiscountPercentage] = useState(null);
   const [loadingMaxDiscount, setLoadingMaxDiscount] = useState(false);
+  const [loadingSeries, setLoadingSeries] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loaderDisc, setLoaderDisc] = useState(false);
   const [loadingSubmit, setLoadingSubmit] = useState(false);
@@ -55,7 +56,8 @@ export default function OrderPost() {
   const [listEmployee, setListEmployee] = useState([]);
   const [discId, setDiscId] = useState('');
   const [listDiscType, setListDiscType] = useState([]);
-  const [listVats, setListVats] = useState([]);
+  // VAT disabled: const [listVats, setListVats] = useState([]);
+  const [listSeries, setListSeries] = useState([]);
   const [listDistributor, setListDistributor] = useState([]);
   const [orderDetail, setOrderDetail] = useState(null);
   const [statusType, setStatusType] = useState('');
@@ -99,6 +101,27 @@ export default function OrderPost() {
 
   const todayDate = getTodayDate();
 
+  // VAT disabled
+  // const getVatRate = (vatGroup) => {
+  //   const rate = vatGroup?.rate ?? vatGroup?.Rate ?? vatGroup?.percentage ?? vatGroup?.percent ?? 0;
+  //
+  //   return Number(String(rate).replace('%', '')) || 0;
+  // };
+
+  const calculateLineTotals = (item = {}) => {
+    const quantity = Number(item.quantity || 0);
+    const unitPrice = Number(item.unitPrice || 0);
+    const subtotal = quantity * unitPrice;
+    // VAT disabled
+    // const vatRate = getVatRate(item.vatGroup);
+    // const vatTotal = subtotal * (vatRate / 100);
+
+    return {
+      lineTotal: subtotal,
+      vatTotal: 0
+    };
+  };
+
   const [itemArr, setItemArr] = useState([
     {
       itemCode: null,
@@ -107,6 +130,7 @@ export default function OrderPost() {
       unitPrice: '',
       whs_code: null,
       lineTotal: '',
+      vatTotal: '',
       freeText: '',
       ocrCode: null,
       ocrCode2: null,
@@ -120,6 +144,8 @@ export default function OrderPost() {
     poNumber: '',
     docDate: '',
     docDueDate: '',
+    series: '',
+    seriesName: '',
     slpCode: '',
     cnctCode: '',
     address: '',
@@ -147,7 +173,7 @@ export default function OrderPost() {
     fetchOcr3();
     fetchWarehouse();
     fetchDiscType();
-    fetchVats();
+    // VAT disabled: fetchVats();
     if (!isCustomerRole) {
       fetchListDistributor();
     }
@@ -158,6 +184,15 @@ export default function OrderPost() {
       fetchOrderDetail(id);
     }
   }, [id]);
+
+  useEffect(() => {
+    if (!orderInput.docDate) {
+      setListSeries([]);
+      return;
+    }
+
+    fetchSalesOrderSeries(orderInput.docDate);
+  }, [orderInput.docDate]);
 
   const getValue = (data, keys, defaultValue = '') => {
     for (const key of keys) {
@@ -210,6 +245,63 @@ export default function OrderPost() {
   const formatDateInput = (value) => {
     if (!value) return '';
     return String(value).slice(0, 10);
+  };
+
+  const formatSeriesDate = (value) => formatDateInput(value).replace(/-/g, '');
+
+  const seriesNameKeys = ['series_name', 'seriesName', 'SeriesName', 'name', 'description'];
+  const orderSeriesNameKeys = ['series_label', 'seriesLabel', 'series_name', 'seriesName', 'SeriesName'];
+  const seriesValueKeys = ['series', 'Series', 'series_code', 'seriesCode', 'value', 'code', 'id'];
+
+  const mapSeriesOption = (item) => {
+    const value = getValue(item, seriesValueKeys);
+    const label = getValue(item, ['label', ...seriesNameKeys], value);
+
+    return value
+      ? {
+          value,
+          label: String(label || value),
+          raw: item
+        }
+      : null;
+  };
+
+  const fetchSalesOrderSeries = async (date) => {
+    const formattedDate = formatSeriesDate(date);
+    if (!formattedDate) return;
+
+    setLoadingSeries(true);
+    try {
+      const response = await OrderServices.getSalesOrderSeries(formattedDate);
+      if (response?.data?.success) {
+        const seriesData = response.data.data || response.data.series || [];
+        const normalizedSeries = (Array.isArray(seriesData) ? seriesData : [seriesData]).map(mapSeriesOption).filter(Boolean);
+
+        setListSeries(normalizedSeries);
+        return;
+      }
+
+      setListSeries([]);
+      showAlert(response?.data?.message || 'Gagal mengambil data series', 'danger');
+    } catch (error) {
+      setListSeries([]);
+      showAlert('Terjadi kesalahan saat mengambil data series', 'danger');
+    } finally {
+      setLoadingSeries(false);
+    }
+  };
+
+  const getSelectedSeriesOption = () => {
+    const selectedOption = listSeries.find((item) => String(item.value) === String(orderInput.series));
+    if (selectedOption) return selectedOption;
+    if (!orderInput.series) return null;
+
+    const fallbackLabel = getValue(orderDetail, [...orderSeriesNameKeys, 'series', 'Series', 'series_code', 'seriesCode'], orderInput.series);
+
+    return {
+      value: orderInput.series,
+      label: String(fallbackLabel || orderInput.series)
+    };
   };
 
   const getSapDiscountDetails = (order = {}) => {
@@ -317,8 +409,10 @@ export default function OrderPost() {
     const unitMsr = getValue(line, ['unit_msr', 'unitMsr', 'unit', 'UomCode', 'uom_code']);
     const whs_code = getValue(line, ['whs_code', 'whs_code', 'warehouse_code', 'whs_code']);
     const whsName = getValue(line, ['whs_name', 'whsName', 'warehouse_name', 'WhsName', 'warehouse.whs_name', 'warehouse.name'], whs_code);
-    const vatGroup = getValue(line, ['vat_group', 'vatGroup', 'VatGroup', 'vat_code', 'vatCode']);
-    const vatName = getValue(line, ['vat_name', 'vatName', 'VatName', 'vat_group_name', 'vatGroupName', 'vat.name'], vatGroup);
+    // VAT disabled
+    // const vatGroup = getValue(line, ['vat_group', 'vatGroup', 'VatGroup', 'vat_code', 'vatCode']);
+    // const vatName = getValue(line, ['vat_name', 'vatName', 'VatName', 'vat_group_name', 'vatGroupName', 'vat.name'], vatGroup);
+    // const vatRate = getValue(line, ['vat_rate', 'vatRate', 'VatRate', 'rate', 'vat.rate'], '');
     const rawOcrCode = getValue(line, ['ocr', 'ocr_code', 'ocrCode', 'OcrCode', 'branch_code', 'branchCode']);
     const ocrCode = getPrimitiveValue(rawOcrCode, ocrValueKeys);
     const ocrName = getPrimitiveValue(
@@ -355,11 +449,14 @@ export default function OrderPost() {
       unitPrice: getValue(line, ['unit_price', 'unitPrice', 'price', 'Price'], ''),
       whs_code: findOption(listWarehouse, whs_code, whsName),
       lineTotal: getValue(line, ['line_total', 'lineTotal', 'LineTotal'], ''),
+      // VAT disabled: vatTotal: getValue(line, ['vat_total', 'vatTotal', 'VatTotal', 'tax_total', 'taxTotal'], ''),
+      vatTotal: 0,
       freeText: getValue(line, ['free_text', 'freeText', 'FreeTxt'], ''),
       ocrCode: findOption(listOcr1, ocrCode, ocrName),
       ocrCode2: findOption(listOcr2, ocrCode2, ocrName2),
       ocrCode3: findOption(listOcr3, ocrCode3, ocrName3),
-      vatGroup: findOption(listVats, vatGroup, vatName)
+      // VAT disabled: vatGroup: findOption(listVats, vatGroup, vatName, vatRate !== '' ? { rate: vatRate } : {})
+      vatGroup: null
     };
   };
 
@@ -394,6 +491,8 @@ export default function OrderPost() {
       poNumber: getValue(order, ['po_number', 'num_at_card', 'numAtCard', 'NumAtCard']),
       docDate: formatDateInput(getValue(order, ['doc_date', 'docDate', 'DocDate'])),
       docDueDate: formatDateInput(getValue(order, ['doc_due_date', 'docDueDate', 'DocDueDate'])),
+      series: getValue(order, ['series', 'Series', 'series_code', 'seriesCode']),
+      seriesName: getValue(order, orderSeriesNameKeys, ''),
       slpCode: getValue(order, ['slp_code', 'slpCode', 'SlpCode']),
       cnctCode: getValue(order, ['cntct', 'cnctCode', 'contact_name', 'customer_name', 'CardName']),
       address: findOption(listAddressB, billToCode, billToAddress),
@@ -643,23 +742,26 @@ export default function OrderPost() {
     }
   };
 
-  const fetchVats = async () => {
-    setIsLoading(true);
-    const response = await OrderServices.getVats();
-    if (response.data.success) {
-      const data = response.data.data;
-      const dataArr = data.map((item) => ({
-        value: item?.code,
-        label: item?.name
-      }));
-
-      setListVats(dataArr);
-      setIsLoading(false);
-    } else {
-      setIsLoading(false);
-      showAlert('Gagal ambil data sales', 'danger');
-    }
-  };
+  // VAT disabled
+  // const fetchVats = async () => {
+  //   setIsLoading(true);
+  //   const response = await OrderServices.getVats();
+  //   if (response.data.success) {
+  //     const data = response.data.data;
+  //     const dataArr = data.map((item) => ({
+  //       value: item?.code,
+  //       label: item?.name,
+  //       rate: item?.rate ?? item?.Rate ?? item?.percentage ?? item?.percent ?? 0,
+  //       raw: item
+  //     }));
+  //
+  //     setListVats(dataArr);
+  //     setIsLoading(false);
+  //   } else {
+  //     setIsLoading(false);
+  //     showAlert('Gagal ambil data sales', 'danger');
+  //   }
+  // };
 
   const fetchAddress = async (code, shouldSetDefault = true) => {
     setIsLoading(true);
@@ -706,6 +808,30 @@ export default function OrderPost() {
     });
   };
 
+  const handleSetDocDate = (e) => {
+    setOrderInput({
+      ...orderInput,
+      docDate: e.target.value,
+      series: '',
+      seriesName: ''
+    });
+  };
+
+  const handleSetDocDueDate = (e) => {
+    setOrderInput({
+      ...orderInput,
+      docDueDate: e.target.value
+    });
+  };
+
+  const handleSelectSeries = (e) => {
+    setOrderInput({
+      ...orderInput,
+      series: e?.value || '',
+      seriesName: e?.label || ''
+    });
+  };
+
   const setItemPriceRowLoading = (index, isLoadingRow) => {
     setLoadingItemPriceRows((prevState) => {
       const nextState = [...prevState];
@@ -721,6 +847,7 @@ export default function OrderPost() {
       itemArr[index].unitMsr = '';
       itemArr[index].unitPrice = '';
       itemArr[index].lineTotal = '';
+      itemArr[index].vatTotal = '';
       setItemArr([...itemArr]);
       return;
     }
@@ -729,6 +856,7 @@ export default function OrderPost() {
     itemArr[index].unitMsr = e.unitMsr;
     itemArr[index].unitPrice = '';
     itemArr[index].lineTotal = '';
+    itemArr[index].vatTotal = '';
     setItemArr([...itemArr]);
     setItemPriceRowLoading(index, true);
 
@@ -739,9 +867,9 @@ export default function OrderPost() {
         const selectedPrice = resp.data.data?.[0]?.price || 0;
 
         itemArr[index].unitPrice = selectedPrice;
-        if (itemArr[index].quantity > 0) {
-          itemArr[index].lineTotal = selectedPrice * itemArr[index].quantity;
-        }
+        const calculatedTotals = calculateLineTotals(itemArr[index]);
+        itemArr[index].lineTotal = calculatedTotals.lineTotal;
+        itemArr[index].vatTotal = calculatedTotals.vatTotal;
         setItemArr([...itemArr]);
       } else {
         showAlert(resp.data.message || 'Gagal ambil harga item', 'danger');
@@ -773,10 +901,14 @@ export default function OrderPost() {
     setItemArr([...itemArr]);
   };
 
-  const handleSelectVat = (e, index) => {
-    itemArr[index].vatGroup = e;
-    setItemArr([...itemArr]);
-  };
+  // VAT disabled
+  // const handleSelectVat = (e, index) => {
+  //   itemArr[index].vatGroup = e;
+  //   const calculatedTotals = calculateLineTotals(itemArr[index]);
+  //   itemArr[index].lineTotal = calculatedTotals.lineTotal;
+  //   itemArr[index].vatTotal = calculatedTotals.vatTotal;
+  //   setItemArr([...itemArr]);
+  // };
 
   const handleSelectAddress = (e, key) => {
     setOrderInput({
@@ -1016,10 +1148,12 @@ export default function OrderPost() {
       uomEntry: '',
       whs_code: null,
       lineTotal: '',
+      vatTotal: '',
       freeText: '',
       ocrCode: null,
       ocrCode2: null,
-      ocrCode3: null
+      ocrCode3: null,
+      vatGroup: null
     };
 
     let store = [...itemArr, item];
@@ -1052,8 +1186,10 @@ export default function OrderPost() {
 
   const handleChangeInputLine = (index, key, e) => {
     itemArr[index][key] = e.target.value;
-    if (key === 'quantity') {
-      itemArr[index].lineTotal = e.target.value * itemArr[index].unitPrice;
+    if (key === 'quantity' || key === 'unitPrice') {
+      const calculatedTotals = calculateLineTotals(itemArr[index]);
+      itemArr[index].lineTotal = calculatedTotals.lineTotal;
+      itemArr[index].vatTotal = calculatedTotals.vatTotal;
     }
     setItemArr([...itemArr]);
   };
@@ -1091,11 +1227,11 @@ export default function OrderPost() {
     }).format(Number(value) || 0);
 
   const orderSubtotal = itemArr.reduce((total, item) => {
-    const lineTotal = Number(item.lineTotal);
-    const calculatedTotal = Number(item.quantity || 0) * Number(item.unitPrice || 0);
-
-    return total + (Number.isFinite(lineTotal) && lineTotal > 0 ? lineTotal : calculatedTotal);
+    return total + Number(item.quantity || 0) * Number(item.unitPrice || 0);
   }, 0);
+  // VAT disabled
+  // const orderVatTotal = itemArr.reduce((total, item) => total + Number(item.vatTotal || calculateLineTotals(item).vatTotal || 0), 0);
+  // const orderTotalAfterVat = orderSubtotal + orderVatTotal;
 
   const discountTotal = detailDisc.reduce((total, item) => total + (Number(item.value) || 0), 0);
   const rewardTotal = rewardDiscountPreview.reduce((total, item) => total + (Number(item.value) || 0), 0);
@@ -1119,7 +1255,10 @@ export default function OrderPost() {
       uom_entry: item?.itemCode?.uomEntry,
       whs_code: item?.whs_code?.value,
       unit_price: item?.unitPrice,
-      vat_group: item?.vatGroup?.value,
+      // VAT disabled
+      // vat_group: item?.vatGroup?.value,
+      // vat_rate: getVatRate(item?.vatGroup),
+      // vat_total: item?.vatTotal,
       line_total: item?.lineTotal,
       free_text: item?.freeText,
       ocr_code: getPrimitiveValue(item?.ocrCode, ocrValueKeys),
@@ -1132,6 +1271,8 @@ export default function OrderPost() {
       po_number: orderInput.poNumber,
       doc_date: orderInput.docDate,
       doc_due_date: orderInput.docDueDate,
+      Series: orderInput.series,
+      series_name: orderInput.seriesName || getSelectedSeriesOption()?.label || '',
       slp_code: orderInput.slpCode,
       cntct: orderInput.cnctCode,
       pay_to_code: orderInput.address?.value,
@@ -1140,6 +1281,8 @@ export default function OrderPost() {
       address2: orderInput.address2?.label,
       comments: orderInput.comments,
       status: type,
+      doc_total: grandTotal,
+      DocTotal: grandTotal,
       id_discount: discId,
       action: type === 'WAITING_OM' ? 'submit' : type === 'WAITING_FINANCE' ? 'approve' : '',
       lines: arrItem
@@ -1180,6 +1323,7 @@ export default function OrderPost() {
 
   const handleSubmitOrder = async () => {
     const payload = buildOrderRequestPayload(createOrderPayload(statusType));
+
     if (id) {
       const resp = await OrderServices.putOrder(id, payload);
       handleOrderResponse(resp);
@@ -1313,9 +1457,10 @@ export default function OrderPost() {
         if (!item.whs_code) {
           return `Warehouse pada baris ${rowNum} wajib diisi.`;
         }
-        if (!item.vatGroup) {
-          return `Vat pada baris ${rowNum} wajib diisi.`;
-        }
+        // VAT disabled
+        // if (!item.vatGroup) {
+        //   return `Vat pada baris ${rowNum} wajib diisi.`;
+        // }
       }
     }
 
@@ -1345,6 +1490,9 @@ export default function OrderPost() {
                     ? `Menampilkan detail ${orderDetail?.order_no || orderDetail?.doc_num || 'order'} yang dipilih.`
                     : 'Lengkapi informasi pelanggan, alamat, dan detail produk sebelum menyimpan order.'}
                 </span>
+                {isDetailMode && orderInput.series ? (
+                  <span className="text-muted f-12">Series: {getSelectedSeriesOption()?.label || orderInput.series}</span>
+                ) : null}
               </Stack>
             }
             secondary={
@@ -1479,7 +1627,7 @@ export default function OrderPost() {
                               <RequiredLabel>Tanggal Dokumen</RequiredLabel>
                             </Form.Label>
                             <Form.Control
-                              onChange={(e) => handleSetInput(e, 'docDate')}
+                              onChange={handleSetDocDate}
                               value={orderInput.docDate}
                               type="date"
                               min={todayDate}
@@ -1493,7 +1641,7 @@ export default function OrderPost() {
                               <RequiredLabel>Request Tanggal Kirim</RequiredLabel>
                             </Form.Label>
                             <Form.Control
-                              onChange={(e) => handleSetInput(e, 'docDueDate')}
+                              onChange={handleSetDocDueDate}
                               value={orderInput.docDueDate}
                               type="date"
                               min={todayDate}
@@ -1526,6 +1674,21 @@ export default function OrderPost() {
                               menuPosition="fixed"
                               onChange={(e) => handleSelectAddress(e, 'address2')}
                               placeholder="Pilih alamat kirim"
+                            />
+                          </Form.Group>
+                        </Col>
+                        <Col md={6} xl={4}>
+                          <Form.Group>
+                            <Form.Label className="small text-muted">Series Sales Order</Form.Label>
+                            <Select
+                              value={getSelectedSeriesOption()}
+                              options={listSeries}
+                              isLoading={loadingSeries}
+                              isDisabled={!orderInput.docDate || loadingSeries}
+                              menuPosition="fixed"
+                              onChange={handleSelectSeries}
+                              placeholder={orderInput.docDate ? 'Pilih series' : 'Pilih tanggal dokumen dahulu'}
+                              isClearable
                             />
                           </Form.Group>
                         </Col>
@@ -1563,6 +1726,14 @@ export default function OrderPost() {
                             <span className="text-muted">Subtotal</span>
                             <strong>{formatCurrency(orderSubtotal)}</strong>
                           </Stack>
+                          {/* <Stack direction="horizontal" className="justify-content-between">
+                            <span className="text-muted">Total VAT</span>
+                            <strong>{formatCurrency(orderVatTotal)}</strong>
+                          </Stack> */}
+                          {/* <Stack direction="horizontal" className="justify-content-between">
+                            <span className="text-muted">Total Setelah VAT</span>
+                            <strong>{formatCurrency(orderTotalAfterVat)}</strong>
+                          </Stack> */}
                           <Stack direction="horizontal" className="justify-content-between">
                             <span className="text-muted">Diskon {discId ? `- ${discId}` : ''}</span>
                             <Button variant="link" className="p-0 text-decoration-none" onClick={handleOpenDiscount}>
@@ -1745,9 +1916,10 @@ export default function OrderPost() {
                       <th style={{ minWidth: 220 }}>
                         <RequiredLabel>Warehouse</RequiredLabel>
                       </th>
-                      <th style={{ minWidth: 160 }}>
+                      {/* <th style={{ minWidth: 160 }}>
                         <RequiredLabel>Vat</RequiredLabel>
-                      </th>
+                      </th> */}
+                      {/* <th style={{ minWidth: 160 }}>Total VAT</th> */}
                       <th style={{ minWidth: 220 }}>Catatan</th>
                       <th style={{ minWidth: 220 }}>Cabang</th>
                       <th style={{ minWidth: 220 }}>Bisnis Unit</th>
@@ -1803,7 +1975,7 @@ export default function OrderPost() {
                         value={currency(item.lineTotal)}
                         size="sm"
                         min="0"
-                        placeholder={String(Number(item.quantity || 0) * Number(item.unitPrice || 0))}
+                        placeholder={String(calculateLineTotals(item).lineTotal)}
                       />
                     </td>
                     {!isCustomerRole && (
@@ -1818,7 +1990,7 @@ export default function OrderPost() {
                             placeholder="Pilih warehouse"
                           />
                         </td>
-                        <td>
+                        {/* <td>
                           <Select
                             styles={customStyles}
                             value={item.vatGroup}
@@ -1827,7 +1999,10 @@ export default function OrderPost() {
                             onChange={(e) => handleSelectVat(e, index)}
                             placeholder="Vat"
                           />
-                        </td>
+                        </td> */}
+                        {/* <td>
+                          <Form.Control readOnly type="text" value={currency(item.vatTotal)} size="sm" />
+                        </td> */}
                         <td>
                           <Form.Control
                             onChange={(e) => handleChangeInputLine(index, 'freeText', e)}
@@ -1895,7 +2070,7 @@ export default function OrderPost() {
         </Modal.Header>
         <Modal.Body>
           <Stack gap={3}>
-            <Card className="border mb-0">
+            {/* <Card className="border mb-0">
               <Card.Body className="py-3">
                 <Row className="g-3">
                   <Col md={6}>
@@ -1971,7 +2146,7 @@ export default function OrderPost() {
                   </div>
                 )}
               </Card.Body>
-            </Card>
+            </Card> */}
 
             <Card className="border mb-0">
               <Card.Header className="py-3">

@@ -1,44 +1,38 @@
-name: Deploy React App via SSH/SFTP
+name: Dev deploy
 
 on:
   push:
     branches:
-      - main # Jalankan deploy ketika push ke branch main
+      - development
 
 jobs:
-  build-and-deploy:
+  deploy:
+    name: 🎉 Deploy Dev
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Ambil source code terbaru dari GitHub
-      - name: Checkout Code
-        uses: actions/checkout@v3
+      - name: 🚚 Get latest code
+        uses: actions/checkout@v4
 
-      # 2. Install Node.js untuk build React
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: '24'
 
-      # 3. Jalankan install dependencies dan compile/build project
-      - name: Install and Build
+      - name: 🔨 Build Project
         run: |
-          npm install
-          npm run build
+          corepack enable
+          yarn set version 4.12.0           
+          yarn install --no-immutable
+          cp .env.example .env
+          yarn build
 
-      # 4. Deploy hasil build ke VPS menggunakan SSH Key
-      - name: Deploy to VPS via SSH/SFTP
-        uses: easingthemes/ssh-deploy@main
+      - name: 📂 Deploy to Server via SFTP
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
         with:
-          # Menggunakan Private Key yang disimpan di GitHub Secrets
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          REMOTE_HOST: ${{ secrets.SSH_HOST }}
-          REMOTE_USER: ${{ secrets.SSH_USERNAME }}
-          REMOTE_PORT: ${{ secrets.SSH_PORT }}
-          # Folder asal yang ingin di-upload (hasil build)
-          SOURCE: "dist/" # Ganti menjadi "build/" jika Anda menggunakan Create React App lama
-          # Folder tujuan di VPS Anda
-          TARGET: "/home/username_cpanel/public_html/" # Ganti username_cpanel sesuai dengan username cPanel Anda
-          # Opsi tambahan agar menghapus file lama di server yang tidak ada di build baru
-          ARGS: "-rlgoDzvO --delete"
+          username: 'susantimegah'
+          server: '103.89.4.98'
+          port: 22
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+          local_path: 'dist/*'
+          remote_path: '/home/susantimegah/public_html/customerportal.susantimegah.com/'
