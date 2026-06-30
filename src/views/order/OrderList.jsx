@@ -32,7 +32,7 @@ const statusOptions = [
   { value: 'WAITING_ASM', label: 'Waiting ASM' },
   { value: 'WAITING_ADMIN_SALES', label: 'Waiting Admin Sales' },
   { value: 'WAITING_FINANCE', label: 'Waiting Finance' },
-  { value: 'WAITING_APPROVAL', label: 'Waiting Approval SM' },
+  // { value: 'WAITING_APPROVAL', label: 'Waiting Approval SM' },
   { value: 'ORDER_APPROVED', label: 'Order Approved' },
   { value: 'DELIVERY', label: 'Delivery' },
   { value: 'ARRIVED', label: 'Arrived' },
