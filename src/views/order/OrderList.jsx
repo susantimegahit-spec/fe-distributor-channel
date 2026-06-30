@@ -1038,8 +1038,6 @@ export default function OrderList() {
                     <th>Item</th>
                     <th className="text-end">Qty</th>
                     <th>Satuan</th>
-                    <th className="text-center">Vat</th>
-                    <th className="text-end">Total VAT</th>
                     <th className="text-end">Harga</th>
                     <th className="text-end">Total</th>
                     <th>Warehouse</th>
@@ -1057,8 +1055,6 @@ export default function OrderList() {
                         </td>
                         <td className="text-end">{Math.round(getOrderValue(line, ['quantity', 'qty', 'Quantity'], 0))}</td>
                         <td>{getOrderValue(line, ['unit_msr', 'unitMsr', 'uom_code', 'UomCode'])}</td>
-                        <td className="text-center">{getOrderValue(line, ['vat_name', 'vatName', 'VatName', 'vat_group', 'vatGroup'], '-')}</td>
-                        <td className="text-end">{currency(getLineVatTotal(line))}</td>
                         <td className="text-end">{currency(getOrderValue(line, ['unit_price', 'unitPrice', 'price', 'Price'], 0))}</td>
                         <td className="text-end">{currency(getOrderValue(line, ['line_total', 'lineTotal', 'LineTotal'], 0))}</td>
                         <td>{getOrderValue(line, ['whs_code', 'warehouse_code', 'WhsCode'])}</td>
@@ -1066,7 +1062,7 @@ export default function OrderList() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={8} className="text-center text-muted py-4">
+                      <td colSpan={6} className="text-center text-muted py-4">
                         Detail item tidak tersedia
                       </td>
                     </tr>
