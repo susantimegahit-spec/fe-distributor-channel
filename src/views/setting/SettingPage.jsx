@@ -17,6 +17,7 @@ import { getCookies } from '../../utils/cookies';
 import MasterSignature from '../master/MasterSignature';
 import PermissionList from './permission/PermissionList';
 import UserList from './users/UserList';
+import CronJobList from './cronjob/CronJobList';
 
 const adminRoleId = 5;
 const generalSettingKey = 'dc-general-settings';
@@ -25,7 +26,8 @@ const tabs = [
   { key: 'users', title: 'Setting User', icon: 'ti ti-users' },
   // { key: 'general', title: 'Setting', icon: 'ti ti-settings' },
   { key: 'permissions', title: 'Hak Akses', icon: 'ti ti-shield-lock' },
-  { key: 'signatures', title: 'Setting TTD User', icon: 'ti ti-signature' }
+  { key: 'signatures', title: 'Setting TTD User', icon: 'ti ti-signature' },
+  { key: 'cronjobs', title: 'Setting Cron Job', icon: 'ti ti-alarm' }
 ];
 
 const defaultGeneralSettings = {
@@ -159,6 +161,8 @@ export default function SettingPage({ defaultTab = 'users' }) {
         return <PermissionList />;
       case 'signatures':
         return <MasterSignature />;
+      case 'cronjobs':
+        return <CronJobList />;
       case 'users':
       default:
         return <UserList />;
