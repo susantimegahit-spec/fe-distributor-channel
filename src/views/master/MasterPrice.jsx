@@ -672,17 +672,6 @@ export default function MasterPrice() {
                   <option value="0">Tidak Aktif</option>
                 </Form.Select>
               </Col>
-              <Col xs={12}>
-                <div className="sm-inline-alert sm-inline-alert-info">
-                  <span className="sm-inline-alert-icon">
-                    <i className="ti ti-info-circle f-20" />
-                  </span>
-                  <span>
-                    Data akan {editingPriceId ? 'diperbarui' : 'dikirim'} ke endpoint <strong>distributor-item-prices</strong>{' '}
-                    melalui Price Services.
-                  </span>
-                </div>
-              </Col>
             </Row>
           </Modal.Body>
           <Modal.Footer>
