@@ -110,6 +110,7 @@ export default function OrderList() {
   const [status, setStatus] = useState('');
   const [date, setDate] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [downloadingPdfId, setDownloadingPdfId] = useState(null);
   const [downloadingAttachmentId, setDownloadingAttachmentId] = useState(null);
   const [loadingDetailId, setLoadingDetailId] = useState(null);
@@ -189,13 +190,62 @@ export default function OrderList() {
     fetchData();
   };
 
+  const extractOrderList = (response) => {
+    const payload = response?.data?.data ?? response?.data;
+
+    if (Array.isArray(payload)) return payload;
+
+    const nestedPayload =
+      payload?.orders || payload?.sales_orders || payload?.salesOrders || payload?.items || payload?.result || payload?.data;
+
+    if (Array.isArray(nestedPayload)) return nestedPayload;
+
+    return null;
+  };
+
   const fetchData = async () => {
     setIsLoading(true);
-    const resp = await OrderServices.getListOrder();
 
-    if (resp.data.success) {
+    try {
+      const resp = await OrderServices.getListOrder();
+      const nextOrders = extractOrderList(resp);
+
+      if (resp.data.success && nextOrders) {
+        setOrders(nextOrders);
+      } else {
+        showAlert(resp?.data?.message || 'Gagal ambil data order', 'danger');
+      }
+    } catch (error) {
+      showAlert(error?.message || 'Gagal ambil data order', 'danger');
+    } finally {
       setIsLoading(false);
-      setOrders(resp.data.data);
+    }
+  };
+
+  const syncData = async () => {
+    setIsSyncing(true);
+
+    try {
+      const response = await OrderServices.syncAllOrders();
+      const syncedOrders = extractOrderList(response);
+
+      if (response?.data?.success) {
+        if (syncedOrders) {
+          setOrders(syncedOrders);
+          setCurrentPage(1);
+        } else {
+          await fetchData();
+        }
+
+        showAlert(response.data.message || 'Data order berhasil disinkronkan', 'success');
+      } else {
+        showAlert(response?.data?.message || 'Gagal sinkronisasi data order', 'danger');
+        await fetchData();
+      }
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Gagal sinkronisasi data order', 'danger');
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -745,12 +795,18 @@ export default function OrderList() {
             </Stack>
           }
           secondary={
-            canCreateOrder ? (
-              <Button variant="primary" as={Link} to={`/order/order-create`}>
-                <i className="ti ti-plus me-1" />
-                Tambah Order
+            <Stack direction="horizontal" gap={2} className="flex-wrap justify-content-end">
+              <Button variant="light-primary" onClick={syncData} disabled={isLoading || isSyncing}>
+                <i className={`ti ${isSyncing ? 'ti-loader-2' : 'ti-refresh'} me-1`} />
+                {isSyncing ? 'Syncing...' : 'Sync'}
               </Button>
-            ) : null
+              {canCreateOrder ? (
+                <Button variant="primary" as={Link} to={`/order/order-create`}>
+                  <i className="ti ti-plus me-1" />
+                  Tambah Order
+                </Button>
+              ) : null}
+            </Stack>
           }
         >
           <Row className="g-3">
@@ -910,13 +966,13 @@ export default function OrderList() {
                         {order.depo} - {order.customer_name}
                       </td>
                       <td>{moment(order.doc_date).format('DD MMM YYYY')}</td>
-                      <td>{order?.details?.length}</td>
+                      <td>{getOrderLines(order).length}</td>
                       <td>{currency(order?.doc_total)}</td>
                       <td>
                         <Badge bg={statusVariant[order.status] || 'secondary'}>{order.status.replace('_', ' ')}</Badge>
                       </td>
                       <td>
-                        {order.attachments.length > 0 ? (
+                        {getOrderAttachments(order).length > 0 ? (
                           <Button
                             variant="light-primary"
                             size="sm"
