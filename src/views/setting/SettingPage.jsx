@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -27,8 +27,10 @@ const tabs = [
   // { key: 'general', title: 'Setting', icon: 'ti ti-settings' },
   { key: 'permissions', title: 'Hak Akses', icon: 'ti ti-shield-lock' },
   { key: 'signatures', title: 'Setting TTD User', icon: 'ti ti-signature' },
-  { key: 'cronjobs', title: 'Setting Cron Job', icon: 'ti ti-alarm' }
+  { key: 'cronjobs', title: 'Setting Cron Job', icon: 'ti ti-alarm', adminOnly: true }
 ];
+
+const canAccessTab = (tab, isAdministrator) => !tab.adminOnly || isAdministrator;
 
 const defaultGeneralSettings = {
   appName: 'Distributor Channel',
@@ -149,11 +151,26 @@ export default function SettingPage({ defaultTab = 'users' }) {
   const { activeTab } = useParams();
   const roleId = getCookies('role');
   const isAdministrator = Number(roleId) === adminRoleId;
-  const availableTabs = useMemo(() => (isAdministrator ? tabs : tabs.filter((tab) => tab.key === 'signatures')), [isAdministrator]);
-  const fallbackTab = isAdministrator ? defaultTab : 'signatures';
+  const availableTabs = useMemo(() => {
+    const roleTabs = isAdministrator ? tabs : tabs.filter((tab) => tab.key === 'signatures');
+
+    return roleTabs.filter((tab) => canAccessTab(tab, isAdministrator));
+  }, [isAdministrator]);
+  const canAccessDefaultTab = tabs.some((tab) => tab.key === defaultTab && canAccessTab(tab, isAdministrator));
+  const fallbackTab = isAdministrator && canAccessDefaultTab ? defaultTab : availableTabs[0]?.key || 'signatures';
   const selectedTab = availableTabs.some((tab) => tab.key === activeTab) ? activeTab : fallbackTab;
 
+  useEffect(() => {
+    if (activeTab && activeTab !== selectedTab) {
+      navigate(`/setting/${selectedTab}`, { replace: true });
+    }
+  }, [activeTab, navigate, selectedTab]);
+
   const currentContent = useMemo(() => {
+    if (!availableTabs.some((tab) => tab.key === selectedTab)) {
+      return <MasterSignature />;
+    }
+
     switch (selectedTab) {
       case 'general':
         return <GeneralSettings />;
@@ -167,7 +184,7 @@ export default function SettingPage({ defaultTab = 'users' }) {
       default:
         return <UserList />;
     }
-  }, [selectedTab]);
+  }, [availableTabs, selectedTab]);
 
   const handleSelect = (tabKey) => {
     if (!tabKey) return;
