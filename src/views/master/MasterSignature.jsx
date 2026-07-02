@@ -116,10 +116,10 @@ export default function MasterSignature() {
       if (response?.data?.success) {
         setUsers(response.data.data || []);
       } else {
-        showAlert(response?.data?.message || 'Gagal mengambil data user', 'danger');
+        showAlert(response?.data?.message || 'Failed to fetch user data', 'danger');
       }
     } catch (error) {
-      showAlert('Terjadi kesalahan saat memuat data user', 'danger');
+      showAlert('An error occurred while loading user data', 'danger');
     } finally {
       setLoadingUsers(false);
     }
@@ -138,10 +138,10 @@ export default function MasterSignature() {
         setSelectedFile(null);
         setPreviewUrl('');
       } else {
-        showAlert('Gagal mengambil data konfigurasi', 'danger');
+        showAlert('Failed to fetch configuration data', 'danger');
       }
     } catch (error) {
-      showAlert('Terjadi kesalahan saat memuat data', 'danger');
+      showAlert('An error occurred while loading data', 'danger');
     } finally {
       setLoading(false);
     }
@@ -174,15 +174,15 @@ export default function MasterSignature() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selectedUserId) {
-      showAlert('Pilih user terlebih dahulu', 'warning');
+      showAlert('Select a user first', 'warning');
       return;
     }
     if (!signerName.trim()) {
-      showAlert('Nama penandatangan wajib diisi', 'warning');
+      showAlert('Signer name is required', 'warning');
       return;
     }
     if (!signerTitle.trim()) {
-      showAlert('Jabatan penandatangan wajib diisi', 'warning');
+      showAlert('Signer position is required', 'warning');
       return;
     }
 
@@ -200,16 +200,16 @@ export default function MasterSignature() {
 
       const response = await PiSettingServices.updateSetting(formData);
       if (response?.data?.success) {
-        showAlert('Konfigurasi tanda tangan PI berhasil diperbarui', 'success');
+        showAlert('PI signature configuration updated successfully', 'success');
         setSelectedFile(null);
         setPreviewUrl('');
         // Reload data to get latest signature_url
         fetchData(selectedUserId);
       } else {
-        showAlert(response?.data?.message || 'Gagal memperbarui konfigurasi', 'danger');
+        showAlert(response?.data?.message || 'Failed to update configuration', 'danger');
       }
     } catch (error) {
-      showAlert('Terjadi kesalahan saat menyimpan data', 'danger');
+      showAlert('An error occurred while saving data', 'danger');
     } finally {
       setSaving(false);
     }
@@ -229,7 +229,7 @@ export default function MasterSignature() {
         title={
           <Stack gap={1}>
             <h5 className="mb-0">Setting TTD Proforma Invoice</h5>
-            <span className="text-muted f-12">Kelola nama, jabatan, serta gambar tanda tangan digital yang akan dicantumkan pada Proforma Invoice.</span>
+            <span className="text-muted f-12">Manage the name, position, and digital signature image displayed on the Proforma Invoice.</span>
           </Stack>
         }
       >
@@ -245,7 +245,7 @@ export default function MasterSignature() {
                       options={userOptions}
                       menuPosition="fixed"
                       onChange={handleSelectUser}
-                      placeholder="Cari nama user"
+                      placeholder="Search nama user"
                       isClearable
                       isSearchable
                       formatOptionLabel={(option) => (
@@ -259,7 +259,7 @@ export default function MasterSignature() {
                 )}
 
                 <Form.Group controlId="signerName">
-                  <Form.Label className="fw-semibold">Nama Penandatangan</Form.Label>
+                  <Form.Label className="fw-semibold">Signer Name</Form.Label>
                   <Form.Control
                     type="text"
                     placeholder="Contoh: Kushan Wijono"
@@ -270,7 +270,7 @@ export default function MasterSignature() {
                 </Form.Group>
 
                 <Form.Group controlId="signerTitle">
-                  <Form.Label className="fw-semibold">Jabatan Penandatangan</Form.Label>
+                  <Form.Label className="fw-semibold">Signer Position</Form.Label>
                   <Form.Control
                     type="text"
                     placeholder="Contoh: Branch Manager"
@@ -281,14 +281,14 @@ export default function MasterSignature() {
                 </Form.Group>
 
                 <Form.Group controlId="documentTags">
-                  <Form.Label className="fw-semibold">Tag Dokumen</Form.Label>
+                  <Form.Label className="fw-semibold">Document Tag</Form.Label>
                   <Select
                     isMulti
                     value={selectedDocumentTags}
                     options={documentTagOptions}
                     menuPosition="fixed"
                     onChange={(options) => setDocumentTags((options || []).map((option) => option.value))}
-                    placeholder="Pilih tag dokumen"
+                    placeholder="Select document tag"
                     closeMenuOnSelect={false}
                   />
                 </Form.Group>
@@ -310,12 +310,12 @@ export default function MasterSignature() {
                     {saving ? (
                       <>
                         <i className="ti ti-loader-2 me-1 spinner-border spinner-border-sm" role="status" aria-hidden="true" />
-                        Menyimpan...
+                        Saving...
                       </>
                     ) : (
                       <>
                         <i className="ti ti-device-floppy me-1" />
-                        Simpan Perubahan
+                        Save Changes
                       </>
                     )}
                   </Button>
@@ -331,7 +331,7 @@ export default function MasterSignature() {
                 <Card.Body className="d-flex flex-column align-items-center justify-content-center py-4" style={{ minHeight: 200 }}>
                   {previewUrl ? (
                     <div className="text-center">
-                      <div className="mb-2 text-primary f-12 fw-semibold">Tanda Tangan Baru (Belum Disimpan)</div>
+                      <div className="mb-2 text-primary f-12 fw-semibold">New Signature (Not Saved Yet)</div>
                       <img
                         src={previewUrl}
                         alt="Tanda Tangan Baru"
@@ -352,7 +352,7 @@ export default function MasterSignature() {
                   ) : (
                     <div className="text-center text-muted">
                       <i className="ti ti-signature f-40 d-block mb-2 text-light-muted" />
-                      Belum ada gambar tanda tangan diunggah.
+                      No signature image has been uploaded yet.
                     </div>
                   )}
                 </Card.Body>

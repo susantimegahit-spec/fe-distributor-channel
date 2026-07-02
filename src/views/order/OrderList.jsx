@@ -26,7 +26,7 @@ import { downloadSalesOrderPdf } from '../../utils/orderPdf';
 import RoleServices from '../../services/RoleServices';
 
 const statusOptions = [
-  { value: '', label: 'Semua Status' },
+  { value: '', label: 'All Statuses' },
   { value: 'DRAFT', label: 'Draft' },
   { value: 'WAITING_OM', label: 'Waiting OM' },
   { value: 'WAITING_ASM', label: 'Waiting ASM' },
@@ -213,10 +213,10 @@ export default function OrderList() {
       if (resp.data.success && nextOrders) {
         setOrders(nextOrders);
       } else {
-        showAlert(resp?.data?.message || 'Gagal ambil data order', 'danger');
+        showAlert(resp?.data?.message || 'Failed to fetch order data', 'danger');
       }
     } catch (error) {
-      showAlert(error?.message || 'Gagal ambil data order', 'danger');
+      showAlert(error?.message || 'Failed to fetch order data', 'danger');
     } finally {
       setIsLoading(false);
     }
@@ -237,13 +237,13 @@ export default function OrderList() {
           await fetchData();
         }
 
-        showAlert(response.data.message || 'Data order berhasil disinkronkan', 'success');
+        showAlert(response.data.message || 'Order data synced successfully', 'success');
       } else {
-        showAlert(response?.data?.message || 'Gagal sinkronisasi data order', 'danger');
+        showAlert(response?.data?.message || 'Failed to sync order data', 'danger');
         await fetchData();
       }
     } catch (error) {
-      showAlert(error?.response?.data?.message || error?.message || 'Gagal sinkronisasi data order', 'danger');
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to sync order data', 'danger');
     } finally {
       setIsSyncing(false);
     }
@@ -446,13 +446,13 @@ export default function OrderList() {
       }
 
       if (!attachments.length) {
-        showAlert('Lampiran order tidak tersedia', 'warning');
+        showAlert('Order attachment is not available', 'warning');
         return;
       }
 
       openAttachment(attachments[0]);
     } catch (error) {
-      showAlert(error?.message || 'Gagal membuka lampiran order', 'danger');
+      showAlert(error?.message || 'Failed to open order attachment', 'danger');
     } finally {
       setDownloadingAttachmentId(null);
     }
@@ -474,12 +474,12 @@ export default function OrderList() {
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
-        showAlert('PDF berhasil didownload', 'success');
+        showAlert('PDF downloaded successfully', 'success');
       } else {
-        showAlert('Gagal mengunduh file PDF', 'danger');
+        showAlert('Failed to download PDF file', 'danger');
       }
     } catch (error) {
-      showAlert(error?.message || 'Gagal download PDF order', 'danger');
+      showAlert(error?.message || 'Failed to download order PDF', 'danger');
     } finally {
       setDownloadingPdfId(null);
     }
@@ -509,7 +509,7 @@ export default function OrderList() {
             const creditLimitResponse = await OrderServices.getCreditLimit(customerCode);
 
             if (creditLimitResponse?.data?.success === false) {
-              setCreditLimitError(creditLimitResponse?.data?.message || 'Gagal mengambil limit kredit');
+              setCreditLimitError(creditLimitResponse?.data?.message || 'Failed to fetch credit limit');
               return;
             }
 
@@ -525,7 +525,7 @@ export default function OrderList() {
                 : currentDetail
             );
           } catch (error) {
-            setCreditLimitError(error?.response?.data?.message || error?.message || 'Gagal mengambil limit kredit');
+            setCreditLimitError(error?.response?.data?.message || error?.message || 'Failed to fetch credit limit');
           } finally {
             setIsLoadingCreditLimit(false);
           }
@@ -533,10 +533,10 @@ export default function OrderList() {
           setCreditLimitError('Customer code tidak ditemukan untuk mengambil limit kredit');
         }
       } else {
-        showAlert(response?.data?.message || 'Gagal mengambil detail order', 'danger');
+        showAlert(response?.data?.message || 'Failed to fetch order detail', 'danger');
       }
     } catch (error) {
-      showAlert(error?.message || 'Gagal mengambil detail order', 'danger');
+      showAlert(error?.message || 'Failed to fetch order detail', 'danger');
     } finally {
       setLoadingDetailId(null);
     }
@@ -553,7 +553,7 @@ export default function OrderList() {
 
   const updateSelectedOrderStatus = async (nextStatus, actionName) => {
     if (!selectedOrderDetail?.id) {
-      showAlert('Detail order tidak ditemukan', 'danger');
+      showAlert('Order detail not found', 'danger');
       return;
     }
 
@@ -574,14 +574,14 @@ export default function OrderList() {
             String(order.id) === String(selectedOrderDetail.id) ? { ...order, ...updatedOrder, status: nextStatus } : order
           )
         );
-        showAlert(response.data.message || 'Status order berhasil diupdate', 'success');
+        showAlert(response.data.message || 'Order status updated successfully', 'success');
         fetchData();
         setSelectedOrderDetail(null);
       } else {
-        showAlert(response?.data?.message || 'Gagal update status order', 'danger');
+        showAlert(response?.data?.message || 'Failed to update order status', 'danger');
       }
     } catch (error) {
-      showAlert(error?.message || 'Gagal update status order', 'danger');
+      showAlert(error?.message || 'Failed to update order status', 'danger');
     } finally {
       setApprovalLoadingAction('');
     }
@@ -790,8 +790,8 @@ export default function OrderList() {
         <MainCard
           title={
             <Stack gap={1}>
-              <h5 className="mb-0">Daftar Order</h5>
-              <span className="text-muted f-12">Monitor order distributor dan lanjutkan proses penjualan dari satu halaman.</span>
+              <h5 className="mb-0">Order List</h5>
+              <span className="text-muted f-12">Monitor distributor orders and continue the sales process from one page.</span>
             </Stack>
           }
           secondary={
@@ -803,7 +803,7 @@ export default function OrderList() {
               {canCreateOrder ? (
                 <Button variant="primary" as={Link} to={`/order/order-create`}>
                   <i className="ti ti-plus me-1" />
-                  Tambah Order
+                  Add Order
                 </Button>
               ) : null}
             </Stack>
@@ -906,7 +906,7 @@ export default function OrderList() {
         <MainCard>
           <Row className="g-2 align-items-end mb-3">
             <Col lg={4} md={6}>
-              <Form.Label className="f-12 text-muted">Cari Order</Form.Label>
+              <Form.Label className="f-12 text-muted">Search Order</Form.Label>
               <InputGroup>
                 <InputGroup.Text>
                   <i className="ti ti-search" />
@@ -925,7 +925,7 @@ export default function OrderList() {
               </Form.Select>
             </Col>
             <Col lg={3} md={6}>
-              <Form.Label className="f-12 text-muted">Tanggal</Form.Label>
+              <Form.Label className="f-12 text-muted">Date</Form.Label>
               <Form.Control value={date} onChange={(event) => setDate(event.target.value)} type="date" />
             </Col>
             <Col lg={1} md={12} className="text-lg-end">
@@ -940,11 +940,11 @@ export default function OrderList() {
               <tr>
                 <th>No. SO</th>
                 <th>Depo</th>
-                <th>Tanggal</th>
+                <th>Date</th>
                 <th>Total Item</th>
                 <th>Total Order</th>
                 <th>Status</th>
-                <th>Lampiran</th>
+                <th>Attachment</th>
                 <th className="text-center">#</th>
               </tr>
             </thead>
@@ -980,7 +980,7 @@ export default function OrderList() {
                             onClick={() => handleViewAttachment(order)}
                           >
                             <i className={downloadingAttachmentId === order.id ? 'ti ti-loader-2 me-1' : 'ti ti-paperclip me-1'} />
-                            Lihat Lampiran
+                            View Attachment
                           </Button>
                         ) : null}
                       </td>
@@ -994,11 +994,11 @@ export default function OrderList() {
                         <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                           <i className="ti ti-clipboard-list f-24" />
                         </div>
-                        <h5 className="mb-1">{hasActiveFilter ? 'Order tidak ditemukan' : 'Belum ada order'}</h5>
+                        <h5 className="mb-1">{hasActiveFilter ? 'Order not found' : 'No orders yet'}</h5>
                         <p className="text-muted mb-3">
                           {hasActiveFilter
-                            ? 'Ubah filter atau reset pencarian untuk melihat data lain.'
-                            : 'Mulai buat order baru untuk menambahkan transaksi distributor.'}
+                            ? 'Change the filter or reset the search to view other data.'
+                            : 'Mulai buat order baru untuk add transaksi distributor.'}
                         </p>
                         {hasActiveFilter ? (
                           <Button variant="light-primary" onClick={resetFilters}>
@@ -1007,7 +1007,7 @@ export default function OrderList() {
                         ) : canCreateOrder ? (
                           <Button variant="primary" as={Link} to={`/order/order-create`}>
                             <i className="ti ti-plus me-1" />
-                            Tambah Order
+                            Add Order
                           </Button>
                         ) : null}
                       </div>
@@ -1059,11 +1059,11 @@ export default function OrderList() {
                   <div>{getOrderValue(selectedOrderDetail, ['depo'])}</div>
                 </Col>
                 <Col md={4}>
-                  <Form.Label className="f-12 text-muted">Tanggal Dokumen</Form.Label>
+                  <Form.Label className="f-12 text-muted">Document Date</Form.Label>
                   <div>{formatOrderDate(getOrderValue(selectedOrderDetail, ['doc_date', 'docDate'], ''))}</div>
                 </Col>
                 <Col md={4}>
-                  <Form.Label className="f-12 text-muted">Request Tanggal Kirim</Form.Label>
+                  <Form.Label className="f-12 text-muted">Requested Delivery Date</Form.Label>
                   <div>{formatOrderDate(getOrderValue(selectedOrderDetail, ['doc_due_date', 'docDueDate'], ''))}</div>
                 </Col>
                 <Col md={4}>
@@ -1083,7 +1083,7 @@ export default function OrderList() {
                   <div>{getOrderValue(selectedOrderDetail, ['address2', 'ship_to_address', 'Address2'])}</div>
                 </Col>
                 <Col md={12}>
-                  <Form.Label className="f-12 text-muted">Catatan</Form.Label>
+                  <Form.Label className="f-12 text-muted">Notes</Form.Label>
                   <div>{getOrderValue(selectedOrderDetail, ['comments', 'Comments'])}</div>
                 </Col>
               </Row>
@@ -1094,7 +1094,7 @@ export default function OrderList() {
                     <th>Item</th>
                     <th className="text-end">Qty</th>
                     <th>Satuan</th>
-                    <th className="text-end">Harga</th>
+                    <th className="text-end">Price</th>
                     <th className="text-end">Total</th>
                     <th>Warehouse</th>
                   </tr>
@@ -1130,8 +1130,8 @@ export default function OrderList() {
                 <Card.Header className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <h6 className="mb-1">Detail Discount</h6>
-                      <small className="text-muted">Daftar discount yang diterapkan pada order.</small>
+                      <h6 className="mb-1">Discount Detail</h6>
+                      <small className="text-muted">List of discounts applied to the order.</small>
                     </div>
                     <Badge bg={selectedSapDiscounts.length ? 'primary' : 'secondary'}>{selectedSapDiscounts.length} discount</Badge>
                   </Stack>
@@ -1140,9 +1140,9 @@ export default function OrderList() {
                   <Table className="mb-0 align-middle" responsive hover>
                     <thead>
                       <tr>
-                        <th style={{ minWidth: 220 }}>Nama Discount</th>
+                        <th style={{ minWidth: 220 }}>Discount Name</th>
                         <th className="text-end" style={{ minWidth: 160 }}>
-                          Nominal Discount
+                          Amount Discount
                         </th>
                       </tr>
                     </thead>
@@ -1217,7 +1217,7 @@ export default function OrderList() {
                         rows={3}
                         value={approvalNotes}
                         onChange={(event) => setApprovalNotes(event.target.value)}
-                        placeholder="Tambahkan catatan approval atau rejection"
+                        placeholder="Add approval or rejection notes"
                       />
                     </Form.Group>
                   ) : null}
@@ -1271,7 +1271,7 @@ export default function OrderList() {
             </>
           ) : null}
           <Button variant="light-secondary" onClick={closeDetailModal}>
-            Tutup
+            Close
           </Button>
         </Modal.Footer>
       </Modal>

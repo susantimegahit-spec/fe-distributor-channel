@@ -6,28 +6,28 @@ const AlertContext = createContext(null);
 const alertVariantConfig = {
   success: {
     icon: 'ti ti-circle-check',
-    title: 'Berhasil',
+    title: 'Success',
     accent: '#16a34a',
     background: '#ecfdf5',
     color: '#047857'
   },
   danger: {
     icon: 'ti ti-alert-circle',
-    title: 'Gagal',
+    title: 'Failed',
     accent: '#ef4444',
     background: '#fef2f2',
     color: '#b91c1c'
   },
   warning: {
     icon: 'ti ti-alert-circle',
-    title: 'Perhatian',
+    title: 'Warning',
     accent: '#f59e0b',
     background: '#fffbeb',
     color: '#b45309'
   },
   info: {
     icon: 'ti ti-info-circle',
-    title: 'Informasi',
+    title: 'Information',
     accent: '#2563eb',
     background: '#eff6ff',
     color: '#1d4ed8'
@@ -35,13 +35,13 @@ const alertVariantConfig = {
 };
 
 const getAlertMessage = (message) => {
-  if (message instanceof Error) return message.response?.data?.message || message.message || 'Terjadi kesalahan.';
+  if (message instanceof Error) return message.response?.data?.message || message.message || 'An error occurred.';
   if (typeof message === 'string' || typeof message === 'number') return String(message);
   if (React.isValidElement(message)) return message;
   if (message?.response?.data?.message) return String(message.response.data.message);
   if (message?.message) return String(message.message);
 
-  return 'Terjadi kesalahan.';
+  return 'An error occurred.';
 };
 
 export const AlertProvider = ({ children }) => {
@@ -138,7 +138,7 @@ export const AlertProvider = ({ children }) => {
                     variant="link-secondary"
                     className="sm-alert-close btn-icon avatar-s flex-shrink-0 p-0"
                     onClick={() => hideAlert(alert.id)}
-                    aria-label="Tutup alert"
+                    aria-label="Close alert"
                   >
                     <i className="ti ti-x" />
                   </Button>

@@ -55,7 +55,7 @@ export default function MasterWarehouse() {
       setLoadingData(false);
     } else {
       setLoadingData(false);
-      showAlert('Gagal ambil data', 'danger');
+      showAlert('Failed to fetch data', 'danger');
     }
   };
 
@@ -63,7 +63,7 @@ export default function MasterWarehouse() {
     setLoadingData(true);
     const response = await WarehouseServices.syncWarehouse();
     if (response.data.success) {
-      showAlert('Data warehouse berhasil disinkronkan', 'success');
+      showAlert('Warehouse data synced successfully', 'success');
       fetchData();
     } else {
       showAlert(response.data.message, 'danger');
@@ -106,8 +106,8 @@ export default function MasterWarehouse() {
         <MainCard
           title={
             <Stack gap={1}>
-              <h5 className="mb-0">Data Warehouse</h5>
-              <span className="text-muted f-12">Kelola daftar warehouse dan sinkronkan data gudang dari sistem pusat.</span>
+              <h5 className="mb-0">Warehouse Data</h5>
+              <span className="text-muted f-12">Manage warehouse lists and sync warehouse data from the central system.</span>
             </Stack>
           }
           secondary={
@@ -138,7 +138,7 @@ export default function MasterWarehouse() {
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <div className="text-muted f-12">Aktif</div>
+                      <div className="text-muted f-12">Active</div>
                       <h4 className="mb-0">{summary.active}</h4>
                     </div>
                     <span className="avtar avtar-s bg-light-success text-success">
@@ -153,7 +153,7 @@ export default function MasterWarehouse() {
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <div className="text-muted f-12">Tidak Aktif</div>
+                      <div className="text-muted f-12">Inactive</div>
                       <h4 className="mb-0">{summary.inactive}</h4>
                     </div>
                     <span className="avtar avtar-s bg-light-secondary text-secondary">
@@ -169,7 +169,7 @@ export default function MasterWarehouse() {
         <MainCard>
           <Row className="g-2 align-items-end mb-3">
             <Col lg={5} md={6}>
-              <Form.Label className="f-12 text-muted">Cari Warehouse</Form.Label>
+              <Form.Label className="f-12 text-muted">Search Warehouse</Form.Label>
               <InputGroup>
                 <InputGroup.Text>
                   <i className="ti ti-search" />
@@ -178,16 +178,16 @@ export default function MasterWarehouse() {
                   value={keywords}
                   onChange={(event) => setKeywords(event.target.value)}
                   type="text"
-                  placeholder="Kode atau nama warehouse"
+                  placeholder="Code atau nama warehouse"
                 />
               </InputGroup>
             </Col>
             {/* <Col lg={3} md={6}>
               <Form.Label className="f-12 text-muted">Status</Form.Label>
               <Form.Select value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value)}>
-                <option value="">Semua Status</option>
-                <option value="1">Aktif</option>
-                <option value="0">Tidak Aktif</option>
+                <option value="">All Statuses</option>
+                <option value="1">Active</option>
+                <option value="0">Inactive</option>
               </Form.Select>
             </Col> */}
             <Col lg={2} md={6}>
@@ -197,9 +197,9 @@ export default function MasterWarehouse() {
               </Button>
             </Col>
             <Col lg={5} md={6} className="text-lg-end">
-              <span className="text-muted f-12">Menampilkan</span>
+              <span className="text-muted f-12">Showing</span>
               <div className="fw-semibold">
-                {filteredData.length} dari {dataSource.length}
+                {filteredData.length} of {dataSource.length}
               </div>
             </Col>
           </Row>
@@ -217,8 +217,8 @@ export default function MasterWarehouse() {
               <>
                 <thead>
                   <tr>
-                    <th style={{ minWidth: 160 }}>Kode Warehouse</th>
-                    <th style={{ minWidth: 260 }}>Nama Warehouse</th>
+                    <th style={{ minWidth: 160 }}>Code Warehouse</th>
+                    <th style={{ minWidth: 260 }}>Warehouse Name</th>
                     <th style={{ minWidth: 120 }}>Status</th>
                     <th className="text-center" style={{ width: 80 }}>
                       #
@@ -231,7 +231,7 @@ export default function MasterWarehouse() {
                       <tr key={item.id || item.whs_code || index}>
                         <td className="fw-semibold">{item.whs_code || '-'}</td>
                         <td style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>{item.whs_name || '-'}</td>
-                        <td>{item.status === 1 ? <Badge bg="success">Aktif</Badge> : <Badge bg="secondary">Tidak Aktif</Badge>}</td>
+                        <td>{item.status === 1 ? <Badge bg="success">Active</Badge> : <Badge bg="secondary">Inactive</Badge>}</td>
                         <td className="text-center">
                           <Button className="rounded-circle" variant="outline-primary" size="sm" onClick={() => setSelectedWarehouse(item)}>
                             <i className="ti ti-eye" />
@@ -246,10 +246,10 @@ export default function MasterWarehouse() {
                           <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                             <i className="ti ti-building-warehouse f-24" />
                           </div>
-                          <h5 className="mb-1">{hasActiveFilter ? 'Warehouse tidak ditemukan' : 'Belum ada data warehouse'}</h5>
+                          <h5 className="mb-1">{hasActiveFilter ? 'Warehouse not found' : 'No warehouse data yet'}</h5>
                           <p className="text-muted mb-3">
                             {hasActiveFilter
-                              ? 'Ubah kata kunci atau status untuk melihat data lain.'
+                              ? 'Change the keyword or status to view other data.'
                               : 'Gunakan synchronize untuk mengambil data warehouse terbaru.'}
                           </p>
                           {hasActiveFilter ? (
@@ -284,21 +284,21 @@ export default function MasterWarehouse() {
 
       <Modal show={Boolean(selectedWarehouse)} onHide={() => setSelectedWarehouse(null)} centered>
         <Modal.Header closeButton>
-          <Modal.Title>Detail Warehouse</Modal.Title>
+          <Modal.Title>Warehouse Detail</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           {selectedWarehouse && (
             <Row className="g-3">
               <Col md={6}>
-                <Form.Label className="f-12 text-muted">Kode Warehouse</Form.Label>
+                <Form.Label className="f-12 text-muted">Code Warehouse</Form.Label>
                 <div className="fw-semibold">{selectedWarehouse.whs_code || '-'}</div>
               </Col>
               <Col md={6}>
                 <Form.Label className="f-12 text-muted">Status</Form.Label>
-                <div>{selectedWarehouse.status === 1 ? <Badge bg="success">Aktif</Badge> : <Badge bg="secondary">Tidak Aktif</Badge>}</div>
+                <div>{selectedWarehouse.status === 1 ? <Badge bg="success">Active</Badge> : <Badge bg="secondary">Inactive</Badge>}</div>
               </Col>
               <Col md={12}>
-                <Form.Label className="f-12 text-muted">Nama Warehouse</Form.Label>
+                <Form.Label className="f-12 text-muted">Warehouse Name</Form.Label>
                 <div>{selectedWarehouse.whs_name || '-'}</div>
               </Col>
             </Row>
@@ -306,7 +306,7 @@ export default function MasterWarehouse() {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="light-secondary" onClick={() => setSelectedWarehouse(null)}>
-            Tutup
+            Close
           </Button>
         </Modal.Footer>
       </Modal>

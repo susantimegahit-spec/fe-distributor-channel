@@ -51,7 +51,7 @@ export default function NotificationList() {
       setUnreadCount(getUnreadNotificationCount(payload, items));
       setCurrentPage(1);
     } catch (error) {
-      showAlert(error?.message || 'Gagal memuat notifikasi', 'danger');
+      showAlert(error?.message || 'Failed to load notifications', 'danger');
     } finally {
       setLoading(false);
     }
@@ -97,7 +97,7 @@ export default function NotificationList() {
     try {
       await NotificationServices.markAsRead(notification.id);
     } catch (error) {
-      showAlert(error?.message || 'Gagal menandai notifikasi', 'danger');
+      showAlert(error?.message || 'Failed to mark notification', 'danger');
       fetchNotifications();
     } finally {
       setMarkingReadId(null);
@@ -111,9 +111,9 @@ export default function NotificationList() {
 
     try {
       await NotificationServices.markAllAsRead();
-      showAlert('Semua notifikasi ditandai sudah dibaca', 'success');
+      showAlert('All notifications marked as read', 'success');
     } catch (error) {
-      showAlert(error?.message || 'Gagal menandai semua notifikasi', 'danger');
+      showAlert(error?.message || 'Failed to mark all notifications', 'danger');
       fetchNotifications();
     } finally {
       setMarkingAllRead(false);
@@ -125,8 +125,8 @@ export default function NotificationList() {
       <MainCard>
         <Stack direction="horizontal" className="justify-content-between align-items-start gap-3 flex-wrap mb-3">
           <div>
-            <h4 className="mb-1">Notifikasi</h4>
-            <small className="text-muted">{unreadCount > 0 ? `${unreadCount} notifikasi belum dibaca` : 'Semua notifikasi sudah dibaca'}</small>
+            <h4 className="mb-1">Notifications</h4>
+            <small className="text-muted">{unreadCount > 0 ? `${unreadCount} unread notifications` : 'All notifications have been read'}</small>
           </div>
           <Stack direction="horizontal" gap={2}>
             <Button variant="light-primary" onClick={fetchNotifications} disabled={loading}>
@@ -134,7 +134,7 @@ export default function NotificationList() {
               Refresh
             </Button>
             <Button variant="primary" onClick={markAllAsRead} disabled={!unreadCount || markingAllRead}>
-              {markingAllRead ? 'Memproses...' : 'Tandai Semua Dibaca'}
+              {markingAllRead ? 'Processing...' : 'Mark All as Read'}
             </Button>
           </Stack>
         </Stack>
@@ -144,14 +144,14 @@ export default function NotificationList() {
             <InputGroup.Text>
               <i className="ti ti-search" />
             </InputGroup.Text>
-            <Form.Control value={keywords} onChange={(event) => setKeywords(event.target.value)} placeholder="Cari notifikasi..." />
+            <Form.Control value={keywords} onChange={(event) => setKeywords(event.target.value)} placeholder="Search notifications..." />
           </InputGroup>
           <ButtonGroup>
             <Button variant={statusFilter === 'all' ? 'primary' : 'light'} onClick={() => setStatusFilter('all')}>
-              Semua
+              All
             </Button>
             <Button variant={statusFilter === 'unread' ? 'primary' : 'light'} onClick={() => setStatusFilter('unread')}>
-              Belum Dibaca
+              Unread
             </Button>
             <Button variant={statusFilter === 'read' ? 'primary' : 'light'} onClick={() => setStatusFilter('read')}>
               Sudah Dibaca
@@ -167,7 +167,7 @@ export default function NotificationList() {
               <thead>
                 <tr>
                   <th style={{ width: 120 }}>Status</th>
-                  <th>Notifikasi</th>
+                  <th>Notifications</th>
                   <th style={{ width: 190 }}>Waktu</th>
                   <th className="text-end" style={{ width: 180 }}>
                     Aksi
@@ -178,7 +178,7 @@ export default function NotificationList() {
                 {paginatedNotifications.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="text-center text-muted py-4">
-                      Tidak ada notifikasi.
+                      No notifications.
                     </td>
                   </tr>
                 ) : (
@@ -189,7 +189,7 @@ export default function NotificationList() {
                       <tr key={notification.id || `${notification.title}-${index}`}>
                         <td>
                           <Badge bg={notification.unread ? 'danger' : 'success'}>
-                            {notification.unread ? 'Belum dibaca' : 'Sudah dibaca'}
+                            {notification.unread ? 'Unread' : 'Read'}
                           </Badge>
                         </td>
                         <td>
@@ -203,7 +203,7 @@ export default function NotificationList() {
                           <Stack direction="horizontal" gap={2} className="justify-content-end">
                             {targetUrl && (
                               <Button as={Link} to={targetUrl} variant="light-primary" size="sm">
-                                Lihat
+                                View
                               </Button>
                             )}
                             <Button
@@ -229,7 +229,7 @@ export default function NotificationList() {
               pageCount={pageCount}
               pageSize={pageSize}
               total={filteredNotifications.length}
-              itemLabel="notifikasi"
+              itemLabel="notification"
             />
           </>
         )}

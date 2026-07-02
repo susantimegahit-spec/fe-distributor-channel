@@ -220,10 +220,10 @@ export default function OrderCreate() {
       if (selectedOrder) {
         fillOrderForm(selectedOrder);
       } else {
-        showAlert('Detail order tidak ditemukan', 'danger');
+        showAlert('Order detail not found', 'danger');
       }
     } catch {
-      showAlert('Gagal ambil detail order', 'danger');
+      showAlert('Failed to fetch order detail', 'danger');
     } finally {
       setIsLoading(false);
     }
@@ -244,7 +244,7 @@ export default function OrderCreate() {
       fetchAddress(response.data?.data.code_customer);
     } else {
       setIsLoading(false);
-      showAlert('Gagal ambil data', 'danger');
+      showAlert('Failed to fetch data', 'danger');
     }
   };
 
@@ -267,7 +267,7 @@ export default function OrderCreate() {
       setIsLoading(false);
     } else {
       setIsLoading(false);
-      showAlert('Gagal ambil data', 'danger');
+      showAlert('Failed to fetch data', 'danger');
     }
   };
 
@@ -288,7 +288,7 @@ export default function OrderCreate() {
       setIsLoading(false);
     } else {
       setIsLoading(false);
-      showAlert('Gagal ambil data', 'danger');
+      showAlert('Failed to fetch data', 'danger');
     }
   };
 
@@ -309,7 +309,7 @@ export default function OrderCreate() {
       setIsLoading(false);
     } else {
       setIsLoading(false);
-      showAlert('Gagal ambil data', 'danger');
+      showAlert('Failed to fetch data', 'danger');
     }
   };
 
@@ -330,7 +330,7 @@ export default function OrderCreate() {
       setIsLoading(false);
     } else {
       setIsLoading(false);
-      showAlert('Gagal ambil data', 'danger');
+      showAlert('Failed to fetch data', 'danger');
     }
   };
 
@@ -351,7 +351,7 @@ export default function OrderCreate() {
       setIsLoading(false);
     } else {
       setIsLoading(false);
-      showAlert('Gagal ambil data', 'danger');
+      showAlert('Failed to fetch data', 'danger');
     }
   };
 
@@ -370,7 +370,7 @@ export default function OrderCreate() {
       setIsLoading(false);
     } else {
       setIsLoading(false);
-      showAlert('Gagal ambil data sales', 'danger');
+      showAlert('Failed to fetch sales data', 'danger');
     }
   };
 
@@ -388,7 +388,7 @@ export default function OrderCreate() {
       setIsLoading(false);
     } else {
       setIsLoading(false);
-      showAlert('Gagal ambil data sales', 'danger');
+      showAlert('Failed to fetch sales data', 'danger');
     }
   };
 
@@ -407,7 +407,7 @@ export default function OrderCreate() {
   //     setIsLoading(false);
   //   } else {
   //     setIsLoading(false);
-  //     showAlert('Gagal ambil data sales', 'danger');
+  //     showAlert('Failed to fetch sales data', 'danger');
   //   }
   // };
 
@@ -438,7 +438,7 @@ export default function OrderCreate() {
       setIsLoading(false);
     } else {
       setIsLoading(false);
-      showAlert('Gagal ambil data', 'danger');
+      showAlert('Failed to fetch data', 'danger');
     }
   };
 
@@ -708,11 +708,11 @@ export default function OrderCreate() {
           <MainCard
             title={
               <Stack gap={1}>
-                <h5 className="mb-0">{isDetailMode ? 'Detail Order' : 'Buat Order'}</h5>
+                <h5 className="mb-0">{isDetailMode ? 'Detail Order' : 'Create Order'}</h5>
                 <span className="text-muted f-12">
                   {isDetailMode
-                    ? `Menampilkan detail ${orderDetail?.order_no || orderDetail?.doc_num || 'order'} yang dipilih.`
-                    : 'Lengkapi informasi pelanggan, alamat, dan detail produk sebelum menyimpan order.'}
+                    ? `Showing detail ${orderDetail?.order_no || orderDetail?.doc_num || 'order'} yang dipilih.`
+                    : 'Complete customer information, addresses, and product details before saving the order.'}
                 </span>
               </Stack>
             }
@@ -720,11 +720,11 @@ export default function OrderCreate() {
               <Stack direction="horizontal" gap={2} className="flex-wrap">
                 <Button variant="light-secondary" onClick={() => navigate(-1)}>
                   <i className="ti ti-arrow-left me-1" />
-                  Batal
+                  Cancel
                 </Button>
                 <Button onClick={() => handleSubmitOrder('draft')} variant="primary">
                   <i className="ti ti-device-floppy me-1" />
-                  Simpan Draft
+                  Save Draft
                 </Button>
                 <Button onClick={() => handleSubmitOrder('create')} variant="success">
                   <i className="ti ti-send" />
@@ -742,8 +742,8 @@ export default function OrderCreate() {
                     <Card.Header className="py-3">
                       <Stack direction="horizontal" gap={2} className="justify-content-between">
                         <div>
-                          <h6 className="mb-0">Informasi Order</h6>
-                          <small className="text-muted">Data utama transaksi dan pelanggan</small>
+                          <h6 className="mb-0">Information Order</h6>
+                          <small className="text-muted">Main transaction and customer data</small>
                         </div>
                         <Badge bg="light" text="dark">
                           Draft
@@ -754,13 +754,13 @@ export default function OrderCreate() {
                       <Row className="g-3">
                         <Col md={6} xl={4}>
                           <Form.Group>
-                            <Form.Label className="small text-muted">Kode Customer</Form.Label>
+                            <Form.Label className="small text-muted">Customer Code</Form.Label>
                             <Form.Control
                               readOnly
                               onChange={(e) => handleSetInput(e, 'cardCode')}
                               value={orderInput.cardCode}
                               type="text"
-                              placeholder="Kode Customer"
+                              placeholder="Customer Code"
                               size="sm"
                             />
                           </Form.Group>
@@ -772,21 +772,21 @@ export default function OrderCreate() {
                               onChange={(e) => handleSetInput(e, 'numAtCard')}
                               value={orderInput.numAtCard}
                               type="text"
-                              placeholder="Masukkan nomor PO"
+                              placeholder="Enter PO number"
                               size="sm"
                             />
                           </Form.Group>
                         </Col>
                         <Col md={6} xl={4}>
                           <Form.Group>
-                            <Form.Label className="small text-muted">Kode Sales</Form.Label>
+                            <Form.Label className="small text-muted">Code Sales</Form.Label>
                             <Select
                               styles={customStyles}
                               value={listEmployee.find((item) => item.value === orderInput.slpCode) || null}
                               options={listEmployee}
                               menuPosition="fixed"
                               onChange={handleSelectSales}
-                              placeholder="Pilih sales"
+                              placeholder="Select sales"
                               isClearable
                             />
                           </Form.Group>
@@ -805,7 +805,7 @@ export default function OrderCreate() {
                         </Col>
                         <Col md={6} xl={4}>
                           <Form.Group>
-                            <Form.Label className="small text-muted">Tanggal</Form.Label>
+                            <Form.Label className="small text-muted">Date</Form.Label>
                             <Form.Control onChange={(e) => handleSetInput(e, 'docDate')} value={orderInput.docDate} type="date" size="sm" />
                           </Form.Group>
                         </Col>
@@ -828,7 +828,7 @@ export default function OrderCreate() {
                               options={listAddressB}
                               menuPosition="fixed"
                               onChange={(e) => handleSelectAddress(e, 'address')}
-                              placeholder="Pilih alamat tagih"
+                              placeholder="Select billing address"
                             />
                           </Form.Group>
                         </Col>
@@ -840,19 +840,19 @@ export default function OrderCreate() {
                               options={listAddressS}
                               menuPosition="fixed"
                               onChange={(e) => handleSelectAddress(e, 'address2')}
-                              placeholder="Pilih alamat kirim"
+                              placeholder="Select shipping address"
                             />
                           </Form.Group>
                         </Col>
                         <Col md={12}>
                           <Form.Group>
-                            <Form.Label className="small text-muted">Catatan</Form.Label>
+                            <Form.Label className="small text-muted">Notes</Form.Label>
                             <Form.Control
                               onChange={(e) => handleSetInput(e, 'comments')}
                               value={orderInput.comments}
                               as="textarea"
                               rows={3}
-                              placeholder="Tambahkan catatan order bila diperlukan"
+                              placeholder="Add order notes if needed"
                               size="sm"
                             />
                           </Form.Group>
@@ -870,7 +870,7 @@ export default function OrderCreate() {
                     <Card.Body>
                       <Stack gap={3}>
                         <Stack direction="horizontal" className="justify-content-between">
-                          <span className="text-muted">Jumlah Item</span>
+                          <span className="text-muted">Item Count</span>
                           <strong>{itemArr.length}</strong>
                         </Stack>
                         <Stack direction="horizontal" className="justify-content-between">
@@ -891,7 +891,7 @@ export default function OrderCreate() {
                         </div>
                         <Button variant="light-primary" onClick={() => setShowDisc(true)}>
                           <i className="ti ti-discount-2 me-1" />
-                          Atur Diskon
+                          Set Discount
                         </Button>
                       </Stack>
                     </Card.Body>
@@ -904,14 +904,14 @@ export default function OrderCreate() {
           <MainCard
             title={
               <Stack gap={1}>
-                <h5 className="mb-0">Detail Produk</h5>
-                <span className="text-muted f-12">Pilih item, gudang, dimensi, quantity, dan harga untuk setiap baris order.</span>
+                <h5 className="mb-0">Product Details</h5>
+                <span className="text-muted f-12">Select item, warehouse, dimensions, quantity, and price for each order row.</span>
               </Stack>
             }
             secondary={
               <Button variant="light-primary" onClick={addItem}>
                 <i className="ti ti-plus me-1" />
-                Tambah Baris
+                Add Row
               </Button>
             }
           >
@@ -921,11 +921,11 @@ export default function OrderCreate() {
                   <th style={{ minWidth: 240 }}>Item</th>
                   <th style={{ minWidth: 90 }}>Qty</th>
                   <th style={{ minWidth: 90 }}>Satuan</th>
-                  <th style={{ minWidth: 160 }}>Harga</th>
+                  <th style={{ minWidth: 160 }}>Price</th>
                   <th style={{ minWidth: 220 }}>Warehouse</th>
                   <th style={{ minWidth: 160 }}>Total</th>
                   <th style={{ minWidth: 160 }}>Vat</th>
-                  <th style={{ minWidth: 220 }}>Catatan</th>
+                  <th style={{ minWidth: 220 }}>Notes</th>
                   <th style={{ minWidth: 220 }}>Cabang</th>
                   <th style={{ minWidth: 220 }}>Bisnis Unit</th>
                   <th style={{ minWidth: 220 }}>Department</th>
@@ -944,7 +944,7 @@ export default function OrderCreate() {
                         options={listItem}
                         menuPosition="fixed"
                         onChange={(e) => handleSelectItem(e, index)}
-                        placeholder="Pilih item"
+                        placeholder="Select item"
                       />
                     </td>
                     <td>
@@ -976,7 +976,7 @@ export default function OrderCreate() {
                         options={listWarehouse}
                         menuPosition="fixed"
                         onChange={(e) => handleSelectWarehouse(e, index)}
-                        placeholder="Pilih warehouse"
+                        placeholder="Select warehouse"
                       />
                     </td>
                     <td>
@@ -1005,7 +1005,7 @@ export default function OrderCreate() {
                         onChange={(e) => handleChangeInputLine(index, 'freeText', e)}
                         value={item.freeText}
                         size="sm"
-                        placeholder="Catatan baris"
+                        placeholder="Line notes"
                       />
                     </td>
                     <td>
@@ -1015,7 +1015,7 @@ export default function OrderCreate() {
                         options={listOcr1}
                         menuPosition="fixed"
                         onChange={(e) => handleSelectOcr1(e, index)}
-                        placeholder="Pilih cabang"
+                        placeholder="Select branch"
                       />
                     </td>
                     <td>
@@ -1025,7 +1025,7 @@ export default function OrderCreate() {
                         options={listOcr2}
                         menuPosition="fixed"
                         onChange={(e) => handleSelectOcr2(e, index)}
-                        placeholder="Pilih unit"
+                        placeholder="Select unit"
                       />
                     </td>
                     <td>
@@ -1035,7 +1035,7 @@ export default function OrderCreate() {
                         options={listOcr3}
                         menuPosition="fixed"
                         onChange={(e) => handleSelectOcr3(e, index)}
-                        placeholder="Pilih department"
+                        placeholder="Select department"
                       />
                     </td>
                     <td className="text-center">
@@ -1058,15 +1058,15 @@ export default function OrderCreate() {
       </Stack>
       <Modal show={showDisc} onHide={() => setShowDisc(false)} size="lg" centered>
         <Modal.Header closeButton>
-          <Modal.Title>Atur Diskon</Modal.Title>
+          <Modal.Title>Set Discount</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Table className="mb-0 align-middle" responsive hover>
             <thead>
               <tr>
-                <th>Tipe</th>
+                <th>Type</th>
                 <th>Keterangan</th>
-                <th>Nominal</th>
+                <th>Amount</th>
                 <th className="text-center">#</th>
               </tr>
             </thead>
@@ -1080,7 +1080,7 @@ export default function OrderCreate() {
                       options={listDiscType}
                       menuPosition="fixed"
                       onChange={(e) => handleSelectDiscType(e, index)}
-                      placeholder="Pilih Tipe Diskon"
+                      placeholder="Select Discount Type"
                     />
                   </td>
                   <td>
@@ -1118,10 +1118,10 @@ export default function OrderCreate() {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="light-secondary" onClick={() => setShowDisc(false)}>
-            Batal
+            Cancel
           </Button>
           <Button onClick={() => handleSubmitDisc()} variant="primary">
-            Simpan
+            Save
           </Button>
         </Modal.Footer>
       </Modal>

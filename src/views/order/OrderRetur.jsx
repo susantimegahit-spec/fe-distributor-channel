@@ -9,21 +9,21 @@ export default function OrderRetur() {
   useEffect(() => {}, []);
 
   return (
-    <MainCard title="Daftar Retur">
+    <MainCard title="Return List">
       <Container>
         <Row>
           {/* <Col xs={6} md={2}>
-          <Form.Control type="text" placeholder="Cari..." />
+          <Form.Control type="text" placeholder="Search..." />
         </Col> */}
           <Col xs={6} md={4}>
             <Form.Select aria-label="Default select example">
-              <option>Pilih Distributor</option>
+              <option>Select Distributor</option>
               <option value={1}>Distributor A</option>
               <option value={2}>Distributor B</option>
             </Form.Select>
           </Col>{' '}
           <Col xs={6} md={8} className="text-end">
-            <Button variant="success">Tambah Order</Button>
+            <Button variant="success">Add Order</Button>
           </Col>
         </Row>
         <br />
@@ -33,8 +33,8 @@ export default function OrderRetur() {
               <thead>
                 <tr>
                   <th>No. Invoice</th>
-                  <th>Nama Distributor</th>
-                  <th>Tanggal</th>
+                  <th>Distributor Name</th>
+                  <th>Date</th>
                   <th>Status</th>
                   <th className="text-center">#</th>
                 </tr>

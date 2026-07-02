@@ -59,7 +59,7 @@ const salesOrderChartOptions = {
   },
   yaxis: [
     {
-      title: { text: 'Jumlah Order' },
+      title: { text: 'Order Count' },
       labels: {
         formatter: (value) => Math.round(value)
       }
@@ -93,7 +93,7 @@ const salesOrderChartOptions = {
 const summaryItems = [
   {
     title: 'Distributor',
-    description: 'Kelola data pelanggan distributor, status aktif, depo, dan detail alamat.',
+    description: 'Manage distributor customer data, active status, depot, and address details.',
     icon: 'ti ti-building-store',
     color: 'primary',
     url: '/master/distributor'
@@ -107,14 +107,14 @@ const summaryItems = [
   },
   {
     title: 'Sales',
-    description: 'Lihat dan sinkronkan data sales yang menangani aktivitas distributor.',
+    description: 'View dan sinkronkan data sales yang menangani aktivitas distributor.',
     icon: 'ti ti-users',
     color: 'info',
     url: '/master/employee'
   },
   {
     title: 'Warehouse',
-    description: 'Kelola daftar warehouse sebagai referensi operasional distribusi.',
+    description: 'Manage warehouse lists as distribution operational references.',
     icon: 'ti ti-building-warehouse',
     color: 'warning',
     url: '/master/warehouse'
@@ -123,7 +123,7 @@ const summaryItems = [
 
 const getOrderDate = (order) => order.doc_date || order.docDate || order.created_at || order.createdAt;
 const getOrderTotal = (order) => Number(order.doc_total || order.docTotal || order.total || 0);
-const getStatusMeta = (status) => statusConfig[status] || { label: status || 'Tidak diketahui', color: 'secondary', icon: 'ti ti-circle' };
+const getStatusMeta = (status) => statusConfig[status] || { label: status || 'Unknown', color: 'secondary', icon: 'ti ti-circle' };
 
 export default function Dashboard() {
   const { showAlert } = useAlert();
@@ -142,10 +142,10 @@ export default function Dashboard() {
         if (response?.data?.success) {
           setOrders(Array.isArray(response.data.data) ? response.data.data : []);
         } else {
-          showAlert(response?.data?.message || 'Gagal mengambil data sales order', 'danger');
+          showAlert(response?.data?.message || 'Failed to fetch sales order data', 'danger');
         }
       } catch (error) {
-        showAlert(error?.message || 'Gagal mengambil data sales order', 'danger');
+        showAlert(error?.message || 'Failed to fetch sales order data', 'danger');
       } finally {
         setIsLoadingOrders(false);
       }
@@ -218,7 +218,7 @@ export default function Dashboard() {
   const chartSeries = useMemo(
     () => [
       {
-        name: 'Jumlah Order',
+        name: 'Order Count',
         type: 'column',
         data: chartData.count
       },
@@ -257,13 +257,13 @@ export default function Dashboard() {
         title={
           <Stack gap={1}>
             <h5 className="mb-0">Dashboard</h5>
-            <span className="text-muted f-12">Ringkasan akses fitur utama distributor channel.</span>
+            <span className="text-muted f-12">Summary of distributor channel main feature access.</span>
           </Stack>
         }
         secondary={
           <Button as={Link} to="/order/order-list" variant="primary">
             <i className="ph ph-list-bullets me-1" />
-            Lihat Pesanan
+            View Order
           </Button>
         }
       >
@@ -314,7 +314,7 @@ export default function Dashboard() {
             <Card.Body>
               <Stack direction="horizontal" className="justify-content-between" gap={3}>
                 <div>
-                  <div className="text-muted f-12">Total Nilai Order</div>
+                  <div className="text-muted f-12">Total Order Value</div>
                   <h4 className="mb-0">{isLoadingOrders ? '-' : currency(orderSummary.totalAmount)}</h4>
                 </div>
                 <span className="avtar avtar-s bg-light-success text-success">
@@ -347,7 +347,7 @@ export default function Dashboard() {
             title={
               <Stack gap={1}>
                 <h5 className="mb-0">Tren Sales Order</h5>
-                <span className="text-muted f-12">Jumlah dan nilai sales order dalam 6 bulan terakhir.</span>
+                <span className="text-muted f-12">Sales order count and value in the last 6 months.</span>
               </Stack>
             }
           >
@@ -367,7 +367,7 @@ export default function Dashboard() {
             title={
               <Stack gap={1}>
                 <h5 className="mb-0">Status Order</h5>
-                <span className="text-muted f-12">Informasi status dari sales order yang dibuat.</span>
+                <span className="text-muted f-12">Information status dari sales order yang dibuat.</span>
               </Stack>
             }
           >
@@ -394,7 +394,7 @@ export default function Dashboard() {
                   </Card>
                 ))
               ) : (
-                <div className="text-center text-muted py-5">Belum ada sales order.</div>
+                <div className="text-center text-muted py-5">No sales orders yet.</div>
               )}
             </Stack>
           </MainCard>

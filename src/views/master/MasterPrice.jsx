@@ -128,10 +128,10 @@ export default function MasterPrice() {
       if (response.data.success) {
         setDataSource(normalizeList(response));
       } else {
-        showAlert(response.data.message || 'Gagal ambil data master price', 'danger');
+        showAlert(response.data.message || 'Failed to fetch master price data', 'danger');
       }
     } catch (error) {
-      showAlert(error?.message || 'Gagal ambil data master price', 'danger');
+      showAlert(error?.message || 'Failed to fetch master price data', 'danger');
     } finally {
       setLoadingData(false);
     }
@@ -188,7 +188,7 @@ export default function MasterPrice() {
           }))
         );
       } else {
-        showAlert(productResponse.data.message || 'Gagal ambil data item', 'danger');
+        showAlert(productResponse.data.message || 'Failed to fetch item data', 'danger');
       }
 
       if (distributorResponse.data.success) {
@@ -200,10 +200,10 @@ export default function MasterPrice() {
           }))
         );
       } else {
-        showAlert(distributorResponse.data.message || 'Gagal ambil data distributor', 'danger');
+        showAlert(distributorResponse.data.message || 'Failed to fetch distributor data', 'danger');
       }
     } catch (error) {
-      showAlert(error?.message || 'Gagal ambil data dropdown master price', 'danger');
+      showAlert(error?.message || 'Failed to fetch master price dropdown data', 'danger');
     } finally {
       setLoadingOptions(false);
     }
@@ -268,7 +268,7 @@ export default function MasterPrice() {
     event.preventDefault();
 
     if (!priceInput.item_code || !priceInput.code_customer || !priceInput.price) {
-      showAlert('Kode item, kode distributor, dan harga wajib diisi', 'danger');
+      showAlert('Item code, distributor code, and price are required', 'danger');
       return;
     }
 
@@ -286,14 +286,14 @@ export default function MasterPrice() {
       const response = editingPriceId ? await PriceServices.putPrice(editingPriceId, payload) : await PriceServices.postPrice(payload);
 
       if (response.data.success) {
-        showAlert(editingPriceId ? 'Master price berhasil diperbarui' : 'Master price berhasil ditambahkan', 'success');
+        showAlert(editingPriceId ? 'Master price updated successfully' : 'Master price added successfully', 'success');
         closeAddModal();
         fetchData();
       } else {
-        showAlert(response.data.message || (editingPriceId ? 'Gagal update master price' : 'Gagal tambah master price'), 'danger');
+        showAlert(response.data.message || (editingPriceId ? 'Failed to update master price' : 'Failed to add master price'), 'danger');
       }
     } catch (error) {
-      showAlert(error?.message || (editingPriceId ? 'Gagal update master price' : 'Gagal tambah master price'), 'danger');
+      showAlert(error?.message || (editingPriceId ? 'Failed to update master price' : 'Failed to add master price'), 'danger');
     } finally {
       setSubmittingPrice(false);
     }
@@ -313,13 +313,13 @@ export default function MasterPrice() {
       const response = await PriceServices.deletePrice(priceId);
 
       if (response.data.success) {
-        showAlert(response.data.message || 'Master price berhasil dihapus', 'success');
+        showAlert(response.data.message || 'Master price deleted successfully', 'success');
         fetchData();
       } else {
-        showAlert(response.data.message || 'Gagal hapus master price', 'danger');
+        showAlert(response.data.message || 'Failed to delete master price', 'danger');
       }
     } catch (error) {
-      showAlert(error?.message || 'Gagal hapus master price', 'danger');
+      showAlert(error?.message || 'Failed to delete master price', 'danger');
     } finally {
       setDeletingPriceId(null);
     }
@@ -327,8 +327,8 @@ export default function MasterPrice() {
 
   const confirmDeletePrice = (item) => {
     showConfirm({
-      title: 'Hapus Master Price',
-      subTitle: `Anda yakin ingin menghapus harga item ${getValue(item, ['item_code', 'code_item', 'itemCode'])}?`,
+      title: 'Delete Master Price',
+      subTitle: `Are you sure you want to delete item price ${getValue(item, ['item_code', 'code_item', 'itemCode'])}?`,
       onConfirm: () => deletePrice(item)
     });
   };
@@ -341,15 +341,15 @@ export default function MasterPrice() {
         <MainCard
           title={
             <Stack gap={1}>
-              <h5 className="mb-0">Daftar Price</h5>
-              <span className="text-muted f-12">Kelola daftar harga item distributor berdasarkan data dari Price Services.</span>
+              <h5 className="mb-0">Price List</h5>
+              <span className="text-muted f-12">Manage distributor item price lists based on Price Services data.</span>
             </Stack>
           }
           secondary={
             <Stack direction="horizontal" gap={2} className="flex-wrap">
               <Button onClick={openAddModal} variant="primary">
                 <i className="ti ti-plus me-1" />
-                Tambah Price
+                Add Price
               </Button>
               <Button onClick={fetchData} variant="light-primary" disabled={loadingData}>
                 <i className="ti ti-refresh me-1" />
@@ -364,7 +364,7 @@ export default function MasterPrice() {
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <div className="text-muted f-12">Total Harga</div>
+                      <div className="text-muted f-12">Total Prices</div>
                       <h4 className="mb-0">{summary.total}</h4>
                     </div>
                     <span className="avtar avtar-s bg-light-primary text-primary">
@@ -379,7 +379,7 @@ export default function MasterPrice() {
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <div className="text-muted f-12">Aktif</div>
+                      <div className="text-muted f-12">Active</div>
                       <h4 className="mb-0">{summary.active}</h4>
                     </div>
                     <span className="avtar avtar-s bg-light-success text-success">
@@ -394,7 +394,7 @@ export default function MasterPrice() {
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <div className="text-muted f-12">Tidak Aktif</div>
+                      <div className="text-muted f-12">Inactive</div>
                       <h4 className="mb-0">{summary.inactive}</h4>
                     </div>
                     <span className="avtar avtar-s bg-light-secondary text-secondary">
@@ -409,7 +409,7 @@ export default function MasterPrice() {
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <div className="text-muted f-12">Rata-rata Harga</div>
+                      <div className="text-muted f-12">Average Price</div>
                       <h5 className="mb-0">{formatCurrency(summary.averagePrice)}</h5>
                     </div>
                     <span className="avtar avtar-s bg-light-warning text-warning">
@@ -425,7 +425,7 @@ export default function MasterPrice() {
         <MainCard>
           <Row className="g-2 align-items-end mb-3">
             <Col lg={5} md={6}>
-              <Form.Label className="f-12 text-muted">Cari Harga</Form.Label>
+              <Form.Label className="f-12 text-muted">Search Price</Form.Label>
               <InputGroup>
                 <InputGroup.Text>
                   <i className="ti ti-search" />
@@ -434,16 +434,16 @@ export default function MasterPrice() {
                   value={keywords}
                   onChange={(event) => setKeywords(event.target.value)}
                   type="text"
-                  placeholder="Kode item, nama item, atau distributor"
+                  placeholder="Item code, item name, or distributor"
                 />
               </InputGroup>
             </Col>
             {/* <Col lg={3} md={6}>
               <Form.Label className="f-12 text-muted">Status</Form.Label>
               <Form.Select value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value)}>
-                <option value="">Semua Status</option>
-                <option value="1">Aktif</option>
-                <option value="0">Tidak Aktif</option>
+                <option value="">All Statuses</option>
+                <option value="1">Active</option>
+                <option value="0">Inactive</option>
               </Form.Select>
             </Col> */}
             <Col lg={2} md={6}>
@@ -453,9 +453,9 @@ export default function MasterPrice() {
               </Button>
             </Col>
             <Col lg={5} md={6} className="text-lg-end">
-              <span className="text-muted f-12">Menampilkan</span>
+              <span className="text-muted f-12">Showing</span>
               <div className="fw-semibold">
-                {filteredData.length} dari {dataSource.length}
+                {filteredData.length} of {dataSource.length}
               </div>
             </Col>
           </Row>
@@ -473,11 +473,11 @@ export default function MasterPrice() {
               <>
                 <thead>
                   <tr>
-                    <th style={{ minWidth: 140 }}>Kode Item</th>
-                    <th style={{ minWidth: 240 }}>Nama Item</th>
+                    <th style={{ minWidth: 140 }}>Item Code</th>
+                    <th style={{ minWidth: 240 }}>Item Name</th>
                     <th style={{ minWidth: 180 }}>Distributor</th>
                     <th style={{ minWidth: 140 }}>Depo</th>
-                    <th style={{ minWidth: 100 }}>Harga</th>
+                    <th style={{ minWidth: 100 }}>Price</th>
                     <th style={{ minWidth: 110 }}>Status</th>
                     <th className="text-center" style={{ minWidth: 150 }}>
                       Aksi
@@ -502,7 +502,7 @@ export default function MasterPrice() {
                           </td>
                           <td>{getValue(item, ['depo'])}</td>
                           <td className="fw-semibold">{formatCurrency(getPriceValue(item))}</td>
-                          <td>{status === 1 ? <Badge bg="success">Aktif</Badge> : <Badge bg="secondary">Tidak Aktif</Badge>}</td>
+                          <td>{status === 1 ? <Badge bg="success">Active</Badge> : <Badge bg="secondary">Inactive</Badge>}</td>
                           <td className="text-center">
                             <Stack direction="horizontal" gap={1} className="justify-content-center flex-nowrap">
                               <Button className="rounded-circle" variant="outline-primary" size="sm" onClick={() => setSelectedPrice(item)}>
@@ -538,10 +538,10 @@ export default function MasterPrice() {
                           <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                             <i className="ti ti-currency-dollar f-24" />
                           </div>
-                          <h5 className="mb-1">{hasActiveFilter ? 'Data harga tidak ditemukan' : 'Belum ada data harga'}</h5>
+                          <h5 className="mb-1">{hasActiveFilter ? 'Price data not found' : 'No price data yet'}</h5>
                           <p className="text-muted mb-3">
                             {hasActiveFilter
-                              ? 'Ubah kata kunci atau status untuk melihat data lain.'
+                              ? 'Change the keyword or status to view other data.'
                               : 'Klik refresh untuk mengambil data harga terbaru.'}
                           </p>
                           <Button
@@ -579,15 +579,15 @@ export default function MasterPrice() {
           {selectedPrice && (
             <Row className="g-3">
               <Col md={6}>
-                <Form.Label className="f-12 text-muted">Kode Item</Form.Label>
+                <Form.Label className="f-12 text-muted">Item Code</Form.Label>
                 <div className="fw-semibold">{getValue(selectedPrice, ['item_code', 'code_item', 'itemCode'])}</div>
               </Col>
               <Col md={6}>
-                <Form.Label className="f-12 text-muted">Harga</Form.Label>
+                <Form.Label className="f-12 text-muted">Price</Form.Label>
                 <div className="fw-semibold">{formatCurrency(getPriceValue(selectedPrice))}</div>
               </Col>
               <Col md={12}>
-                <Form.Label className="f-12 text-muted">Nama Item</Form.Label>
+                <Form.Label className="f-12 text-muted">Item Name</Form.Label>
                 <div>{getValue(selectedPrice, ['item_name', 'name_item', 'itemName', 'product_name'])}</div>
               </Col>
               <Col md={6}>
@@ -602,9 +602,9 @@ export default function MasterPrice() {
                 <Form.Label className="f-12 text-muted">Status</Form.Label>
                 <div>
                   {Number(getValue(selectedPrice, ['status', 'is_active'], 0)) === 1 ? (
-                    <Badge bg="success">Aktif</Badge>
+                    <Badge bg="success">Active</Badge>
                   ) : (
-                    <Badge bg="secondary">Tidak Aktif</Badge>
+                    <Badge bg="secondary">Inactive</Badge>
                   )}
                 </div>
               </Col>
@@ -613,7 +613,7 @@ export default function MasterPrice() {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="light-secondary" onClick={() => setSelectedPrice(null)}>
-            Tutup
+            Close
           </Button>
         </Modal.Footer>
       </Modal>
@@ -621,13 +621,13 @@ export default function MasterPrice() {
       <Modal show={showAddModal} onHide={closeAddModal} centered size="lg">
         <Form onSubmit={submitPrice}>
           <Modal.Header closeButton>
-            <Modal.Title>{editingPriceId ? 'Edit Harga' : 'Tambah Harga'}</Modal.Title>
+            <Modal.Title>{editingPriceId ? 'Edit Price' : 'Add Price'}</Modal.Title>
           </Modal.Header>
           <Modal.Body>
             <Row className="g-3">
               <Col md={6}>
                 <Form.Label>
-                  Kode Item <span className="text-danger">*</span>
+                  Item Code <span className="text-danger">*</span>
                 </Form.Label>
                 <Select
                   styles={selectStyles}
@@ -636,13 +636,13 @@ export default function MasterPrice() {
                   onChange={handleSelectItem}
                   isClearable
                   isLoading={loadingOptions}
-                  placeholder="Pilih item"
-                  noOptionsMessage={() => 'Item tidak ditemukan'}
+                  placeholder="Select item"
+                  noOptionsMessage={() => 'Item not found'}
                 />
               </Col>
               <Col md={6}>
                 <Form.Label>
-                  Kode Distributor <span className="text-danger">*</span>
+                  Code Distributor <span className="text-danger">*</span>
                 </Form.Label>
                 <Select
                   styles={selectStyles}
@@ -651,8 +651,8 @@ export default function MasterPrice() {
                   onChange={handleSelectDistributor}
                   isClearable
                   isLoading={loadingOptions}
-                  placeholder="Pilih distributor"
-                  noOptionsMessage={() => 'Distributor tidak ditemukan'}
+                  placeholder="Select distributor"
+                  noOptionsMessage={() => 'Distributor not found'}
                 />
               </Col>
               <Col md={4}>
@@ -661,25 +661,25 @@ export default function MasterPrice() {
               </Col>
               <Col md={4}>
                 <Form.Label>
-                  Harga <span className="text-danger">*</span>
+                  Price <span className="text-danger">*</span>
                 </Form.Label>
                 <Form.Control name="price" value={priceInput.price} onChange={handlePriceInput} type="number" min="0" placeholder="0" />
               </Col>
               <Col md={4}>
                 <Form.Label>Status</Form.Label>
                 <Form.Select name="status" value={priceInput.status} onChange={handlePriceInput}>
-                  <option value="1">Aktif</option>
-                  <option value="0">Tidak Aktif</option>
+                  <option value="1">Active</option>
+                  <option value="0">Inactive</option>
                 </Form.Select>
               </Col>
             </Row>
           </Modal.Body>
           <Modal.Footer>
             <Button variant="light-secondary" onClick={closeAddModal} disabled={submittingPrice}>
-              Batal
+              Cancel
             </Button>
             <Button type="submit" variant="primary" disabled={!canSubmitPrice}>
-              {submittingPrice ? 'Menyimpan...' : editingPriceId ? 'Simpan Perubahan' : 'Simpan Price'}
+              {submittingPrice ? 'Saving...' : editingPriceId ? 'Save Changes' : 'Save Price'}
             </Button>
           </Modal.Footer>
         </Form>

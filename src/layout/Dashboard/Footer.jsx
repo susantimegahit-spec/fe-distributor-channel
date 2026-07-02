@@ -23,7 +23,7 @@ export default function Footer() {
           {/* Footer Links */}
           <Col xs="auto" className="my-1">
             <Stack direction="horizontal" gap={3} className="justify-content-center">
-              <p className="m-0">Customer Portal By PT. Susanti Megah</p>
+              <p className="m-0">SM-Connect By PT. Susanti Megah</p>
 
               {/* <Nav.Link className="p-0" as="a" href="/">
                 Home

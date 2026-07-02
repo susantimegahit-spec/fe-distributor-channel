@@ -44,18 +44,18 @@ export default function ConfirmDialog({ show, title, subTitle, onSubmit, onCance
         {/* <div className="alert alert-warning d-flex align-items-start gap-2 mt-4 mb-0">
           <i className="ti ti-clock f-18 mt-1" />
           <div>
-            <div className="fw-semibold">Konfirmasi tindakan</div>
-            <small>Tombol submit aktif setelah {countdown > 0 ? `${countdown} detik` : 'waktu tunggu selesai'}.</small>
+            <div className="fw-semibold">Confirm action</div>
+            <small>The submit button is active after {countdown > 0 ? `${countdown} seconds` : 'the waiting time is finished'}.</small>
           </div>
         </div> */}
       </Modal.Body>
       <Modal.Footer className="border-0 pt-0 px-4 pb-4">
         <Stack direction="horizontal" gap={2} className="w-100">
           <Button className="w-100" variant="light-secondary" onClick={onCancel} disabled={loading}>
-            Tidak
+            No
           </Button>
           <Button className="w-100" variant="danger" onClick={onSubmit} disabled={isSubmitDisabled}>
-            {loading ? 'Memproses...' : countdown > 0 ? `Ya (${countdown})` : 'Ya'}
+            {loading ? 'Processing...' : countdown > 0 ? `Yes (${countdown})` : 'Yes'}
           </Button>
         </Stack>
       </Modal.Footer>

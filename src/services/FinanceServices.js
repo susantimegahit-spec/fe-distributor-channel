@@ -2,21 +2,21 @@ import { DataService } from '../config/dataService';
 import ProductServices from './ProductServices';
 
 const rewardTemplateHeaders = [
-  'Kode Customer',
-  'Nama Customer',
-  'Kode Item',
-  'Nama Item',
+  'Customer Code',
+  'Customer Name',
+  'Item Code',
+  'Item Name',
   'Qty',
-  'Harga Jual @ Kg',
-  'Type Customer',
+  'Selling Price @ Kg',
+  'Customer Type',
   'Transaction Date'
 ];
 
 const getProductRows = (products) =>
   products.map((item) => ({
-    'Kode Item': item.item_code || item.code || '',
-    'Nama Item': item.item_name || item.name || '',
-    Status: item.status === 1 ? 'Aktif' : 'Tidak Aktif'
+    'Item Code': item.item_code || item.code || '',
+    'Item Name': item.item_name || item.name || '',
+    Status: item.status === 1 ? 'Active' : 'Inactive'
   }));
 
 const escapeXml = (value) =>
@@ -99,12 +99,12 @@ class FinanceServices {
     const response = await ProductServices.getAllProduct('');
 
     if (!response?.data?.success) {
-      throw new Error(response?.data?.message || 'Gagal mengambil master item');
+      throw new Error(response?.data?.message || 'Failed to fetch master item');
     }
 
     const products = response.data.data || [];
     const masterItemRows = getProductRows(products);
-    const masterItemHeaders = ['Kode Item', 'Nama Item', 'Status'];
+    const masterItemHeaders = ['Item Code', 'Item Name', 'Status'];
     const templateRows = [
       buildRow(rewardTemplateHeaders, 'Header'),
       buildRow(
@@ -112,8 +112,8 @@ class FinanceServices {
         'TableCell'
       ),
       buildEmptyRow(),
-      buildRow(['*Tipe Customer di isi dengan MT/GT'], 'Information'),
-      buildRow(['* Untuk Kode Item dan Nama Item di sesuaikan dari sheet master item'], 'Information')
+      buildRow(['*Customer Type must be filled with MT/GT'], 'Information'),
+      buildRow(['*Use Item Code and Item Name from the master item sheet'], 'Information')
     ];
     const masterItemSheetRows = [
       buildRow(masterItemHeaders, 'Header'),

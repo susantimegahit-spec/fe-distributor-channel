@@ -62,9 +62,9 @@ function GeneralSettings() {
     event.preventDefault();
     try {
       localStorage.setItem(generalSettingKey, JSON.stringify(settings));
-      showAlert('Setting berhasil disimpan', 'success');
+      showAlert('Settings saved successfully', 'success');
     } catch (error) {
-      showAlert('Gagal menyimpan setting', 'danger');
+      showAlert('Failed to save settings', 'danger');
     }
   };
 
@@ -73,7 +73,7 @@ function GeneralSettings() {
       title={
         <Stack gap={1}>
           <h5 className="mb-0">Setting</h5>
-          <span className="text-muted f-12">Kelola konfigurasi umum aplikasi distributor channel.</span>
+          <span className="text-muted f-12">Manage general distributor channel application configuration.</span>
         </Stack>
       }
     >
@@ -81,13 +81,13 @@ function GeneralSettings() {
         <Row className="g-3">
           <Col md={6}>
             <Form.Group controlId="settingAppName">
-              <Form.Label className="fw-semibold">Nama Aplikasi</Form.Label>
+              <Form.Label className="fw-semibold">Application Name</Form.Label>
               <Form.Control value={settings.appName} onChange={(event) => handleChange('appName', event.target.value)} />
             </Form.Group>
           </Col>
           <Col md={6}>
             <Form.Group controlId="settingEmail">
-              <Form.Label className="fw-semibold">Email Notifikasi</Form.Label>
+              <Form.Label className="fw-semibold">Email Notifications</Form.Label>
               <Form.Control
                 type="email"
                 placeholder="admin@example.com"
@@ -128,7 +128,7 @@ function GeneralSettings() {
             <Form.Check
               type="switch"
               id="settingEmailNotification"
-              label="Kirim notifikasi email"
+              label="Send email notification"
               checked={settings.emailNotification}
               onChange={(event) => handleChange('emailNotification', event.target.checked)}
             />
@@ -138,7 +138,7 @@ function GeneralSettings() {
         <Stack direction="horizontal" className="justify-content-end mt-4">
           <Button type="submit">
             <i className="ti ti-device-floppy me-1" />
-            Simpan Setting
+            Save Settings
           </Button>
         </Stack>
       </Form>

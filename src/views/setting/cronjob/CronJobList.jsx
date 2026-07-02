@@ -43,11 +43,11 @@ export default function CronJobList() {
       if (response.data && response.data.success) {
         setJobs(response.data.data);
       } else {
-        showAlert(response.data?.message || 'Gagal memuat daftar cron job', 'danger');
+        showAlert(response.data?.message || 'Failed to load cron job list', 'danger');
       }
     } catch (error) {
       console.error(error);
-      showAlert('Terjadi kesalahan koneksi server', 'danger');
+      showAlert('Server connection error occurred', 'danger');
     } finally {
       if (showLoadingIndicator) setLoading(false);
     }
@@ -60,18 +60,18 @@ export default function CronJobList() {
   // Handle run manually
   const handleRunJob = async (job) => {
     setRunningJobId(job.id);
-    showAlert(`Memulai eksekusi task: ${job.name}`, 'info');
+    showAlert(`Starting task execution: ${job.name}`, 'info');
     try {
       const response = await CronJobServices.runCronJob(job.id);
       if (response.data && response.data.success) {
-        showAlert(`Task ${job.name} berhasil dijalankan.`, 'success');
+        showAlert(`Task ${job.name} ran successfully.`, 'success');
         fetchJobs(false); // Refresh list silently
       } else {
-        showAlert(response.data?.message || `Gagal menjalankan task ${job.name}`, 'danger');
+        showAlert(response.data?.message || `Failed to run task ${job.name}`, 'danger');
       }
     } catch (error) {
       console.error(error);
-      showAlert(`Gagal mengeksekusi task ${job.name}`, 'danger');
+      showAlert(`Failed to execute task ${job.name}`, 'danger');
     } finally {
       setRunningJobId(null);
     }
@@ -87,14 +87,14 @@ export default function CronJobList() {
       };
       const response = await CronJobServices.updateCronJob(job.id, updatedData);
       if (response.data && response.data.success) {
-        showAlert(`Status task ${job.name} berhasil diubah.`, 'success');
+        showAlert(`Task ${job.name} status updated successfully.`, 'success');
         fetchJobs(false);
       } else {
-        showAlert(response.data?.message || 'Gagal mengubah status task', 'danger');
+        showAlert(response.data?.message || 'Failed to update task status', 'danger');
       }
     } catch (error) {
       console.error(error);
-      showAlert('Gagal menghubungi server', 'danger');
+      showAlert('Failed to contact server', 'danger');
     }
   };
 
@@ -116,15 +116,15 @@ export default function CronJobList() {
     try {
       const response = await CronJobServices.updateCronJob(selectedJob.id, editForm);
       if (response.data && response.data.success) {
-        showAlert(`Cron job ${selectedJob.name} berhasil diperbarui.`, 'success');
+        showAlert(`Cron job ${selectedJob.name} updated successfully.`, 'success');
         setShowEditModal(false);
         fetchJobs(false);
       } else {
-        showAlert(response.data?.message || 'Gagal menyimpan perubahan.', 'danger');
+        showAlert(response.data?.message || 'Failed to save changes.', 'danger');
       }
     } catch (error) {
       console.error(error);
-      showAlert('Gagal menghubungi server', 'danger');
+      showAlert('Failed to contact server', 'danger');
     } finally {
       setEditLoading(false);
     }
@@ -141,11 +141,11 @@ export default function CronJobList() {
       if (response.data && response.data.success) {
         setLogs(response.data.data);
       } else {
-        showAlert('Gagal mengambil logs.', 'danger');
+        showAlert('Failed to fetch logs.', 'danger');
       }
     } catch (error) {
       console.error(error);
-      showAlert('Gagal menghubungi server untuk memuat log.', 'danger');
+      showAlert('Failed to contact server to load logs.', 'danger');
     } finally {
       setLogsLoading(false);
     }
@@ -161,7 +161,7 @@ export default function CronJobList() {
       case 'running':
         return <Badge bg="warning">Running</Badge>;
       default:
-        return <Badge bg="secondary">Belum Pernah</Badge>;
+        return <Badge bg="secondary">Never</Badge>;
     }
   };
 
@@ -185,8 +185,8 @@ export default function CronJobList() {
         title={
           <div className="d-flex justify-content-between align-items-center">
             <div>
-              <h5 className="mb-0">Setting & Monitoring Cron Job</h5>
-              <span className="text-muted f-12">Kelola jadwal otomatisasi dan pantau log eksekusi secara real-time.</span>
+              <h5 className="mb-0">Cron Job Settings & Monitoring</h5>
+              <span className="text-muted f-12">Manage automation schedules and monitor execution logs in real time.</span>
             </div>
             <Button variant="outline-primary" size="sm" onClick={() => fetchJobs(true)} disabled={loading}>
               {loading ? <Spinner animation="border" size="sm" /> : <i className="ti ti-refresh me-1" />}
@@ -203,19 +203,19 @@ export default function CronJobList() {
         ) : jobs.length === 0 ? (
           <div className="text-center py-5 text-muted">
             <i className="ti ti-alarm-off f-30 d-block mb-2" />
-            Belum ada data cron job terdaftar.
+            No cron job data registered yet.
           </div>
         ) : (
           <div className="table-responsive">
             <Table hover align="middle" className="mb-0">
               <thead className="table-light">
                 <tr>
-                  <th style={{ width: '25%' }}>Nama & Deskripsi</th>
+                  <th style={{ width: '25%' }}>Name & Description</th>
                   <th>Artisan Command</th>
                   <th>Jadwal (Cron Expression)</th>
                   <th>Terakhir Dijalankan</th>
                   <th>Status Terakhir</th>
-                  <th className="text-center">Aktif</th>
+                  <th className="text-center">Active</th>
                   <th className="text-end">Aksi</th>
                 </tr>
               </thead>
@@ -251,7 +251,7 @@ export default function CronJobList() {
                         <Button
                           variant="outline-secondary"
                           size="sm"
-                          title="Lihat Riwayat Log"
+                          title="View Log History"
                           onClick={() => openLogsModal(job)}
                         >
                           <i className="ti ti-file-text me-1" />
@@ -305,7 +305,7 @@ export default function CronJobList() {
               </InputGroup>
               <Form.Text className="text-muted">
                 Contoh: <code>* * * * *</code> (Setiap Menit), <code>*/15 * * * *</code> (15 Menit Sekali),{' '}
-                <code>0 0 * * *</code> (Tengah Malam).
+                <code>0 0 * * *</code> (Midnight).
               </Form.Text>
             </Form.Group>
 
@@ -323,7 +323,7 @@ export default function CronJobList() {
             <Form.Group className="mb-3" controlId="formActive">
               <Form.Check
                 type="checkbox"
-                label="Aktifkan Tugas Otomatis ini"
+                label="Enable this Automated Task"
                 checked={editForm.is_active}
                 onChange={(e) => setEditForm({ ...editForm, is_active: e.target.checked })}
               />
@@ -331,10 +331,10 @@ export default function CronJobList() {
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={() => setShowEditModal(false)} disabled={editLoading}>
-              Batal
+              Cancel
             </Button>
             <Button variant="primary" type="submit" disabled={editLoading}>
-              {editLoading ? <Spinner animation="border" size="sm" /> : 'Simpan Perubahan'}
+              {editLoading ? <Spinner animation="border" size="sm" /> : 'Save Changes'}
             </Button>
           </Modal.Footer>
         </Form>
@@ -343,7 +343,7 @@ export default function CronJobList() {
       {/* Logs / Monitoring Modal */}
       <Modal show={showLogsModal} onHide={() => setShowLogsModal(false)} size="lg" centered>
         <Modal.Header closeButton>
-          <Modal.Title>Riwayat Log: {logJobName}</Modal.Title>
+          <Modal.Title>Log History: {logJobName}</Modal.Title>
         </Modal.Header>
         <Modal.Body style={{ maxHeight: '60vh', overflowY: 'auto' }}>
           {logsLoading ? (
@@ -352,7 +352,7 @@ export default function CronJobList() {
               <p className="text-muted mt-2">Memuat riwayat logs...</p>
             </div>
           ) : logs.length === 0 ? (
-            <div className="text-center py-4 text-muted">Belum ada riwayat logs untuk task ini.</div>
+            <div className="text-center py-4 text-muted">No log history for this task yet.</div>
           ) : (
             <div className="table-responsive">
               <Table hover size="sm">
@@ -369,7 +369,7 @@ export default function CronJobList() {
                     <tr key={log.id}>
                       <td style={{ whiteSpace: 'nowrap' }}>{formatDate(log.run_at)}</td>
                       <td style={{ whiteSpace: 'nowrap' }}>
-                        {log.duration_seconds !== null ? `${log.duration_seconds} detik` : '-'}
+                        {log.duration_seconds !== null ? `${log.duration_seconds} seconds` : '-'}
                       </td>
                       <td>
                         {log.status === 'success' ? (
@@ -394,7 +394,7 @@ export default function CronJobList() {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowLogsModal(false)}>
-            Tutup
+            Close
           </Button>
         </Modal.Footer>
       </Modal>
