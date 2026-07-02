@@ -7,8 +7,10 @@ import Card from 'react-bootstrap/Card';
 import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
 import Modal from 'react-bootstrap/Modal';
+import Nav from 'react-bootstrap/Nav';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
+import Tab from 'react-bootstrap/Tab';
 import Table from 'react-bootstrap/Table';
 
 // project-imports
@@ -20,19 +22,6 @@ import TablePagination from 'components/TablePagination';
 import LoaderData from '../../components/LoaderData';
 
 const pageSize = 10;
-const maxUploadSizeBytes = 1024 * 1024;
-
-const statusVariant = {
-  claimed: 'success',
-  pending: 'warning',
-  rejected: 'danger'
-};
-
-const statusLabel = {
-  claimed: 'Sudah Klaim',
-  pending: 'Menunggu Klaim',
-  rejected: 'Ditolak'
-};
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat('id-ID', {
@@ -74,13 +63,19 @@ const getResponseList = (response, keys = []) => {
   return [];
 };
 
-const getResponseObject = (response) => {
-  const payload = response?.data?.data;
+const normalizeVerified = (item) => {
+  const value =
+    item.is_verified ?? item.verified ?? item.isVerified ?? item.verification_status ?? item.verified_status ?? item.status_verifikasi;
 
-  if (payload?.data && !Array.isArray(payload.data)) return payload.data;
-  if (payload && !Array.isArray(payload)) return payload;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value === 1;
 
-  return {};
+  const status = String(value || '').toLowerCase();
+
+  if (['not_verified', 'not verified', 'unverified', 'belum verified', 'belum verifikasi', '0', 'false'].includes(status)) return false;
+  if (['verified', 'sudah verified', 'sudah verifikasi', '1', 'true'].includes(status)) return true;
+
+  return false;
 };
 
 const normalizeBatch = (batch, index) => ({
@@ -95,27 +90,21 @@ const normalizeBatch = (batch, index) => ({
   sellOut: []
 });
 
-const normalizeUploadResult = (item, index) => {
-  const qty = Number(item.qty || item.quantity || 0);
-  const unitPrice = Number(
-    item.selling_price_kg || item.selling_price_per_kg || item.harga_jual_kg || item.price_per_kg || item.price || 0
-  );
-
-  return {
-    id: item.id || item.result_id || index,
-    customerCode: item.customer_code || item.code_customer || item.distributor_code || '',
-    customerName: item.customer_name || item.name_customer || item.distributor_name || '',
-    itemCode: item.item_code || item.code_item || '',
-    itemName: item.item_name || item.name_item || '',
-    qty: item?.qty_kg,
-    customerType: item.customer_type || item.type_customer || '',
-    date: item.transaction_date || item.transcation_date || item.sell_out_date || item.created_at || '',
-    amount1: Number(item?.harga_program_per_kg),
-    amount2: Number(item?.sell_price_per_kg),
-    rewardAmount: Number(item.diskon_per_kg),
-    status: item.status.replace('_', ' ')
-  };
-};
+const normalizeUploadResult = (item, index) => ({
+  id: item.id || item.result_id || index,
+  customerCode: item.customer_code || item.code_customer || item.distributor_code || '',
+  customerName: item.customer_name || item.name_customer || item.distributor_name || '',
+  itemCode: item.item_code || item.code_item || '',
+  itemName: item.item_name || item.name_item || '',
+  qty: item?.qty_kg,
+  customerType: item.customer_type || item.type_customer || '',
+  date: item.transaction_date || item.transcation_date || item.sell_out_date || item.created_at || '',
+  amount1: Number(item?.harga_program_per_kg),
+  amount2: Number(item?.sell_price_per_kg),
+  rewardAmount: Number(item.diskon_per_kg),
+  status: String(item.status || '').replace('_', ' '),
+  verified: normalizeVerified(item)
+});
 
 export default function RewardList() {
   const { showAlert } = useAlert();
@@ -125,6 +114,11 @@ export default function RewardList() {
   const [loadingDetailId, setLoadingDetailId] = useState(null);
   const [selectedClaim, setSelectedClaim] = useState(null);
   const [showClaimModal, setShowClaimModal] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [activeRewardTab, setActiveRewardTab] = useState('claim');
+  const [sellOutFilter, setSellOutFilter] = useState('all');
+  const [selectedSellOutIds, setSelectedSellOutIds] = useState([]);
   const [uploadingClaim, setUploadingClaim] = useState(false);
   const [downloadingTemplate, setDownloadingTemplate] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -175,11 +169,9 @@ export default function RewardList() {
 
       const detail = batchResponse.data;
       const normalizedBatchDetail = normalizeBatch(detail, batch.id);
-      const resultDetail = getResponseObject(resultResponse);
-      const resultsSource =
-        resultDetail.results || resultDetail.claim_results || resultDetail.claims || resultDetail.transactions || resultDetail.details;
-      const results = resultResponse.data?.data.map(normalizeUploadResult);
-      const totalClaim = Number(detail.total_diskon);
+      const results = Array.isArray(resultResponse.data?.data) ? resultResponse.data.data.map(normalizeUploadResult) : [];
+      setSellOutFilter('all');
+      setSelectedSellOutIds([]);
       setSelectedClaim({
         ...batch,
         claimNo: detail?.claimNo,
@@ -205,12 +197,72 @@ export default function RewardList() {
     [claims]
   );
 
+  const handleOpenWithdrawModal = () => {
+    setWithdrawAmount(String(summary.totalClaimed || 0));
+    setShowWithdrawModal(true);
+  };
+
   const pageCount = Math.max(Math.ceil(claims.length / pageSize), 1);
   const paginatedClaims = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
 
     return claims.slice(startIndex, startIndex + pageSize);
   }, [claims, currentPage]);
+
+  const filteredSellOut = useMemo(() => {
+    const sellOut = selectedClaim?.sellOut || [];
+
+    if (sellOutFilter === 'verified') return sellOut.filter((transaction) => transaction.verified);
+    if (sellOutFilter === 'not-verified') return sellOut.filter((transaction) => !transaction.verified);
+
+    return sellOut;
+  }, [selectedClaim, sellOutFilter]);
+
+  const selectedSellOutCount = selectedSellOutIds.length;
+  const handleChangeSellOutFilter = (value) => {
+    setSellOutFilter(value);
+    setSelectedSellOutIds([]);
+  };
+
+  const handleToggleSellOut = (transactionId) => {
+    const normalizedId = String(transactionId);
+
+    setSelectedSellOutIds((currentIds) =>
+      currentIds.includes(normalizedId) ? currentIds.filter((itemId) => itemId !== normalizedId) : [...currentIds, normalizedId]
+    );
+  };
+
+  const handleVerifySellOut = (transactionId) => {
+    setSelectedClaim((currentClaim) => {
+      if (!currentClaim) return currentClaim;
+
+      return {
+        ...currentClaim,
+        sellOut: currentClaim.sellOut.map((transaction) =>
+          String(transaction.id) === String(transactionId) ? { ...transaction, verified: true } : transaction
+        )
+      };
+    });
+    setSelectedSellOutIds((currentIds) => currentIds.filter((itemId) => itemId !== String(transactionId)));
+    showAlert('Transaksi sell out berhasil diverifikasi', 'success');
+  };
+
+  const handleBulkVerifySellOut = () => {
+    if (!selectedSellOutIds.length) return;
+
+    setSelectedClaim((currentClaim) => {
+      if (!currentClaim) return currentClaim;
+
+      return {
+        ...currentClaim,
+        sellOut: currentClaim.sellOut.map((transaction) =>
+          selectedSellOutIds.includes(String(transaction.id)) ? { ...transaction, verified: true } : transaction
+        )
+      };
+    });
+    showAlert(`${selectedSellOutIds.length} transaksi sell out berhasil diverifikasi`, 'success');
+    setSelectedSellOutIds([]);
+  };
 
   const handleDownloadTemplate = async () => {
     setDownloadingTemplate(true);
@@ -237,12 +289,6 @@ export default function RewardList() {
       event.target.value = '';
       return;
     }
-
-    // if (file.size > maxUploadSizeBytes) {
-    //   showAlert('Ukuran file maksimal 1MB', 'danger');
-    //   event.target.value = '';
-    //   return;
-    // }
 
     const payload = new FormData();
     payload.append('file', file);
@@ -281,12 +327,6 @@ export default function RewardList() {
               <span className="text-muted f-12">Monitor transaksi claim reward dan sell out yang menjadi dasar klaim.</span>
             </Stack>
           }
-          secondary={
-            <Button variant="primary" onClick={() => setShowClaimModal(true)}>
-              <i className="ti ti-plus me-1" />
-              Tambah Claim
-            </Button>
-          }
         >
           <Row className="g-3">
             <Col md={6} xl={3}>
@@ -306,88 +346,208 @@ export default function RewardList() {
             </Col>
           </Row>
         </MainCard>
-        <MainCard
-          title={
-            <Stack gap={1}>
-              <h5 className="mb-0">Transaksi Claim</h5>
-              <span className="text-muted f-12">Gunakan tombol detail untuk melihat transaksi sell out dari parent claim.</span>
-            </Stack>
-          }
-        >
-          <Table className="mb-0 align-middle" responsive hover>
-            <thead>
-              <tr>
-                <th style={{ minWidth: 170 }}>Batch Claim</th>
-                <th style={{ minWidth: 220 }}>File Upload</th>
-                <th style={{ minWidth: 190 }}>Tanggal Upload</th>
-                <th style={{ minWidth: 190 }}>Total Diskon</th>
-                <th className="text-center" style={{ width: 90 }}>
-                  Detail
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {loadingClaims ? (
-                <tr>
-                  <td colSpan={4}>
-                    <LoaderData />
-                  </td>
-                </tr>
-              ) : paginatedClaims.length > 0 ? (
-                paginatedClaims.map((claim) => (
-                  <tr key={claim.id}>
-                    <td className="fw-semibold">{claim.claimNo}</td>
-                    <td>
-                      <div className="fw-semibold">{claim.fileName || '-'}</div>
-                    </td>
-                    <td>{formatDate(claim.uploadedAt)}</td>
-                    <td>{formatCurrency(claim.rewardAmount)}</td>
-                    <td className="text-center">
-                      <Button
-                        className="rounded-circle"
-                        variant="outline-primary"
-                        size="sm"
-                        onClick={() => handleViewBatch(claim)}
-                        disabled={loadingDetailId !== null}
-                      >
-                        {String(loadingDetailId) === String(claim.id) ? (
-                          <span className="spinner-border spinner-border-sm" aria-hidden="true" />
-                        ) : (
-                          <i className="ti ti-list-search" />
-                        )}
-                      </Button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={4}>
-                    <div className="text-center py-5">
-                      <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
-                        <i className="ti ti-gift f-24" />
-                      </div>
-                      <h5 className="mb-1">Belum ada transaksi claim</h5>
-                      <p className="text-muted mb-3">Upload template Excel untuk menambahkan data claim reward.</p>
-                      <Button variant="primary" onClick={() => setShowClaimModal(true)}>
-                        <i className="ti ti-plus me-1" />
-                        Tambah Claim
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </Table>
 
-          <TablePagination
-            currentPage={currentPage}
-            onPageChange={setCurrentPage}
-            pageCount={pageCount}
-            pageSize={pageSize}
-            total={claims.length}
-            itemLabel="claim"
-          />
-        </MainCard>
+        <Tab.Container activeKey={activeRewardTab} onSelect={(key) => setActiveRewardTab(key || 'claim')}>
+          <Card className="border mb-0">
+            <Card.Body className="p-2">
+              <Nav variant="pills" className="reward-tab-nav gap-2 flex-column flex-md-row">
+                <Nav.Item className="flex-fill">
+                  <Nav.Link eventKey="claim" className="reward-tab-link reward-tab-claim border rounded-3 p-3 h-100">
+                    <Stack direction="horizontal" gap={3} className="justify-content-between">
+                      <Stack direction="horizontal" gap={3}>
+                        <span
+                          className={`avtar avtar-s ${
+                            activeRewardTab === 'claim' ? 'bg-white text-primary' : 'bg-light-primary text-primary'
+                          }`}
+                        >
+                          <i className="ti ti-file-spreadsheet" />
+                        </span>
+                        <div>
+                          <div className="fw-semibold">Claim</div>
+                          <small className={activeRewardTab === 'claim' ? 'text-white-50' : 'text-muted'}>
+                            Upload dan cek claim reward
+                          </small>
+                        </div>
+                      </Stack>
+                      <Badge
+                        bg={activeRewardTab === 'claim' ? 'light' : 'primary'}
+                        text={activeRewardTab === 'claim' ? 'primary' : undefined}
+                      >
+                        {claims.length}
+                      </Badge>
+                    </Stack>
+                  </Nav.Link>
+                </Nav.Item>
+                <Nav.Item className="flex-fill">
+                  <Nav.Link eventKey="withdraw" className="reward-tab-link reward-tab-withdraw border rounded-3 p-3 h-100">
+                    <Stack direction="horizontal" gap={3} className="justify-content-between">
+                      <Stack direction="horizontal" gap={3}>
+                        <span
+                          className={`avtar avtar-s ${
+                            activeRewardTab === 'withdraw' ? 'bg-white text-success' : 'bg-light-success text-success'
+                          }`}
+                        >
+                          <i className="ti ti-wallet" />
+                        </span>
+                        <div>
+                          <div className="fw-semibold">Withdraw</div>
+                          <small className={activeRewardTab === 'withdraw' ? 'text-white-50' : 'text-muted'}>Ajukan pencairan reward</small>
+                        </div>
+                      </Stack>
+                      <Badge
+                        bg={activeRewardTab === 'withdraw' ? 'light' : 'success'}
+                        text={activeRewardTab === 'withdraw' ? 'success' : undefined}
+                      >
+                        0
+                      </Badge>
+                    </Stack>
+                  </Nav.Link>
+                </Nav.Item>
+              </Nav>
+            </Card.Body>
+          </Card>
+
+          <Tab.Content>
+            <Tab.Pane eventKey="claim">
+              <MainCard
+                title={
+                  <Stack gap={1}>
+                    <h5 className="mb-0">Transaksi Claim</h5>
+                    <span className="text-muted f-12">Gunakan tombol detail untuk melihat transaksi sell out dari parent claim.</span>
+                  </Stack>
+                }
+                secondary={
+                  <Button variant="primary" onClick={() => setShowClaimModal(true)}>
+                    <i className="ti ti-plus me-1" />
+                    Tambah Claim
+                  </Button>
+                }
+              >
+                <Table className="mb-0 align-middle" responsive hover>
+                  <thead>
+                    <tr>
+                      <th style={{ minWidth: 170 }}>Batch Claim</th>
+                      <th style={{ minWidth: 220 }}>File Upload</th>
+                      <th style={{ minWidth: 190 }}>Tanggal Upload</th>
+                      <th style={{ minWidth: 190 }}>Total Diskon</th>
+                      <th className="text-center" style={{ width: 90 }}>
+                        Detail
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loadingClaims ? (
+                      <tr>
+                        <td colSpan={5}>
+                          <LoaderData />
+                        </td>
+                      </tr>
+                    ) : paginatedClaims.length > 0 ? (
+                      paginatedClaims.map((claim) => (
+                        <tr key={claim.id}>
+                          <td className="fw-semibold">{claim.claimNo}</td>
+                          <td>
+                            <div className="fw-semibold">{claim.fileName || '-'}</div>
+                          </td>
+                          <td>{formatDate(claim.uploadedAt)}</td>
+                          <td>{formatCurrency(claim.rewardAmount)}</td>
+                          <td className="text-center">
+                            <Button
+                              className="rounded-circle"
+                              variant="outline-primary"
+                              size="sm"
+                              onClick={() => handleViewBatch(claim)}
+                              disabled={loadingDetailId !== null}
+                            >
+                              {String(loadingDetailId) === String(claim.id) ? (
+                                <span className="spinner-border spinner-border-sm" aria-hidden="true" />
+                              ) : (
+                                <i className="ti ti-list-search" />
+                              )}
+                            </Button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={5}>
+                          <div className="text-center py-5">
+                            <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
+                              <i className="ti ti-gift f-24" />
+                            </div>
+                            <h5 className="mb-1">Belum ada transaksi claim</h5>
+                            <p className="text-muted mb-3">Upload template Excel untuk menambahkan data claim reward.</p>
+                            <Button variant="primary" onClick={() => setShowClaimModal(true)}>
+                              <i className="ti ti-plus me-1" />
+                              Tambah Claim
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </Table>
+
+                <TablePagination
+                  currentPage={currentPage}
+                  onPageChange={setCurrentPage}
+                  pageCount={pageCount}
+                  pageSize={pageSize}
+                  total={claims.length}
+                  itemLabel="claim"
+                />
+              </MainCard>
+            </Tab.Pane>
+
+            <Tab.Pane eventKey="withdraw">
+              <MainCard
+                title={
+                  <Stack gap={1}>
+                    <h5 className="mb-0">Transaksi Withdraw</h5>
+                    <span className="text-muted f-12">Kelola pengajuan pencairan reward yang sudah tersedia.</span>
+                  </Stack>
+                }
+                secondary={
+                  <Button variant="primary" onClick={handleOpenWithdrawModal}>
+                    <i className="ti ti-plus me-1" />
+                    Tambah Withdraw
+                  </Button>
+                }
+              >
+                <Table className="mb-0 align-middle" responsive hover>
+                  <thead>
+                    <tr>
+                      <th style={{ minWidth: 180 }}>Nomor Withdraw</th>
+                      <th style={{ minWidth: 190 }}>Tanggal Pengajuan</th>
+                      <th style={{ minWidth: 190 }}>Nominal</th>
+                      <th style={{ minWidth: 160 }}>Status</th>
+                      <th className="text-center" style={{ width: 90 }}>
+                        Detail
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td colSpan={5}>
+                        <div className="text-center py-5">
+                          <div className="avtar avtar-xl bg-light-success text-success mx-auto mb-3">
+                            <i className="ti ti-wallet f-24" />
+                          </div>
+                          <h5 className="mb-1">Belum ada transaksi withdraw</h5>
+                          <p className="text-muted mb-3">Tambahkan pengajuan withdraw reward dari tab ini.</p>
+                          <Button variant="primary" onClick={handleOpenWithdrawModal}>
+                            <i className="ti ti-plus me-1" />
+                            Tambah Withdraw
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </Table>
+              </MainCard>
+            </Tab.Pane>
+          </Tab.Content>
+        </Tab.Container>
       </Stack>
 
       <Modal
@@ -493,9 +653,6 @@ export default function RewardList() {
                           <h6 className="mb-1">{selectedClaim.claimNo}</h6>
                           <p className="text-muted mb-0">Detail claim reward beserta transaksi sell out yang menjadi dasar klaim.</p>
                         </div>
-                        {/* <Badge bg={statusVariant[selectedClaim.status] || 'secondary'}>
-                          {statusLabel[selectedClaim.status] || selectedClaim.status}
-                        </Badge> */}
                       </Stack>
 
                       <Row className="g-3 mt-1">
@@ -516,14 +673,31 @@ export default function RewardList() {
 
               <Card className="border mb-0">
                 <Card.Body>
-                  <Stack direction="horizontal" gap={3} className="justify-content-between align-items-start mb-3">
+                  <Stack direction="horizontal" gap={3} className="justify-content-between align-items-start flex-wrap mb-3">
                     <div>
                       <h6 className="mb-1">Transaksi Sell Out</h6>
                       <p className="text-muted mb-0">Daftar transaksi sell out dari parent claim yang dipilih.</p>
                     </div>
-                    <Badge bg={selectedClaim.sellOut?.length ? 'primary' : 'secondary'}>
-                      {selectedClaim.sellOut?.length || 0} transaksi
-                    </Badge>
+                    <Stack direction="horizontal" gap={2} className="flex-wrap">
+                      <Form.Select
+                        size="sm"
+                        value={sellOutFilter}
+                        onChange={(event) => handleChangeSellOutFilter(event.target.value)}
+                        style={{ minWidth: 170 }}
+                      >
+                        <option value="all">Semua Status</option>
+                        <option value="verified">Verified</option>
+                        <option value="not-verified">Not Verified</option>
+                      </Form.Select>
+                      <Button variant="success" size="sm" onClick={handleBulkVerifySellOut} disabled={!selectedSellOutCount}>
+                        <i className="ti ti-checks me-1" />
+                        Verifikasi Terpilih
+                        {selectedSellOutCount ? ` (${selectedSellOutCount})` : ''}
+                      </Button>
+                      <Badge bg={filteredSellOut.length ? 'primary' : 'secondary'} className="align-self-center">
+                        {filteredSellOut.length} transaksi
+                      </Badge>
+                    </Stack>
                   </Stack>
 
                   <Table className="mb-0 align-middle" responsive hover>
@@ -549,11 +723,15 @@ export default function RewardList() {
                         <th className="text-end" style={{ minWidth: 150 }}>
                           Status
                         </th>
+                        <th className="text-center" style={{ width: 56 }} />
+                        <th className="text-center" style={{ minWidth: 150 }}>
+                          Status Verifikasi
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
-                      {selectedClaim.sellOut?.length ? (
-                        selectedClaim.sellOut.map((transaction, index) => (
+                      {filteredSellOut.length ? (
+                        filteredSellOut.map((transaction, index) => (
                           <tr key={transaction.id || `${selectedClaim.claimNo}-${index}`}>
                             <td>{transaction.customerType}</td>
                             <td>
@@ -568,19 +746,32 @@ export default function RewardList() {
                             <td className="text-end">{formatCurrency(transaction.amount2)}</td>
                             <td className="text-end">{formatCurrency(transaction.rewardAmount)}</td>
                             <td className="text-end">
-                              <Badge bg={transaction.status == 'VALID PROGRAM' ? 'success' : 'danger'}>{transaction.status}</Badge>
+                              <Badge bg={transaction.status === 'VALID PROGRAM' ? 'success' : 'danger'}>{transaction.status}</Badge>
+                            </td>
+                            <td className="text-center">
+                              <Form.Check
+                                type="checkbox"
+                                className="m-0 d-inline-flex"
+                                checked={selectedSellOutIds.includes(String(transaction.id))}
+                                onChange={() => handleToggleSellOut(transaction.id)}
+                                disabled={transaction.verified}
+                              />
+                            </td>
+                            <td className="text-center">
+                              <i className={`${transaction.verified ? 'ti ti-circle-check' : null} me-1`} />
+                              {transaction.verified ? 'Verified' : 'Not Verified'}
                             </td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={9}>
+                          <td colSpan={12}>
                             <div className="text-center py-4">
                               <div className="avtar avtar-lg bg-light-primary text-primary mx-auto mb-2">
                                 <i className="ti ti-table-import f-20" />
                               </div>
                               <h6 className="mb-1">Tidak ada transaksi sell out</h6>
-                              <p className="text-muted mb-0">Claim ini belum memiliki transaksi sell out.</p>
+                              <p className="text-muted mb-0">Tidak ada transaksi yang sesuai dengan filter saat ini.</p>
                             </div>
                           </td>
                         </tr>
@@ -595,6 +786,50 @@ export default function RewardList() {
         <Modal.Footer>
           <Button variant="light-secondary" onClick={() => setSelectedClaim(null)}>
             Tutup
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={showWithdrawModal} onHide={() => setShowWithdrawModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Tambah Withdraw Reward</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Stack gap={3}>
+            <Card className="border mb-0">
+              <Card.Body className="py-3">
+                <Stack direction="horizontal" gap={3} className="justify-content-between">
+                  <div>
+                    <div className="text-muted f-12">Total Saldo Tersedia</div>
+                    <h5 className="mb-0 text-success">{formatCurrency(summary.totalClaimed)}</h5>
+                  </div>
+                  <span className="avtar avtar-s bg-light-success text-success">
+                    <i className="ti ti-wallet" />
+                  </span>
+                </Stack>
+              </Card.Body>
+            </Card>
+
+            <Form.Group>
+              <Form.Label>Nominal Withdraw</Form.Label>
+              <Form.Control
+                type="number"
+                min={0}
+                max={summary.totalClaimed}
+                value={withdrawAmount}
+                onChange={(event) => setWithdrawAmount(event.target.value)}
+                placeholder="Masukkan nominal withdraw"
+              />
+              <Form.Text className="text-muted">Default nominal mengikuti total saldo yang tersedia.</Form.Text>
+            </Form.Group>
+          </Stack>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" onClick={() => setShowWithdrawModal(false)}>
+            Tutup
+          </Button>
+          <Button variant="primary" disabled={!Number(withdrawAmount) || Number(withdrawAmount) > summary.totalClaimed}>
+            Simpan Withdraw
           </Button>
         </Modal.Footer>
       </Modal>
