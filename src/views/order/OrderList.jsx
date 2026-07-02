@@ -1067,6 +1067,10 @@ export default function OrderList() {
                   <div>{formatOrderDate(getOrderValue(selectedOrderDetail, ['doc_due_date', 'docDueDate'], ''))}</div>
                 </Col>
                 <Col md={4}>
+                  <Form.Label className="f-12 text-muted">ETA Date</Form.Label>
+                  <div>{formatOrderDate(getOrderValue(selectedOrderDetail, ['eta_date', 'etaDate', 'ETA', 'u_eta', 'U_ETA'], ''))}</div>
+                </Col>
+                <Col md={4}>
                   <Form.Label className="f-12 text-muted">Series Name</Form.Label>
                   <div>{getOrderValue(selectedOrderDetail, seriesNameKeys)}</div>
                 </Col>
