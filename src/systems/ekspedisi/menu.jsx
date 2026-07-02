@@ -16,6 +16,15 @@ const ekspedisiMenu = [
         selected: true,
         icon: 'ti ti-truck-delivery',
         url: '/ekspedisi/dashboard'
+      },
+      {
+        id: 'ekspedisi-master',
+        title: 'Master Ekspedisi',
+        type: 'item',
+        value: 'ekspedisi-master',
+        label: 'Master Ekspedisi',
+        icon: 'ti ti-package-export',
+        url: '/ekspedisi/master/ekspedisi'
       }
     ]
   }

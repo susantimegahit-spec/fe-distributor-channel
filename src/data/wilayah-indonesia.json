@@ -1,0 +1,683 @@
+{
+  "metadata": {
+    "negara": "Indonesia",
+    "format": "propinsi > kota_kabupaten > kecamatan > kelurahan/desa",
+    "catatan": "File ini disiapkan untuk dropdown bertingkat. Seluruh propinsi memiliki seed kota/kabupaten dan kecamatan; detail lengkap yang tersedia saat ini adalah Kota Surabaya."
+  },
+  "propinsi": [
+    {
+      "kode": "11",
+      "nama": "Aceh",
+      "kota_kabupaten": [
+        {
+          "kode": "11.71",
+          "nama": "Kota Banda Aceh",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "11.71.01", "nama": "Baiturrahman", "kelurahan": ["Peuniti"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "12",
+      "nama": "Sumatera Utara",
+      "kota_kabupaten": [
+        {
+          "kode": "12.71",
+          "nama": "Kota Medan",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "12.71.01", "nama": "Medan Kota", "kelurahan": ["Teladan Barat"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "13",
+      "nama": "Sumatera Barat",
+      "kota_kabupaten": [
+        {
+          "kode": "13.71",
+          "nama": "Kota Padang",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "13.71.01", "nama": "Padang Barat", "kelurahan": ["Belakang Tangsi"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "14",
+      "nama": "Riau",
+      "kota_kabupaten": [
+        {
+          "kode": "14.71",
+          "nama": "Kota Pekanbaru",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "14.71.01", "nama": "Sukajadi", "kelurahan": ["Kampung Tengah"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "15",
+      "nama": "Jambi",
+      "kota_kabupaten": [
+        {
+          "kode": "15.71",
+          "nama": "Kota Jambi",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "15.71.01", "nama": "Telanaipura", "kelurahan": ["Telanaipura"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "16",
+      "nama": "Sumatera Selatan",
+      "kota_kabupaten": [
+        {
+          "kode": "16.71",
+          "nama": "Kota Palembang",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "16.71.01", "nama": "Ilir Barat I", "kelurahan": ["Bukit Lama"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "17",
+      "nama": "Bengkulu",
+      "kota_kabupaten": [
+        {
+          "kode": "17.71",
+          "nama": "Kota Bengkulu",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "17.71.01", "nama": "Ratu Samban", "kelurahan": ["Penurunan"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "18",
+      "nama": "Lampung",
+      "kota_kabupaten": [
+        {
+          "kode": "18.71",
+          "nama": "Kota Bandar Lampung",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "18.71.01", "nama": "Tanjung Karang Pusat", "kelurahan": ["Gotong Royong"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "19",
+      "nama": "Kepulauan Bangka Belitung",
+      "kota_kabupaten": [
+        {
+          "kode": "19.71",
+          "nama": "Kota Pangkalpinang",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "19.71.01", "nama": "Taman Sari", "kelurahan": ["Batin Tikal"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "21",
+      "nama": "Kepulauan Riau",
+      "kota_kabupaten": [
+        {
+          "kode": "21.72",
+          "nama": "Kota Tanjungpinang",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "21.72.01", "nama": "Tanjungpinang Barat", "kelurahan": ["Bukit Cermin"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "31",
+      "nama": "DKI Jakarta",
+      "kota_kabupaten": [
+        {
+          "kode": "31.71",
+          "nama": "Kota Administrasi Jakarta Pusat",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "31.71.01", "nama": "Gambir", "kelurahan": ["Gambir"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "32",
+      "nama": "Jawa Barat",
+      "kota_kabupaten": [
+        {
+          "kode": "32.73",
+          "nama": "Kota Bandung",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "32.73.01", "nama": "Coblong", "kelurahan": ["Dago"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "33",
+      "nama": "Jawa Tengah",
+      "kota_kabupaten": [
+        {
+          "kode": "33.74",
+          "nama": "Kota Semarang",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "33.74.01", "nama": "Semarang Tengah", "kelurahan": ["Sekayu"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "34",
+      "nama": "DI Yogyakarta",
+      "kota_kabupaten": [
+        {
+          "kode": "34.71",
+          "nama": "Kota Yogyakarta",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "34.71.01", "nama": "Danurejan", "kelurahan": ["Suryatmajan"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "35",
+      "nama": "Jawa Timur",
+      "kota_kabupaten": [
+        {
+          "kode": "35.78",
+          "nama": "Kota Surabaya",
+          "tipe": "Kota",
+          "kecamatan": [
+            {
+              "kode": "35.78.14",
+              "nama": "Tandes",
+              "wilayah": "Surabaya Barat",
+              "kelurahan": ["Balongsari", "Banjar Sugihan", "Karang Poh", "Manukan Kulon", "Manukan Wetan", "Tandes"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.18",
+              "nama": "Lakarsantri",
+              "wilayah": "Surabaya Barat",
+              "kelurahan": ["Bangkingan", "Jeruk", "Lakarsantri", "Lidah Kulon", "Lidah Wetan", "Sumur Welut"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.19",
+              "nama": "Benowo",
+              "wilayah": "Surabaya Barat",
+              "kelurahan": ["Kandangan", "Romokalisari", "Sememi", "Tambak Osowilangun"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.27",
+              "nama": "Sukomanunggal",
+              "wilayah": "Surabaya Barat",
+              "kelurahan": ["Putat Gede", "Simomulyo", "Simomulyo Baru", "Sonokwijenan", "Sukomanunggal", "Tanjungsari"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.28",
+              "nama": "Asemrowo",
+              "wilayah": "Surabaya Barat",
+              "kelurahan": ["Asemrowo", "Genting Kalianak", "Tambak Sarioso"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.30",
+              "nama": "Pakal",
+              "wilayah": "Surabaya Barat",
+              "kelurahan": ["Babat Jerawat", "Benowo", "Pakal", "Sumberejo"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.31",
+              "nama": "Sambikerep",
+              "wilayah": "Surabaya Barat",
+              "kelurahan": ["Bringin", "Made", "Lontar", "Sambikerep"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.05",
+              "nama": "Tegalsari",
+              "wilayah": "Surabaya Pusat",
+              "kelurahan": ["Dr. Soetomo", "Kedungdoro", "Keputran", "Tegalsari", "Wonorejo"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.07",
+              "nama": "Genteng",
+              "wilayah": "Surabaya Pusat",
+              "kelurahan": ["Embong Kaliasin", "Genteng", "Kapasari", "Ketabang", "Peneleh"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.11",
+              "nama": "Simokerto",
+              "wilayah": "Surabaya Pusat",
+              "kelurahan": ["Kapasan", "Sidodadi", "Simokerto", "Simolawang", "Tambakrejo"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.13",
+              "nama": "Bubutan",
+              "wilayah": "Surabaya Pusat",
+              "kelurahan": ["Alun-alun Contong", "Bubutan", "Gundih", "Jepara", "Tembok Dukuh"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.01",
+              "nama": "Karang Pilang",
+              "wilayah": "Surabaya Selatan",
+              "kelurahan": ["Karang Pilang", "Kebraon", "Kedurus", "Warugunung"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.02",
+              "nama": "Wonocolo",
+              "wilayah": "Surabaya Selatan",
+              "kelurahan": ["Bendul Merisi", "Jemur Wonosari", "Margorejo", "Sidosermo", "Siwalankerto"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.04",
+              "nama": "Wonokromo",
+              "wilayah": "Surabaya Selatan",
+              "kelurahan": ["Darmo", "Jagir", "Ngagel", "Ngagelrejo", "Sawunggaling", "Wonokromo"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.06",
+              "nama": "Sawahan",
+              "wilayah": "Surabaya Selatan",
+              "kelurahan": ["Banyu Urip", "Kupang Krajan", "Pakis", "Patemon", "Putat Jaya", "Sawahan"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.20",
+              "nama": "Wiyung",
+              "wilayah": "Surabaya Selatan",
+              "kelurahan": ["Babatan", "Balas Klumprik", "Jajar Tunggal", "Wiyung"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.21",
+              "nama": "Dukuh Pakis",
+              "wilayah": "Surabaya Selatan",
+              "kelurahan": ["Dukuh Kupang", "Dukuh Pakis", "Gunung Sari", "Pradah Kalikendal"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.22",
+              "nama": "Gayungan",
+              "wilayah": "Surabaya Selatan",
+              "kelurahan": ["Dukuh Menanggal", "Gayungan", "Ketintang", "Menanggal"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.23",
+              "nama": "Jambangan",
+              "wilayah": "Surabaya Selatan",
+              "kelurahan": ["Jambangan", "Karah", "Kebonsari", "Pagesangan"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.03",
+              "nama": "Rungkut",
+              "wilayah": "Surabaya Timur",
+              "kelurahan": ["Kali Rungkut", "Kedung Baruk", "Medokan Ayu", "Penjaringan Sari", "Rungkut Kidul", "Wonorejo"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.08",
+              "nama": "Gubeng",
+              "wilayah": "Surabaya Timur",
+              "kelurahan": ["Airlangga", "Baratajaya", "Gubeng", "Kertajaya", "Mojo", "Pucang Sewu"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.09",
+              "nama": "Sukolilo",
+              "wilayah": "Surabaya Timur",
+              "kelurahan": ["Gebang Putih", "Keputih", "Klampis Ngasem", "Medokan Semampir", "Menur Pumpungan", "Nginden Jangkungan", "Semolowaru"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.10",
+              "nama": "Tambaksari",
+              "wilayah": "Surabaya Timur",
+              "kelurahan": ["Dukuh Setro", "Gading", "Kapas Madya", "Pacar Kembang", "Pacar Keling", "Ploso", "Rangkah", "Tambaksari"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.24",
+              "nama": "Tenggilis Mejoyo",
+              "wilayah": "Surabaya Timur",
+              "kelurahan": ["Kendangsari", "Kutisari", "Panjang Jiwo", "Tenggilis Mejoyo"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.25",
+              "nama": "Gunung Anyar",
+              "wilayah": "Surabaya Timur",
+              "kelurahan": ["Gunung Anyar", "Gunung Anyar Tambak", "Rungkut Menanggal", "Rungkut Tengah"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.26",
+              "nama": "Mulyorejo",
+              "wilayah": "Surabaya Timur",
+              "kelurahan": ["Dukuh Sutorejo", "Kalijudan", "Kalisari", "Kejawan Putih Tambak", "Manyar Sabrangan", "Mulyorejo"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.12",
+              "nama": "Pabean Cantikan",
+              "wilayah": "Surabaya Utara",
+              "kelurahan": ["Bongkaran", "Krembangan Utara", "Nyamplungan", "Perak Timur", "Perak Utara"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.15",
+              "nama": "Krembangan",
+              "wilayah": "Surabaya Utara",
+              "kelurahan": ["Dupak", "Kemayoran", "Krembangan Selatan", "Morokrembangan", "Perak Barat"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.16",
+              "nama": "Semampir",
+              "wilayah": "Surabaya Utara",
+              "kelurahan": ["Ampel", "Pegirian", "Sidotopo", "Ujung", "Wonokusumo"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.17",
+              "nama": "Kenjeran",
+              "wilayah": "Surabaya Utara",
+              "kelurahan": ["Bulak Banteng", "Tambak Wedi", "Tanah Kali Kedinding", "Sidotopo Wetan"],
+              "desa": []
+            },
+            {
+              "kode": "35.78.29",
+              "nama": "Bulak",
+              "wilayah": "Surabaya Utara",
+              "kelurahan": ["Bulak", "Kedung Cowek", "Kenjeran", "Sukolilo Baru"],
+              "desa": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kode": "36",
+      "nama": "Banten",
+      "kota_kabupaten": [
+        {
+          "kode": "36.73",
+          "nama": "Kota Serang",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "36.73.01", "nama": "Serang", "kelurahan": ["Serang"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "51",
+      "nama": "Bali",
+      "kota_kabupaten": [
+        {
+          "kode": "51.71",
+          "nama": "Kota Denpasar",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "51.71.01", "nama": "Denpasar Barat", "kelurahan": ["Pemecutan Kelod"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "52",
+      "nama": "Nusa Tenggara Barat",
+      "kota_kabupaten": [
+        {
+          "kode": "52.71",
+          "nama": "Kota Mataram",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "52.71.01", "nama": "Mataram", "kelurahan": ["Pagesangan"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "53",
+      "nama": "Nusa Tenggara Timur",
+      "kota_kabupaten": [
+        {
+          "kode": "53.71",
+          "nama": "Kota Kupang",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "53.71.01", "nama": "Kelapa Lima", "kelurahan": ["Kelapa Lima"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "61",
+      "nama": "Kalimantan Barat",
+      "kota_kabupaten": [
+        {
+          "kode": "61.71",
+          "nama": "Kota Pontianak",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "61.71.01", "nama": "Pontianak Kota", "kelurahan": ["Darat Sekip"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "62",
+      "nama": "Kalimantan Tengah",
+      "kota_kabupaten": [
+        {
+          "kode": "62.71",
+          "nama": "Kota Palangka Raya",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "62.71.01", "nama": "Jekan Raya", "kelurahan": ["Menteng"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "63",
+      "nama": "Kalimantan Selatan",
+      "kota_kabupaten": [
+        {
+          "kode": "63.71",
+          "nama": "Kota Banjarmasin",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "63.71.01", "nama": "Banjarmasin Tengah", "kelurahan": ["Kertak Baru Ilir"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "64",
+      "nama": "Kalimantan Timur",
+      "kota_kabupaten": [
+        {
+          "kode": "64.72",
+          "nama": "Kota Samarinda",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "64.72.01", "nama": "Samarinda Kota", "kelurahan": ["Bugis"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "65",
+      "nama": "Kalimantan Utara",
+      "kota_kabupaten": [
+        {
+          "kode": "65.71",
+          "nama": "Kota Tarakan",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "65.71.01", "nama": "Tarakan Tengah", "kelurahan": ["Karang Anyar"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "71",
+      "nama": "Sulawesi Utara",
+      "kota_kabupaten": [
+        {
+          "kode": "71.71",
+          "nama": "Kota Manado",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "71.71.01", "nama": "Wenang", "kelurahan": ["Wenang Utara"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "72",
+      "nama": "Sulawesi Tengah",
+      "kota_kabupaten": [
+        {
+          "kode": "72.71",
+          "nama": "Kota Palu",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "72.71.01", "nama": "Palu Timur", "kelurahan": ["Besusu Barat"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "73",
+      "nama": "Sulawesi Selatan",
+      "kota_kabupaten": [
+        {
+          "kode": "73.71",
+          "nama": "Kota Makassar",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "73.71.01", "nama": "Ujung Pandang", "kelurahan": ["Losari"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "74",
+      "nama": "Sulawesi Tenggara",
+      "kota_kabupaten": [
+        {
+          "kode": "74.71",
+          "nama": "Kota Kendari",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "74.71.01", "nama": "Mandonga", "kelurahan": ["Mandonga"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "75",
+      "nama": "Gorontalo",
+      "kota_kabupaten": [
+        {
+          "kode": "75.71",
+          "nama": "Kota Gorontalo",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "75.71.01", "nama": "Kota Tengah", "kelurahan": ["Dulalowo"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "76",
+      "nama": "Sulawesi Barat",
+      "kota_kabupaten": [
+        {
+          "kode": "76.02",
+          "nama": "Kabupaten Mamuju",
+          "tipe": "Kabupaten",
+          "kecamatan": [{ "kode": "76.02.01", "nama": "Mamuju", "kelurahan": ["Binanga"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "81",
+      "nama": "Maluku",
+      "kota_kabupaten": [
+        {
+          "kode": "81.71",
+          "nama": "Kota Ambon",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "81.71.01", "nama": "Sirimau", "kelurahan": ["Rijali"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "82",
+      "nama": "Maluku Utara",
+      "kota_kabupaten": [
+        {
+          "kode": "82.71",
+          "nama": "Kota Ternate",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "82.71.01", "nama": "Ternate Tengah", "kelurahan": ["Gamalama"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "91",
+      "nama": "Papua Barat",
+      "kota_kabupaten": [
+        {
+          "kode": "91.02",
+          "nama": "Kabupaten Manokwari",
+          "tipe": "Kabupaten",
+          "kecamatan": [{ "kode": "91.02.01", "nama": "Manokwari Barat", "kelurahan": ["Sanggeng"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "92",
+      "nama": "Papua Barat Daya",
+      "kota_kabupaten": [
+        {
+          "kode": "92.71",
+          "nama": "Kota Sorong",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "92.71.01", "nama": "Sorong Kota", "kelurahan": ["Klabala"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "93",
+      "nama": "Papua Selatan",
+      "kota_kabupaten": [
+        {
+          "kode": "93.01",
+          "nama": "Kabupaten Merauke",
+          "tipe": "Kabupaten",
+          "kecamatan": [{ "kode": "93.01.01", "nama": "Merauke", "kelurahan": ["Mandala"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "94",
+      "nama": "Papua",
+      "kota_kabupaten": [
+        {
+          "kode": "94.71",
+          "nama": "Kota Jayapura",
+          "tipe": "Kota",
+          "kecamatan": [{ "kode": "94.71.01", "nama": "Jayapura Utara", "kelurahan": ["Gurabesi"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "95",
+      "nama": "Papua Tengah",
+      "kota_kabupaten": [
+        {
+          "kode": "95.01",
+          "nama": "Kabupaten Nabire",
+          "tipe": "Kabupaten",
+          "kecamatan": [{ "kode": "95.01.01", "nama": "Nabire", "kelurahan": ["Karang Mulia"], "desa": [] }]
+        }
+      ]
+    },
+    {
+      "kode": "96",
+      "nama": "Papua Pegunungan",
+      "kota_kabupaten": [
+        {
+          "kode": "96.01",
+          "nama": "Kabupaten Jayawijaya",
+          "tipe": "Kabupaten",
+          "kecamatan": [{ "kode": "96.01.01", "nama": "Wamena", "kelurahan": [], "desa": ["Wamena Kota"] }]
+        }
+      ]
+    }
+  ]
+}

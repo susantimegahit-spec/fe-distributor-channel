@@ -1,0 +1,236 @@
+{
+  "propinsi": {
+    "kode": "35",
+    "nama": "Jawa Timur"
+  },
+  "kota_kabupaten": {
+    "kode": "35.78",
+    "nama": "Kota Surabaya",
+    "tipe": "Kota"
+  },
+  "ringkasan": {
+    "jumlah_kecamatan": 31,
+    "jumlah_kelurahan": 154,
+    "jumlah_desa": 0,
+    "catatan": "Kota Surabaya terdiri dari kelurahan perkotaan, tidak memiliki desa administratif."
+  },
+  "kecamatan": [
+    {
+      "kode": "35.78.14",
+      "nama": "Tandes",
+      "wilayah": "Surabaya Barat",
+      "kelurahan": ["Balongsari", "Banjar Sugihan", "Karang Poh", "Manukan Kulon", "Manukan Wetan", "Tandes"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.18",
+      "nama": "Lakarsantri",
+      "wilayah": "Surabaya Barat",
+      "kelurahan": ["Bangkingan", "Jeruk", "Lakarsantri", "Lidah Kulon", "Lidah Wetan", "Sumur Welut"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.19",
+      "nama": "Benowo",
+      "wilayah": "Surabaya Barat",
+      "kelurahan": ["Kandangan", "Romokalisari", "Sememi", "Tambak Osowilangun"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.27",
+      "nama": "Sukomanunggal",
+      "wilayah": "Surabaya Barat",
+      "kelurahan": ["Putat Gede", "Simomulyo", "Simomulyo Baru", "Sonokwijenan", "Sukomanunggal", "Tanjungsari"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.28",
+      "nama": "Asemrowo",
+      "wilayah": "Surabaya Barat",
+      "kelurahan": ["Asemrowo", "Genting Kalianak", "Tambak Sarioso"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.30",
+      "nama": "Pakal",
+      "wilayah": "Surabaya Barat",
+      "kelurahan": ["Babat Jerawat", "Benowo", "Pakal", "Sumberejo"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.31",
+      "nama": "Sambikerep",
+      "wilayah": "Surabaya Barat",
+      "kelurahan": ["Bringin", "Made", "Lontar", "Sambikerep"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.05",
+      "nama": "Tegalsari",
+      "wilayah": "Surabaya Pusat",
+      "kelurahan": ["Dr. Soetomo", "Kedungdoro", "Keputran", "Tegalsari", "Wonorejo"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.07",
+      "nama": "Genteng",
+      "wilayah": "Surabaya Pusat",
+      "kelurahan": ["Embong Kaliasin", "Genteng", "Kapasari", "Ketabang", "Peneleh"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.11",
+      "nama": "Simokerto",
+      "wilayah": "Surabaya Pusat",
+      "kelurahan": ["Kapasan", "Sidodadi", "Simokerto", "Simolawang", "Tambakrejo"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.13",
+      "nama": "Bubutan",
+      "wilayah": "Surabaya Pusat",
+      "kelurahan": ["Alun-alun Contong", "Bubutan", "Gundih", "Jepara", "Tembok Dukuh"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.01",
+      "nama": "Karang Pilang",
+      "wilayah": "Surabaya Selatan",
+      "kelurahan": ["Karang Pilang", "Kebraon", "Kedurus", "Warugunung"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.02",
+      "nama": "Wonocolo",
+      "wilayah": "Surabaya Selatan",
+      "kelurahan": ["Bendul Merisi", "Jemur Wonosari", "Margorejo", "Sidosermo", "Siwalankerto"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.04",
+      "nama": "Wonokromo",
+      "wilayah": "Surabaya Selatan",
+      "kelurahan": ["Darmo", "Jagir", "Ngagel", "Ngagelrejo", "Sawunggaling", "Wonokromo"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.06",
+      "nama": "Sawahan",
+      "wilayah": "Surabaya Selatan",
+      "kelurahan": ["Banyu Urip", "Kupang Krajan", "Pakis", "Patemon", "Putat Jaya", "Sawahan"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.20",
+      "nama": "Wiyung",
+      "wilayah": "Surabaya Selatan",
+      "kelurahan": ["Babatan", "Balas Klumprik", "Jajar Tunggal", "Wiyung"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.21",
+      "nama": "Dukuh Pakis",
+      "wilayah": "Surabaya Selatan",
+      "kelurahan": ["Dukuh Kupang", "Dukuh Pakis", "Gunung Sari", "Pradah Kalikendal"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.22",
+      "nama": "Gayungan",
+      "wilayah": "Surabaya Selatan",
+      "kelurahan": ["Dukuh Menanggal", "Gayungan", "Ketintang", "Menanggal"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.23",
+      "nama": "Jambangan",
+      "wilayah": "Surabaya Selatan",
+      "kelurahan": ["Jambangan", "Karah", "Kebonsari", "Pagesangan"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.03",
+      "nama": "Rungkut",
+      "wilayah": "Surabaya Timur",
+      "kelurahan": ["Kali Rungkut", "Kedung Baruk", "Medokan Ayu", "Penjaringan Sari", "Rungkut Kidul", "Wonorejo"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.08",
+      "nama": "Gubeng",
+      "wilayah": "Surabaya Timur",
+      "kelurahan": ["Airlangga", "Baratajaya", "Gubeng", "Kertajaya", "Mojo", "Pucang Sewu"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.09",
+      "nama": "Sukolilo",
+      "wilayah": "Surabaya Timur",
+      "kelurahan": ["Gebang Putih", "Keputih", "Klampis Ngasem", "Medokan Semampir", "Menur Pumpungan", "Nginden Jangkungan", "Semolowaru"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.10",
+      "nama": "Tambaksari",
+      "wilayah": "Surabaya Timur",
+      "kelurahan": ["Dukuh Setro", "Gading", "Kapas Madya", "Pacar Kembang", "Pacar Keling", "Ploso", "Rangkah", "Tambaksari"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.24",
+      "nama": "Tenggilis Mejoyo",
+      "wilayah": "Surabaya Timur",
+      "kelurahan": ["Kendangsari", "Kutisari", "Panjang Jiwo", "Tenggilis Mejoyo"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.25",
+      "nama": "Gunung Anyar",
+      "wilayah": "Surabaya Timur",
+      "kelurahan": ["Gunung Anyar", "Gunung Anyar Tambak", "Rungkut Menanggal", "Rungkut Tengah"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.26",
+      "nama": "Mulyorejo",
+      "wilayah": "Surabaya Timur",
+      "kelurahan": ["Dukuh Sutorejo", "Kalijudan", "Kalisari", "Kejawan Putih Tambak", "Manyar Sabrangan", "Mulyorejo"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.12",
+      "nama": "Pabean Cantikan",
+      "wilayah": "Surabaya Utara",
+      "kelurahan": ["Bongkaran", "Krembangan Utara", "Nyamplungan", "Perak Timur", "Perak Utara"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.15",
+      "nama": "Krembangan",
+      "wilayah": "Surabaya Utara",
+      "kelurahan": ["Dupak", "Kemayoran", "Krembangan Selatan", "Morokrembangan", "Perak Barat"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.16",
+      "nama": "Semampir",
+      "wilayah": "Surabaya Utara",
+      "kelurahan": ["Ampel", "Pegirian", "Sidotopo", "Ujung", "Wonokusumo"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.17",
+      "nama": "Kenjeran",
+      "wilayah": "Surabaya Utara",
+      "kelurahan": ["Bulak Banteng", "Tambak Wedi", "Tanah Kali Kedinding", "Sidotopo Wetan"],
+      "desa": []
+    },
+    {
+      "kode": "35.78.29",
+      "nama": "Bulak",
+      "wilayah": "Surabaya Utara",
+      "kelurahan": ["Bulak", "Kedung Cowek", "Kenjeran", "Sukolilo Baru"],
+      "desa": []
+    }
+  ]
+}
