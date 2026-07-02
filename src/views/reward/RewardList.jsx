@@ -16,7 +16,9 @@ import Table from 'react-bootstrap/Table';
 // project-imports
 import FinanceServices from '../../services/FinanceServices';
 import PromoServices from '../../services/PromoServices';
+import RoleServices from '../../services/RoleServices';
 import { useAlert } from '../../utils/alertContext';
+import { getCookies } from '../../utils/cookies';
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
 import LoaderData from '../../components/LoaderData';
@@ -31,6 +33,13 @@ const formatCurrency = (value) =>
   }).format(Number(value) || 0);
 
 const parseCurrencyInput = (value) => String(value || '').replace(/\D/g, '');
+
+const getTodayDate = () => {
+  const today = new Date();
+  const timezoneOffset = today.getTimezoneOffset() * 60000;
+
+  return new Date(today.getTime() - timezoneOffset).toISOString().slice(0, 10);
+};
 
 const formatDate = (value) => {
   if (!value) return '-';
@@ -49,6 +58,22 @@ const normalizeStatus = (value) => {
   if (['failed', 'failure', 'rejected', 'reject', 'error'].includes(status)) return 'rejected';
 
   return 'pending';
+};
+
+const normalizeApprovalText = (value) =>
+  String(value || '')
+    .trim()
+    .replace(/\s+/g, '_')
+    .replace(/-/g, '_')
+    .toUpperCase();
+
+const getWithdrawStatusVariant = (status) => {
+  const normalizedStatus = normalizeApprovalText(status);
+
+  if (['APPROVED', 'SUCCESS', 'COMPLETED', 'PAID'].includes(normalizedStatus)) return 'success';
+  if (['REJECTED', 'FAILED', 'CANCELED', 'CANCELLED'].includes(normalizedStatus)) return 'danger';
+
+  return 'warning';
 };
 
 const getResponseList = (response, keys = []) => {
@@ -108,22 +133,51 @@ const normalizeUploadResult = (item, index) => ({
   verified: normalizeVerified(item)
 });
 
+const normalizeWithdraw = (item, index) => ({
+  id: item.id || item.withdraw_id || item.claim_withdraw_id || index,
+  withdrawNo: item.withdraw_no || item.withdraw_code || item.reference_no || `WD-${item.id || index + 1}`,
+  submittedAt: item.created_at || item.submitted_at || item.withdraw_date || item.createdAt || '',
+  amount: Number(item.amount || item.nominal || item.withdraw_amount || item.total_amount || 0),
+  status: String(item.status || item.withdraw_status || 'pending').replace('_', ' ')
+});
+
+const normalizeTotalReward = (response) => {
+  const payload = response?.data?.data;
+  const source = Array.isArray(payload) ? payload[0] : payload?.data && !Array.isArray(payload.data) ? payload.data : payload;
+
+  return Number(source?.available_balance);
+};
+
 export default function RewardList() {
   const { showAlert } = useAlert();
+  const customerCode = getCookies('customerCode');
+  const roleId = getCookies('role');
+  const todayDate = getTodayDate();
   const fileInputRef = useRef(null);
   const [claims, setClaims] = useState([]);
+  const [withdraws, setWithdraws] = useState([]);
+  const [totalVerifiedReward, setTotalVerifiedReward] = useState(0);
+  const [permissionDetail, setPermissionDetail] = useState(null);
   const [loadingClaims, setLoadingClaims] = useState(false);
+  const [loadingWithdraws, setLoadingWithdraws] = useState(false);
   const [loadingDetailId, setLoadingDetailId] = useState(null);
   const [selectedClaim, setSelectedClaim] = useState(null);
+  const [selectedWithdraw, setSelectedWithdraw] = useState(null);
   const [showClaimModal, setShowClaimModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [showVerifyWithdrawModal, setShowVerifyWithdrawModal] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawTransferDate, setWithdrawTransferDate] = useState(todayDate);
   const [activeRewardTab, setActiveRewardTab] = useState('claim');
   const [sellOutFilter, setSellOutFilter] = useState('all');
   const [selectedSellOutIds, setSelectedSellOutIds] = useState([]);
   const [uploadingClaim, setUploadingClaim] = useState(false);
+  const [submittingWithdraw, setSubmittingWithdraw] = useState(false);
+  const [submittingVerifyWithdraw, setSubmittingVerifyWithdraw] = useState(false);
+  const [submittingVerify, setSubmittingVerify] = useState(false);
   const [downloadingTemplate, setDownloadingTemplate] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [withdrawCurrentPage, setWithdrawCurrentPage] = useState(1);
 
   const fetchClaimBatches = useCallback(async () => {
     setLoadingClaims(true);
@@ -146,9 +200,69 @@ export default function RewardList() {
     }
   }, [showAlert]);
 
+  const fetchWithdraws = useCallback(async () => {
+    setLoadingWithdraws(true);
+
+    try {
+      const response = await PromoServices.getListWithdraw({});
+
+      if (response?.data?.success === false) {
+        showAlert(response.data.message || 'Gagal mengambil list withdraw', 'danger');
+        return;
+      }
+
+      const rows = getResponseList(response, ['withdraws', 'items', 'rows']).map(normalizeWithdraw);
+      setWithdraws(rows);
+      setWithdrawCurrentPage(1);
+    } catch (error) {
+      showAlert(error?.message || 'Gagal mengambil list withdraw', 'danger');
+    } finally {
+      setLoadingWithdraws(false);
+    }
+  }, [showAlert]);
+
+  const fetchTotalReward = useCallback(async () => {
+    if (!customerCode) {
+      setTotalVerifiedReward(0);
+      return;
+    }
+
+    try {
+      const response = await PromoServices.getTotalReward({
+        customer_code: customerCode
+      });
+
+      if (response?.data?.success === false) {
+        showAlert(response.data.message || 'Gagal mengambil total reward', 'danger');
+        return;
+      }
+
+      setTotalVerifiedReward(normalizeTotalReward(response));
+    } catch (error) {
+      showAlert(error?.message || 'Gagal mengambil total reward', 'danger');
+    }
+  }, [customerCode, showAlert]);
+
+  const fetchPermissionDetail = useCallback(async () => {
+    if (!roleId) return;
+
+    try {
+      const response = await RoleServices.fetchRole(roleId);
+
+      if (response?.data?.success) {
+        setPermissionDetail(response.data.data);
+      }
+    } catch (error) {
+      showAlert(error?.message || 'Gagal mengambil detail role', 'danger');
+    }
+  }, [roleId, showAlert]);
+
   useEffect(() => {
     fetchClaimBatches();
-  }, [fetchClaimBatches]);
+    fetchWithdraws();
+    fetchTotalReward();
+    fetchPermissionDetail();
+  }, [fetchClaimBatches, fetchWithdraws, fetchTotalReward, fetchPermissionDetail]);
 
   const handleViewBatch = async (batch) => {
     setLoadingDetailId(batch.id);
@@ -171,7 +285,7 @@ export default function RewardList() {
 
       const detail = batchResponse.data;
       const normalizedBatchDetail = normalizeBatch(detail, batch.id);
-      const results = Array.isArray(resultResponse.data?.data) ? resultResponse.data.data.map(normalizeUploadResult) : [];
+      const results = Array.isArray(resultResponse.data?.data.data) ? resultResponse.data.data.data.map(normalizeUploadResult) : [];
       setSellOutFilter('all');
       setSelectedSellOutIds([]);
       setSelectedClaim({
@@ -191,30 +305,103 @@ export default function RewardList() {
     }
   };
 
-  const summary = useMemo(
-    () => ({
-      totalClaimed: claims.reduce((total, item) => total + Number(item.rewardAmount), 0),
+  const summary = useMemo(() => {
+    const totalClaimed = Number(totalVerifiedReward) || 0;
+    const totalWithdrawn = withdraws.reduce((total, item) => total + Number(item.amount), 0);
+
+    return {
+      totalClaimed,
+      totalWithdrawn,
       totalClaims: claims.length
-    }),
-    [claims]
+    };
+  }, [claims, totalVerifiedReward, withdraws]);
+
+  const permissionApprovalName = useMemo(() => normalizeApprovalText(permissionDetail?.role_menu?.approval?.name), [permissionDetail]);
+
+  const roleName = useMemo(
+    () => normalizeApprovalText(permissionDetail?.name || permissionDetail?.role?.name || permissionDetail?.role_name),
+    [permissionDetail]
   );
 
+  const isFinanceUser = permissionApprovalName === 'WAITING_FINANCE' || roleName.includes('FINANCE');
+
   const handleOpenWithdrawModal = () => {
-    setWithdrawAmount(String(summary.totalClaimed || 0));
+    setWithdrawAmount(String(summary.availableBalance || 0));
     setShowWithdrawModal(true);
+  };
+
+  const handleOpenVerifyWithdrawModal = (withdraw) => {
+    setSelectedWithdraw(withdraw);
+    setWithdrawTransferDate(todayDate);
+    setShowVerifyWithdrawModal(true);
+  };
+
+  const handleCloseVerifyWithdrawModal = () => {
+    if (submittingVerifyWithdraw) return;
+
+    setSelectedWithdraw(null);
+    setShowVerifyWithdrawModal(false);
+    setWithdrawTransferDate(todayDate);
   };
 
   const handleChangeWithdrawAmount = (event) => {
     setWithdrawAmount(parseCurrencyInput(event.target.value));
   };
 
-  const handleSubmitWithdraw = () => {
+  const handleSubmitWithdraw = async () => {
     const rawWithdrawAmount = Number(withdrawAmount) || 0;
 
-    if (!rawWithdrawAmount || rawWithdrawAmount > summary.totalClaimed) return;
+    if (!rawWithdrawAmount || rawWithdrawAmount > summary.availableBalance) return;
 
-    setShowWithdrawModal(false);
-    showAlert('Pengajuan withdraw berhasil disiapkan', 'success');
+    setSubmittingWithdraw(true);
+
+    try {
+      const response = await PromoServices.postWithdraw({
+        amount: rawWithdrawAmount
+      });
+
+      if (!response || response.status < 200 || response.status >= 300 || response?.data?.success === false) {
+        showAlert(response?.data?.message || 'Gagal menyimpan withdraw', 'danger');
+        return;
+      }
+
+      setShowWithdrawModal(false);
+      setWithdrawAmount('');
+      await fetchWithdraws();
+      await fetchTotalReward();
+      showAlert(response?.data?.message || 'Pengajuan withdraw berhasil disimpan', 'success');
+    } catch (error) {
+      showAlert(error?.message || 'Gagal menyimpan withdraw', 'danger');
+    } finally {
+      setSubmittingWithdraw(false);
+    }
+  };
+
+  const handleSubmitVerifyWithdraw = async () => {
+    if (!selectedWithdraw?.id || !withdrawTransferDate) return;
+
+    setSubmittingVerifyWithdraw(true);
+
+    try {
+      const response = await PromoServices.postVerifyWithdraw(selectedWithdraw.id, {
+        status: 'APPROVED',
+        transfer_date: withdrawTransferDate
+      });
+
+      if (!response || response.status < 200 || response.status >= 300 || response?.data?.success === false) {
+        showAlert(response?.data?.message || 'Gagal verifikasi withdraw', 'danger');
+        return;
+      }
+
+      handleCloseVerifyWithdrawModal();
+      await fetchWithdraws();
+      await fetchTotalReward();
+      showAlert(response?.data?.message || 'Withdraw berhasil diverifikasi', 'success');
+    } catch (error) {
+      showAlert(error?.message || 'Gagal verifikasi withdraw', 'danger');
+    } finally {
+      setSubmittingVerifyWithdraw(false);
+    }
   };
 
   const pageCount = Math.max(Math.ceil(claims.length / pageSize), 1);
@@ -223,6 +410,13 @@ export default function RewardList() {
 
     return claims.slice(startIndex, startIndex + pageSize);
   }, [claims, currentPage]);
+
+  const withdrawPageCount = Math.max(Math.ceil(withdraws.length / pageSize), 1);
+  const paginatedWithdraws = useMemo(() => {
+    const startIndex = (withdrawCurrentPage - 1) * pageSize;
+
+    return withdraws.slice(startIndex, startIndex + pageSize);
+  }, [withdraws, withdrawCurrentPage]);
 
   const filteredSellOut = useMemo(() => {
     const sellOut = selectedClaim?.sellOut || [];
@@ -247,36 +441,50 @@ export default function RewardList() {
     );
   };
 
-  const handleVerifySellOut = (transactionId) => {
+  const normalizeVerifyIds = (ids) => ids.map((id) => (Number.isNaN(Number(id)) ? id : Number(id)));
+
+  const updateVerifiedSellOut = (ids) => {
+    const normalizedIds = ids.map(String);
+
     setSelectedClaim((currentClaim) => {
       if (!currentClaim) return currentClaim;
 
       return {
         ...currentClaim,
         sellOut: currentClaim.sellOut.map((transaction) =>
-          String(transaction.id) === String(transactionId) ? { ...transaction, verified: true } : transaction
+          normalizedIds.includes(String(transaction.id)) ? { ...transaction, verified: true } : transaction
         )
       };
     });
-    setSelectedSellOutIds((currentIds) => currentIds.filter((itemId) => itemId !== String(transactionId)));
-    showAlert('Transaksi sell out berhasil diverifikasi', 'success');
+    setSelectedSellOutIds((currentIds) => currentIds.filter((itemId) => !normalizedIds.includes(String(itemId))));
   };
 
-  const handleBulkVerifySellOut = () => {
+  const handleBulkVerifySellOut = async () => {
     if (!selectedSellOutIds.length) return;
 
-    setSelectedClaim((currentClaim) => {
-      if (!currentClaim) return currentClaim;
+    const ids = [...selectedSellOutIds];
 
-      return {
-        ...currentClaim,
-        sellOut: currentClaim.sellOut.map((transaction) =>
-          selectedSellOutIds.includes(String(transaction.id)) ? { ...transaction, verified: true } : transaction
-        )
-      };
-    });
-    showAlert(`${selectedSellOutIds.length} transaksi sell out berhasil diverifikasi`, 'success');
-    setSelectedSellOutIds([]);
+    setSubmittingVerify(true);
+
+    try {
+      const response = await PromoServices.postVerify({
+        ids: normalizeVerifyIds(ids),
+        is_verified: true
+      });
+
+      if (!response || response.status < 200 || response.status >= 300 || response?.data?.success === false) {
+        showAlert(response?.data?.message || 'Gagal verifikasi transaksi sell out', 'danger');
+        return;
+      }
+
+      updateVerifiedSellOut(ids);
+      await fetchTotalReward();
+      showAlert(response?.data?.message || `${ids.length} transaksi sell out berhasil diverifikasi`, 'success');
+    } catch (error) {
+      showAlert(error?.message || 'Gagal verifikasi transaksi sell out', 'danger');
+    } finally {
+      setSubmittingVerify(false);
+    }
   };
 
   const handleDownloadTemplate = async () => {
@@ -349,7 +557,7 @@ export default function RewardList() {
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <div className="text-muted f-12">Total Reward Claimed</div>
+                      <div className="text-muted f-12">Total Balance</div>
                       <h4 className="mb-0">{formatCurrency(summary.totalClaimed)}</h4>
                     </div>
                     <span className="avtar avtar-s bg-light-success text-success">
@@ -413,7 +621,7 @@ export default function RewardList() {
                         bg={activeRewardTab === 'withdraw' ? 'light' : 'success'}
                         text={activeRewardTab === 'withdraw' ? 'success' : undefined}
                       >
-                        0
+                        {withdraws.length}
                       </Badge>
                     </Stack>
                   </Nav.Link>
@@ -536,29 +744,72 @@ export default function RewardList() {
                       <th style={{ minWidth: 190 }}>Tanggal Pengajuan</th>
                       <th style={{ minWidth: 190 }}>Nominal</th>
                       <th style={{ minWidth: 160 }}>Status</th>
-                      <th className="text-center" style={{ width: 90 }}>
-                        Detail
+                      <th className="text-center" style={{ width: 120 }}>
+                        Verifikasi
                       </th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td colSpan={5}>
-                        <div className="text-center py-5">
-                          <div className="avtar avtar-xl bg-light-success text-success mx-auto mb-3">
-                            <i className="ti ti-wallet f-24" />
+                    {loadingWithdraws ? (
+                      <tr>
+                        <td colSpan={5}>
+                          <LoaderData />
+                        </td>
+                      </tr>
+                    ) : paginatedWithdraws.length ? (
+                      paginatedWithdraws.map((withdraw) => (
+                        <tr key={withdraw.id}>
+                          <td className="fw-semibold">{withdraw.withdrawNo}</td>
+                          <td>{formatDate(withdraw.submittedAt)}</td>
+                          <td>{formatCurrency(withdraw.amount)}</td>
+                          <td>
+                            <Badge bg={getWithdrawStatusVariant(withdraw.status)}>{withdraw.status}</Badge>
+                          </td>
+                          <td className="text-center">
+                            {isFinanceUser ? (
+                              <Button
+                                className="rounded-circle"
+                                variant="outline-success"
+                                size="sm"
+                                onClick={() => handleOpenVerifyWithdrawModal(withdraw)}
+                                disabled={['APPROVED', 'SUCCESS', 'COMPLETED', 'PAID'].includes(normalizeApprovalText(withdraw.status))}
+                              >
+                                <i className="ti ti-check" />
+                              </Button>
+                            ) : (
+                              <span className="text-muted">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={5}>
+                          <div className="text-center py-5">
+                            <div className="avtar avtar-xl bg-light-success text-success mx-auto mb-3">
+                              <i className="ti ti-wallet f-24" />
+                            </div>
+                            <h5 className="mb-1">Belum ada transaksi withdraw</h5>
+                            <p className="text-muted mb-3">Tambahkan pengajuan withdraw reward dari tab ini.</p>
+                            <Button variant="primary" onClick={handleOpenWithdrawModal}>
+                              <i className="ti ti-plus me-1" />
+                              Tambah Withdraw
+                            </Button>
                           </div>
-                          <h5 className="mb-1">Belum ada transaksi withdraw</h5>
-                          <p className="text-muted mb-3">Tambahkan pengajuan withdraw reward dari tab ini.</p>
-                          <Button variant="primary" onClick={handleOpenWithdrawModal}>
-                            <i className="ti ti-plus me-1" />
-                            Tambah Withdraw
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </Table>
+
+                <TablePagination
+                  currentPage={withdrawCurrentPage}
+                  onPageChange={setWithdrawCurrentPage}
+                  pageCount={withdrawPageCount}
+                  pageSize={pageSize}
+                  total={withdraws.length}
+                  itemLabel="withdraw"
+                />
               </MainCard>
             </Tab.Pane>
           </Tab.Content>
@@ -704,10 +955,15 @@ export default function RewardList() {
                         <option value="verified">Verified</option>
                         <option value="not-verified">Not Verified</option>
                       </Form.Select>
-                      <Button variant="success" size="sm" onClick={handleBulkVerifySellOut} disabled={!selectedSellOutCount}>
+                      <Button
+                        variant="success"
+                        size="sm"
+                        onClick={handleBulkVerifySellOut}
+                        disabled={submittingVerify || !selectedSellOutCount}
+                      >
                         <i className="ti ti-checks me-1" />
-                        Verifikasi Terpilih
-                        {selectedSellOutCount ? ` (${selectedSellOutCount})` : ''}
+                        {submittingVerify ? 'Memverifikasi...' : 'Verifikasi Terpilih'}
+                        {!submittingVerify && selectedSellOutCount ? ` (${selectedSellOutCount})` : ''}
                       </Button>
                       <Badge bg={filteredSellOut.length ? 'primary' : 'secondary'} className="align-self-center">
                         {filteredSellOut.length} transaksi
@@ -769,7 +1025,7 @@ export default function RewardList() {
                                 className="m-0 d-inline-flex"
                                 checked={selectedSellOutIds.includes(String(transaction.id))}
                                 onChange={() => handleToggleSellOut(transaction.id)}
-                                disabled={transaction.verified}
+                                disabled={submittingVerify || transaction.verified}
                               />
                             </td>
                             <td className="text-center">
@@ -816,7 +1072,7 @@ export default function RewardList() {
                 <Stack direction="horizontal" gap={3} className="justify-content-between">
                   <div>
                     <div className="text-muted f-12">Total Saldo Tersedia</div>
-                    <h5 className="mb-0 text-success">{formatCurrency(summary.totalClaimed)}</h5>
+                    <h5 className="mb-0 text-success">{formatCurrency(summary.availableBalance)}</h5>
                   </div>
                   <span className="avtar avtar-s bg-light-success text-success">
                     <i className="ti ti-wallet" />
@@ -834,7 +1090,7 @@ export default function RewardList() {
                 onChange={handleChangeWithdrawAmount}
                 placeholder="Masukkan nominal withdraw"
               />
-              <Form.Text className="text-muted">Default nominal mengikuti total saldo yang tersedia.</Form.Text>
+              <Form.Text className="text-danger">Penarikan Dana akan dikenakan pajak.</Form.Text>
             </Form.Group>
           </Stack>
         </Modal.Body>
@@ -845,9 +1101,54 @@ export default function RewardList() {
           <Button
             variant="primary"
             onClick={handleSubmitWithdraw}
-            disabled={!Number(withdrawAmount) || Number(withdrawAmount) > summary.totalClaimed}
+            disabled={submittingWithdraw || !Number(withdrawAmount) || Number(withdrawAmount) > summary.availableBalance}
           >
-            Simpan Withdraw
+            {submittingWithdraw ? 'Menyimpan...' : 'Simpan Withdraw'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={showVerifyWithdrawModal} onHide={handleCloseVerifyWithdrawModal} centered>
+        <Modal.Header closeButton={!submittingVerifyWithdraw}>
+          <Modal.Title>Verifikasi Withdraw</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Stack gap={3}>
+            <Card className="border mb-0">
+              <Card.Body className="py-3">
+                <Stack direction="horizontal" gap={3} className="justify-content-between">
+                  <div>
+                    <div className="text-muted f-12">Nomor Withdraw</div>
+                    <h6 className="mb-1">{selectedWithdraw?.withdrawNo || '-'}</h6>
+                    <div className="text-muted f-12">{formatCurrency(selectedWithdraw?.amount)}</div>
+                  </div>
+                  <span className="avtar avtar-s bg-light-success text-success">
+                    <i className="ti ti-circle-check" />
+                  </span>
+                </Stack>
+              </Card.Body>
+            </Card>
+
+            <Form.Group>
+              <Form.Label>Tanggal Transfer</Form.Label>
+              <Form.Control
+                type="date"
+                value={withdrawTransferDate}
+                min={todayDate}
+                onChange={(event) => setWithdrawTransferDate(event.target.value)}
+                disabled={submittingVerifyWithdraw}
+              />
+              <Form.Text className="text-muted">Tanggal sebelum hari ini tidak dapat dipilih.</Form.Text>
+            </Form.Group>
+          </Stack>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" onClick={handleCloseVerifyWithdrawModal} disabled={submittingVerifyWithdraw}>
+            Tutup
+          </Button>
+          <Button variant="success" onClick={handleSubmitVerifyWithdraw} disabled={submittingVerifyWithdraw || !withdrawTransferDate}>
+            <i className={`${submittingVerifyWithdraw ? 'ti ti-loader-2' : 'ti ti-check'} me-1`} />
+            {submittingVerifyWithdraw ? 'Memverifikasi...' : 'Submit Verifikasi'}
           </Button>
         </Modal.Footer>
       </Modal>
