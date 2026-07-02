@@ -63,8 +63,8 @@ const statusVariant = {
 };
 
 const statusLabel = {
-  active: 'Aktif',
-  inactive: 'Tidak Aktif'
+  active: 'Active',
+  inactive: 'Inactive'
 };
 
 const formatDate = (value) => {
@@ -192,7 +192,7 @@ export default function MasterPromo() {
       setPromoPrograms(promos);
       setCurrentPage(1);
     } catch (error) {
-      showAlert(error?.message || 'Gagal ambil data program promo', 'danger');
+      showAlert(error?.message || 'Failed to fetch promo program data', 'danger');
     } finally {
       setLoadingData(false);
     }
@@ -216,7 +216,7 @@ export default function MasterPromo() {
 
       setListItem(options);
     } catch (error) {
-      showAlert(error?.message || 'Gagal ambil data item', 'danger');
+      showAlert(error?.message || 'Failed to fetch item data', 'danger');
     } finally {
       setLoadingOptions(false);
     }
@@ -259,20 +259,20 @@ export default function MasterPromo() {
       const response = await PromoServices.getProgramDetail(program.id);
 
       if (response?.data?.success === false) {
-        showAlert(response.data.message || 'Gagal mengambil detail program promo', 'danger');
+        showAlert(response.data.message || 'Failed to fetch promo program detail', 'danger');
         return;
       }
 
       const detail = normalizeDetailResponse(response);
 
       if (!detail) {
-        showAlert('Detail program promo tidak ditemukan', 'danger');
+        showAlert('Promo program detail not found', 'danger');
         return;
       }
 
       setSelectedPromo(normalizePromo(detail, program.id));
     } catch (error) {
-      showAlert(error?.message || 'Gagal mengambil detail program promo', 'danger');
+      showAlert(error?.message || 'Failed to fetch promo program detail', 'danger');
     } finally {
       setLoadingDetailId(null);
       setLoadingDetailType(null);
@@ -287,14 +287,14 @@ export default function MasterPromo() {
       const response = await PromoServices.getProgramDetail(program.id);
 
       if (response?.data?.success === false) {
-        showAlert(response.data.message || 'Gagal mengambil detail program promo', 'danger');
+        showAlert(response.data.message || 'Failed to fetch promo program detail', 'danger');
         return;
       }
 
       const detail = normalizeDetailResponse(response);
 
       if (!detail) {
-        showAlert('Detail program promo tidak ditemukan', 'danger');
+        showAlert('Promo program detail not found', 'danger');
         return;
       }
 
@@ -321,7 +321,7 @@ export default function MasterPromo() {
       setEditingPromoId(normalizedPromo.id || program.id);
       setShowAddModal(true);
     } catch (error) {
-      showAlert(error?.message || 'Gagal mengambil detail program promo', 'danger');
+      showAlert(error?.message || 'Failed to fetch promo program detail', 'danger');
     } finally {
       setLoadingDetailId(null);
       setLoadingDetailType(null);
@@ -339,14 +339,14 @@ export default function MasterPromo() {
       const response = await PromoServices.deleteProgram(program.id);
 
       if (response?.data?.success === false) {
-        showAlert(response.data.message || 'Gagal menghapus program promo', 'danger');
+        showAlert(response.data.message || 'Failed to delete promo program', 'danger');
         return;
       }
 
       await fetchPromos();
-      showAlert(response?.data?.message || 'Program promo berhasil dihapus', 'success');
+      showAlert(response?.data?.message || 'Promo program deleted successfully', 'success');
     } catch (error) {
-      showAlert(error?.message || 'Gagal menghapus program promo', 'danger');
+      showAlert(error?.message || 'Failed to delete promo program', 'danger');
     } finally {
       setDeletingPromoId(null);
     }
@@ -382,7 +382,7 @@ export default function MasterPromo() {
 
   const handleSubmitPromo = async () => {
     if (!promoInput.program_name || !promoInput.items.length || !promoInput.start_date || !promoInput.end_date) {
-      showAlert('Nama program, item, start date, dan end date wajib diisi', 'danger');
+      showAlert('Program name, item, start date, and end date are required', 'danger');
       return;
     }
 
@@ -396,7 +396,7 @@ export default function MasterPromo() {
     );
 
     if (hasInvalidRule) {
-      showAlert('Lengkapi semua detail aturan promo', 'danger');
+      showAlert('Complete all promo rule details', 'danger');
       return;
     }
     const items = promoInput.items.map((item) => item?.value);
@@ -426,15 +426,15 @@ export default function MasterPromo() {
         : await PromoServices.postPromo(payload);
 
       if (response?.data?.success === false) {
-        showAlert(response.data.message || `Gagal ${editingPromoId ? 'memperbarui' : 'menambahkan'} program promo`, 'danger');
+        showAlert(response.data.message || `Failed to ${editingPromoId ? 'update' : 'add'} promo program`, 'danger');
         return;
       }
 
       await fetchPromos();
       handleCloseModal();
-      showAlert(response?.data?.message || `Program promo berhasil ${editingPromoId ? 'diperbarui' : 'ditambahkan'}`, 'success');
+      showAlert(response?.data?.message || `Promo program ${editingPromoId ? 'updated' : 'added'} successfully`, 'success');
     } catch (error) {
-      showAlert(error?.message || `Gagal ${editingPromoId ? 'memperbarui' : 'menambahkan'} program promo`, 'danger');
+      showAlert(error?.message || `Failed to ${editingPromoId ? 'update' : 'add'} promo program`, 'danger');
     } finally {
       setSubmittingPromo(false);
     }
@@ -447,13 +447,13 @@ export default function MasterPromo() {
           title={
             <Stack gap={1}>
               <h5 className="mb-0">Program Promo</h5>
-              <span className="text-muted f-12">Kelola program promo berdasarkan item, periode, dan aturan quantity customer.</span>
+              <span className="text-muted f-12">Manage promo programs based on items, periods, and customer quantity rules.</span>
             </Stack>
           }
           secondary={
             <Button variant="primary" onClick={handleOpenAddModal} disabled={loadingData}>
               <i className="ti ti-plus me-1" />
-              Tambah Program
+              Add Program
             </Button>
           }
         >
@@ -478,7 +478,7 @@ export default function MasterPromo() {
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <div className="text-muted f-12">Program Aktif</div>
+                      <div className="text-muted f-12">Active Programs</div>
                       <h4 className="mb-0">{promoPrograms.filter((item) => item.status === 'active').length}</h4>
                     </div>
                     <span className="avtar avtar-s bg-light-success text-success">
@@ -510,14 +510,14 @@ export default function MasterPromo() {
           title={
             <Stack gap={1}>
               <h5 className="mb-0">List Program Promo</h5>
-              <span className="text-muted f-12">Daftar program promo yang sudah dibuat.</span>
+              <span className="text-muted f-12">List of created promo programs.</span>
             </Stack>
           }
         >
           <Table className="mb-0 align-middle" responsive hover>
             <thead>
               <tr>
-                <th style={{ minWidth: 220 }}>Nama Program</th>
+                <th style={{ minWidth: 220 }}>Program Name</th>
                 <th style={{ minWidth: 190 }}>Periode</th>
                 <th style={{ minWidth: 260 }}>Item</th>
                 <th style={{ minWidth: 240 }}>Keterangan</th>
@@ -566,8 +566,8 @@ export default function MasterPromo() {
                             className="rounded-circle"
                             variant="outline-primary"
                             size="sm"
-                            title="Lihat detail program"
-                            aria-label={`Lihat detail ${program.program_name || 'program promo'}`}
+                            title="View detail program"
+                            aria-label={`View detail ${program.program_name || 'program promo'}`}
                             onClick={() => handleViewPromo(program)}
                             disabled={loadingDetailId !== null || deletingPromoId !== null}
                           >
@@ -596,8 +596,8 @@ export default function MasterPromo() {
                             className="rounded-circle"
                             variant="outline-danger"
                             size="sm"
-                            title="Hapus program"
-                            aria-label={`Hapus ${program.program_name || 'program promo'}`}
+                            title="Delete program"
+                            aria-label={`Delete ${program.program_name || 'program promo'}`}
                             onClick={() => setPromoToDelete(program)}
                             disabled={loadingDetailId !== null || deletingPromoId !== null}
                           >
@@ -619,11 +619,11 @@ export default function MasterPromo() {
                       <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                         <i className="ti ti-discount-2 f-24" />
                       </div>
-                      <h5 className="mb-1">Belum ada program promo</h5>
-                      <p className="text-muted mb-3">Tambahkan program promo untuk mengatur harga dan diskon per customer type.</p>
+                      <h5 className="mb-1">No promo programs yet</h5>
+                      <p className="text-muted mb-3">Add promo programs to manage prices and discounts per customer type.</p>
                       <Button variant="primary" onClick={handleOpenAddModal}>
                         <i className="ti ti-plus me-1" />
-                        Tambah Program
+                        Add Program
                       </Button>
                     </div>
                   </td>
@@ -645,7 +645,7 @@ export default function MasterPromo() {
 
       <Modal show={showAddModal} onHide={handleCloseModal} size="xl" centered fullscreen="lg-down">
         <Modal.Header closeButton>
-          <Modal.Title>{editingPromoId ? 'Edit Program Promo' : 'Tambah Program Promo'}</Modal.Title>
+          <Modal.Title>{editingPromoId ? 'Edit Program Promo' : 'Add Program Promo'}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Stack gap={3}>
@@ -657,7 +657,7 @@ export default function MasterPromo() {
                     <Form.Control
                       value={promoInput.program_name}
                       onChange={(event) => handleChangePromoInput('program_name', event.target.value)}
-                      placeholder="Masukkan nama program promo"
+                      placeholder="Enter promo program name"
                     />
                   </Col>
                   <Col md={6}>
@@ -670,7 +670,7 @@ export default function MasterPromo() {
                       options={listItem}
                       menuPosition="fixed"
                       onChange={(value) => handleChangePromoInput('items', value || [])}
-                      placeholder="Pilih item promo"
+                      placeholder="Select item promo"
                     />
                   </Col>
                   <Col md={3}>
@@ -696,7 +696,7 @@ export default function MasterPromo() {
                       rows={3}
                       value={promoInput.description}
                       onChange={(event) => handleChangePromoInput('description', event.target.value)}
-                      placeholder="Tambahkan keterangan program"
+                      placeholder="Add program description"
                     />
                   </Col>
                 </Row>
@@ -707,12 +707,12 @@ export default function MasterPromo() {
               <Card.Header className="py-3">
                 <Stack direction="horizontal" gap={3} className="justify-content-between">
                   <div>
-                    <h6 className="mb-0">Detail Aturan Promo</h6>
-                    <small className="text-muted">Atur range quantity dan nilai harga promo per customer type.</small>
+                    <h6 className="mb-0">Promo Rule Details</h6>
+                    <small className="text-muted">Set quantity ranges and promo price values per customer type.</small>
                   </div>
                   <Button variant="light-primary" onClick={addRule}>
                     <i className="ti ti-plus me-1" />
-                    Tambah Baris
+                    Add Row
                   </Button>
                 </Stack>
               </Card.Header>
@@ -723,7 +723,7 @@ export default function MasterPromo() {
                       <th style={{ minWidth: 150 }}>Customer Type</th>
                       <th style={{ minWidth: 140 }}>Min Qty Kg</th>
                       <th style={{ minWidth: 140 }}>Max Qty Kg</th>
-                      <th style={{ minWidth: 180 }}>Harga Promo / Kg</th>
+                      <th style={{ minWidth: 180 }}>Price Promo / Kg</th>
                       <th style={{ minWidth: 160 }}>Diskon / Kg</th>
                       {/* <th style={{ minWidth: 160 }}>Estimasi Net</th> */}
                       <th className="text-center" style={{ width: 72 }}>
@@ -810,18 +810,18 @@ export default function MasterPromo() {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="light-secondary" onClick={handleCloseModal}>
-            Tutup
+            Close
           </Button>
           <Button variant="primary" onClick={handleSubmitPromo} disabled={submittingPromo}>
             <i className="ti ti-device-floppy me-1" />
-            {submittingPromo ? 'Menyimpan...' : editingPromoId ? 'Simpan Perubahan' : 'Simpan Program'}
+            {submittingPromo ? 'Saving...' : editingPromoId ? 'Save Changes' : 'Save Program'}
           </Button>
         </Modal.Footer>
       </Modal>
 
       <Modal show={Boolean(selectedPromo)} onHide={() => setSelectedPromo(null)} size="xl" centered fullscreen="lg-down">
         <Modal.Header closeButton>
-          <Modal.Title>Detail Program Promo</Modal.Title>
+          <Modal.Title>Promo Program Detail</Modal.Title>
         </Modal.Header>
         <Modal.Body className="bg-light">
           {selectedPromo ? (
@@ -832,7 +832,7 @@ export default function MasterPromo() {
                     <div>
                       <div className="text-muted f-12 mb-1">NAMA PROGRAM</div>
                       <h4 className="mb-1">{selectedPromo.program_name || '-'}</h4>
-                      <p className="text-muted mb-0">{selectedPromo.description || 'Tidak ada keterangan program.'}</p>
+                      <p className="text-muted mb-0">{selectedPromo.description || 'No program description.'}</p>
                     </div>
                     <Badge bg={statusVariant[selectedPromo.status] || 'secondary'} className="px-3 py-2">
                       {statusLabel[selectedPromo.status] || selectedPromo.status}
@@ -871,8 +871,8 @@ export default function MasterPromo() {
                     <thead>
                       <tr>
                         <th style={{ width: 70 }}>No.</th>
-                        <th style={{ minWidth: 160 }}>Kode Item</th>
-                        <th style={{ minWidth: 260 }}>Nama Item</th>
+                        <th style={{ minWidth: 160 }}>Item Code</th>
+                        <th style={{ minWidth: 260 }}>Item Name</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -898,7 +898,7 @@ export default function MasterPromo() {
 
               <Card className="border-0 shadow-sm mb-0">
                 <Card.Header className="bg-white py-3">
-                  <h6 className="mb-0">Aturan Promo</h6>
+                  <h6 className="mb-0">Promo Rules</h6>
                 </Card.Header>
                 <Card.Body className="p-0">
                   <Table className="mb-0 align-middle" responsive>
@@ -913,7 +913,7 @@ export default function MasterPromo() {
                           Max Qty
                         </th>
                         <th className="text-end" style={{ minWidth: 180 }}>
-                          Harga Promo / Kg
+                          Price Promo / Kg
                         </th>
                         <th className="text-end" style={{ minWidth: 160 }}>
                           Diskon / Kg
@@ -939,7 +939,7 @@ export default function MasterPromo() {
                       ) : (
                         <tr>
                           <td colSpan={6} className="text-center text-muted py-4">
-                            Aturan promo tidak tersedia
+                            Promo rules are not available
                           </td>
                         </tr>
                       )}
@@ -952,7 +952,7 @@ export default function MasterPromo() {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="light-secondary" onClick={() => setSelectedPromo(null)}>
-            Tutup
+            Close
           </Button>
         </Modal.Footer>
       </Modal>
@@ -961,8 +961,8 @@ export default function MasterPromo() {
         show={Boolean(promoToDelete)}
         onCancel={() => setPromoToDelete(null)}
         onSubmit={handleDeletePromo}
-        title="Hapus Program Promo"
-        subTitle={`Anda yakin ingin menghapus program ${promoToDelete?.program_name || 'ini'}?`}
+        title="Delete Promo Program"
+        subTitle={`Are you sure you want to delete ${promoToDelete?.program_name || 'this'} program?`}
       />
     </>
   );

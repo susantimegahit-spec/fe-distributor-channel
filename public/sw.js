@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sm-connect-v1';
+const CACHE_NAME = 'distributor-channel-v8';
 const APP_SHELL = [
   './',
   './manifest.webmanifest',
@@ -25,6 +25,43 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
+const putCache = async (request, response) => {
+  if (!response || response.status !== 200 || response.type !== 'basic') return;
+
+  const cache = await caches.open(CACHE_NAME);
+  await cache.put(request, response.clone());
+};
+
+const networkFirst = async (request, fallbackRequest = request) => {
+  try {
+    const response = await fetch(request);
+    await putCache(fallbackRequest, response);
+
+    return response;
+  } catch (error) {
+    const cachedResponse = await caches.match(fallbackRequest);
+    if (cachedResponse) return cachedResponse;
+
+    throw error;
+  }
+};
+
+const cacheFirst = async (request) => {
+  const cachedResponse = await caches.match(request);
+  if (cachedResponse) return cachedResponse;
+
+  const response = await fetch(request);
+  await putCache(request, response);
+
+  return response;
+};
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
 
@@ -35,28 +72,15 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put('./', responseClone));
-          return response;
-        })
-        .catch(() => caches.match(request).then((cachedResponse) => cachedResponse || caches.match('./')))
+      networkFirst(request, './').catch(() => caches.match(request).then((cachedResponse) => cachedResponse || caches.match('./')))
     );
     return;
   }
 
-  event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      if (cachedResponse) return cachedResponse;
+  if (['script', 'style', 'worker', 'document'].includes(request.destination)) {
+    event.respondWith(networkFirst(request));
+    return;
+  }
 
-      return fetch(request).then((response) => {
-        if (!response || response.status !== 200 || response.type !== 'basic') return response;
-
-        const responseClone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, responseClone));
-        return response;
-      });
-    })
-  );
+  event.respondWith(cacheFirst(request));
 });

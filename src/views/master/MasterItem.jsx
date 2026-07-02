@@ -36,7 +36,7 @@ export default function MasterItem() {
       setLoadingData(false);
     } else {
       setLoadingData(false);
-      showAlert('Gagal ambil data', 'danger');
+      showAlert('Failed to fetch data', 'danger');
     }
   };
 
@@ -52,10 +52,10 @@ export default function MasterItem() {
   };
 
   return (
-    <MainCard title="Data Distributor">
+    <MainCard title="Distributor Data">
       <Row style={{ marginBottom: 10 }}>
         <Col sm={6} md={6} lg={4} className="text-start">
-          <Form.Control value={keywords} onChange={(e) => setKeywords(e.target.value)} type="text" placeholder="Cari..." />
+          <Form.Control value={keywords} onChange={(e) => setKeywords(e.target.value)} type="text" placeholder="Search..." />
         </Col>
         <Col sm={6} md={6} lg={8} className="text-end">
           <Button onClick={() => syncData()} variant="success">
@@ -72,8 +72,8 @@ export default function MasterItem() {
               <>
                 <thead>
                   <tr>
-                    <th>Kode</th>
-                    <th>Nama</th>
+                    <th>Code</th>
+                    <th>Name</th>
                     <th>No. Telpon</th>
                     <th>Depo</th>
                     <th className="w-25">Alamat</th>
@@ -91,7 +91,7 @@ export default function MasterItem() {
                       <td className="w-25" style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>
                         {item.address}
                       </td>
-                      <td>{item.status === 1 ? <Badge bg="success">Aktif</Badge> : <Badge bg="secondary">Tidak Aktif</Badge>}</td>
+                      <td>{item.status === 1 ? <Badge bg="success">Active</Badge> : <Badge bg="secondary">Inactive</Badge>}</td>
                       <td className="text-center">
                         <Button className="rounded-circle" variant="outline-primary" size="sm" onClick={() => showEditMenu(item.id)}>
                           <i className="ti ti-eye" cursor="pointer" />

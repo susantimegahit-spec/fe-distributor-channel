@@ -1152,3 +1152,52 @@
     }
   }
 }
+
+.reward-tab-nav {
+  .reward-tab-link.nav-link {
+    min-height: 86px;
+    background: #fff;
+    color: #252b36;
+    border-color: #e6e9f2 !important;
+    box-shadow: 0 4px 14px rgba(23, 31, 79, 0.04);
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease,
+      transform 0.2s ease;
+
+    &:hover,
+    &:focus {
+      color: #252b36;
+      border-color: rgba(47, 50, 125, 0.28) !important;
+      box-shadow: 0 8px 22px rgba(23, 31, 79, 0.08);
+      transform: translateY(-1px);
+    }
+
+    &.active {
+      color: #fff;
+      border-color: transparent !important;
+      box-shadow: 0 10px 26px rgba(23, 31, 79, 0.16);
+    }
+
+    &.reward-tab-claim.active {
+      background: #2f327d;
+    }
+
+    &.reward-tab-withdraw.active {
+      background: #198754;
+    }
+  }
+
+  .badge {
+    min-width: 28px;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .reward-tab-nav {
+    .reward-tab-link.nav-link {
+      min-height: 76px;
+    }
+  }
+}

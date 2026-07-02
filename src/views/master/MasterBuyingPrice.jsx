@@ -10,8 +10,8 @@ export default function MasterBuyingPrice() {
   }, []);
 
   return (
-    <MainCard title="Master Harga Beli">
-      {/* <h5>List Daftar Buying Price</h5> */}
+    <MainCard title="Master Buying Price">
+      {/* <h5>Buying Price List</h5> */}
     </MainCard>
   );
 }

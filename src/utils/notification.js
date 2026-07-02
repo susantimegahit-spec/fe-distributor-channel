@@ -55,7 +55,7 @@ export const normalizeNotification = (notification) => {
 
   return {
     id: notification?.id,
-    title: notification?.title || data.title || data.subject || 'Notifikasi',
+    title: notification?.title || data.title || data.subject || 'Notifications',
     description: notification?.message || notification?.description || data.message || data.description || '-',
     url: notification?.url || data.url || data.link || '#',
     createdAt,

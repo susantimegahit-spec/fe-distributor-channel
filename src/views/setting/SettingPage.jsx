@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -17,6 +17,7 @@ import { getCookies } from '../../utils/cookies';
 import MasterSignature from '../master/MasterSignature';
 import PermissionList from './permission/PermissionList';
 import UserList from './users/UserList';
+import CronJobList from './cronjob/CronJobList';
 
 const adminRoleId = 5;
 const generalSettingKey = 'dc-general-settings';
@@ -25,8 +26,11 @@ const tabs = [
   { key: 'users', title: 'Setting User', icon: 'ti ti-users' },
   // { key: 'general', title: 'Setting', icon: 'ti ti-settings' },
   { key: 'permissions', title: 'Hak Akses', icon: 'ti ti-shield-lock' },
-  { key: 'signatures', title: 'Setting TTD User', icon: 'ti ti-signature' }
+  { key: 'signatures', title: 'Setting TTD User', icon: 'ti ti-signature' },
+  { key: 'cronjobs', title: 'Setting Cron Job', icon: 'ti ti-alarm', adminOnly: true }
 ];
+
+const canAccessTab = (tab, isAdministrator) => !tab.adminOnly || isAdministrator;
 
 const defaultGeneralSettings = {
   appName: 'sm-connect',
@@ -58,9 +62,9 @@ function GeneralSettings() {
     event.preventDefault();
     try {
       localStorage.setItem(generalSettingKey, JSON.stringify(settings));
-      showAlert('Setting berhasil disimpan', 'success');
+      showAlert('Settings saved successfully', 'success');
     } catch (error) {
-      showAlert('Gagal menyimpan setting', 'danger');
+      showAlert('Failed to save settings', 'danger');
     }
   };
 
@@ -69,7 +73,7 @@ function GeneralSettings() {
       title={
         <Stack gap={1}>
           <h5 className="mb-0">Setting</h5>
-          <span className="text-muted f-12">Kelola konfigurasi umum aplikasi distributor channel.</span>
+          <span className="text-muted f-12">Manage general distributor channel application configuration.</span>
         </Stack>
       }
     >
@@ -77,13 +81,13 @@ function GeneralSettings() {
         <Row className="g-3">
           <Col md={6}>
             <Form.Group controlId="settingAppName">
-              <Form.Label className="fw-semibold">Nama Aplikasi</Form.Label>
+              <Form.Label className="fw-semibold">Application Name</Form.Label>
               <Form.Control value={settings.appName} onChange={(event) => handleChange('appName', event.target.value)} />
             </Form.Group>
           </Col>
           <Col md={6}>
             <Form.Group controlId="settingEmail">
-              <Form.Label className="fw-semibold">Email Notifikasi</Form.Label>
+              <Form.Label className="fw-semibold">Email Notifications</Form.Label>
               <Form.Control
                 type="email"
                 placeholder="admin@example.com"
@@ -124,7 +128,7 @@ function GeneralSettings() {
             <Form.Check
               type="switch"
               id="settingEmailNotification"
-              label="Kirim notifikasi email"
+              label="Send email notification"
               checked={settings.emailNotification}
               onChange={(event) => handleChange('emailNotification', event.target.checked)}
             />
@@ -134,7 +138,7 @@ function GeneralSettings() {
         <Stack direction="horizontal" className="justify-content-end mt-4">
           <Button type="submit">
             <i className="ti ti-device-floppy me-1" />
-            Simpan Setting
+            Save Settings
           </Button>
         </Stack>
       </Form>
@@ -147,11 +151,26 @@ export default function SettingPage({ defaultTab = 'users' }) {
   const { activeTab } = useParams();
   const roleId = getCookies('role');
   const isAdministrator = Number(roleId) === adminRoleId;
-  const availableTabs = useMemo(() => (isAdministrator ? tabs : tabs.filter((tab) => tab.key === 'signatures')), [isAdministrator]);
-  const fallbackTab = isAdministrator ? defaultTab : 'signatures';
+  const availableTabs = useMemo(() => {
+    const roleTabs = isAdministrator ? tabs : tabs.filter((tab) => tab.key === 'signatures');
+
+    return roleTabs.filter((tab) => canAccessTab(tab, isAdministrator));
+  }, [isAdministrator]);
+  const canAccessDefaultTab = tabs.some((tab) => tab.key === defaultTab && canAccessTab(tab, isAdministrator));
+  const fallbackTab = isAdministrator && canAccessDefaultTab ? defaultTab : availableTabs[0]?.key || 'signatures';
   const selectedTab = availableTabs.some((tab) => tab.key === activeTab) ? activeTab : fallbackTab;
 
+  useEffect(() => {
+    if (activeTab && activeTab !== selectedTab) {
+      navigate(`/setting/${selectedTab}`, { replace: true });
+    }
+  }, [activeTab, navigate, selectedTab]);
+
   const currentContent = useMemo(() => {
+    if (!availableTabs.some((tab) => tab.key === selectedTab)) {
+      return <MasterSignature />;
+    }
+
     switch (selectedTab) {
       case 'general':
         return <GeneralSettings />;
@@ -159,11 +178,13 @@ export default function SettingPage({ defaultTab = 'users' }) {
         return <PermissionList />;
       case 'signatures':
         return <MasterSignature />;
+      case 'cronjobs':
+        return <CronJobList />;
       case 'users':
       default:
         return <UserList />;
     }
-  }, [selectedTab]);
+  }, [availableTabs, selectedTab]);
 
   const handleSelect = (tabKey) => {
     if (!tabKey) return;

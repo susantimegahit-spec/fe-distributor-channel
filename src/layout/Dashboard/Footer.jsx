@@ -15,7 +15,17 @@ export default function Footer() {
           {/* Footer Links */}
           <Col xs="auto" className="my-1">
             <Stack direction="horizontal" gap={3} className="justify-content-center">
-              <p className="m-0">sm-connect By PT. Susanti Megah</p>
+              <p className="m-0">SM-Connect By PT. Susanti Megah</p>
+
+              {/* <Nav.Link className="p-0" as="a" href="/">
+                Home
+              </Nav.Link>
+              <Nav.Link className="p-0" as="a" href="https://codedthemes.gitbook.io/datta" target="_blank" rel="noopener noreferrer">
+                Documentation
+              </Nav.Link>
+              <Nav.Link className="p-0" as="a" href="https://codedthemes.support-hub.io/" target="_blank" rel="noopener noreferrer">
+                Support
+              </Nav.Link> */}
             </Stack>
           </Col>
         </Row>

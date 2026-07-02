@@ -125,7 +125,7 @@ export default function Header() {
         setNotifications(items);
         setUnreadCount(getUnreadNotificationCount(payload, items));
       } catch (error) {
-        setNotificationError('Notifikasi belum bisa dimuat.');
+        setNotificationError('Notifications could not be loaded.');
       } finally {
         if (!silent) setLoadingNotifications(false);
       }
@@ -169,7 +169,7 @@ export default function Header() {
         return [notification, ...prevState];
       });
 
-      // Tampilkan popup notifikasi secara real-time
+      // Show the notification popup in real time
       showAlert(`${notification.title}: ${notification.description}`, 'info', 8000);
     },
     [playNotificationSound, showAlert]
@@ -236,7 +236,7 @@ export default function Header() {
     try {
       const response = await NotificationServices.sendTestNotification({
         title: 'Test Push Notification',
-        message: 'Notifikasi test berhasil dikirim dari backend.'
+        message: 'Test notification sent successfully from the backend.'
       });
       const payload = getNotificationResponsePayload(response);
 
@@ -246,9 +246,9 @@ export default function Header() {
         fetchNotifications(true);
       }
 
-      showAlert('Notifikasi test berhasil dikirim', 'success');
+      showAlert('Test notification sent successfully', 'success');
     } catch (error) {
-      showAlert(error?.response?.data?.message || error?.message || 'Gagal mengirim notifikasi test', 'danger');
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to send test notification', 'danger');
     } finally {
       setSendingTestNotification(false);
     }
@@ -289,7 +289,7 @@ export default function Header() {
     try {
       if (response.data.success) {
         setLoadingSubmit(false);
-        showAlert('Kata sandi berhasil di ubah', 'success');
+        showAlert('Password changed successfully', 'success');
         closeChangePassword();
       } else {
         setLoadingSubmit(false);
@@ -422,16 +422,16 @@ export default function Header() {
               <Dropdown.Menu className="dropdown-notification pc-h-dropdown">
                 <Dropdown.Header className="d-flex align-items-center justify-content-between">
                   <div>
-                    <h5 className="m-0">Notifikasi</h5>
-                    <small className="text-muted">{unreadCount > 0 ? `${unreadCount} belum dibaca` : 'Semua sudah dibaca'}</small>
+                    <h5 className="m-0">Notifications</h5>
+                    <small className="text-muted">{unreadCount > 0 ? `${unreadCount} unread` : 'All read'}</small>
                   </div>
                   <Button variant="link" size="sm" className="p-0 text-primary" disabled={!unreadCount} onClick={handleMarkAllAsRead}>
-                    Tandai dibaca
+                    Mark as read
                   </Button>
                 </Dropdown.Header>
                 <SimpleBarScroll style={{ maxHeight: 'calc(100vh - 215px)' }}>
                   <div className="dropdown-body text-wrap position-relative">
-                    {loadingNotifications && <div className="sm-notification-state">Memuat notifikasi...</div>}
+                    {loadingNotifications && <div className="sm-notification-state">Loading notifications...</div>}
 
                     {!loadingNotifications && notificationError && (
                       <div className="sm-notification-state text-danger">{notificationError}</div>
@@ -442,8 +442,8 @@ export default function Header() {
                         <span className="sm-notification-empty-icon">
                           <i className="ph ph-bell-simple" />
                         </span>
-                        <strong>Belum ada notifikasi</strong>
-                        <small>Notifikasi dari backend akan tampil di sini.</small>
+                        <strong>No notifications yet</strong>
+                        <small>Notifications from the backend will appear here.</small>
                       </div>
                     )}
 
@@ -474,13 +474,13 @@ export default function Header() {
 
                 <div className="text-center py-2 sm-notification-footer">
                   <Button as={Link} to="/notifications" variant="link" size="sm">
-                    Lihat semua
+                    View all
                   </Button>
                   <Button variant="link" size="sm" onClick={() => fetchNotifications(true)}>
                     Refresh
                   </Button>
                   <Button variant="link" size="sm" disabled={sendingTestNotification} onClick={handleSendTestNotification}>
-                    {sendingTestNotification ? 'Mengirim...' : 'Test'}
+                    {sendingTestNotification ? 'Sending...' : 'Test'}
                   </Button>
                 </div>
               </Dropdown.Menu>
@@ -496,7 +496,7 @@ export default function Header() {
                 <span className="sm-account-avatar">{userInitial}</span>
                 <span className="sm-account-toggle-text">
                   <span>{userName || 'User'}</span>
-                  <small>Akun</small>
+                  <small>Account</small>
                 </span>
                 <i className="ti ti-chevron-down" />
               </Dropdown.Toggle>
@@ -515,7 +515,7 @@ export default function Header() {
                 <div className="dropdown-body sm-account-body">
                   <div className="sm-account-meta">
                     <div>
-                      <span>Kode Customer</span>
+                      <span>Customer Code</span>
                       <strong>{customerCode || '-'}</strong>
                     </div>
                     <div>
@@ -543,7 +543,7 @@ export default function Header() {
 
                       <span>
                         <strong>Setting</strong>
-                        <small>User, hak akses, dan TTD</small>
+                        <small>Users, access rights, and signatures</small>
                       </span>
                     </Dropdown.Item>
                     {/* )} */}
@@ -552,8 +552,8 @@ export default function Header() {
                         <i className="ph ph-lock-key" />
                       </span>
                       <span>
-                        <strong>Ubah Kata Sandi</strong>
-                        <small>Perbarui keamanan akun</small>
+                        <strong>Change Password</strong>
+                        <small>Update account security</small>
                       </span>
                     </Dropdown.Item>
                     <div className="d-grid mt-3">
@@ -571,7 +571,7 @@ export default function Header() {
       </div>
       <Modal show={showChangePass} size="lg" centered onHide={closeChangePassword}>
         <Modal.Header closeButton>
-          <Modal.Title>Ubah Kata Sandi</Modal.Title>
+          <Modal.Title>Change Password</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Row className="g-3">
@@ -581,22 +581,22 @@ export default function Header() {
                   <div className="avtar avtar-xl bg-light-primary text-primary mb-3">
                     <i className="ph ph-lock-key f-24" />
                   </div>
-                  <h6 className="mb-1">Keamanan Akun</h6>
-                  <p className="text-muted mb-0">Gunakan kata sandi baru yang berbeda dan mudah Anda ingat.</p>
+                  <h6 className="mb-1">Account Security</h6>
+                  <p className="text-muted mb-0">Use a new password that is different and easy for you to remember.</p>
                 </Card.Body>
               </Card>
             </Col>
             <Col lg={8}>
               <Stack gap={3}>
                 <div>
-                  <Form.Label className="f-12 text-muted">Kata Sandi Lama</Form.Label>
+                  <Form.Label className="f-12 text-muted">Old Password</Form.Label>
                   <InputGroup className="sm-input-group">
                     <InputGroup.Text>
                       <i className="ti ti-lock" />
                     </InputGroup.Text>
                     <Form.Control
                       type={showOldPassword ? 'text' : 'password'}
-                      placeholder="Masukkan kata sandi lama"
+                      placeholder="Enter old password"
                       value={oldPass}
                       onChange={(e) => setOldPass(e.target.value)}
                     />
@@ -606,14 +606,14 @@ export default function Header() {
                   </InputGroup>
                 </div>
                 <div>
-                  <Form.Label className="f-12 text-muted">Kata Sandi Baru</Form.Label>
+                  <Form.Label className="f-12 text-muted">New Password</Form.Label>
                   <InputGroup className="sm-input-group">
                     <InputGroup.Text>
                       <i className="ti ti-key" />
                     </InputGroup.Text>
                     <Form.Control
                       type={showNewPassword ? 'text' : 'password'}
-                      placeholder="Masukkan kata sandi baru"
+                      placeholder="Enter new password"
                       value={newPass}
                       onChange={(e) => setNewPass(e.target.value)}
                     />
@@ -623,14 +623,14 @@ export default function Header() {
                   </InputGroup>
                 </div>
                 <div>
-                  <Form.Label className="f-12 text-muted">Konfirmasi Kata Sandi</Form.Label>
+                  <Form.Label className="f-12 text-muted">Confirm Password</Form.Label>
                   <InputGroup className="sm-input-group">
                     <InputGroup.Text>
                       <i className="ti ti-checkup-list" />
                     </InputGroup.Text>
                     <Form.Control
                       type={showConfirmPassword ? 'text' : 'password'}
-                      placeholder="Ulangi kata sandi baru"
+                      placeholder="Repeat new password"
                       value={confirmPass}
                       onChange={(e) => setConfirmPass(e.target.value)}
                       isInvalid={Boolean(confirmPass && newPass !== confirmPass)}
@@ -638,7 +638,7 @@ export default function Header() {
                     <Button type="button" variant="light" className="sm-password-toggle" onClick={toggleConfirmPass}>
                       {showConfirmPassword ? <i className="ti ti-eye" /> : <i className="ti ti-eye-off" />}
                     </Button>
-                    <Form.Control.Feedback type="invalid">Konfirmasi kata sandi belum sama.</Form.Control.Feedback>
+                    <Form.Control.Feedback type="invalid">Password confirmation does not match.</Form.Control.Feedback>
                   </InputGroup>
                 </div>
               </Stack>
@@ -647,10 +647,10 @@ export default function Header() {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="light-secondary" onClick={closeChangePassword}>
-            Batal
+            Cancel
           </Button>
           <Button variant="primary" onClick={() => handleChangePassword()} disabled={loadingSubmit || !canSubmitPassword}>
-            {loadingSubmit ? <LoaderButton /> : 'Simpan'}
+            {loadingSubmit ? <LoaderButton /> : 'Save'}
           </Button>
         </Modal.Footer>
       </Modal>

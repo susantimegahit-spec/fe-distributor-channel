@@ -51,7 +51,7 @@ export default function MasterDistributor() {
       setLoadingData(false);
     } else {
       setLoadingData(false);
-      showAlert('Gagal ambil data', 'danger');
+      showAlert('Failed to fetch data', 'danger');
     }
   };
 
@@ -59,7 +59,7 @@ export default function MasterDistributor() {
     setLoadingData(true);
     const response = await DistributorServices.syncDistributor();
     if (response.data.success) {
-      showAlert('Data distributor berhasil disinkronkan', 'success');
+      showAlert('Distributor data synced successfully', 'success');
       fetchData();
     } else {
       showAlert(response.data.message, 'danger');
@@ -107,8 +107,8 @@ export default function MasterDistributor() {
         <MainCard
           title={
             <Stack gap={1}>
-              <h5 className="mb-0">Data Distributor</h5>
-              <span className="text-muted f-12">Kelola dan sinkronkan data distributor dari sistem pusat.</span>
+              <h5 className="mb-0">Distributor Data</h5>
+              <span className="text-muted f-12">Manage and sync distributor data from the central system.</span>
             </Stack>
           }
           secondary={
@@ -139,7 +139,7 @@ export default function MasterDistributor() {
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <div className="text-muted f-12">Aktif</div>
+                      <div className="text-muted f-12">Active</div>
                       <h4 className="mb-0">{summary.active}</h4>
                     </div>
                     <span className="avtar avtar-s bg-light-success text-success">
@@ -154,7 +154,7 @@ export default function MasterDistributor() {
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <div className="text-muted f-12">Tidak Aktif</div>
+                      <div className="text-muted f-12">Inactive</div>
                       <h4 className="mb-0">{summary.inactive}</h4>
                     </div>
                     <span className="avtar avtar-s bg-light-secondary text-secondary">
@@ -185,7 +185,7 @@ export default function MasterDistributor() {
         <MainCard>
           <Row className="g-2 align-items-end mb-3">
             <Col lg={5} md={6}>
-              <Form.Label className="f-12 text-muted">Cari Distributor</Form.Label>
+              <Form.Label className="f-12 text-muted">Search Distributor</Form.Label>
               <InputGroup>
                 <InputGroup.Text>
                   <i className="ti ti-search" />
@@ -194,16 +194,16 @@ export default function MasterDistributor() {
                   value={keywords}
                   onChange={(event) => setKeywords(event.target.value)}
                   type="text"
-                  placeholder="Kode, nama, telepon, atau depo"
+                  placeholder="Code, name, phone, or depo"
                 />
               </InputGroup>
             </Col>
             {/* <Col lg={3} md={6}>
               <Form.Label className="f-12 text-muted">Status</Form.Label>
               <Form.Select value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value)}>
-                <option value="">Semua Status</option>
-                <option value="1">Aktif</option>
-                <option value="0">Tidak Aktif</option>
+                <option value="">All Statuses</option>
+                <option value="1">Active</option>
+                <option value="0">Inactive</option>
               </Form.Select>
             </Col> */}
             <Col lg={2} md={6}>
@@ -213,9 +213,9 @@ export default function MasterDistributor() {
               </Button>
             </Col>
             <Col lg={5} md={6} className="text-lg-end">
-              <span className="text-muted f-12">Menampilkan</span>
+              <span className="text-muted f-12">Showing</span>
               <div className="fw-semibold">
-                {filteredData.length} dari {dataSource.length}
+                {filteredData.length} of {dataSource.length}
               </div>
             </Col>
           </Row>
@@ -233,11 +233,11 @@ export default function MasterDistributor() {
               <>
                 <thead>
                   <tr>
-                    <th style={{ minWidth: 130 }}>Kode</th>
-                    <th style={{ minWidth: 220 }}>Nama Distributor</th>
-                    <th style={{ minWidth: 150 }}>No. Telepon</th>
+                    <th style={{ minWidth: 130 }}>Code</th>
+                    <th style={{ minWidth: 220 }}>Distributor Name</th>
+                    <th style={{ minWidth: 150 }}>Phone</th>
                     <th style={{ minWidth: 140 }}>Depo</th>
-                    <th style={{ minWidth: 320 }}>Alamat</th>
+                    <th style={{ minWidth: 320 }}>Address</th>
                     <th style={{ minWidth: 120 }}>Status</th>
                     <th className="text-center" style={{ width: 80 }}>
                       #
@@ -253,7 +253,7 @@ export default function MasterDistributor() {
                         <td>{item.phone || '-'}</td>
                         <td>{item.depo || '-'}</td>
                         <td style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>{item.address || '-'}</td>
-                        <td>{item.status === 1 ? <Badge bg="success">Aktif</Badge> : <Badge bg="secondary">Tidak Aktif</Badge>}</td>
+                        <td>{item.status === 1 ? <Badge bg="success">Active</Badge> : <Badge bg="secondary">Inactive</Badge>}</td>
                         <td className="text-center">
                           <Button
                             className="rounded-circle"
@@ -273,10 +273,10 @@ export default function MasterDistributor() {
                           <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                             <i className="ti ti-building-store f-24" />
                           </div>
-                          <h5 className="mb-1">{hasActiveFilter ? 'Distributor tidak ditemukan' : 'Belum ada data distributor'}</h5>
+                          <h5 className="mb-1">{hasActiveFilter ? 'Distributor not found' : 'No distributor data yet'}</h5>
                           <p className="text-muted mb-3">
                             {hasActiveFilter
-                              ? 'Ubah kata kunci atau status untuk melihat data lain.'
+                              ? 'Change the keyword or status to view other data.'
                               : 'Gunakan synchronize untuk mengambil data distributor terbaru.'}
                           </p>
                           {hasActiveFilter ? (
@@ -311,23 +311,23 @@ export default function MasterDistributor() {
 
       <Modal show={Boolean(selectedDistributor)} onHide={() => setSelectedDistributor(null)} centered size="lg">
         <Modal.Header closeButton>
-          <Modal.Title>Detail Distributor</Modal.Title>
+          <Modal.Title>Distributor Detail</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           {selectedDistributor && (
             <Row className="g-3">
               <Col md={6}>
-                <Form.Label className="f-12 text-muted">Kode Customer</Form.Label>
+                <Form.Label className="f-12 text-muted">Customer Code</Form.Label>
                 <div className="fw-semibold">{selectedDistributor.code_customer || '-'}</div>
               </Col>
               <Col md={6}>
                 <Form.Label className="f-12 text-muted">Status</Form.Label>
                 <div>
-                  {selectedDistributor.status === 1 ? <Badge bg="success">Aktif</Badge> : <Badge bg="secondary">Tidak Aktif</Badge>}
+                  {selectedDistributor.status === 1 ? <Badge bg="success">Active</Badge> : <Badge bg="secondary">Inactive</Badge>}
                 </div>
               </Col>
               <Col md={6}>
-                <Form.Label className="f-12 text-muted">Nama Distributor</Form.Label>
+                <Form.Label className="f-12 text-muted">Distributor Name</Form.Label>
                 <div>{selectedDistributor.name || '-'}</div>
               </Col>
               <Col md={6}>
@@ -347,7 +347,7 @@ export default function MasterDistributor() {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="light-secondary" onClick={() => setSelectedDistributor(null)}>
-            Tutup
+            Close
           </Button>
         </Modal.Footer>
       </Modal>

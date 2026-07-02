@@ -16,7 +16,7 @@ export default function RewardAdd() {
         <Row>
           <Col className="text-end">
             <Button variant="primary">
-              Simpan
+              Save
             </Button>
           </Col>
         </Row>

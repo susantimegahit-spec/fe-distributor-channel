@@ -36,6 +36,30 @@ class PromoServices {
   getClaimBatches() {
     return DataService.get('/claims/batches');
   }
+
+  getListWithdraw(payload = {}) {
+    return DataService.get('/claims/withdraws', payload);
+  }
+
+  getTotalReward(payload = {}) {
+    return DataService.get('/claims/reward-summary', payload);
+  }
+
+  postWithdraw(payload) {
+    return DataService.post('/claims/withdraws', payload);
+  }
+
+  postWithdraws(payload) {
+    return this.postWithdraw(payload);
+  }
+
+  postVerify(payload) {
+    return DataService.post('/claims/results/verify', payload);
+  }
+
+  postVerifyWithdraw(id, payload) {
+    return DataService.post(`/claims/withdraws/${id}/status`, payload);
+  }
 }
 
 export default new PromoServices();

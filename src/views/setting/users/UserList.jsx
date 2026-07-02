@@ -173,7 +173,7 @@ export default function UserList() {
     if (response.data.success) {
       setDataSource(response.data.data);
     } else {
-      showAlert('Gagal ambil data user', 'danger');
+      showAlert('Failed to fetch user data', 'danger');
     }
     setLoadingData(false);
   };
@@ -330,11 +330,11 @@ export default function UserList() {
 
     const response = await UserServices.postCreateUser(payload);
     if (response.data.success) {
-      showAlert('User berhasil ditambahkan', 'success');
+      showAlert('User added successfully', 'success');
       resetForm();
       fetchData();
     } else {
-      showAlert(response.data.message || 'Gagal menambahkan user', 'danger');
+      showAlert(response.data.message || 'Failed to add user', 'danger');
     }
     setLoadingSubmit(false);
   };
@@ -356,11 +356,11 @@ export default function UserList() {
     }
     const response = await UserServices.putEditUser(selectedUserId, payload);
     if (response.data.success) {
-      showAlert('User berhasil diubah', 'success');
+      showAlert('User updated successfully', 'success');
       resetForm();
       fetchData();
     } else {
-      showAlert(response.data.message || 'Gagal mengubah user', 'danger');
+      showAlert(response.data.message || 'Failed to update user', 'danger');
     }
     setLoadingSubmit(false);
   };
@@ -373,12 +373,12 @@ export default function UserList() {
   const handleDelete = async () => {
     const response = await UserServices.deleteUser(selectedUserId);
     if (response.data.success) {
-      showAlert('User berhasil dihapus', 'success');
+      showAlert('User deleted successfully', 'success');
       setSelectedUserId(null);
       setShowConfirm(false);
       fetchData();
     } else {
-      showAlert(response.data.message || 'Gagal menghapus user', 'danger');
+      showAlert(response.data.message || 'Failed to delete user', 'danger');
     }
   };
 
@@ -392,14 +392,14 @@ export default function UserList() {
         <MainCard
           title={
             <Stack gap={1}>
-              <h5 className="mb-0">Daftar User</h5>
-              <span className="text-muted f-12">Kelola pengguna, role, dan status akun distributor channel.</span>
+              <h5 className="mb-0">User List</h5>
+              <span className="text-muted f-12">Manage users, roles, and distributor channel account status.</span>
             </Stack>
           }
           secondary={
             <Button onClick={openCreateModal} variant="primary">
               <i className="ti ti-user-plus me-1" />
-              Tambah User
+              Add User
             </Button>
           }
         >
@@ -424,7 +424,7 @@ export default function UserList() {
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <div className="text-muted f-12">Aktif</div>
+                      <div className="text-muted f-12">Active</div>
                       <h4 className="mb-0">{summary.active}</h4>
                     </div>
                     <span className="avtar avtar-s bg-light-success text-success">
@@ -439,7 +439,7 @@ export default function UserList() {
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <div className="text-muted f-12">Tidak Aktif</div>
+                      <div className="text-muted f-12">Inactive</div>
                       <h4 className="mb-0">{summary.inactive}</h4>
                     </div>
                     <span className="avtar avtar-s bg-light-secondary text-secondary">
@@ -470,7 +470,7 @@ export default function UserList() {
         <MainCard>
           <Row className="g-2 align-items-end mb-3">
             <Col lg={4} md={6}>
-              <Form.Label className="f-12 text-muted">Cari User</Form.Label>
+              <Form.Label className="f-12 text-muted">Search User</Form.Label>
               <InputGroup>
                 <InputGroup.Text>
                   <i className="ti ti-search" />
@@ -478,14 +478,14 @@ export default function UserList() {
                 <Form.Control
                   value={keywords}
                   onChange={(event) => setKeywords(event.target.value)}
-                  placeholder="Nama, email, role, distributor"
+                  placeholder="Name, email, role, distributor"
                 />
               </InputGroup>
             </Col>
             <Col lg={3} md={6}>
               <Form.Label className="f-12 text-muted">Role</Form.Label>
               <Form.Select value={selectedRole} onChange={(event) => setSelectedRole(event.target.value)}>
-                <option value="">Semua Role</option>
+                <option value="">All Roles</option>
                 {listRole.map((role) => (
                   <option key={role.id} value={role.id}>
                     {role.name}
@@ -496,9 +496,9 @@ export default function UserList() {
             <Col lg={2} md={6}>
               <Form.Label className="f-12 text-muted">Status</Form.Label>
               <Form.Select value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value)}>
-                <option value="">Semua</option>
-                <option value="true">Aktif</option>
-                <option value="false">Tidak Aktif</option>
+                <option value="">All</option>
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
               </Form.Select>
             </Col>
             <Col lg={1} md={6}>
@@ -560,7 +560,7 @@ export default function UserList() {
                             {item.role?.name || '-'}
                           </Badge>
                         </td>
-                        <td>{item.is_active ? <Badge bg="success">Aktif</Badge> : <Badge bg="secondary">Tidak Aktif</Badge>}</td>
+                        <td>{item.is_active ? <Badge bg="success">Active</Badge> : <Badge bg="secondary">Inactive</Badge>}</td>
                         <td className="text-center">
                           <Stack direction="horizontal" gap={2} className="justify-content-center">
                             <Button className="rounded-circle" variant="outline-primary" size="sm" onClick={() => openViewModal(item)}>
@@ -588,9 +588,9 @@ export default function UserList() {
                           <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                             <i className="ti ti-users f-24" />
                           </div>
-                          <h5 className="mb-1">{hasActiveFilter ? 'User tidak ditemukan' : 'Belum ada data user'}</h5>
+                          <h5 className="mb-1">{hasActiveFilter ? 'User not found' : 'No user data yet'}</h5>
                           <p className="text-muted mb-3">
-                            {hasActiveFilter ? 'Ubah filter untuk melihat user lain.' : 'Tambahkan user untuk memberi akses ke aplikasi.'}
+                            {hasActiveFilter ? 'Change the filter to view other users.' : 'Add users to grant application access.'}
                           </p>
                           {hasActiveFilter ? (
                             <Button variant="light-primary" onClick={resetFilters}>
@@ -599,7 +599,7 @@ export default function UserList() {
                           ) : (
                             <Button variant="primary" onClick={openCreateModal}>
                               <i className="ti ti-user-plus me-1" />
-                              Tambah User
+                              Add User
                             </Button>
                           )}
                         </div>
@@ -623,7 +623,7 @@ export default function UserList() {
 
       <Modal show={showMenu} onHide={resetForm} size="lg" centered>
         <Modal.Header closeButton>
-          <Modal.Title>{formMode === 'edit' ? 'Edit User' : 'Tambah User'}</Modal.Title>
+          <Modal.Title>{formMode === 'edit' ? 'Edit User' : 'Add User'}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Row className="g-3">
@@ -633,18 +633,18 @@ export default function UserList() {
                   <div className="avtar avtar-xl bg-light-primary text-primary mb-3">
                     <i className="ti ti-user-plus f-24" />
                   </div>
-                  <h6 className="mb-1">{formMode === 'edit' ? 'Perbarui Akun' : 'Akun Baru'}</h6>
-                  <p className="text-muted mb-0">Lengkapi identitas pengguna, role, dan kode distributor yang terhubung.</p>
+                  <h6 className="mb-1">{formMode === 'edit' ? 'Perbarui Account' : 'Account Baru'}</h6>
+                  <p className="text-muted mb-0">Complete the user identity, role, and linked distributor code.</p>
                 </Card.Body>
               </Card>
             </Col>
             <Col lg={8}>
               <Row className="g-3">
                 <Col md={6}>
-                  <Form.Label className="f-12 text-muted">Nama</Form.Label>
+                  <Form.Label className="f-12 text-muted">Name</Form.Label>
                   <Form.Control
                     type="text"
-                    placeholder="Nama lengkap"
+                    placeholder="Full name"
                     value={input.name}
                     onChange={(event) => handleSetState('name', event)}
                   />
@@ -670,7 +670,7 @@ export default function UserList() {
                 <Col md={6}>
                   <Form.Label className="f-12 text-muted">Hak Akses</Form.Label>
                   <Form.Select value={input.roleId} onChange={(event) => handleSetState('roleId', event)}>
-                    <option value="">Pilih Hak Akses</option>
+                    <option value="">Select Access Rights</option>
                     {listRole.map((role) => (
                       <option key={role.id} value={role.id}>
                         {role.name}
@@ -686,7 +686,7 @@ export default function UserList() {
                     options={distributorOptions}
                     menuPosition="fixed"
                     onChange={handleSelectDistributor}
-                    placeholder="Pilih distributor"
+                    placeholder="Select distributor"
                     isClearable
                     isMulti
                     closeMenuOnSelect={false}
@@ -716,17 +716,17 @@ export default function UserList() {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="light-secondary" onClick={resetForm}>
-            Batal
+            Cancel
           </Button>
           <Button variant="primary" onClick={formMode === 'edit' ? handleEdit : handleCreate} disabled={loadingSubmit || !formIsValid}>
-            {loadingSubmit ? <LoaderButton /> : 'Simpan'}
+            {loadingSubmit ? <LoaderButton /> : 'Save'}
           </Button>
         </Modal.Footer>
       </Modal>
 
       <Modal show={showView} onHide={resetForm} size="lg" centered>
         <Modal.Header closeButton>
-          <Modal.Title>Detail User</Modal.Title>
+          <Modal.Title>User Detail</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           {selectedUser && (
@@ -757,12 +757,12 @@ export default function UserList() {
                     <div className="fw-semibold">{formatDistributorCodes(selectedUser) || '-'}</div>
                   </Col>
                   <Col md={6}>
-                    <Form.Label className="f-12 text-muted">Nama Distributor</Form.Label>
+                    <Form.Label className="f-12 text-muted">Distributor Name</Form.Label>
                     <div>{formatDistributorNames(selectedUser) || '-'}</div>
                   </Col>
                   <Col md={6}>
                     <Form.Label className="f-12 text-muted">Status</Form.Label>
-                    <div>{selectedUser.is_active ? <Badge bg="success">Aktif</Badge> : <Badge bg="secondary">Tidak Aktif</Badge>}</div>
+                    <div>{selectedUser.is_active ? <Badge bg="success">Active</Badge> : <Badge bg="secondary">Inactive</Badge>}</div>
                   </Col>
                 </Row>
               </Col>
@@ -771,7 +771,7 @@ export default function UserList() {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="light-secondary" onClick={resetForm}>
-            Tutup
+            Close
           </Button>
           {selectedUser && (
             <Button variant="primary" onClick={() => openEditModal(selectedUser)}>
@@ -786,8 +786,8 @@ export default function UserList() {
         show={showConfirm}
         onCancel={() => setShowConfirm(false)}
         onSubmit={handleDelete}
-        title="Hapus User"
-        subTitle="Anda yakin ingin menghapus data user ini?"
+        title="Delete User"
+        subTitle="Are you sure you want to delete this user data?"
       />
     </>
   );

@@ -30,7 +30,7 @@ export default function LoginPage() {
             <img src={CustomerPortalWordmark} alt="sm-connect" className="sm-auth-brand-logo" />
             <div>
               {/* <span className="sm-auth-eyebrow">PT. Susanti Megah</span> */}
-              <p>Satu akses untuk sistem operasional PT. Susanti Megah, mulai dari customer portal hingga ekspedisi.</p>
+              <p>A distribution portal to manage customer, sales, item, warehouse, and order data with clearer direction.</p>
             </div>
             <div className="sm-brand-showcase" aria-label="Brand">
               {brandLogos.map((brand) => (

@@ -78,7 +78,7 @@ export default function PermissionList() {
     if (response.data.success) {
       setDataSource(response.data.data);
     } else {
-      showAlert('Gagal ambil data role', 'danger');
+      showAlert('Failed to fetch role data', 'danger');
     }
     setLoadingData(false);
   };
@@ -88,7 +88,7 @@ export default function PermissionList() {
     if (response.data.success) {
       setListMasterApproval(response.data.data || []);
     } else {
-      showAlert('Gagal ambil data master approval', 'danger');
+      showAlert('Failed to fetch master approval data', 'danger');
     }
   };
 
@@ -103,7 +103,7 @@ export default function PermissionList() {
       setExpanded(defaultExpanded);
       setShowMenu(true);
     } else {
-      showAlert('Gagal ambil detail role', 'danger');
+      showAlert('Failed to fetch role detail', 'danger');
     }
     setLoadingSubmit(false);
   };
@@ -174,11 +174,11 @@ export default function PermissionList() {
 
     const response = await RoleServices.postCreateRole(payload);
     if (response.data.success) {
-      showAlert('Data berhasil disimpan', 'success');
+      showAlert('Data saved successfully', 'success');
       resetForm();
       fetchData();
     } else {
-      showAlert(response.data.message || 'Gagal menyimpan role', 'danger');
+      showAlert(response.data.message || 'Failed to save role', 'danger');
     }
     setLoadingSubmit(false);
   };
@@ -194,12 +194,12 @@ export default function PermissionList() {
 
     const response = await RoleServices.putEditRole(roleId, payload);
     if (response.data.success) {
-      showAlert('Data berhasil diubah', 'success');
+      showAlert('Data updated successfully', 'success');
       Cookies.set('menu', JSON.stringify(checked));
       resetForm();
       window.location.replace('/');
     } else {
-      showAlert(response.data.message || 'Gagal mengubah role', 'danger');
+      showAlert(response.data.message || 'Failed to update role', 'danger');
     }
     setLoadingSubmit(false);
   };
@@ -212,12 +212,12 @@ export default function PermissionList() {
   const handleDelete = async () => {
     const response = await RoleServices.deleteRole(roleId);
     if (response.data.success) {
-      showAlert('Data berhasil dihapus', 'success');
+      showAlert('Data deleted successfully', 'success');
       setShowConfirm(false);
       setRoleId(null);
       fetchData();
     } else {
-      showAlert(response.data.message || 'Gagal menghapus role', 'danger');
+      showAlert(response.data.message || 'Failed to delete role', 'danger');
     }
   };
 
@@ -228,13 +228,13 @@ export default function PermissionList() {
           title={
             <Stack gap={1}>
               <h5 className="mb-0">Role Permission</h5>
-              <span className="text-muted f-12">Kelola role dan akses menu yang tersedia untuk setiap pengguna.</span>
+              <span className="text-muted f-12">Manage roles and menu access available for each user.</span>
             </Stack>
           }
           secondary={
             <Button onClick={showAddMenu} variant="primary">
               <i className="ti ti-plus me-1" />
-              Tambah Role
+              Add Role
             </Button>
           }
         >
@@ -259,7 +259,7 @@ export default function PermissionList() {
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <div className="text-muted f-12">Aktif</div>
+                      <div className="text-muted f-12">Active</div>
                       <h4 className="mb-0">{summary.active}</h4>
                     </div>
                     <span className="avtar avtar-s bg-light-success text-success">
@@ -274,7 +274,7 @@ export default function PermissionList() {
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <div className="text-muted f-12">Tidak Aktif</div>
+                      <div className="text-muted f-12">Inactive</div>
                       <h4 className="mb-0">{summary.inactive}</h4>
                     </div>
                     <span className="avtar avtar-s bg-light-secondary text-secondary">
@@ -289,7 +289,7 @@ export default function PermissionList() {
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <div className="text-muted f-12">Menu Tersedia</div>
+                      <div className="text-muted f-12">Available Menus</div>
                       <h4 className="mb-0">{summary.menu}</h4>
                     </div>
                     <span className="avtar avtar-s bg-light-warning text-warning">
@@ -305,20 +305,20 @@ export default function PermissionList() {
         <MainCard>
           <Row className="g-2 align-items-end mb-3">
             <Col lg={5} md={6}>
-              <Form.Label className="f-12 text-muted">Cari Role</Form.Label>
+              <Form.Label className="f-12 text-muted">Search Role</Form.Label>
               <InputGroup>
                 <InputGroup.Text>
                   <i className="ti ti-search" />
                 </InputGroup.Text>
-                <Form.Control value={keywords} onChange={(event) => setKeywords(event.target.value)} placeholder="Nama role" />
+                <Form.Control value={keywords} onChange={(event) => setKeywords(event.target.value)} placeholder="Role name" />
               </InputGroup>
             </Col>
             <Col lg={3} md={6}>
               <Form.Label className="f-12 text-muted">Status</Form.Label>
               <Form.Select value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value)}>
-                <option value="">Semua Status</option>
-                <option value="true">Aktif</option>
-                <option value="false">Tidak Aktif</option>
+                <option value="">All Statuses</option>
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
               </Form.Select>
             </Col>
             <Col lg={2} md={6}>
@@ -348,8 +348,8 @@ export default function PermissionList() {
               <>
                 <thead>
                   <tr>
-                    <th style={{ minWidth: 260 }}>Nama Role</th>
-                    <th style={{ minWidth: 180 }}>Perijinan</th>
+                    <th style={{ minWidth: 260 }}>Role Name</th>
+                    <th style={{ minWidth: 180 }}>Permission</th>
                     <th style={{ minWidth: 140 }}>Menu Akses</th>
                     <th style={{ minWidth: 120 }}>Status</th>
                     <th className="text-center" style={{ width: 120 }}>
@@ -371,7 +371,7 @@ export default function PermissionList() {
                             {item.role_menu?.menu?.length || 0} menu
                           </Badge>
                         </td>
-                        <td>{item.is_active ? <Badge bg="success">Aktif</Badge> : <Badge bg="secondary">Tidak Aktif</Badge>}</td>
+                        <td>{item.is_active ? <Badge bg="success">Active</Badge> : <Badge bg="secondary">Inactive</Badge>}</td>
                         <td className="text-center">
                           <Stack direction="horizontal" gap={2} className="justify-content-center">
                             <Button className="rounded-circle" variant="outline-primary" size="sm" onClick={() => showEditMenu(item.id)}>
@@ -396,11 +396,11 @@ export default function PermissionList() {
                           <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                             <i className="ti ti-shield-lock f-24" />
                           </div>
-                          <h5 className="mb-1">{hasActiveFilter ? 'Role tidak ditemukan' : 'Belum ada data role'}</h5>
+                          <h5 className="mb-1">{hasActiveFilter ? 'Role not found' : 'No role data yet'}</h5>
                           <p className="text-muted mb-3">
                             {hasActiveFilter
-                              ? 'Ubah kata kunci atau status untuk melihat role lain.'
-                              : 'Tambahkan role untuk mulai mengatur hak akses.'}
+                              ? 'Change the keyword or status to view other roles.'
+                              : 'Add a role to start managing access rights.'}
                           </p>
                           {hasActiveFilter ? (
                             <Button variant="light-primary" onClick={resetFilters}>
@@ -409,7 +409,7 @@ export default function PermissionList() {
                           ) : (
                             <Button variant="primary" onClick={showAddMenu}>
                               <i className="ti ti-plus me-1" />
-                              Tambah Role
+                              Add Role
                             </Button>
                           )}
                         </div>
@@ -433,7 +433,7 @@ export default function PermissionList() {
 
       <Modal show={showMenu} onHide={resetForm} size="lg" centered>
         <Modal.Header closeButton>
-          <Modal.Title>{roleId ? 'Edit Role Permission' : 'Tambah Role Permission'}</Modal.Title>
+          <Modal.Title>{roleId ? 'Edit Role Permission' : 'Add Role Permission'}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Row className="g-3">
@@ -442,7 +442,7 @@ export default function PermissionList() {
                 <Card.Body>
                   <Stack gap={3}>
                     <div>
-                      <Form.Label className="f-12 text-muted">Nama Role</Form.Label>
+                      <Form.Label className="f-12 text-muted">Role Name</Form.Label>
                       <Form.Control
                         type="text"
                         placeholder="Contoh: Admin Sales"
@@ -452,9 +452,9 @@ export default function PermissionList() {
                       />
                     </div>
                     <div>
-                      <Form.Label className="f-12 text-muted">Perijinan</Form.Label>
+                      <Form.Label className="f-12 text-muted">Permission</Form.Label>
                       <Form.Select value={masterApprovalId} onChange={(event) => setMasterApprovalId(event.target.value)}>
-                        <option value=''>Pilih Perijinan</option>
+                        <option value=''>Select Permission</option>
                         {listMasterApproval.map((item) => (
                           <option key={item.id} value={item.id}>
                             {item.label || item.approval_name || item.title || `Master Approval ${item.id}`}
@@ -467,7 +467,7 @@ export default function PermissionList() {
                       <h4 className="mb-0">{checked.length}</h4>
                     </div>
                     <small className="text-muted">
-                      Pilih menu yang boleh diakses oleh role ini. Perubahan role aktif akan diterapkan setelah disimpan.
+                      Select menus this role can access. Active role changes will be applied after saving.
                     </small> */}
                   </Stack>
                 </Card.Body>
@@ -478,7 +478,7 @@ export default function PermissionList() {
                 <Card.Header className="py-3">
                   <Stack direction="horizontal" gap={2} className="justify-content-between">
                     <div>
-                      <h6 className="mb-0">Daftar Menu</h6>
+                      <h6 className="mb-0">Menu List</h6>
                       <small className="text-muted">Centang menu untuk memberi akses.</small>
                     </div>
                     <Badge bg="light" text="dark">
@@ -516,14 +516,14 @@ export default function PermissionList() {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="light-secondary" onClick={resetForm}>
-            Batal
+            Cancel
           </Button>
           <Button
             variant="primary"
             onClick={() => (roleId ? handleEdit() : handleCreate())}
             disabled={loadingSubmit || !menuName || !masterApprovalId}
           >
-            {loadingSubmit ? <LoaderButton /> : 'Simpan'}
+            {loadingSubmit ? <LoaderButton /> : 'Save'}
           </Button>
         </Modal.Footer>
       </Modal>
@@ -532,8 +532,8 @@ export default function PermissionList() {
         show={showConfirm}
         onCancel={() => setShowConfirm(false)}
         onSubmit={handleDelete}
-        title="Hapus Role"
-        subTitle="Anda yakin ingin menghapus data ini?"
+        title="Delete Role"
+        subTitle="Are you sure you want to delete this data?"
       />
     </>
   );

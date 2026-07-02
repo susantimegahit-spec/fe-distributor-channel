@@ -30,10 +30,11 @@ const buildHeaders = (data, optionalHeader = {}) => {
 };
 
 class DataService {
-  static get(path = '') {
+  static get(path = '', params = undefined) {
     return client({
       method: 'GET',
       url: path,
+      params,
       headers: { ...authHeader() }
     });
   }
@@ -117,6 +118,10 @@ client.interceptors.response.use(
       if (response.status === 500) {
         // do something here
       } else if (response.status === 429) {
+        return response;
+      } else if (response.status === 422) {
+        return response;
+      } else if (response.status === 403) {
         return response;
       } else if (response.status === 401) {
         Cookies.remove('isLoggedIn');

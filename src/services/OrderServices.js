@@ -16,6 +16,10 @@ class OrderServices {
     return DataService.get('/sales-orders');
   }
 
+  syncAllOrders() {
+    return DataService.post('/sales-orders/sync-all');
+  }
+
   getSalesOrderSeries(date) {
     const query = new URLSearchParams({ CustomQuery: date || '' }).toString();
 

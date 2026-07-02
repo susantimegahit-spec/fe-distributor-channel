@@ -99,6 +99,17 @@ export default function OrderPost() {
     return new Date(today.getTime() - timezoneOffset).toISOString().slice(0, 10);
   };
 
+  const addDaysToDate = (value, days) => {
+    if (!value) return '';
+
+    const date = new Date(`${value}T00:00:00`);
+    date.setDate(date.getDate() + days);
+
+    const timezoneOffset = date.getTimezoneOffset() * 60000;
+
+    return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 10);
+  };
+
   const todayDate = getTodayDate();
 
   // VAT disabled
@@ -142,8 +153,9 @@ export default function OrderPost() {
   const [orderInput, setOrderInput] = useState({
     cardCode: '',
     poNumber: '',
-    docDate: '',
-    docDueDate: '',
+    docDate: todayDate,
+    docDueDate: todayDate,
+    etaDate: addDaysToDate(todayDate, 7),
     series: '',
     seriesName: '',
     slpCode: '',
@@ -282,10 +294,10 @@ export default function OrderPost() {
       }
 
       setListSeries([]);
-      showAlert(response?.data?.message || 'Gagal mengambil data series', 'danger');
+      showAlert(response?.data?.message || 'Failed to fetch series data', 'danger');
     } catch (error) {
       setListSeries([]);
-      showAlert('Terjadi kesalahan saat mengambil data series', 'danger');
+      showAlert('An error occurred while fetching series data', 'danger');
     } finally {
       setLoadingSeries(false);
     }
@@ -486,11 +498,19 @@ export default function OrderPost() {
             }
           ]
     );
+    const docDate = formatDateInput(getValue(order, ['doc_date', 'docDate', 'DocDate']));
+    const docDueDate = formatDateInput(getValue(order, ['doc_due_date', 'docDueDate', 'DocDueDate']));
+    const minEtaDate = docDueDate || todayDate;
+    const orderEtaDate =
+      formatDateInput(getValue(order, ['eta_date', 'etaDate', 'ETA', 'u_eta', 'U_ETA'])) || addDaysToDate(minEtaDate, 7);
+    const etaDate = orderEtaDate < minEtaDate ? minEtaDate : orderEtaDate;
+
     setOrderInput({
       cardCode,
       poNumber: getValue(order, ['po_number', 'num_at_card', 'numAtCard', 'NumAtCard']),
-      docDate: formatDateInput(getValue(order, ['doc_date', 'docDate', 'DocDate'])),
-      docDueDate: formatDateInput(getValue(order, ['doc_due_date', 'docDueDate', 'DocDueDate'])),
+      docDate,
+      docDueDate,
+      etaDate,
       series: getValue(order, ['series', 'Series', 'series_code', 'seriesCode']),
       seriesName: getValue(order, orderSeriesNameKeys, ''),
       slpCode: getValue(order, ['slp_code', 'slpCode', 'SlpCode']),
@@ -526,10 +546,10 @@ export default function OrderPost() {
       if (selectedOrder) {
         fillOrderForm(selectedOrder);
       } else {
-        showAlert('Detail order tidak ditemukan', 'danger');
+        showAlert('Order detail not found', 'danger');
       }
     } catch {
-      showAlert('Gagal ambil detail order', 'danger');
+      showAlert('Failed to fetch order detail', 'danger');
     } finally {
       setIsLoading(false);
     }
@@ -552,7 +572,7 @@ export default function OrderPost() {
       fetchEmployee(response.data?.data.code_customer);
     } else {
       setIsLoading(false);
-      // showAlert('Gagal ambil data', 'danger');
+      // showAlert('Failed to fetch data', 'danger');
     }
   };
 
@@ -575,7 +595,7 @@ export default function OrderPost() {
       setIsLoading(false);
     } else {
       setIsLoading(false);
-      showAlert('Gagal ambil data', 'danger');
+      showAlert('Failed to fetch data', 'danger');
     }
   };
 
@@ -596,7 +616,7 @@ export default function OrderPost() {
       setIsLoading(false);
     } else {
       setIsLoading(false);
-      showAlert('Gagal ambil data', 'danger');
+      showAlert('Failed to fetch data', 'danger');
     }
   };
 
@@ -617,7 +637,7 @@ export default function OrderPost() {
       setIsLoading(false);
     } else {
       setIsLoading(false);
-      showAlert('Gagal ambil data', 'danger');
+      showAlert('Failed to fetch data', 'danger');
     }
   };
 
@@ -638,7 +658,7 @@ export default function OrderPost() {
       setIsLoading(false);
     } else {
       setIsLoading(false);
-      showAlert('Gagal ambil data', 'danger');
+      showAlert('Failed to fetch data', 'danger');
     }
   };
 
@@ -659,7 +679,7 @@ export default function OrderPost() {
       setIsLoading(false);
     } else {
       setIsLoading(false);
-      showAlert('Gagal ambil data', 'danger');
+      showAlert('Failed to fetch data', 'danger');
     }
   };
 
@@ -700,7 +720,7 @@ export default function OrderPost() {
       setIsLoading(false);
     } else {
       setIsLoading(false);
-      showAlert('Gagal ambil data sales', 'danger');
+      showAlert('Failed to fetch sales data', 'danger');
     }
   };
 
@@ -720,7 +740,7 @@ export default function OrderPost() {
       setIsLoading(false);
     } else {
       setIsLoading(false);
-      showAlert('Gagal ambil data sales', 'danger');
+      showAlert('Failed to fetch sales data', 'danger');
     }
   };
 
@@ -738,7 +758,7 @@ export default function OrderPost() {
       setIsLoading(false);
     } else {
       setIsLoading(false);
-      showAlert('Gagal ambil data sales', 'danger');
+      showAlert('Failed to fetch sales data', 'danger');
     }
   };
 
@@ -759,7 +779,7 @@ export default function OrderPost() {
   //     setIsLoading(false);
   //   } else {
   //     setIsLoading(false);
-  //     showAlert('Gagal ambil data sales', 'danger');
+  //     showAlert('Failed to fetch sales data', 'danger');
   //   }
   // };
 
@@ -797,7 +817,7 @@ export default function OrderPost() {
       setIsLoading(false);
     } else {
       setIsLoading(false);
-      showAlert('Gagal ambil data', 'danger');
+      showAlert('Failed to fetch data', 'danger');
     }
   };
 
@@ -818,9 +838,22 @@ export default function OrderPost() {
   };
 
   const handleSetDocDueDate = (e) => {
+    const docDueDate = e.target.value;
+
     setOrderInput({
       ...orderInput,
-      docDueDate: e.target.value
+      docDueDate,
+      etaDate: addDaysToDate(docDueDate, 7)
+    });
+  };
+
+  const handleSetEtaDate = (e) => {
+    const minEtaDate = orderInput.etaDate || orderInput.docDueDate || todayDate;
+    const etaDate = e.target.value;
+
+    setOrderInput({
+      ...orderInput,
+      etaDate: etaDate && etaDate < minEtaDate ? minEtaDate : etaDate
     });
   };
 
@@ -872,10 +905,10 @@ export default function OrderPost() {
         itemArr[index].vatTotal = calculatedTotals.vatTotal;
         setItemArr([...itemArr]);
       } else {
-        showAlert(resp.data.message || 'Gagal ambil harga item', 'danger');
+        showAlert(resp.data.message || 'Failed to fetch item price', 'danger');
       }
     } catch (error) {
-      showAlert(error?.message || 'Gagal ambil harga item', 'danger');
+      showAlert(error?.message || 'Failed to fetch item price', 'danger');
     } finally {
       setItemPriceRowLoading(index, false);
     }
@@ -986,7 +1019,7 @@ export default function OrderPost() {
     setRewardResultCount(0);
 
     if (!orderInput.cardCode) {
-      showAlert('Pilih customer terlebih dahulu untuk mengambil total Reward', 'danger');
+      showAlert('Select customer terlebih dahulu untuk mengambil total Reward', 'danger');
       return;
     }
 
@@ -1032,7 +1065,7 @@ export default function OrderPost() {
       });
 
       if (!customerResults.length) {
-        showAlert(`Tidak ada data Reward untuk customer ${orderInput.cardCode}`, 'danger');
+        showAlert(`No Reward data for customer ${orderInput.cardCode}`, 'danger');
         return;
       }
 
@@ -1056,7 +1089,7 @@ export default function OrderPost() {
         showAlert(`Total Reward untuk customer ${orderInput.cardCode} masih 0`, 'danger');
       }
     } catch (error) {
-      showAlert(error?.message || 'Gagal mengambil data Reward', 'danger');
+      showAlert(error?.message || 'Failed to fetch Reward data', 'danger');
     } finally {
       setLoadingReward(false);
     }
@@ -1070,7 +1103,7 @@ export default function OrderPost() {
       const response = await OrderServices.getMaxDiscount();
 
       if (response?.data?.success === false) {
-        throw new Error(response.data.message || 'Gagal mengambil maksimal diskon');
+        throw new Error(response.data.message || 'Failed to fetch maximum discount');
       }
 
       const payload = response?.data?.data ?? response?.data;
@@ -1088,12 +1121,12 @@ export default function OrderPost() {
       const parsedPercentage = Number.parseFloat(String(rawPercentage).replace('%', ''));
 
       if (!Number.isFinite(parsedPercentage)) {
-        throw new Error('Nilai maksimal diskon tidak valid');
+        throw new Error('Maximum discount value is invalid');
       }
 
       setMaxDiscountPercentage(parsedPercentage <= 1 ? parsedPercentage * 100 : parsedPercentage);
     } catch (error) {
-      showAlert(error?.message || 'Gagal mengambil maksimal diskon', 'danger');
+      showAlert(error?.message || 'Failed to fetch maximum discount', 'danger');
     } finally {
       setLoadingMaxDiscount(false);
     }
@@ -1137,7 +1170,7 @@ export default function OrderPost() {
     setSelectedRewardTarget(null);
     setRewardDiscountPreview([]);
     setRewardResultCount(0);
-    showAlert(`Reward ${formatCurrency(applicableRewardDiscount)} berhasil diterapkan`, 'success');
+    showAlert(`Reward ${formatCurrency(applicableRewardDiscount)} applied successfully`, 'success');
   };
 
   const addItem = () => {
@@ -1271,6 +1304,7 @@ export default function OrderPost() {
       po_number: orderInput.poNumber,
       doc_date: orderInput.docDate,
       doc_due_date: orderInput.docDueDate,
+      eta_date: orderInput.etaDate,
       Series: orderInput.series,
       series_name: orderInput.seriesName || getSelectedSeriesOption()?.label || '',
       slp_code: orderInput.slpCode,
@@ -1372,7 +1406,7 @@ export default function OrderPost() {
     const activeDiscounts = detailDisc.filter((item) => Number(item.value) > 0);
 
     if (activeDiscounts.some((item) => !item.name?.value)) {
-      showAlert('Kategori wajib diisi untuk setiap komponen diskon', 'danger');
+      showAlert('Category is required for each discount component', 'danger');
       return;
     }
 
@@ -1409,57 +1443,63 @@ export default function OrderPost() {
 
   const validateForm = () => {
     if (!orderInput.cardCode) {
-      return 'Kode Customer wajib diisi.';
+      return 'Customer Code is required.';
     }
     if (!orderInput.poNumber) {
-      return 'Nomor PO wajib diisi.';
+      return 'PO Number is required.';
     }
     if (canSelectSales && !orderInput.slpCode) {
-      return 'Kode Sales wajib diisi.';
+      return 'Sales Code is required.';
     }
     if (!orderInput.cnctCode) {
-      return 'Kontak Pelanggan wajib diisi.';
+      return 'Customer Contact is required.';
     }
     if (!orderInput.docDate) {
-      return 'Tanggal Dokumen wajib diisi.';
+      return 'Document Date is required.';
     }
     if (!orderInput.docDueDate) {
-      return 'Request Tanggal Kirim wajib diisi.';
+      return 'Requested Delivery Date is required.';
+    }
+    if (!orderInput.etaDate) {
+      return 'ETA is required.';
+    }
+    if (orderInput.etaDate < orderInput.docDueDate) {
+      return 'ETA cannot be before Requested Delivery Date.';
     }
     if (!orderInput.address) {
-      return 'Alamat Tagih wajib diisi.';
+      return 'Billing Address is required.';
     }
     if (!orderInput.address2) {
-      return 'Alamat Kirim wajib diisi.';
+      return 'Shipping Address is required.';
     }
-    
-    // Check Dokumen Order
+
+    // Check order documents
     const totalDocsCount = (documents?.length || 0) + (existingDocuments?.length || 0);
     if (totalDocsCount === 0) {
-      return 'Dokumen Order wajib diisi.';
+      return 'Order Document is required.';
     }
 
     // Check Products
     if (!itemArr || itemArr.length === 0) {
-      return 'Minimal harus menambahkan 1 item produk.';
+      return 'Minimal harus add 1 item produk.';
     }
 
     for (let i = 0; i < itemArr.length; i++) {
       const item = itemArr[i];
       const rowNum = i + 1;
       if (!item.itemCode) {
-        return `Item pada baris ${rowNum} wajib diisi.`;
+        return `Item in row ${rowNum} is required.`;
       }
       if (!item.quantity || Number(item.quantity) <= 0) {
-        return `Qty pada baris ${rowNum} harus lebih dari 0.`;
+        return `Qty in row ${rowNum} must be greater than 0.`;
       }
       if (!isCustomerRole) {
         if (!item.whs_code) {
-          return `Warehouse pada baris ${rowNum} wajib diisi.`;
+          return `Warehouse in row ${rowNum} is required.`;
         }
         // VAT disabled
         // if (!item.vatGroup) {
-        //   return `Vat pada baris ${rowNum} wajib diisi.`;
+        //   return `VAT in row ${rowNum} is required.`;
         // }
       }
     }
@@ -1484,11 +1524,11 @@ export default function OrderPost() {
           <MainCard
             title={
               <Stack gap={1}>
-                <h5 className="mb-0">{isDetailMode ? 'Detail Order' : 'Buat Order'}</h5>
+                <h5 className="mb-0">{isDetailMode ? 'Detail Order' : 'Create Order'}</h5>
                 <span className="text-muted f-12">
                   {isDetailMode
-                    ? `Menampilkan detail ${orderDetail?.order_no || orderDetail?.doc_num || 'order'} yang dipilih.`
-                    : 'Lengkapi informasi pelanggan, alamat, dan detail produk sebelum menyimpan order.'}
+                    ? `Showing detail ${orderDetail?.order_no || orderDetail?.doc_num || 'order'} yang dipilih.`
+                    : 'Complete customer information, addresses, and product details before saving the order.'}
                 </span>
                 {isDetailMode && orderInput.series ? (
                   <span className="text-muted f-12">Series: {getSelectedSeriesOption()?.label || orderInput.series}</span>
@@ -1499,14 +1539,14 @@ export default function OrderPost() {
               <Stack direction="horizontal" gap={2} className="flex-wrap">
                 <Button variant="light-secondary" onClick={() => navigate(-1)}>
                   <i className="ti ti-arrow-left me-1" />
-                  Batal
+                  Cancel
                 </Button>
 
                 {roleId === 1 || roleId === 5 ? (
                   <>
                     <Button onClick={() => handleShowConfirm('DRAFT')} variant="warning">
                       <i className="ti ti-device-floppy me-1" />
-                      Simpan Draft
+                      Save Draft
                     </Button>
                     <Button onClick={() => handleShowConfirm('WAITING_OM')} variant="primary">
                       <i className="ti ti-send" />
@@ -1538,8 +1578,8 @@ export default function OrderPost() {
                     <Card.Header className="py-3">
                       <Stack direction="horizontal" gap={2} className="justify-content-between">
                         <div>
-                          <h6 className="mb-0">Informasi Order</h6>
-                          <small className="text-muted">Data utama transaksi dan pelanggan</small>
+                          <h6 className="mb-0">Information Order</h6>
+                          <small className="text-muted">Main transaction and customer data</small>
                         </div>
                         <Badge bg="light" text="dark">
                           Draft
@@ -1551,7 +1591,7 @@ export default function OrderPost() {
                         <Col md={6} xl={4}>
                           <Form.Group>
                             <Form.Label className="small text-muted">
-                              <RequiredLabel>Kode Customer</RequiredLabel>
+                              <RequiredLabel>Customer Code</RequiredLabel>
                             </Form.Label>
                             {isCustomerRole ? (
                               <Form.Control
@@ -1559,7 +1599,7 @@ export default function OrderPost() {
                                 onChange={(e) => handleSetInput(e, 'cardCode')}
                                 value={orderInput.cardCode}
                                 type="text"
-                                placeholder="Kode Customer"
+                                placeholder="Customer Code"
                                 size="sm"
                               />
                             ) : (
@@ -1569,7 +1609,7 @@ export default function OrderPost() {
                                 options={listDistributor}
                                 menuPosition="fixed"
                                 onChange={handleSelectDistributor}
-                                placeholder="Pilih Customer"
+                                placeholder="Select Customer"
                                 isClearable
                               />
                             )}
@@ -1584,7 +1624,7 @@ export default function OrderPost() {
                               onChange={(e) => handleSetInput(e, 'poNumber')}
                               value={orderInput.poNumber}
                               type="text"
-                              placeholder="Masukkan nomor PO"
+                              placeholder="Enter PO number"
                               size="sm"
                             />
                           </Form.Group>
@@ -1593,7 +1633,7 @@ export default function OrderPost() {
                           <Col md={6} xl={4}>
                             <Form.Group>
                               <Form.Label className="small text-muted">
-                                <RequiredLabel>Kode Sales</RequiredLabel>
+                                <RequiredLabel>Code Sales</RequiredLabel>
                               </Form.Label>
                               <Select
                                 styles={customStyles}
@@ -1601,7 +1641,7 @@ export default function OrderPost() {
                                 options={listEmployee}
                                 menuPosition="fixed"
                                 onChange={handleSelectSales}
-                                placeholder="Pilih sales"
+                                placeholder="Select sales"
                                 isClearable
                               />
                             </Form.Group>
@@ -1624,7 +1664,7 @@ export default function OrderPost() {
                         <Col md={6} xl={4}>
                           <Form.Group>
                             <Form.Label className="small text-muted">
-                              <RequiredLabel>Tanggal Dokumen</RequiredLabel>
+                              <RequiredLabel>Document Date</RequiredLabel>
                             </Form.Label>
                             <Form.Control
                               onChange={handleSetDocDate}
@@ -1638,13 +1678,25 @@ export default function OrderPost() {
                         <Col md={6} xl={4}>
                           <Form.Group>
                             <Form.Label className="small text-muted">
-                              <RequiredLabel>Request Tanggal Kirim</RequiredLabel>
+                              <RequiredLabel>Requested Delivery Date</RequiredLabel>
                             </Form.Label>
                             <Form.Control
                               onChange={handleSetDocDueDate}
                               value={orderInput.docDueDate}
                               type="date"
                               min={todayDate}
+                              size="sm"
+                            />
+                          </Form.Group>
+                        </Col>
+                        <Col md={6} xl={4}>
+                          <Form.Group>
+                            <Form.Label className="small text-muted">ETA</Form.Label>
+                            <Form.Control
+                              onChange={handleSetEtaDate}
+                              value={orderInput.etaDate}
+                              type="date"
+                              min={orderInput.etaDate || orderInput.docDueDate || todayDate}
                               size="sm"
                             />
                           </Form.Group>
@@ -1659,7 +1711,7 @@ export default function OrderPost() {
                               options={listAddressB}
                               menuPosition="fixed"
                               onChange={(e) => handleSelectAddress(e, 'address')}
-                              placeholder="Pilih alamat tagih"
+                              placeholder="Select billing address"
                             />
                           </Form.Group>
                         </Col>
@@ -1673,7 +1725,7 @@ export default function OrderPost() {
                               options={listAddressS}
                               menuPosition="fixed"
                               onChange={(e) => handleSelectAddress(e, 'address2')}
-                              placeholder="Pilih alamat kirim"
+                              placeholder="Select shipping address"
                             />
                           </Form.Group>
                         </Col>
@@ -1687,20 +1739,20 @@ export default function OrderPost() {
                               isDisabled={!orderInput.docDate || loadingSeries}
                               menuPosition="fixed"
                               onChange={handleSelectSeries}
-                              placeholder={orderInput.docDate ? 'Pilih series' : 'Pilih tanggal dokumen dahulu'}
+                              placeholder={orderInput.docDate ? 'Select series' : 'Select document date first'}
                               isClearable
                             />
                           </Form.Group>
                         </Col>
                         <Col md={12}>
                           <Form.Group>
-                            <Form.Label className="small text-muted">Catatan</Form.Label>
+                            <Form.Label className="small text-muted">Notes</Form.Label>
                             <Form.Control
                               onChange={(e) => handleSetInput(e, 'comments')}
                               value={orderInput.comments}
                               as="textarea"
                               rows={3}
-                              placeholder="Tambahkan catatan order bila diperlukan"
+                              placeholder="Add order notes if needed"
                               size="sm"
                             />
                           </Form.Group>
@@ -1719,7 +1771,7 @@ export default function OrderPost() {
                       <Card.Body>
                         <Stack gap={3}>
                           <Stack direction="horizontal" className="justify-content-between">
-                            <span className="text-muted">Jumlah Item</span>
+                            <span className="text-muted">Item Count</span>
                             <strong>{itemArr.length}</strong>
                           </Stack>
                           <Stack direction="horizontal" className="justify-content-between">
@@ -1748,7 +1800,7 @@ export default function OrderPost() {
                           </div>
                           <Button variant="light-primary" onClick={handleOpenDiscount}>
                             <i className="ti ti-discount-2 me-1" />
-                            Atur Diskon
+                            Set Discount
                           </Button>
                         </Stack>
                       </Card.Body>
@@ -1763,10 +1815,10 @@ export default function OrderPost() {
             title={
               <Stack gap={1}>
                 <h5 className="mb-0">
-                  <RequiredLabel>Dokumen Order</RequiredLabel>
+                  <RequiredLabel>Order Document</RequiredLabel>
                 </h5>
                 <span className="text-muted f-12">
-                  Upload dokumen pendukung seperti PO, surat jalan, atau lampiran approval. Maksimal 1MB per file.
+                  Upload supporting documents such as PO, delivery notes, or approval attachments. Maximum 1MB per file.
                 </span>
               </Stack>
             }
@@ -1781,12 +1833,12 @@ export default function OrderPost() {
                           <i className="ti ti-file-upload f-24" />
                         </div>
                         <div>
-                          <h6 className="mb-1">Upload Dokumen</h6>
+                          <h6 className="mb-1">Upload Document</h6>
                           {/* <small className="text-muted">Bisa upload lebih dari satu file, maksimal 1MB per file.</small> */}
                         </div>
                       </div>
                       <Form.Group>
-                        <Form.Label className="small text-muted">Pilih File</Form.Label>
+                        <Form.Label className="small text-muted">Select File</Form.Label>
                         <Form.Control
                           type="file"
                           multiple
@@ -1804,8 +1856,8 @@ export default function OrderPost() {
                   <Card.Header className="py-3">
                     <Stack direction="horizontal" className="justify-content-between">
                       <div>
-                        <h6 className="mb-0">Daftar Dokumen</h6>
-                        <small className="text-muted">File akan ikut dikirim saat order disimpan.</small>
+                        <h6 className="mb-0">Document List</h6>
+                        <small className="text-muted">Files will be sent when the order is saved.</small>
                       </div>
                       <Badge bg={documents.length ? 'primary' : 'secondary'}>{documents.length} file baru</Badge>
                     </Stack>
@@ -1814,12 +1866,12 @@ export default function OrderPost() {
                     <Stack gap={2}>
                       {existingDocuments.length ? (
                         <>
-                          <small className="text-muted fw-semibold">Dokumen tersimpan</small>
+                          <small className="text-muted fw-semibold">Saved Documents</small>
                           {existingDocuments.map((documentItem, index) => {
                             const fileName = getValue(
                               documentItem,
                               ['file_name', 'name', 'original_name', 'document_name'],
-                              `Dokumen ${index + 1}`
+                              `Document ${index + 1}`
                             );
                             const fileUrl = getValue(documentItem, ['file_url', 'url', 'path', 'document_url']);
 
@@ -1835,7 +1887,7 @@ export default function OrderPost() {
                                 {fileUrl ? (
                                   <Button as="a" href={fileUrl} target="_blank" rel="noreferrer" variant="light-primary" size="sm">
                                     <i className="ti ti-eye me-1" />
-                                    Lihat
+                                    View
                                   </Button>
                                 ) : null}
                               </div>
@@ -1875,7 +1927,7 @@ export default function OrderPost() {
                       {!documents.length && !existingDocuments.length ? (
                         <div className="text-center border rounded p-4">
                           <i className="ti ti-file-upload text-muted f-28" />
-                          <p className="mb-0 mt-2 text-muted">Belum ada dokumen yang dipilih.</p>
+                          <p className="mb-0 mt-2 text-muted">No documents selected yet.</p>
                         </div>
                       ) : null}
                     </Stack>
@@ -1888,14 +1940,14 @@ export default function OrderPost() {
           <MainCard
             title={
               <Stack gap={1}>
-                <h5 className="mb-0">Detail Produk</h5>
-                <span className="text-muted f-12">Pilih item, gudang, dimensi, quantity, dan harga untuk setiap baris order.</span>
+                <h5 className="mb-0">Product Details</h5>
+                <span className="text-muted f-12">Select item, warehouse, dimensions, quantity, and price for each order row.</span>
               </Stack>
             }
             secondary={
               <Button variant="light-primary" onClick={addItem}>
                 <i className="ti ti-plus me-1" />
-                Tambah Baris
+                Add Row
               </Button>
             }
           >
@@ -1909,7 +1961,7 @@ export default function OrderPost() {
                     <RequiredLabel>Qty</RequiredLabel>
                   </th>
                   <th style={{ minWidth: 90 }}>Satuan</th>
-                  <th style={{ minWidth: 160 }}>Harga</th>
+                  <th style={{ minWidth: 160 }}>Price</th>
                   <th style={{ minWidth: 160 }}>Total</th>
                   {!isCustomerRole && (
                     <>
@@ -1920,7 +1972,7 @@ export default function OrderPost() {
                         <RequiredLabel>Vat</RequiredLabel>
                       </th> */}
                       {/* <th style={{ minWidth: 160 }}>Total VAT</th> */}
-                      <th style={{ minWidth: 220 }}>Catatan</th>
+                      <th style={{ minWidth: 220 }}>Notes</th>
                       <th style={{ minWidth: 220 }}>Cabang</th>
                       <th style={{ minWidth: 220 }}>Bisnis Unit</th>
                       <th style={{ minWidth: 220 }}>Department</th>
@@ -1941,7 +1993,7 @@ export default function OrderPost() {
                         options={listItem}
                         menuPosition="fixed"
                         onChange={(e) => handleSelectItem(e, index)}
-                        placeholder={loadingItemPriceRows[index] ? 'Memuat harga...' : 'Pilih item'}
+                        placeholder={loadingItemPriceRows[index] ? 'Loading price...' : 'Select item'}
                         isLoading={Boolean(loadingItemPriceRows[index])}
                         isDisabled={Boolean(loadingItemPriceRows[index])}
                       />
@@ -1987,7 +2039,7 @@ export default function OrderPost() {
                             options={listWarehouse}
                             menuPosition="fixed"
                             onChange={(e) => handleSelectWarehouse(e, index)}
-                            placeholder="Pilih warehouse"
+                            placeholder="Select warehouse"
                           />
                         </td>
                         {/* <td>
@@ -2008,7 +2060,7 @@ export default function OrderPost() {
                             onChange={(e) => handleChangeInputLine(index, 'freeText', e)}
                             value={item.freeText}
                             size="sm"
-                            placeholder="Catatan baris"
+                            placeholder="Line notes"
                           />
                         </td>
                         <td>
@@ -2018,7 +2070,7 @@ export default function OrderPost() {
                             options={listOcr1}
                             menuPosition="fixed"
                             onChange={(e) => handleSelectOcr1(e, index)}
-                            placeholder="Pilih cabang"
+                            placeholder="Select branch"
                           />
                         </td>
                         <td>
@@ -2028,7 +2080,7 @@ export default function OrderPost() {
                             options={listOcr2}
                             menuPosition="fixed"
                             onChange={(e) => handleSelectOcr2(e, index)}
-                            placeholder="Pilih unit"
+                            placeholder="Select unit"
                           />
                         </td>
                         <td>
@@ -2038,7 +2090,7 @@ export default function OrderPost() {
                             options={listOcr3}
                             menuPosition="fixed"
                             onChange={(e) => handleSelectOcr3(e, index)}
-                            placeholder="Pilih department"
+                            placeholder="Select department"
                           />
                         </td>
                       </>
@@ -2064,8 +2116,8 @@ export default function OrderPost() {
       <Modal show={showDisc} onHide={handleCancelDiscount} size="lg" centered>
         <Modal.Header closeButton>
           <div>
-            <Modal.Title>Atur Diskon Order</Modal.Title>
-            <small className="text-muted">Gabungkan diskon manual dan Reward menjadi satu diskon order.</small>
+            <Modal.Title>Set Order Discount</Modal.Title>
+            <small className="text-muted">Combine manual discounts and Reward into one order discount.</small>
           </div>
         </Modal.Header>
         <Modal.Body>
@@ -2080,10 +2132,10 @@ export default function OrderPost() {
                       options={rewardTargetOptions}
                       onChange={(option) => setSelectedRewardTarget(option?.value ?? null)}
                       isClearable
-                      placeholder="Pilih kategori diskon..."
-                      noOptionsMessage={() => 'Isi kategori diskon terlebih dahulu'}
+                      placeholder="Select discount category..."
+                      noOptionsMessage={() => 'Fill in the discount category first'}
                     />
-                    <Form.Text>Nominal Reward akan dimasukkan ke kategori ini.</Form.Text>
+                    <Form.Text>Reward amount will be entered into this category.</Form.Text>
                   </Col>
                   <Col md={6}>
                     <Stack direction="horizontal" className="justify-content-between align-items-start gap-3">
@@ -2121,11 +2173,11 @@ export default function OrderPost() {
                         <small className="text-muted d-block">Sisa Maksimal Diskon</small>
                         <strong>{loadingMaxDiscount ? 'Memuat...' : formatCurrency(remainingDiscountLimit)}</strong>
                         <small className="text-muted d-block">
-                          {maxDiscountPercentage ?? 0}% total order − diskon sebelumnya
+                          {maxDiscountPercentage ?? 0}% total order - previous discount
                         </small>
                       </Col>
                       <Col sm={4} className="text-sm-end">
-                        <small className="text-muted d-block">Nominal yang Diterapkan</small>
+                        <small className="text-muted d-block">Amount yang Diterapkan</small>
                         <h5 className="text-primary mb-2">{formatCurrency(applicableRewardDiscount)}</h5>
                         <Button
                           size="sm"
@@ -2142,7 +2194,7 @@ export default function OrderPost() {
                   <div className="bg-light rounded p-3 mt-3 text-muted f-12">
                     {orderInput.cardCode
                       ? 'Total Reward belum tersedia untuk customer ini.'
-                      : 'Pilih customer terlebih dahulu untuk mengambil total Reward.'}
+                      : 'Select customer terlebih dahulu untuk mengambil total Reward.'}
                   </div>
                 )}
               </Card.Body>
@@ -2153,11 +2205,11 @@ export default function OrderPost() {
                 <Stack direction="horizontal" className="justify-content-between">
                   <div>
                     <h6 className="mb-1">Komponen Diskon</h6>
-                    <small className="text-muted">Semua baris berikut akan disimpan sebagai satu diskon order.</small>
+                    <small className="text-muted">All rows below will be saved as one order discount.</small>
                   </div>
                   <Button size="sm" variant="light-primary" onClick={addItemDisc}>
                     <i className="ti ti-plus me-1" />
-                    Tambah Manual
+                    Add Manual
                   </Button>
                 </Stack>
               </Card.Header>
@@ -2167,7 +2219,7 @@ export default function OrderPost() {
                     <tr>
                       <th style={{ minWidth: 210 }}>Kategori</th>
                       <th style={{ minWidth: 170 }}>Keterangan</th>
-                      <th style={{ minWidth: 130 }}>Nominal</th>
+                      <th style={{ minWidth: 130 }}>Amount</th>
                       <th className="text-center">#</th>
                     </tr>
                   </thead>
@@ -2181,7 +2233,7 @@ export default function OrderPost() {
                             options={listDiscType}
                             menuPosition="fixed"
                             onChange={(e) => handleSelectDiscType(e, index)}
-                            placeholder="Pilih atau ketik kategori"
+                            placeholder="Select or type a category"
                             formatCreateLabel={(value) => `Gunakan “${value}”`}
                           />
                         </td>
@@ -2224,7 +2276,7 @@ export default function OrderPost() {
             <Stack direction="horizontal" className="justify-content-between bg-light rounded p-3">
               <div>
                 <span className="fw-semibold d-block">Total Diskon Gabungan</span>
-                <small className="text-muted">{detailDisc.filter((item) => Number(item.value) > 0).length} komponen diskon</small>
+                <small className="text-muted">{detailDisc.filter((item) => Number(item.value) > 0).length} discount components</small>
               </div>
               <h4 className="mb-0 text-primary">{formatCurrency(discountTotal)}</h4>
             </Stack>
@@ -2232,10 +2284,10 @@ export default function OrderPost() {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="light-secondary" onClick={handleCancelDiscount}>
-            Batal
+            Cancel
           </Button>
           <Button onClick={() => handleSubmitDisc()} variant="primary" disabled={loaderDisc || loadingReward || !discountTotal}>
-            {loaderDisc ? <LoaderButton /> : 'Simpan sebagai 1 Diskon'}
+            {loaderDisc ? <LoaderButton /> : 'Save sebagai 1 Diskon'}
           </Button>
         </Modal.Footer>
       </Modal>
@@ -2250,7 +2302,7 @@ export default function OrderPost() {
         onCancel={() => setConfirmSubmit(false)}
         onSubmit={handleSubmitOrder}
         title="Submit Order"
-        subTitle="Anda yakin ingin memproses data"
+        subTitle="Are you sure you want to process this data"
       />
     </>
   );

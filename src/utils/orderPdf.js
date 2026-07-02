@@ -200,18 +200,18 @@ export const downloadSalesOrderPdf = (order) => {
   writer.text('T. (031) 5312526 - 5314071 - 5452765', 365, 764, 7.5);
   writer.text('email. kapal@susantimegah.com', 365, 752, 7.5);
 
-  writer.text(`Nomor  : ${orderNumber}`, 86, 710, 9.5);
-  writer.text('Perihal : Proforma Invoice', 86, 697, 9.5);
+  writer.text(`Number  : ${orderNumber}`, 86, 710, 9.5);
+  writer.text('Subject : Proforma Invoice', 86, 697, 9.5);
   writer.text(`Surabaya, ${docDate}`, 380, 710, 9.5);
 
-  writer.text('Kepada:', 86, 648, 9.5);
+  writer.text('To:', 86, 648, 9.5);
   writer.text(customerName, 86, 634, 10, { bold: true });
   if (customerAddress) writer.wrapText(customerAddress, 86, 620, 230, 9, 12);
   if (customerCity) writer.text(customerCity, 86, 596, 9);
 
-  writer.text('Dengan hormat,', 86, 555, 9.5);
+  writer.text('Dear Sir/Madam,', 86, 555, 9.5);
   writer.wrapText(
-    'Dengan ini kami mohon, untuk pesanan Garam Beryodium Cap Kapal untuk segera diselesaikan pembayarannya dengan rincian sebagai berikut:',
+    'We kindly request payment settlement for the Kapal Iodized Salt order with the following details:',
     86,
     520,
     430,
@@ -251,18 +251,18 @@ export const downloadSalesOrderPdf = (order) => {
   writer.rightText(`${formatNumber(docTotal || subtotal - discountTotal)},-`, 492, y - 4, 9.5, { bold: true });
 
   writer.wrapText(
-    'Pembayaran dapat ditransfer melalui Bank Central Asia Cabang Semut Surabaya A/C No. 256.01.0308.8 atas nama PT. Susanti Megah.',
+    'Payment can be transferred through Bank Central Asia Semut Surabaya Branch A/C No. 256.01.0308.8 under the name PT. Susanti Megah.',
     86,
     345,
     430,
     9.5,
     13
   );
-  writer.text('Setelah pembayaran ditransfer harap dikonfirmasikan kembali kepada kami.', 86, 305, 9.5);
-  if (dueDate) writer.text(`Tanggal request kirim: ${dueDate}`, 86, 288, 9.5);
-  writer.text('Demikianlah, atas perhatian serta kerjasama yang baik kami ucapkan terima kasih.', 86, 270, 9.5);
+  writer.text('Please confirm back to us after the payment has been transferred.', 86, 305, 9.5);
+  if (dueDate) writer.text(`Requested delivery date: ${dueDate}`, 86, 288, 9.5);
+  writer.text('Thank you for your attention and cooperation.', 86, 270, 9.5);
 
-  writer.text('Hormat kami,', 385, 210, 9.5);
+  writer.text('Best regards,', 385, 210, 9.5);
   writer.text('PT. SUSANTI MEGAH', 350, 185, 9.5, { bold: true, color: BLUE });
   writer.line(360, 142, 475, 142, 0.5);
   writer.text('Kushan Wijonosssss', 385, 128, 9.5);
