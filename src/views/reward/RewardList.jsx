@@ -30,6 +30,8 @@ const formatCurrency = (value) =>
     maximumFractionDigits: 0
   }).format(Number(value) || 0);
 
+const parseCurrencyInput = (value) => String(value || '').replace(/\D/g, '');
+
 const formatDate = (value) => {
   if (!value) return '-';
 
@@ -200,6 +202,19 @@ export default function RewardList() {
   const handleOpenWithdrawModal = () => {
     setWithdrawAmount(String(summary.totalClaimed || 0));
     setShowWithdrawModal(true);
+  };
+
+  const handleChangeWithdrawAmount = (event) => {
+    setWithdrawAmount(parseCurrencyInput(event.target.value));
+  };
+
+  const handleSubmitWithdraw = () => {
+    const rawWithdrawAmount = Number(withdrawAmount) || 0;
+
+    if (!rawWithdrawAmount || rawWithdrawAmount > summary.totalClaimed) return;
+
+    setShowWithdrawModal(false);
+    showAlert('Pengajuan withdraw berhasil disiapkan', 'success');
   };
 
   const pageCount = Math.max(Math.ceil(claims.length / pageSize), 1);
@@ -813,11 +828,10 @@ export default function RewardList() {
             <Form.Group>
               <Form.Label>Nominal Withdraw</Form.Label>
               <Form.Control
-                type="number"
-                min={0}
-                max={summary.totalClaimed}
-                value={withdrawAmount}
-                onChange={(event) => setWithdrawAmount(event.target.value)}
+                type="text"
+                inputMode="numeric"
+                value={withdrawAmount ? formatCurrency(withdrawAmount) : ''}
+                onChange={handleChangeWithdrawAmount}
                 placeholder="Masukkan nominal withdraw"
               />
               <Form.Text className="text-muted">Default nominal mengikuti total saldo yang tersedia.</Form.Text>
@@ -828,7 +842,11 @@ export default function RewardList() {
           <Button variant="light-secondary" onClick={() => setShowWithdrawModal(false)}>
             Tutup
           </Button>
-          <Button variant="primary" disabled={!Number(withdrawAmount) || Number(withdrawAmount) > summary.totalClaimed}>
+          <Button
+            variant="primary"
+            onClick={handleSubmitWithdraw}
+            disabled={!Number(withdrawAmount) || Number(withdrawAmount) > summary.totalClaimed}
+          >
             Simpan Withdraw
           </Button>
         </Modal.Footer>

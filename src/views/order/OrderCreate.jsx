@@ -99,6 +99,17 @@ export default function OrderPost() {
     return new Date(today.getTime() - timezoneOffset).toISOString().slice(0, 10);
   };
 
+  const addDaysToDate = (value, days) => {
+    if (!value) return '';
+
+    const date = new Date(`${value}T00:00:00`);
+    date.setDate(date.getDate() + days);
+
+    const timezoneOffset = date.getTimezoneOffset() * 60000;
+
+    return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 10);
+  };
+
   const todayDate = getTodayDate();
 
   // VAT disabled
@@ -142,8 +153,9 @@ export default function OrderPost() {
   const [orderInput, setOrderInput] = useState({
     cardCode: '',
     poNumber: '',
-    docDate: '',
-    docDueDate: '',
+    docDate: todayDate,
+    docDueDate: todayDate,
+    etaDate: addDaysToDate(todayDate, 7),
     series: '',
     seriesName: '',
     slpCode: '',
@@ -486,11 +498,19 @@ export default function OrderPost() {
             }
           ]
     );
+    const docDate = formatDateInput(getValue(order, ['doc_date', 'docDate', 'DocDate']));
+    const docDueDate = formatDateInput(getValue(order, ['doc_due_date', 'docDueDate', 'DocDueDate']));
+    const minEtaDate = docDueDate || todayDate;
+    const orderEtaDate =
+      formatDateInput(getValue(order, ['eta_date', 'etaDate', 'ETA', 'u_eta', 'U_ETA'])) || addDaysToDate(minEtaDate, 7);
+    const etaDate = orderEtaDate < minEtaDate ? minEtaDate : orderEtaDate;
+
     setOrderInput({
       cardCode,
       poNumber: getValue(order, ['po_number', 'num_at_card', 'numAtCard', 'NumAtCard']),
-      docDate: formatDateInput(getValue(order, ['doc_date', 'docDate', 'DocDate'])),
-      docDueDate: formatDateInput(getValue(order, ['doc_due_date', 'docDueDate', 'DocDueDate'])),
+      docDate,
+      docDueDate,
+      etaDate,
       series: getValue(order, ['series', 'Series', 'series_code', 'seriesCode']),
       seriesName: getValue(order, orderSeriesNameKeys, ''),
       slpCode: getValue(order, ['slp_code', 'slpCode', 'SlpCode']),
@@ -818,9 +838,22 @@ export default function OrderPost() {
   };
 
   const handleSetDocDueDate = (e) => {
+    const docDueDate = e.target.value;
+
     setOrderInput({
       ...orderInput,
-      docDueDate: e.target.value
+      docDueDate,
+      etaDate: addDaysToDate(docDueDate, 7)
+    });
+  };
+
+  const handleSetEtaDate = (e) => {
+    const minEtaDate = orderInput.etaDate || orderInput.docDueDate || todayDate;
+    const etaDate = e.target.value;
+
+    setOrderInput({
+      ...orderInput,
+      etaDate: etaDate && etaDate < minEtaDate ? minEtaDate : etaDate
     });
   };
 
@@ -1271,6 +1304,7 @@ export default function OrderPost() {
       po_number: orderInput.poNumber,
       doc_date: orderInput.docDate,
       doc_due_date: orderInput.docDueDate,
+      eta_date: orderInput.etaDate,
       Series: orderInput.series,
       series_name: orderInput.seriesName || getSelectedSeriesOption()?.label || '',
       slp_code: orderInput.slpCode,
@@ -1426,13 +1460,19 @@ export default function OrderPost() {
     if (!orderInput.docDueDate) {
       return 'Request Tanggal Kirim wajib diisi.';
     }
+    if (!orderInput.etaDate) {
+      return 'ETA wajib diisi.';
+    }
+    if (orderInput.etaDate < orderInput.docDueDate) {
+      return 'ETA tidak boleh sebelum Request Tanggal Kirim.';
+    }
     if (!orderInput.address) {
       return 'Alamat Tagih wajib diisi.';
     }
     if (!orderInput.address2) {
       return 'Alamat Kirim wajib diisi.';
     }
-    
+
     // Check Dokumen Order
     const totalDocsCount = (documents?.length || 0) + (existingDocuments?.length || 0);
     if (totalDocsCount === 0) {
@@ -1645,6 +1685,18 @@ export default function OrderPost() {
                               value={orderInput.docDueDate}
                               type="date"
                               min={todayDate}
+                              size="sm"
+                            />
+                          </Form.Group>
+                        </Col>
+                        <Col md={6} xl={4}>
+                          <Form.Group>
+                            <Form.Label className="small text-muted">ETA</Form.Label>
+                            <Form.Control
+                              onChange={handleSetEtaDate}
+                              value={orderInput.etaDate}
+                              type="date"
+                              min={orderInput.etaDate || orderInput.docDueDate || todayDate}
                               size="sm"
                             />
                           </Form.Group>
