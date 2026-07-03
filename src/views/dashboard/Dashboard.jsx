@@ -6,17 +6,20 @@ import { Link } from 'react-router-dom';
 import ReactApexChart from 'react-apexcharts';
 
 // react-bootstrap
+import Badge from 'react-bootstrap/Badge';
 import Button from 'react-bootstrap/Button';
 import Card from 'react-bootstrap/Card';
 import Col from 'react-bootstrap/Col';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
+import Table from 'react-bootstrap/Table';
 
 // project-imports
 import MainCard from 'components/MainCard';
 import OrderServices from '../../services/OrderServices';
 import { currency } from '../../utils/global';
 import { useAlert } from '../../utils/alertContext';
+import ConfirmDialog from '../../components/ConfirmDialog';
 
 const statusConfig = {
   DRAFT: { label: 'Draft', color: 'secondary', icon: 'ti ti-clipboard-list' },
@@ -121,14 +124,45 @@ const summaryItems = [
   }
 ];
 
+const normalizeStatus = (value) =>
+  String(value || '')
+    .trim()
+    .toUpperCase();
+
+const getOrderValue = (order, keys, defaultValue = '') => {
+  for (const key of keys) {
+    const value = order?.[key];
+
+    if (value !== undefined && value !== null && value !== '') {
+      return value;
+    }
+  }
+
+  return defaultValue;
+};
+
 const getOrderDate = (order) => order.doc_date || order.docDate || order.created_at || order.createdAt;
 const getOrderTotal = (order) => Number(order.doc_total || order.docTotal || order.total || 0);
+const getOrderNumber = (order) => getOrderValue(order, ['sap_doc_num', 'sapDocNum', 'doc_num', 'docNum', 'order_no', 'orderNo'], '-');
+const getCustomerName = (order) => getOrderValue(order, ['customer_name', 'customerName', 'card_name', 'CardName'], '-');
+const getCustomerCode = (order) => getOrderValue(order, ['card_code', 'cardCode', 'customer_code', 'CardCode'], '');
+const getDeliveryDate = (order) =>
+  getOrderValue(order, ['actual_delivery_date', 'actualDeliveryDate', 'ActualDeliveryDate', 'delivery_date'], '');
 const getStatusMeta = (status) => statusConfig[status] || { label: status || 'Unknown', color: 'secondary', icon: 'ti ti-circle' };
+const formatOrderDate = (value) => {
+  if (!value) return '-';
+
+  const dateValue = moment(value);
+
+  return dateValue.isValid() ? dateValue.format('DD MMM YYYY') : '-';
+};
 
 export default function Dashboard() {
   const { showAlert } = useAlert();
   const [orders, setOrders] = useState([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [receivingOrderId, setReceivingOrderId] = useState(null);
+  const [selectedReceiveOrder, setSelectedReceiveOrder] = useState(null);
   const [isChartReady, setIsChartReady] = useState(false);
   const chartContainerRef = useRef(null);
 
@@ -204,6 +238,49 @@ export default function Dashboard() {
       .sort((a, b) => b.total - a.total);
   }, [orders]);
 
+  const deliveryOrders = useMemo(() => orders.filter((order) => normalizeStatus(order.status) === 'DELIVERY'), [orders]);
+
+  const handleOpenGoodsReceivedConfirm = (order) => {
+    setSelectedReceiveOrder(order);
+  };
+
+  const handleCloseGoodsReceivedConfirm = () => {
+    if (receivingOrderId) return;
+
+    setSelectedReceiveOrder(null);
+  };
+
+  const handleGoodsReceived = async () => {
+    if (!selectedReceiveOrder?.id) {
+      showAlert('Order ID not found', 'danger');
+      return;
+    }
+
+    setReceivingOrderId(selectedReceiveOrder.id);
+
+    try {
+      const response = await OrderServices.postArrived(selectedReceiveOrder.id);
+
+      if (response?.data?.success) {
+        const updatedOrder = response.data.data || { ...selectedReceiveOrder, status: 'ARRIVED' };
+
+        setOrders((currentOrders) =>
+          currentOrders.map((item) =>
+            String(item.id) === String(selectedReceiveOrder.id) ? { ...item, ...updatedOrder, status: 'ARRIVED' } : item
+          )
+        );
+        showAlert(response.data.message || 'Sales order marked as received', 'success');
+        setSelectedReceiveOrder(null);
+      } else {
+        showAlert(response?.data?.message || 'Failed to mark sales order as received', 'danger');
+      }
+    } catch (error) {
+      showAlert(error?.message || 'Failed to mark sales order as received', 'danger');
+    } finally {
+      setReceivingOrderId(null);
+    }
+  };
+
   const chartOptions = useMemo(
     () => ({
       ...salesOrderChartOptions,
@@ -252,7 +329,8 @@ export default function Dashboard() {
   }, [isLoadingOrders, chartData.categories, chartData.count, chartData.total]);
 
   return (
-    <Stack gap={3}>
+    <>
+      <Stack gap={3}>
       <MainCard
         title={
           <Stack gap={1}>
@@ -341,6 +419,61 @@ export default function Dashboard() {
         </Col>
       </Row>
 
+      <MainCard
+        title={
+          <Stack gap={1}>
+            <h5 className="mb-0">Delivery Orders</h5>
+            <span className="text-muted f-12">Sales orders currently in delivery and waiting for receipt confirmation.</span>
+          </Stack>
+        }
+      >
+        {isLoadingOrders ? (
+          <div className="text-center text-muted py-4">Loading delivery orders...</div>
+        ) : deliveryOrders.length > 0 ? (
+          <Table className="mb-0 align-middle" responsive hover>
+            <thead>
+              <tr>
+                <th>No. SO</th>
+                <th>Customer</th>
+                <th>Delivery Date</th>
+                <th className="text-end">Total Order</th>
+                <th>Status</th>
+                <th className="text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {deliveryOrders.map((order) => (
+                <tr key={order.id}>
+                  <td className="fw-semibold">{getOrderNumber(order)}</td>
+                  <td>
+                    <div>{getCustomerName(order)}</div>
+                    <div className="text-muted f-12">{getCustomerCode(order) || '-'}</div>
+                  </td>
+                  <td>{formatOrderDate(getDeliveryDate(order))}</td>
+                  <td className="text-end">{currency(getOrderTotal(order))}</td>
+                  <td>
+                    <Badge bg="info">Delivery</Badge>
+                  </td>
+                  <td className="text-center">
+                    <Button
+                      variant="success"
+                      size="sm"
+                      disabled={receivingOrderId === order.id}
+                      onClick={() => handleOpenGoodsReceivedConfirm(order)}
+                    >
+                      <i className={receivingOrderId === order.id ? 'ti ti-loader-2 me-1' : 'ti ti-package-import me-1'} />
+                      Goods Received
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        ) : (
+          <div className="text-center text-muted py-4">No delivery sales orders.</div>
+        )}
+      </MainCard>
+
       <Row className="g-3">
         <Col xl={8}>
           <MainCard
@@ -400,6 +533,15 @@ export default function Dashboard() {
           </MainCard>
         </Col>
       </Row>
-    </Stack>
+      </Stack>
+      <ConfirmDialog
+        show={Boolean(selectedReceiveOrder)}
+        title="Confirm Goods Received"
+        subTitle={`Are you sure you want to mark sales order ${getOrderNumber(selectedReceiveOrder)} as received?`}
+        loading={Boolean(receivingOrderId)}
+        onCancel={handleCloseGoodsReceivedConfirm}
+        onSubmit={handleGoodsReceived}
+      />
+    </>
   );
 }

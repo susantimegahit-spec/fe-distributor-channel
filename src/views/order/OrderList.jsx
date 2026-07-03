@@ -946,6 +946,7 @@ export default function OrderList() {
                 <th>No. SO</th>
                 <th>Depo</th>
                 <th>Date</th>
+                <th>Delivery Date</th>
                 <th>Total Item</th>
                 <th>Total Order</th>
                 <th>Status</th>
@@ -956,7 +957,7 @@ export default function OrderList() {
             {isLoading ? (
               <tbody>
                 <tr>
-                  <td colSpan={8}>
+                  <td colSpan={9}>
                     <LoaderData />
                   </td>
                 </tr>
@@ -971,6 +972,11 @@ export default function OrderList() {
                         {order.depo} - {order.customer_name}
                       </td>
                       <td>{moment(order.doc_date).format('DD MMM YYYY')}</td>
+                      <td>
+                        {formatOrderDate(
+                          getOrderValue(order, ['actual_delivery_date', 'actualDeliveryDate', 'ActualDeliveryDate', 'delivery_date'])
+                        )}
+                      </td>
                       <td>{getOrderLines(order).length}</td>
                       <td>{currency(order?.doc_total)}</td>
                       <td>
@@ -994,7 +1000,7 @@ export default function OrderList() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={8}>
+                    <td colSpan={9}>
                       <div className="text-center py-5">
                         <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                           <i className="ti ti-clipboard-list f-24" />
@@ -1074,6 +1080,18 @@ export default function OrderList() {
                 <Col md={4}>
                   <Form.Label className="f-12 text-muted">ETA Date</Form.Label>
                   <div>{formatOrderDate(getOrderValue(selectedOrderDetail, ['eta_date', 'etaDate', 'ETA', 'u_eta', 'U_ETA'], ''))}</div>
+                </Col>
+                <Col md={4}>
+                  <Form.Label className="f-12 text-muted">Delivery Date</Form.Label>
+                  <div>
+                    {formatOrderDate(
+                      getOrderValue(
+                        selectedOrderDetail,
+                        ['actual_delivery_date', 'actualDeliveryDate', 'ActualDeliveryDate', 'delivery_date'],
+                        ''
+                      )
+                    )}
+                  </div>
                 </Col>
                 <Col md={4}>
                   <Form.Label className="f-12 text-muted">Series Name</Form.Label>

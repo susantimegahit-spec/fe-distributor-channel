@@ -60,6 +60,10 @@ class OrderServices {
     }
   }
 
+  postArrived(id) {
+    return DataService.post(`/sales-orders/${id}/arrive`);
+  }
+
   downloadPdf(id) {
     return DataService.getBlob(`/sales-orders/${id}/pdf`);
   }
