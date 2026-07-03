@@ -17,14 +17,28 @@ import MainCard from 'components/MainCard';
 import { passwordSchema, usernameSchema } from 'utils/validationSchema';
 import { useAlert } from '../../utils/alertContext';
 
-import CustomerPortalMark from 'assets/images/customer-portal-mark.png';
+import CapKapalLogo from 'assets/images/cap-kapal.png';
+import CapLayarLogo from 'assets/images/cap_layar.png';
+import GaramCapTanganLogo from 'assets/images/garam-cap-tangan.png';
+import GaramiLogo from 'assets/images/garami.png';
+import GaramJempolLogo from 'assets/images/garam-jempol.png';
+import GaramkuLogo from 'assets/images/garamku.png';
+import SusantiMegahLogo from 'assets/images/logo-susanti-white.png';
 import { DataService } from '../../config/dataService';
 import LoaderButton from '../../components/LoaderButton';
-import { customerCodeSchema } from '../../utils/validationSchema';
 import Turnstile from 'components/Turnstile';
 import { AUTH_STATE_CHANGED_EVENT } from '../../utils/authEvents';
 
 // ==============================|| AUTH LOGIN FORM ||============================== //
+
+const productLogos = [
+  { src: GaramkuLogo, alt: 'Garamku' },
+  { src: CapKapalLogo, alt: 'Cap Kapal' },
+  { src: CapLayarLogo, alt: 'Cap Layar' },
+  { src: GaramiLogo, alt: 'Garami' },
+  { src: GaramCapTanganLogo, alt: 'Garam Cap Tangan' },
+  { src: GaramJempolLogo, alt: 'Garam Jempol' }
+];
 
 export default function AuthLoginForm({ className }) {
   const [showPassword, setShowPassword] = useState(false);
@@ -50,7 +64,7 @@ export default function AuthLoginForm({ className }) {
     const payload = {
       username: getValues().username,
       password: getValues().password,
-      code_customer: getValues().customerCode,
+      code_customer: '',
       cf_turnstile_response: turnstileToken,
       force: isForce
     };
@@ -96,21 +110,32 @@ export default function AuthLoginForm({ className }) {
 
   return (
     <MainCard className="sm-login-card mb-0">
-      <div className="text-center mb-4">
-        <Image src={CustomerPortalMark} alt="sm-connect" className="sm-login-logo mb-3" />
-        {/* <span className="sm-auth-eyebrow d-block mt-3">Selamat Datang</span> */}
-        <p className="text-muted mb-0">Gunakan akun yang sudah terdaftar.</p>
+      <div className="sm-login-header">
+        <div className="sm-login-title-group">
+          <div className="sm-login-logo-wrap">
+            <Image src={SusantiMegahLogo} alt="Susanti Megah" className="sm-login-logo" />
+          </div>
+          <h4>Sign in to Customer Portal</h4>
+        </div>
+        {/* <span className="sm-login-access">OPERATOR ACCESS</span> */}
+        <p>Enter your account credentials to continue to the workspace assigned to your role.</p>
+      </div>
+      <div className="sm-login-products" aria-label="Product brands">
+        {productLogos.map((product) => (
+          <div className="sm-login-product" key={product.alt}>
+            <img src={product.src} alt={product.alt} />
+          </div>
+        ))}
       </div>
       <Form onSubmit={handleSubmit(() => onSubmit(false))}>
-        <Form.Group className="mb-3" controlId="formUsername">
-          <Form.Label>Username</Form.Label>
+        <Form.Group className="sm-login-field" controlId="formUsername">
+          <Form.Label>
+            <span>*</span> Username
+          </Form.Label>
           <InputGroup className="sm-input-group">
-            <InputGroup.Text>
-              <i className="ti ti-user" />
-            </InputGroup.Text>
             <Form.Control
               type="text"
-              placeholder="Masukkan username"
+              placeholder="Enter your username"
               {...register('username', usernameSchema)}
               isInvalid={!!errors.username}
               name="username"
@@ -119,35 +144,17 @@ export default function AuthLoginForm({ className }) {
           </InputGroup>
           <Form.Control.Feedback type="invalid">{errors.username?.message}</Form.Control.Feedback>
         </Form.Group>
-        {/* <Form.Group className="mb-3" controlId="formCustomerCode">
-          <Form.Label>Kode Customer</Form.Label>
+        <Form.Group className="sm-login-field" controlId="formPassword">
+          <Form.Label>
+            <span>*</span> Password
+          </Form.Label>
           <InputGroup className="sm-input-group">
-            <InputGroup.Text>
-              <i className="ti ti-id" />
-            </InputGroup.Text>
-            <Form.Control
-              type="text"
-              placeholder="Masukkan kode customer"
-              {...register('customerCode', customerCodeSchema)}
-              isInvalid={!!errors.customerCode}
-              name="customerCode"
-              className={className && 'bg-transparent border-white text-white border-opacity-25 '}
-            />
-          </InputGroup>
-          <Form.Control.Feedback type="invalid">{errors.customerCode?.message}</Form.Control.Feedback>
-        </Form.Group> */}
-        <Form.Group className="mb-3" controlId="formPassword">
-          <Form.Label>Password</Form.Label>
-          <InputGroup className="sm-input-group">
-            <InputGroup.Text>
-              <i className="ti ti-lock" />
-            </InputGroup.Text>
             <Form.Control
               type={showPassword ? 'text' : 'password'}
-              placeholder="Masukkan password"
+              placeholder="Enter your password"
               {...register('password', passwordSchema)}
               isInvalid={!!errors.password}
-              className={className && 'bg-transparent border-white text-white border-opacity-25 '}
+              className={`sm-password-input ${className ? 'bg-transparent border-white text-white border-opacity-25 ' : ''}`}
             />
             <Button type="button" variant="light" className="sm-password-toggle" onClick={togglePasswordVisibility}>
               {showPassword ? <i className="ti ti-eye" /> : <i className="ti ti-eye-off" />}
@@ -163,35 +170,36 @@ export default function AuthLoginForm({ className }) {
           />
         )}
 
-        <div className="d-grid mt-4">
+        <div className="d-grid sm-login-action">
           <Button
             type="submit"
             disabled={isLoading || (import.meta.env.VITE_TURNSTILE_ENABLED !== 'false' && !turnstileToken)}
             className="sm-login-submit"
           >
-            {isLoading ? <LoaderButton /> : 'Login'}
+            {isLoading ? <LoaderButton /> : 'Sign In'}
           </Button>
         </div>
       </Form>
+      <div className="sm-login-footnote">Dashboard access follows your registered role and distributor assignment.</div>
       <Modal show={showConfirmModal} onHide={() => setShowConfirmModal(false)} centered>
         <Modal.Header closeButton>
-          <Modal.Title>Konfirmasi Login</Modal.Title>
+          <Modal.Title>Sign-In Confirmation</Modal.Title>
         </Modal.Header>
         <Modal.Body className="text-center py-4">
           <div className="text-warning mb-3">
             <i className="ti ti-alert-triangle" style={{ fontSize: '3.5rem' }} />
           </div>
-          <h5 className="mb-2">Akun Sedang Aktif</h5>
+          <h5 className="mb-2">Account Already Active</h5>
           <p className="text-muted mb-0">
-            Akun ini sedang aktif di perangkat lain. Apakah Anda ingin mengeluarkan (logout) perangkat tersebut dan masuk di perangkat ini?
+            This account is currently active on another device. Do you want to sign out that device and continue here?
           </p>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowConfirmModal(false)}>
-            Batal
+            Cancel
           </Button>
           <Button variant="danger" onClick={handleForceLogin}>
-            Ya, Keluarkan
+            Yes, Sign Out
           </Button>
         </Modal.Footer>
       </Modal>

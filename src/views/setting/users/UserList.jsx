@@ -22,6 +22,7 @@ import LoaderData from '../../../components/LoaderData';
 import DistributorServices from '../../../services/DistributorServices';
 import RoleServices from '../../../services/RoleServices';
 import UserServices from '../../../services/UserServices';
+import { SYSTEM_KEYS } from '../../../systems';
 import { useAlert } from '../../../utils/alertContext';
 
 const initialInput = {
@@ -30,6 +31,7 @@ const initialInput = {
   email: '',
   password: '',
   roleId: '',
+  accessibleSystems: [],
   distributorCodes: [],
   distributorIds: []
 };
@@ -42,6 +44,16 @@ const allDistributorOption = {
   id: ALL_DISTRIBUTORS_VALUE,
   name: 'All Distributor',
   isAll: true
+};
+const accessibleSystemOptions = [
+  { value: SYSTEM_KEYS.CUSTOMER_PORTAL, label: 'Distributor' },
+  { value: SYSTEM_KEYS.EKSPEDISI, label: 'Ekspedisi' }
+];
+const accessibleSystemAliases = {
+  distributor: SYSTEM_KEYS.CUSTOMER_PORTAL,
+  'customer-portal': SYSTEM_KEYS.CUSTOMER_PORTAL,
+  'customer portal': SYSTEM_KEYS.CUSTOMER_PORTAL,
+  ekspedisi: SYSTEM_KEYS.EKSPEDISI
 };
 
 const getUserDistributorCode = (item) =>
@@ -137,6 +149,47 @@ const formatDistributorNames = (item) => {
     .join(', ');
 };
 
+const getAccessibleSystemValue = (item) => {
+  if (typeof item === 'string') return item;
+
+  return item?.key || item?.value || item?.system || item?.system_key || item?.name || item?.title || '';
+};
+
+const normalizeAccessibleSystems = (value) => {
+  let systems = normalizeArray(value);
+
+  if (typeof value === 'string') {
+    try {
+      const parsedValue = JSON.parse(value);
+
+      systems = Array.isArray(parsedValue) ? parsedValue : normalizeArray(parsedValue);
+    } catch {
+      systems = value.split(',');
+    }
+  }
+
+  return [
+    ...new Set(
+      systems
+        .map((item) => String(getAccessibleSystemValue(item)).trim().toLowerCase())
+        .map((item) => accessibleSystemAliases[item] || item)
+        .filter((item) => accessibleSystemOptions.some((option) => option.value === item))
+    )
+  ];
+};
+
+const getUserAccessibleSystems = (item) =>
+  normalizeAccessibleSystems(item?.accessible_systems || item?.accessibleSystems || item?.systems || item?.system_permissions);
+
+const formatAccessibleSystems = (item) => {
+  const selectedSystems = getUserAccessibleSystems(item);
+
+  return accessibleSystemOptions
+    .filter((option) => selectedSystems.includes(option.value))
+    .map((option) => option.label)
+    .join(', ');
+};
+
 export default function UserList() {
   const { showAlert } = useAlert();
   const [dataSource, setDataSource] = useState([]);
@@ -208,7 +261,8 @@ export default function UserList() {
         item.email?.toLowerCase().includes(keyword) ||
         item.role?.name?.toLowerCase().includes(keyword) ||
         formatDistributorCodes(item).toLowerCase().includes(keyword) ||
-        formatDistributorNames(item).toLowerCase().includes(keyword);
+        formatDistributorNames(item).toLowerCase().includes(keyword) ||
+        formatAccessibleSystems(item).toLowerCase().includes(keyword);
       const matchStatus = selectedStatus ? String(item.is_active) === selectedStatus : true;
       const matchRole = selectedRole ? String(item.role?.id) === selectedRole || String(item.role_id) === selectedRole : true;
 
@@ -268,11 +322,19 @@ export default function UserList() {
     });
   };
 
+  const handleSelectAccessibleSystems = (options) => {
+    setInput({
+      ...input,
+      accessibleSystems: (options || []).map((option) => option.value)
+    });
+  };
+
   const distributorOptions = [allDistributorOption, ...listDistributor];
   const isAllDistributorSelected = input.distributorCodes.includes(ALL_DISTRIBUTORS_VALUE);
   const selectedDistributor = isAllDistributorSelected
     ? [allDistributorOption]
     : listDistributor.filter((item) => input.distributorCodes.includes(item.value));
+  const selectedAccessibleSystems = accessibleSystemOptions.filter((item) => input.accessibleSystems.includes(item.value));
   const getSelectedDistributorPayload = () => ({
     code_customer: isAllDistributorSelected ? listDistributor.map((item) => item.value) : input.distributorCodes,
     id_distributor: isAllDistributorSelected ? listDistributor.map((item) => item.id) : input.distributorIds
@@ -303,6 +365,7 @@ export default function UserList() {
       email: item.email || '',
       password: '',
       roleId: item.role?.id || item.role_id || '',
+      accessibleSystems: getUserAccessibleSystems(item),
       distributorCodes: hasAllDistributors ? [ALL_DISTRIBUTORS_VALUE] : distributorCodes,
       distributorIds: hasAllDistributors ? [ALL_DISTRIBUTORS_VALUE] : distributorIds
     });
@@ -324,6 +387,7 @@ export default function UserList() {
       email: input.email,
       password: input.password,
       role_id: input.roleId,
+      accessible_systems: input.accessibleSystems,
       code_customer: distributorPayload.code_customer?.toString(),
       id_distributor: distributorPayload.id_distributor?.toString()
     };
@@ -347,6 +411,7 @@ export default function UserList() {
       username: input.username,
       email: input.email,
       role_id: input.roleId,
+      accessible_systems: input.accessibleSystems,
       code_customer: distributorPayload.code_customer?.toString(),
       id_distributor: distributorPayload.id_distributor?.toString()
     };
@@ -383,7 +448,13 @@ export default function UserList() {
   };
 
   const formIsValid = Boolean(
-    input.name && input.username && input.email && input.roleId && input.distributorCodes.length && (formMode === 'edit' || input.password)
+    input.name &&
+      input.username &&
+      input.email &&
+      input.roleId &&
+      input.accessibleSystems.length &&
+      // input.distributorCodes.length &&
+      (formMode === 'edit' || input.password)
   );
 
   return (
@@ -518,7 +589,7 @@ export default function UserList() {
             {loadingData ? (
               <tbody>
                 <tr>
-                  <td colSpan={6}>
+                  <td colSpan={7}>
                     <LoaderData />
                   </td>
                 </tr>
@@ -530,6 +601,7 @@ export default function UserList() {
                     <th style={{ minWidth: 220 }}>User</th>
                     <th style={{ minWidth: 220 }}>Email</th>
                     <th style={{ minWidth: 220 }}>Distributor</th>
+                    <th style={{ minWidth: 180 }}>Accessible System</th>
                     <th style={{ minWidth: 180 }}>Hak Akses</th>
                     <th style={{ minWidth: 120 }}>Status</th>
                     <th className="text-center" style={{ width: 140 }}>
@@ -555,6 +627,7 @@ export default function UserList() {
                           <div className="fw-semibold">{formatDistributorCodes(item) || '-'}</div>
                           <small className="text-muted">{formatDistributorNames(item) || '-'}</small>
                         </td>
+                        <td>{formatAccessibleSystems(item) || '-'}</td>
                         <td>
                           <Badge bg="light" text="dark">
                             {item.role?.name || '-'}
@@ -583,7 +656,7 @@ export default function UserList() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={6}>
+                      <td colSpan={7}>
                         <div className="text-center py-5">
                           <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                             <i className="ti ti-users f-24" />
@@ -678,6 +751,19 @@ export default function UserList() {
                     ))}
                   </Form.Select>
                 </Col>
+                <Col md={12}>
+                  <Form.Label className="f-12 text-muted">Accessible System</Form.Label>
+                  <Select
+                    value={selectedAccessibleSystems}
+                    options={accessibleSystemOptions}
+                    menuPosition="fixed"
+                    onChange={handleSelectAccessibleSystems}
+                    placeholder="Select accessible system"
+                    isClearable
+                    isMulti
+                    closeMenuOnSelect={false}
+                  />
+                </Col>
                 {/* {input.roleId == 1 ? ( */}
                 <Col md={12}>
                   <Form.Label className="f-12 text-muted">Distributor</Form.Label>
@@ -695,20 +781,22 @@ export default function UserList() {
                 {/* ) : null} */}
                 <Col md={12}>
                   <Form.Label className="f-12 text-muted">{formMode === 'edit' ? 'Password Baru' : 'Password'}</Form.Label>
-                  <InputGroup className="sm-input-group">
-                    <InputGroup.Text>
-                      <i className="ti ti-lock" />
-                    </InputGroup.Text>
+                  <div className="sm-user-password-field">
                     <Form.Control
                       type={showPassword ? 'text' : 'password'}
                       placeholder={formMode === 'edit' ? 'Kosongkan jika tidak diubah' : 'Password awal'}
                       value={input.password}
                       onChange={(event) => handleSetState('password', event)}
                     />
-                    <Button type="button" variant="light" className="sm-password-toggle" onClick={() => setShowPassword((value) => !value)}>
+                    <Button
+                      type="button"
+                      variant="link"
+                      className="sm-user-password-toggle"
+                      onClick={() => setShowPassword((value) => !value)}
+                    >
                       {showPassword ? <i className="ti ti-eye" /> : <i className="ti ti-eye-off" />}
                     </Button>
-                  </InputGroup>
+                  </div>
                 </Col>
               </Row>
             </Col>
@@ -751,6 +839,10 @@ export default function UserList() {
                   <Col md={6}>
                     <Form.Label className="f-12 text-muted">Hak Akses</Form.Label>
                     <div>{selectedUser.role?.name || '-'}</div>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Label className="f-12 text-muted">Accessible System</Form.Label>
+                    <div className="fw-semibold">{formatAccessibleSystems(selectedUser) || '-'}</div>
                   </Col>
                   <Col md={6}>
                     <Form.Label className="f-12 text-muted">Distributor Code</Form.Label>
