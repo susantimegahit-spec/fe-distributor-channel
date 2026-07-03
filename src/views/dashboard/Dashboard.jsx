@@ -200,7 +200,11 @@ export default function Dashboard() {
   }, [orders]);
 
   const chartData = useMemo(() => {
-    const monthKeys = Array.from({ length: 6 }, (_, index) => moment().subtract(5 - index, 'months').format('YYYY-MM'));
+    const monthKeys = Array.from({ length: 6 }, (_, index) =>
+      moment()
+        .subtract(5 - index, 'months')
+        .format('YYYY-MM')
+    );
     const monthMap = monthKeys.reduce((result, key) => ({ ...result, [key]: { count: 0, total: 0 } }), {});
 
     orders.forEach((order) => {
@@ -331,22 +335,22 @@ export default function Dashboard() {
   return (
     <>
       <Stack gap={3}>
-      <MainCard
-        title={
-          <Stack gap={1}>
-            <h5 className="mb-0">Dashboard</h5>
-            <span className="text-muted f-12">Summary of distributor channel main feature access.</span>
-          </Stack>
-        }
-        secondary={
-          <Button as={Link} to="/order/order-list" variant="primary">
-            <i className="ph ph-list-bullets me-1" />
-            View Order
-          </Button>
-        }
-      >
-        <Row className="g-3">
-          {/* {summaryItems.map((item) => (
+        <MainCard
+          title={
+            <Stack gap={1}>
+              <h5 className="mb-0">Dashboard</h5>
+              <span className="text-muted f-12">Summary of distributor channel main feature access.</span>
+            </Stack>
+          }
+          secondary={
+            <Button as={Link} to="/order/order-list" variant="primary">
+              <i className="ph ph-list-bullets me-1" />
+              View Order
+            </Button>
+          }
+        >
+          <Row className="g-3">
+            {/* {summaryItems.map((item) => (
             <Col sm={6} xl={3} key={item.title}>
               <Card className="border mb-0 h-100">
                 <Card.Body className="py-3">
@@ -368,171 +372,173 @@ export default function Dashboard() {
               </Card>
             </Col>
           ))} */}
+          </Row>
+        </MainCard>
+
+        <Row className="g-3">
+          <Col sm={6} xl={4}>
+            <Card className="border mb-0 h-100">
+              <Card.Body>
+                <Stack direction="horizontal" className="justify-content-between" gap={3}>
+                  <div>
+                    <div className="text-muted f-12">Total Sales Order</div>
+                    <h4 className="mb-0">{isLoadingOrders ? '-' : orderSummary.totalOrder}</h4>
+                  </div>
+                  <span className="avtar avtar-s bg-light-primary text-primary">
+                    <i className="ti ti-shopping-cart" />
+                  </span>
+                </Stack>
+              </Card.Body>
+            </Card>
+          </Col>
+          <Col sm={6} xl={4}>
+            <Card className="border mb-0 h-100">
+              <Card.Body>
+                <Stack direction="horizontal" className="justify-content-between" gap={3}>
+                  <div>
+                    <div className="text-muted f-12">Total Order Value</div>
+                    <h4 className="mb-0">{isLoadingOrders ? '-' : currency(orderSummary.totalAmount)}</h4>
+                  </div>
+                  <span className="avtar avtar-s bg-light-success text-success">
+                    <i className="ti ti-cash" />
+                  </span>
+                </Stack>
+              </Card.Body>
+            </Card>
+          </Col>
+          <Col sm={6} xl={4}>
+            <Card className="border mb-0 h-100">
+              <Card.Body>
+                <Stack direction="horizontal" className="justify-content-between" gap={3}>
+                  <div>
+                    <div className="text-muted f-12">Total Item Order</div>
+                    <h4 className="mb-0">{isLoadingOrders ? '-' : orderSummary.totalItem}</h4>
+                  </div>
+                  <span className="avtar avtar-s bg-light-info text-info">
+                    <i className="ti ti-package" />
+                  </span>
+                </Stack>
+              </Card.Body>
+            </Card>
+          </Col>
         </Row>
-      </MainCard>
 
-      <Row className="g-3">
-        <Col sm={6} xl={4}>
-          <Card className="border mb-0 h-100">
-            <Card.Body>
-              <Stack direction="horizontal" className="justify-content-between" gap={3}>
-                <div>
-                  <div className="text-muted f-12">Total Sales Order</div>
-                  <h4 className="mb-0">{isLoadingOrders ? '-' : orderSummary.totalOrder}</h4>
-                </div>
-                <span className="avtar avtar-s bg-light-primary text-primary">
-                  <i className="ti ti-shopping-cart" />
-                </span>
-              </Stack>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col sm={6} xl={4}>
-          <Card className="border mb-0 h-100">
-            <Card.Body>
-              <Stack direction="horizontal" className="justify-content-between" gap={3}>
-                <div>
-                  <div className="text-muted f-12">Total Order Value</div>
-                  <h4 className="mb-0">{isLoadingOrders ? '-' : currency(orderSummary.totalAmount)}</h4>
-                </div>
-                <span className="avtar avtar-s bg-light-success text-success">
-                  <i className="ti ti-cash" />
-                </span>
-              </Stack>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col sm={6} xl={4}>
-          <Card className="border mb-0 h-100">
-            <Card.Body>
-              <Stack direction="horizontal" className="justify-content-between" gap={3}>
-                <div>
-                  <div className="text-muted f-12">Total Item Order</div>
-                  <h4 className="mb-0">{isLoadingOrders ? '-' : orderSummary.totalItem}</h4>
-                </div>
-                <span className="avtar avtar-s bg-light-info text-info">
-                  <i className="ti ti-package" />
-                </span>
-              </Stack>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-
-      <MainCard
-        title={
-          <Stack gap={1}>
-            <h5 className="mb-0">Delivery Orders</h5>
-            <span className="text-muted f-12">Sales orders currently in delivery and waiting for receipt confirmation.</span>
-          </Stack>
-        }
-      >
-        {isLoadingOrders ? (
-          <div className="text-center text-muted py-4">Loading delivery orders...</div>
-        ) : deliveryOrders.length > 0 ? (
-          <Table className="mb-0 align-middle" responsive hover>
-            <thead>
-              <tr>
-                <th>No. SO</th>
-                <th>Customer</th>
-                <th>Delivery Date</th>
-                <th className="text-end">Total Order</th>
-                <th>Status</th>
-                <th className="text-center">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {deliveryOrders.map((order) => (
-                <tr key={order.id}>
-                  <td className="fw-semibold">{getOrderNumber(order)}</td>
-                  <td>
-                    <div>{getCustomerName(order)}</div>
-                    <div className="text-muted f-12">{getCustomerCode(order) || '-'}</div>
-                  </td>
-                  <td>{formatOrderDate(getDeliveryDate(order))}</td>
-                  <td className="text-end">{currency(getOrderTotal(order))}</td>
-                  <td>
-                    <Badge bg="info">Delivery</Badge>
-                  </td>
-                  <td className="text-center">
-                    <Button
-                      variant="success"
-                      size="sm"
-                      disabled={receivingOrderId === order.id}
-                      onClick={() => handleOpenGoodsReceivedConfirm(order)}
-                    >
-                      <i className={receivingOrderId === order.id ? 'ti ti-loader-2 me-1' : 'ti ti-package-import me-1'} />
-                      Goods Received
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        ) : (
-          <div className="text-center text-muted py-4">No delivery sales orders.</div>
-        )}
-      </MainCard>
-
-      <Row className="g-3">
-        <Col xl={8}>
-          <MainCard
-            title={
-              <Stack gap={1}>
-                <h5 className="mb-0">Tren Sales Order</h5>
-                <span className="text-muted f-12">Sales order count and value in the last 6 months.</span>
-              </Stack>
-            }
-          >
-            <div ref={chartContainerRef} style={{ minHeight: 340, width: '100%' }}>
-              {isLoadingOrders || !isChartReady ? (
-                <div className="d-flex align-items-center justify-content-center text-muted" style={{ minHeight: 340 }}>
-                  Memuat data sales order...
-                </div>
-              ) : (
-                <ReactApexChart options={chartOptions} series={chartSeries} type="line" height={340} width="100%" />
-              )}
-            </div>
-          </MainCard>
-        </Col>
-        <Col xl={4}>
-          <MainCard
-            title={
-              <Stack gap={1}>
-                <h5 className="mb-0">Status Order</h5>
-                <span className="text-muted f-12">Information status dari sales order yang dibuat.</span>
-              </Stack>
-            }
-          >
-            <Stack gap={2}>
-              {isLoadingOrders ? (
-                <div className="text-center text-muted py-5">Memuat status order...</div>
-              ) : statusSummary.length > 0 ? (
-                statusSummary.map((item) => (
-                  <Card className="border mb-0" key={item.status}>
-                    <Card.Body className="py-2">
-                      <Stack direction="horizontal" className="justify-content-between" gap={3}>
-                        <Stack direction="horizontal" gap={2}>
-                          <span className={`avtar avtar-xs bg-light-${item.color} text-${item.color}`}>
-                            <i className={item.icon} />
-                          </span>
-                          <div>
-                            <div className="fw-semibold">{item.label}</div>
-                            <div className="text-muted f-12">{item.status}</div>
-                          </div>
-                        </Stack>
-                        <h5 className="mb-0">{item.total}</h5>
-                      </Stack>
-                    </Card.Body>
-                  </Card>
-                ))
-              ) : (
-                <div className="text-center text-muted py-5">No sales orders yet.</div>
-              )}
+        <MainCard
+          title={
+            <Stack gap={1}>
+              <h5 className="mb-0">Delivery Orders</h5>
+              <span className="text-muted f-12">Sales orders currently in delivery and waiting for receipt confirmation.</span>
             </Stack>
-          </MainCard>
-        </Col>
-      </Row>
+          }
+        >
+          {isLoadingOrders ? (
+            <div className="text-center text-muted py-4">Loading delivery orders...</div>
+          ) : deliveryOrders.length > 0 ? (
+            <Table className="mb-0 align-middle" responsive hover>
+              <thead>
+                <tr>
+                  <th>No. SO</th>
+                  <th>Customer</th>
+                  <th className="text-end">Total Order</th>
+                  <th>Status</th>
+                  <th className="text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {deliveryOrders.map((order) => (
+                  <tr key={order.id}>
+                    <td className="fw-semibold">{getOrderNumber(order)}</td>
+                    <td>
+                      <div>{getCustomerName(order)}</div>
+                      <div className="text-muted f-12">{getCustomerCode(order) || '-'}</div>
+                    </td>
+                    <td className="text-end">{currency(getOrderTotal(order))}</td>
+                    <td>
+                      <Badge bg="info">
+                        Delivery
+                        <br />
+                        {formatOrderDate(getDeliveryDate(order))}
+                      </Badge>
+                    </td>
+                    <td className="text-center">
+                      <Button
+                        variant="success"
+                        size="sm"
+                        disabled={receivingOrderId === order.id}
+                        onClick={() => handleOpenGoodsReceivedConfirm(order)}
+                      >
+                        <i className={receivingOrderId === order.id ? 'ti ti-loader-2 me-1' : 'ti ti-package-import me-1'} />
+                        Goods Received
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          ) : (
+            <div className="text-center text-muted py-4">No delivery sales orders.</div>
+          )}
+        </MainCard>
+
+        <Row className="g-3">
+          <Col xl={8}>
+            <MainCard
+              title={
+                <Stack gap={1}>
+                  <h5 className="mb-0">Tren Sales Order</h5>
+                  <span className="text-muted f-12">Sales order count and value in the last 6 months.</span>
+                </Stack>
+              }
+            >
+              <div ref={chartContainerRef} style={{ minHeight: 340, width: '100%' }}>
+                {isLoadingOrders || !isChartReady ? (
+                  <div className="d-flex align-items-center justify-content-center text-muted" style={{ minHeight: 340 }}>
+                    Memuat data sales order...
+                  </div>
+                ) : (
+                  <ReactApexChart options={chartOptions} series={chartSeries} type="line" height={340} width="100%" />
+                )}
+              </div>
+            </MainCard>
+          </Col>
+          <Col xl={4}>
+            <MainCard
+              title={
+                <Stack gap={1}>
+                  <h5 className="mb-0">Status Order</h5>
+                  <span className="text-muted f-12">Information status dari sales order yang dibuat.</span>
+                </Stack>
+              }
+            >
+              <Stack gap={2}>
+                {isLoadingOrders ? (
+                  <div className="text-center text-muted py-5">Memuat status order...</div>
+                ) : statusSummary.length > 0 ? (
+                  statusSummary.map((item) => (
+                    <Card className="border mb-0" key={item.status}>
+                      <Card.Body className="py-2">
+                        <Stack direction="horizontal" className="justify-content-between" gap={3}>
+                          <Stack direction="horizontal" gap={2}>
+                            <span className={`avtar avtar-xs bg-light-${item.color} text-${item.color}`}>
+                              <i className={item.icon} />
+                            </span>
+                            <div>
+                              <div className="fw-semibold">{item.label}</div>
+                              <div className="text-muted f-12">{item.status}</div>
+                            </div>
+                          </Stack>
+                          <h5 className="mb-0">{item.total}</h5>
+                        </Stack>
+                      </Card.Body>
+                    </Card>
+                  ))
+                ) : (
+                  <div className="text-center text-muted py-5">No sales orders yet.</div>
+                )}
+              </Stack>
+            </MainCard>
+          </Col>
+        </Row>
       </Stack>
       <ConfirmDialog
         show={Boolean(selectedReceiveOrder)}

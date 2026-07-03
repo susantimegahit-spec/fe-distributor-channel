@@ -946,7 +946,6 @@ export default function OrderList() {
                 <th>No. SO</th>
                 <th>Depo</th>
                 <th>Date</th>
-                <th>Delivery Date</th>
                 <th>Total Item</th>
                 <th>Total Order</th>
                 <th>Status</th>
@@ -972,15 +971,20 @@ export default function OrderList() {
                         {order.depo} - {order.customer_name}
                       </td>
                       <td>{moment(order.doc_date).format('DD MMM YYYY')}</td>
-                      <td>
-                        {formatOrderDate(
-                          getOrderValue(order, ['actual_delivery_date', 'actualDeliveryDate', 'ActualDeliveryDate', 'delivery_date'])
-                        )}
-                      </td>
                       <td>{getOrderLines(order).length}</td>
                       <td>{currency(order?.doc_total)}</td>
                       <td>
-                        <Badge bg={statusVariant[order.status] || 'secondary'}>{getStatusLabel(order.status)}</Badge>
+                        <Badge bg={statusVariant[order.status] || 'secondary'}>
+                          {getStatusLabel(order.status)}
+                          {order.status === 'DELIVERY' ? (
+                            <>
+                              <br />
+                              {formatOrderDate(
+                                getOrderValue(order, ['actual_delivery_date', 'actualDeliveryDate', 'ActualDeliveryDate', 'delivery_date'])
+                              )}
+                            </>
+                          ) : null}
+                        </Badge>
                       </td>
                       <td>
                         {getOrderAttachments(order).length > 0 ? (
