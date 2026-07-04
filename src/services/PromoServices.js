@@ -33,8 +33,8 @@ class PromoServices {
     return DataService.get(`/claims/batches/${id}`);
   }
 
-  getClaimBatches() {
-    return DataService.get('/claims/batches');
+  getClaimBatches(payload = {}) {
+    return DataService.get('/claims/batches', payload);
   }
 
   getListWithdraw(payload = {}) {

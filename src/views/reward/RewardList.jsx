@@ -12,8 +12,10 @@ import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Tab from 'react-bootstrap/Tab';
 import Table from 'react-bootstrap/Table';
+import Select from 'react-select';
 
 // project-imports
+import DistributorServices from '../../services/DistributorServices';
 import FinanceServices from '../../services/FinanceServices';
 import PromoServices from '../../services/PromoServices';
 import RoleServices from '../../services/RoleServices';
@@ -148,6 +150,13 @@ const normalizeTotalReward = (response) => {
   return Number(source?.available_balance);
 };
 
+const normalizeDistributorOption = (item) => ({
+  value: item.code_customer || item.customer_code || item.distributor_code || '',
+  label: `${item.code_customer || item.customer_code || item.distributor_code || '-'} - ${item.name || item.name_distributor || '-'}`,
+  id: item.id,
+  name: item.name || item.name_distributor || ''
+});
+
 export default function RewardList() {
   const { showAlert } = useAlert();
   const customerCode = getCookies('customerCode');
@@ -156,6 +165,9 @@ export default function RewardList() {
   const fileInputRef = useRef(null);
   const [claims, setClaims] = useState([]);
   const [withdraws, setWithdraws] = useState([]);
+  const [listDistributor, setListDistributor] = useState([]);
+  const [selectedDistributors, setSelectedDistributors] = useState([]);
+  const [loadingDistributors, setLoadingDistributors] = useState(false);
   const [totalVerifiedReward, setTotalVerifiedReward] = useState(0);
   const [permissionDetail, setPermissionDetail] = useState(null);
   const [loadingClaims, setLoadingClaims] = useState(false);
@@ -178,12 +190,52 @@ export default function RewardList() {
   const [downloadingTemplate, setDownloadingTemplate] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [withdrawCurrentPage, setWithdrawCurrentPage] = useState(1);
+  const showDistributorFilter = !customerCode;
+  const selectedDistributorCodes = useMemo(
+    () => selectedDistributors.map((distributor) => distributor.value).filter(Boolean),
+    [selectedDistributors]
+  );
+  const effectiveCustomerCode = customerCode || selectedDistributorCodes.toString();
+  const canCreateWithdrawal = Boolean(customerCode || selectedDistributorCodes.length === 1);
+
+  const fetchDistributors = useCallback(async () => {
+    if (customerCode) return;
+
+    setLoadingDistributors(true);
+
+    try {
+      const response = await DistributorServices.getAllDistributor('');
+
+      if (response?.data?.success === false) {
+        showAlert(response.data.message || 'Failed to fetch distributor list', 'danger');
+        return;
+      }
+
+      const options = getResponseList(response, ['distributors', 'items', 'rows'])
+        .map(normalizeDistributorOption)
+        .filter((item) => item.value);
+
+      setListDistributor(options);
+    } catch (error) {
+      showAlert(error?.message || 'Failed to fetch distributor list', 'danger');
+    } finally {
+      setLoadingDistributors(false);
+    }
+  }, [customerCode, showAlert]);
 
   const fetchClaimBatches = useCallback(async () => {
+    if (!effectiveCustomerCode) {
+      setClaims([]);
+      setCurrentPage(1);
+      return;
+    }
+
     setLoadingClaims(true);
 
     try {
-      const response = await PromoServices.getClaimBatches();
+      const response = await PromoServices.getClaimBatches({
+        customer_code: effectiveCustomerCode
+      });
 
       if (response?.data?.success === false) {
         showAlert(response.data.message || 'Failed to fetch claim transaction list', 'danger');
@@ -198,13 +250,21 @@ export default function RewardList() {
     } finally {
       setLoadingClaims(false);
     }
-  }, [showAlert]);
+  }, [effectiveCustomerCode, showAlert]);
 
   const fetchWithdraws = useCallback(async () => {
+    if (!effectiveCustomerCode) {
+      setWithdraws([]);
+      setWithdrawCurrentPage(1);
+      return;
+    }
+
     setLoadingWithdraws(true);
 
     try {
-      const response = await PromoServices.getListWithdraw({});
+      const response = await PromoServices.getListWithdraw({
+        customer_code: effectiveCustomerCode
+      });
 
       if (response?.data?.success === false) {
         showAlert(response.data.message || 'Failed to fetch withdrawal list', 'danger');
@@ -219,17 +279,17 @@ export default function RewardList() {
     } finally {
       setLoadingWithdraws(false);
     }
-  }, [showAlert]);
+  }, [effectiveCustomerCode, showAlert]);
 
   const fetchTotalReward = useCallback(async () => {
-    if (!customerCode) {
+    if (!effectiveCustomerCode) {
       setTotalVerifiedReward(0);
       return;
     }
 
     try {
       const response = await PromoServices.getTotalReward({
-        customer_code: customerCode
+        customer_code: effectiveCustomerCode
       });
 
       if (response?.data?.success === false) {
@@ -241,7 +301,7 @@ export default function RewardList() {
     } catch (error) {
       showAlert(error?.message || 'Failed to fetch total reward', 'danger');
     }
-  }, [customerCode, showAlert]);
+  }, [effectiveCustomerCode, showAlert]);
 
   const fetchPermissionDetail = useCallback(async () => {
     if (!roleId) return;
@@ -258,11 +318,18 @@ export default function RewardList() {
   }, [roleId, showAlert]);
 
   useEffect(() => {
+    fetchDistributors();
+  }, [fetchDistributors]);
+
+  useEffect(() => {
     fetchClaimBatches();
     fetchWithdraws();
     fetchTotalReward();
+  }, [fetchClaimBatches, fetchWithdraws, fetchTotalReward]);
+
+  useEffect(() => {
     fetchPermissionDetail();
-  }, [fetchClaimBatches, fetchWithdraws, fetchTotalReward, fetchPermissionDetail]);
+  }, [fetchPermissionDetail]);
 
   const handleViewBatch = async (batch) => {
     setLoadingDetailId(batch.id);
@@ -308,7 +375,6 @@ export default function RewardList() {
   const summary = useMemo(() => {
     const totalClaimed = Number(totalVerifiedReward) || 0;
     const totalWithdrawn = withdraws.reduce((total, item) => total + Number(item.amount), 0);
-
     return {
       totalClaimed,
       totalWithdrawn,
@@ -329,6 +395,8 @@ export default function RewardList() {
   const canVerifySellOut = isFinanceUser || isAdministrator;
 
   const handleOpenWithdrawModal = () => {
+    if (!canCreateWithdrawal) return;
+
     setWithdrawAmount(String(summary.availableBalance || 0));
     setShowWithdrawModal(true);
   };
@@ -354,12 +422,13 @@ export default function RewardList() {
   const handleSubmitWithdraw = async () => {
     const rawWithdrawAmount = Number(withdrawAmount) || 0;
 
-    if (!rawWithdrawAmount || rawWithdrawAmount > summary.availableBalance) return;
+    if (!canCreateWithdrawal || !effectiveCustomerCode || !rawWithdrawAmount || rawWithdrawAmount > summary.availableBalance) return;
 
     setSubmittingWithdraw(true);
 
     try {
       const response = await PromoServices.postWithdraw({
+        customer_code: effectiveCustomerCode,
         amount: rawWithdrawAmount
       });
 
@@ -555,6 +624,27 @@ export default function RewardList() {
           }
         >
           <Row className="g-3">
+            {showDistributorFilter ? (
+              <Col md={6} xl={4}>
+                <Form.Label className="f-12 text-muted">Customer</Form.Label>
+                <Select
+                  value={selectedDistributors}
+                  options={listDistributor}
+                  menuPosition="fixed"
+                  onChange={(options) => {
+                    setSelectedDistributors(options || []);
+                    setSelectedClaim(null);
+                    setWithdrawAmount('');
+                  }}
+                  placeholder="Select Customer"
+                  isClearable
+                  isMulti
+                  closeMenuOnSelect={false}
+                  isLoading={loadingDistributors}
+                  noOptionsMessage={() => 'Customer not found'}
+                />
+              </Col>
+            ) : null}
             <Col md={6} xl={3}>
               <Card className="border mb-0 h-100">
                 <Card.Body className="py-3">
@@ -734,7 +824,7 @@ export default function RewardList() {
                   </Stack>
                 }
                 secondary={
-                  <Button variant="primary" onClick={handleOpenWithdrawModal}>
+                  <Button variant="primary" onClick={handleOpenWithdrawModal} disabled={!canCreateWithdrawal}>
                     <i className="ti ti-plus me-1" />
                     Add Withdrawal
                   </Button>
@@ -794,7 +884,7 @@ export default function RewardList() {
                             </div>
                             <h5 className="mb-1">No withdrawal transactions yet</h5>
                             <p className="text-muted mb-3">Add a reward withdrawal request from this tab.</p>
-                            <Button variant="primary" onClick={handleOpenWithdrawModal}>
+                            <Button variant="primary" onClick={handleOpenWithdrawModal} disabled={!canCreateWithdrawal}>
                               <i className="ti ti-plus me-1" />
                               Add Withdrawal
                             </Button>
@@ -1110,7 +1200,7 @@ export default function RewardList() {
           <Button
             variant="primary"
             onClick={handleSubmitWithdraw}
-            disabled={submittingWithdraw || !Number(withdrawAmount) || Number(withdrawAmount) > summary.availableBalance}
+            disabled={submittingWithdraw || !canCreateWithdrawal || !Number(withdrawAmount) || Number(withdrawAmount) > summary.availableBalance}
           >
             {submittingWithdraw ? 'Saving...' : 'Save Withdrawal'}
           </Button>
