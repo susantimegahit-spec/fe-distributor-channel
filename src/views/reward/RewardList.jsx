@@ -113,6 +113,8 @@ const normalizeBatch = (batch, index) => ({
   fileName: batch.file_name || batch.original_file_name || batch.original_filename || batch.filename || '-',
   uploadedBy: batch.uploaded_by_name || batch.uploaded_by || batch.created_by_name || batch.created_by || '-',
   uploadedAt: batch.created_at || batch.uploaded_at || batch.createdAt || '',
+  customerName: batch.customer_name|| '',
+  depo: batch.depo || batch.customer_depo || '',
   rewardAmount: batch.total_diskon,
   totalTransactions: Number(batch.total_rows || batch.total_records || batch.result_count || batch.total_transactions || 0),
   status: normalizeStatus(batch.status || batch.process_status || batch.processing_status),
@@ -392,10 +394,12 @@ export default function RewardList() {
 
   const isFinanceUser = permissionApprovalName === 'WAITING_FINANCE' || roleName.includes('FINANCE');
   const isAdministrator = Number(roleId) === 5;
+  const isAdminDistributor = Number(roleId) === 1 || roleName.includes('ADMIN_DISTRIBUTOR');
   const canVerifySellOut = isFinanceUser || isAdministrator;
+  const canManageReward = isAdminDistributor;
 
   const handleOpenWithdrawModal = () => {
-    if (!canCreateWithdrawal) return;
+    if (!canManageReward || !canCreateWithdrawal) return;
 
     setWithdrawAmount(String(summary.availableBalance || 0));
     setShowWithdrawModal(true);
@@ -422,7 +426,7 @@ export default function RewardList() {
   const handleSubmitWithdraw = async () => {
     const rawWithdrawAmount = Number(withdrawAmount) || 0;
 
-    if (!canCreateWithdrawal || !effectiveCustomerCode || !rawWithdrawAmount || rawWithdrawAmount > summary.availableBalance) return;
+    if (!canManageReward || !canCreateWithdrawal || !effectiveCustomerCode || !rawWithdrawAmount || rawWithdrawAmount > summary.availableBalance) return;
 
     setSubmittingWithdraw(true);
 
@@ -733,17 +737,19 @@ export default function RewardList() {
                   </Stack>
                 }
                 secondary={
-                  <Button variant="primary" onClick={() => setShowClaimModal(true)}>
-                    <i className="ti ti-plus me-1" />
-                    Add Claim
-                  </Button>
+                  canManageReward ? (
+                    <Button variant="primary" onClick={() => setShowClaimModal(true)}>
+                      <i className="ti ti-plus me-1" />
+                      Add Claim
+                    </Button>
+                  ) : null
                 }
               >
                 <Table className="mb-0 align-middle" responsive hover>
                   <thead>
                     <tr>
-                      <th style={{ minWidth: 170 }}>Claim Batch</th>
-                      <th style={{ minWidth: 220 }}>Uploaded File</th>
+                      <th style={{ minWidth: 170 }}>ID</th>
+                      <th style={{ minWidth: 220 }}>Customer</th>
                       <th style={{ minWidth: 190 }}>Upload Date</th>
                       <th style={{ minWidth: 190 }}>Total Discount</th>
                       <th className="text-center" style={{ width: 90 }}>
@@ -763,7 +769,7 @@ export default function RewardList() {
                         <tr key={claim.id}>
                           <td className="fw-semibold">{claim.claimNo}</td>
                           <td>
-                            <div className="fw-semibold">{claim.fileName || '-'}</div>
+                            <div className="fw-semibold">{`${claim.customerName} - ${claim.depo}`}</div>
                           </td>
                           <td>{formatDate(claim.uploadedAt)}</td>
                           <td>{formatCurrency(claim.rewardAmount)}</td>
@@ -793,10 +799,12 @@ export default function RewardList() {
                             </div>
                             <h5 className="mb-1">No claim transactions yet</h5>
                             <p className="text-muted mb-3">Upload the Excel template to add reward claim data.</p>
-                            <Button variant="primary" onClick={() => setShowClaimModal(true)}>
-                              <i className="ti ti-plus me-1" />
-                              Add Claim
-                            </Button>
+                            {canManageReward ? (
+                              <Button variant="primary" onClick={() => setShowClaimModal(true)}>
+                                <i className="ti ti-plus me-1" />
+                                Add Claim
+                              </Button>
+                            ) : null}
                           </div>
                         </td>
                       </tr>
@@ -824,10 +832,12 @@ export default function RewardList() {
                   </Stack>
                 }
                 secondary={
-                  <Button variant="primary" onClick={handleOpenWithdrawModal} disabled={!canCreateWithdrawal}>
-                    <i className="ti ti-plus me-1" />
-                    Add Withdrawal
-                  </Button>
+                  canManageReward ? (
+                    <Button variant="primary" onClick={handleOpenWithdrawModal} disabled={!canCreateWithdrawal}>
+                      <i className="ti ti-plus me-1" />
+                      Add Withdrawal
+                    </Button>
+                  ) : null
                 }
               >
                 <Table className="mb-0 align-middle" responsive hover>
@@ -884,10 +894,12 @@ export default function RewardList() {
                             </div>
                             <h5 className="mb-1">No withdrawal transactions yet</h5>
                             <p className="text-muted mb-3">Add a reward withdrawal request from this tab.</p>
-                            <Button variant="primary" onClick={handleOpenWithdrawModal} disabled={!canCreateWithdrawal}>
-                              <i className="ti ti-plus me-1" />
-                              Add Withdrawal
-                            </Button>
+                            {canManageReward ? (
+                              <Button variant="primary" onClick={handleOpenWithdrawModal} disabled={!canCreateWithdrawal}>
+                                <i className="ti ti-plus me-1" />
+                                Add Withdrawal
+                              </Button>
+                            ) : null}
                           </div>
                         </td>
                       </tr>
@@ -1200,7 +1212,13 @@ export default function RewardList() {
           <Button
             variant="primary"
             onClick={handleSubmitWithdraw}
-            disabled={submittingWithdraw || !canCreateWithdrawal || !Number(withdrawAmount) || Number(withdrawAmount) > summary.availableBalance}
+            disabled={
+              submittingWithdraw ||
+              !canManageReward ||
+              !canCreateWithdrawal ||
+              !Number(withdrawAmount) ||
+              Number(withdrawAmount) > summary.availableBalance
+            }
           >
             {submittingWithdraw ? 'Saving...' : 'Save Withdrawal'}
           </Button>
