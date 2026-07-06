@@ -1575,11 +1575,11 @@ export default function OrderPost() {
             ) : (
               <Row className="g-3">
                 <Col lg={isCustomerRole ? 12 : 9}>
-                  <Card className="border mb-0 h-100">
+                  <Card className="border mb-0 h-100 claim-transaction-card">
                     <Card.Header className="py-3">
                       <Stack direction="horizontal" gap={2} className="justify-content-between">
                         <div>
-                          <h6 className="mb-0">Information Order</h6>
+                          <h5 className="mb-0">Information Order</h5>
                           <small className="text-muted">Main transaction and customer data</small>
                         </div>
                         <Badge bg="light" text="dark">
@@ -1766,9 +1766,9 @@ export default function OrderPost() {
                 </Col>
                 {canSelectSales ? (
                   <Col lg={3}>
-                    <Card className="border mb-0 h-100">
+                    <Card className="border mb-0 h-100 claim-transaction-card">
                       <Card.Header className="py-3">
-                        <h6 className="mb-0">Ringkasan Order</h6>
+                        <h5 className="mb-0">Ringkasan Order</h5>
                         <small className="text-muted">Estimasi berdasarkan detail produk</small>
                       </Card.Header>
                       <Card.Body>
@@ -1815,6 +1815,7 @@ export default function OrderPost() {
           </MainCard>
 
           <MainCard
+            className="claim-transaction-card"
             title={
               <Stack gap={1}>
                 <h5 className="mb-0">
@@ -1855,11 +1856,11 @@ export default function OrderPost() {
                 </Card>
               </Col>
               <Col lg={7}>
-                <Card className="border mb-0 h-100">
+                <Card className="border mb-0 h-100 claim-transaction-card">
                   <Card.Header className="py-3">
                     <Stack direction="horizontal" className="justify-content-between">
                       <div>
-                        <h6 className="mb-0">Document List</h6>
+                        <h5 className="mb-0">Document List</h5>
                         <small className="text-muted">Files will be sent when the order is saved.</small>
                       </div>
                       <Badge bg={documents.length ? 'primary' : 'secondary'}>{documents.length} file baru</Badge>
@@ -1941,6 +1942,7 @@ export default function OrderPost() {
           </MainCard>
 
           <MainCard
+            className="claim-transaction-card"
             title={
               <Stack gap={1}>
                 <h5 className="mb-0">Product Details</h5>
