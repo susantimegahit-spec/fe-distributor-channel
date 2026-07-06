@@ -122,9 +122,9 @@ const customerPortalMenu = [
     children: [
       {
         id: 'finance-reward',
-        title: 'Reward',
+        title: 'Reward & Claim',
         value: 'finance-reward',
-        label: 'Reward',
+        label: 'Reward & Claim',
         type: 'item',
         selected: true,
         icon: 'ti ti-tag',
