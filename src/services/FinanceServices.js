@@ -2,19 +2,19 @@ import { DataService } from '../config/dataService';
 import ProductServices from './ProductServices';
 
 const rewardTemplateHeaders = [
-  'Customer Code',
+  'Kode Customer',
   'Customer Name',
-  'Item Code',
+  'Kode Item',
   'Item Name',
   'Qty',
   'Selling Price @ Kg',
-  'Customer Type',
+  'Tipe Customer',
   'Transaction Date'
 ];
 
 const getProductRows = (products) =>
   products.map((item) => ({
-    'Item Code': item.item_code || item.code || '',
+    'Kode Item': item.item_code || item.code || '',
     'Item Name': item.item_name || item.name || '',
     Status: item.status === 1 ? 'Active' : 'Inactive'
   }));
