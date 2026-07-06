@@ -354,7 +354,7 @@ export default function RewardList() {
 
       const detail = batchResponse.data;
       const normalizedBatchDetail = normalizeBatch(detail, batch.id);
-      const results = Array.isArray(resultResponse.data?.data.data) ? resultResponse.data.data.data.map(normalizeUploadResult) : [];
+      const results = Array.isArray(resultResponse.data?.data) ? resultResponse.data.data.map(normalizeUploadResult) : [];
       setSellOutFilter('all');
       setSelectedSellOutIds([]);
       setSelectedClaim({
