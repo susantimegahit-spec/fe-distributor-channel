@@ -328,9 +328,9 @@ export default function PermissionList() {
               </Button>
             </Col>
             <Col lg={2} md={6} className="text-lg-end">
-              <span className="text-muted f-12">Menampilkan</span>
+              <span className="text-muted f-12">Showing</span>
               <div className="fw-semibold">
-                {filteredData.length} dari {dataSource.length}
+                {filteredData.length} Of {dataSource.length}
               </div>
             </Col>
           </Row>

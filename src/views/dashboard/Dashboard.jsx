@@ -583,7 +583,7 @@ export default function Dashboard() {
         const [summaryResponse, chartResponse, orderResponse] = await Promise.all([
           isDistributor ? DashboardServices.getDistributorSummary() : DashboardServices.getAdminSummary(),
           isDistributor ? DashboardServices.getDistributorChart() : DashboardServices.getAdminChart(),
-          OrderServices.getListOrder()
+          isDistributor ? OrderServices.getListOrder() : Promise.resolve({ data: { data: [] } })
         ]);
 
         if (summaryResponse?.data?.success === false || chartResponse?.data?.success === false || orderResponse?.data?.success === false) {
@@ -742,75 +742,77 @@ export default function Dashboard() {
         }
       />
 
-      <MainCard
-        className="claim-transaction-card"
-        title={
-          <Stack gap={1}>
-            <h5 className="mb-0">Complete Order</h5>
-            <span className="text-muted f-12">Sales orders with delivery status that need to be completed.</span>
-          </Stack>
-        }
-      >
-        <Table className="mb-0 align-middle" responsive hover>
-          <thead>
-            <tr>
-              <th>No. SO</th>
-              <th>Depo</th>
-              <th>Date</th>
-              <th>Total Order</th>
-              <th>Status</th>
-              <th className="text-center">#</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoadingOrders ? (
+      {isDistributor ? (
+        <MainCard
+          className="claim-transaction-card"
+          title={
+            <Stack gap={1}>
+              <h5 className="mb-0">Complete Order</h5>
+              <span className="text-muted f-12">Sales orders with delivery status that need to be completed.</span>
+            </Stack>
+          }
+        >
+          <Table className="mb-0 align-middle" responsive hover>
+            <thead>
               <tr>
-                <td colSpan={6}>
-                  <div className="text-center text-muted py-4">Loading delivery sales orders...</div>
-                </td>
+                <th>No. SO</th>
+                <th>Depo</th>
+                <th>Date</th>
+                <th>Total Order</th>
+                <th>Status</th>
+                <th className="text-center">#</th>
               </tr>
-            ) : deliveryOrders.length > 0 ? (
-              deliveryOrders.map((order) => {
-                const orderDate = moment(getOrderValue(order, ['doc_date', 'docDate', 'created_at', 'createdAt'], null));
+            </thead>
+            <tbody>
+              {isLoadingOrders ? (
+                <tr>
+                  <td colSpan={6}>
+                    <div className="text-center text-muted py-4">Loading delivery sales orders...</div>
+                  </td>
+                </tr>
+              ) : deliveryOrders.length > 0 ? (
+                deliveryOrders.map((order) => {
+                  const orderDate = moment(getOrderValue(order, ['doc_date', 'docDate', 'created_at', 'createdAt'], null));
 
-                return (
-                  <tr key={order.id}>
-                    <td className="fw-semibold">
-                      {getOrderValue(order, ['sap_doc_num', 'sapDocNum', 'doc_num', 'docNum', 'order_no', 'orderNo'])}
-                    </td>
-                    <td>
-                      {getOrderValue(order, ['depo', 'depot', 'warehouse_name', 'warehouseName'])} -{' '}
-                      {getOrderValue(order, ['customer_name', 'customerName', 'card_name', 'cardName'])}
-                    </td>
-                    <td>{orderDate.isValid() ? orderDate.format('DD MMM YYYY') : '-'}</td>
-                    <td>{currency(getOrderValue(order, ['doc_total', 'docTotal', 'total', 'total_order', 'totalOrder'], 0))}</td>
-                    <td>
-                      <Badge bg="info">Delivery</Badge>
-                    </td>
-                    <td className="text-center">
-                      <Button
-                        variant="success"
-                        size="sm"
-                        disabled={String(receivingOrderId) === String(order.id)}
-                        onClick={() => handleCompleteOrder(order)}
-                      >
-                        <i className={String(receivingOrderId) === String(order.id) ? 'ti ti-loader-2 me-1' : 'ti ti-circle-check me-1'} />
-                        Complete
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })
-            ) : (
-              <tr>
-                <td colSpan={6}>
-                  <div className="text-center text-muted py-4">No delivery sales orders.</div>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </Table>
-      </MainCard>
+                  return (
+                    <tr key={order.id}>
+                      <td className="fw-semibold">
+                        {getOrderValue(order, ['sap_doc_num', 'sapDocNum', 'doc_num', 'docNum', 'order_no', 'orderNo'])}
+                      </td>
+                      <td>
+                        {getOrderValue(order, ['depo', 'depot', 'warehouse_name', 'warehouseName'])} -{' '}
+                        {getOrderValue(order, ['customer_name', 'customerName', 'card_name', 'cardName'])}
+                      </td>
+                      <td>{orderDate.isValid() ? orderDate.format('DD MMM YYYY') : '-'}</td>
+                      <td>{currency(getOrderValue(order, ['doc_total', 'docTotal', 'total', 'total_order', 'totalOrder'], 0))}</td>
+                      <td>
+                        <Badge bg="info">Delivery</Badge>
+                      </td>
+                      <td className="text-center">
+                        <Button
+                          variant="success"
+                          size="sm"
+                          disabled={String(receivingOrderId) === String(order.id)}
+                          onClick={() => handleCompleteOrder(order)}
+                        >
+                          <i className={String(receivingOrderId) === String(order.id) ? 'ti ti-loader-2 me-1' : 'ti ti-circle-check me-1'} />
+                          Complete
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={6}>
+                    <div className="text-center text-muted py-4">No delivery sales orders.</div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </Table>
+        </MainCard>
+      ) : null}
 
       <Row className="g-3">
         <Col sm={6} xl={4}>

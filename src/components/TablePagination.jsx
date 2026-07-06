@@ -48,7 +48,7 @@ export default function TablePagination({ currentPage, onPageChange, pageCount, 
   return (
     <Stack direction="horizontal" gap={2} className={`flex-wrap justify-content-between mt-4 ${className}`.trim()}>
       <small className="text-muted fw-semibold">
-        Menampilkan {startItem}-{endItem} dari {safeTotal} {itemLabel}
+        Showing {startItem}-{endItem} of {safeTotal} {itemLabel}
       </small>
       <Pagination className="custom-pagination mb-0">
         <Pagination.Prev disabled={currentPage === 1} onClick={() => onPageChange(Math.max(currentPage - 1, 1))}>
