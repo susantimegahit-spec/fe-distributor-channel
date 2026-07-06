@@ -17,6 +17,7 @@ import Table from 'react-bootstrap/Table';
 // project-imports
 import MainCard from 'components/MainCard';
 import DashboardServices from '../../services/DashboardServices';
+import OrderServices from '../../services/OrderServices';
 import { currency } from '../../utils/global';
 import { useAlert } from '../../utils/alertContext';
 import { getCookies } from '../../utils/cookies';
@@ -138,10 +139,27 @@ const emptyTopProductsChartData = () => ({
 
 const getResponsePayload = (response) => response?.data?.data || response?.data || {};
 
+const normalizeStatus = (value) =>
+  String(value || '')
+    .trim()
+    .toUpperCase();
+
 const getFirstValue = (source, keys = []) => {
   if (!source || typeof source !== 'object') return undefined;
 
   return keys.reduce((result, key) => (result !== undefined ? result : source[key]), undefined);
+};
+
+const getOrderValue = (order = {}, keys = [], fallback = '-') => {
+  const value = getFirstValue(order, keys);
+
+  return value ?? fallback;
+};
+
+const getOrderListPayload = (payload) => {
+  if (Array.isArray(payload)) return payload;
+
+  return getFirstValue(payload, ['data', 'items', 'results', 'orders', 'sales_orders', 'salesOrders']) || [];
 };
 
 const parseNumber = (value) => {
@@ -545,7 +563,7 @@ export default function Dashboard() {
   const { showAlert } = useAlert();
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [receivingOrderId, setReceivingOrderId] = useState(null);
-  const [selectedReceiveOrder, setSelectedReceiveOrder] = useState(null);
+  const [orders, setOrders] = useState([]);
   const [isChartReady, setIsChartReady] = useState(false);
   const [orderSummary, setOrderSummary] = useState({ totalOrder: 0, totalAmount: 0, totalItem: 0 });
   const [chartData, setChartData] = useState(() => emptyChartData());
@@ -560,18 +578,23 @@ export default function Dashboard() {
       setIsLoadingOrders(true);
 
       try {
-        const [summaryResponse, chartResponse] = await Promise.all([
+        const [summaryResponse, chartResponse, orderResponse] = await Promise.all([
           isDistributor ? DashboardServices.getDistributorSummary() : DashboardServices.getAdminSummary(),
-          isDistributor ? DashboardServices.getDistributorChart() : DashboardServices.getAdminChart()
+          isDistributor ? DashboardServices.getDistributorChart() : DashboardServices.getAdminChart(),
+          OrderServices.getListOrder()
         ]);
 
-        if (summaryResponse?.data?.success === false || chartResponse?.data?.success === false) {
-          showAlert(summaryResponse?.data?.message || chartResponse?.data?.message || 'Failed to fetch dashboard data', 'danger');
+        if (summaryResponse?.data?.success === false || chartResponse?.data?.success === false || orderResponse?.data?.success === false) {
+          showAlert(
+            summaryResponse?.data?.message || chartResponse?.data?.message || orderResponse?.data?.message || 'Failed to fetch dashboard data',
+            'danger'
+          );
           return;
         }
-        
+
         const summaryPayload = getResponsePayload(summaryResponse);
         const chartPayload = getResponsePayload(chartResponse);
+        const orderPayload = getResponsePayload(orderResponse);
         const dashboardPayload = { summary: summaryPayload, chart: chartPayload };
 
         const summaryStatus = normalizeStatusSummary(summaryPayload);
@@ -581,6 +604,7 @@ export default function Dashboard() {
         setTopProductsChartData(topProductsData.categories.length ? topProductsData : normalizeTopProductsChartData(chartPayload));
         setStatusSummary(summaryStatus.length ? summaryStatus : normalizeStatusSummary(chartPayload));
         setChartData(normalizeChartData(chartPayload));
+        setOrders(getOrderListPayload(orderPayload));
       } catch (error) {
         showAlert(error?.message || 'Failed to fetch dashboard data', 'danger');
       } finally {
@@ -593,42 +617,29 @@ export default function Dashboard() {
 
   const deliveryOrders = useMemo(() => orders.filter((order) => normalizeStatus(order.status) === 'DELIVERY'), [orders]);
 
-  const handleOpenGoodsReceivedConfirm = (order) => {
-    setSelectedReceiveOrder(order);
-  };
-
-  const handleCloseGoodsReceivedConfirm = () => {
-    if (receivingOrderId) return;
-
-    setSelectedReceiveOrder(null);
-  };
-
-  const handleGoodsReceived = async () => {
-    if (!selectedReceiveOrder?.id) {
+  const handleCompleteOrder = async (order) => {
+    if (!order?.id) {
       showAlert('Order ID not found', 'danger');
       return;
     }
 
-    setReceivingOrderId(selectedReceiveOrder.id);
+    setReceivingOrderId(order.id);
 
     try {
-      const response = await OrderServices.postArrived(selectedReceiveOrder.id);
+      const response = await OrderServices.postArrive(order.id);
 
       if (response?.data?.success) {
-        const updatedOrder = response.data.data || { ...selectedReceiveOrder, status: 'ARRIVED' };
+        const updatedOrder = response.data.data || { ...order, status: 'ARRIVED' };
 
         setOrders((currentOrders) =>
-          currentOrders.map((item) =>
-            String(item.id) === String(selectedReceiveOrder.id) ? { ...item, ...updatedOrder, status: 'ARRIVED' } : item
-          )
+          currentOrders.map((item) => (String(item.id) === String(order.id) ? { ...item, ...updatedOrder, status: 'ARRIVED' } : item))
         );
-        showAlert(response.data.message || 'Sales order marked as received', 'success');
-        setSelectedReceiveOrder(null);
+        showAlert(response.data.message || 'Sales order completed successfully', 'success');
       } else {
-        showAlert(response?.data?.message || 'Failed to mark sales order as received', 'danger');
+        showAlert(response?.data?.message || 'Failed to complete sales order', 'danger');
       }
     } catch (error) {
-      showAlert(error?.message || 'Failed to mark sales order as received', 'danger');
+      showAlert(error?.message || 'Failed to complete sales order', 'danger');
     } finally {
       setReceivingOrderId(null);
     }
@@ -835,6 +846,74 @@ export default function Dashboard() {
           </MainCard>
         </Col>
       </Row>
+
+      <MainCard
+        className="claim-transaction-card"
+        title={
+          <Stack gap={1}>
+            <h5 className="mb-0">Complete Order</h5>
+            <span className="text-muted f-12">Sales orders with delivery status that need to be completed.</span>
+          </Stack>
+        }
+      >
+        <Table className="mb-0 align-middle" responsive hover>
+          <thead>
+            <tr>
+              <th>No. SO</th>
+              <th>Depo</th>
+              <th>Date</th>
+              <th>Total Order</th>
+              <th>Status</th>
+              <th className="text-center">#</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoadingOrders ? (
+              <tr>
+                <td colSpan={6}>
+                  <div className="text-center text-muted py-4">Loading delivery sales orders...</div>
+                </td>
+              </tr>
+            ) : deliveryOrders.length > 0 ? (
+              deliveryOrders.map((order) => {
+                const orderDate = moment(getOrderValue(order, ['doc_date', 'docDate', 'created_at', 'createdAt'], null));
+
+                return (
+                  <tr key={order.id}>
+                    <td className="fw-semibold">{getOrderValue(order, ['sap_doc_num', 'sapDocNum', 'doc_num', 'docNum', 'order_no', 'orderNo'])}</td>
+                    <td>
+                      {getOrderValue(order, ['depo', 'depot', 'warehouse_name', 'warehouseName'])} -{' '}
+                      {getOrderValue(order, ['customer_name', 'customerName', 'card_name', 'cardName'])}
+                    </td>
+                    <td>{orderDate.isValid() ? orderDate.format('DD MMM YYYY') : '-'}</td>
+                    <td>{currency(getOrderValue(order, ['doc_total', 'docTotal', 'total', 'total_order', 'totalOrder'], 0))}</td>
+                    <td>
+                      <Badge bg="info">Delivery</Badge>
+                    </td>
+                    <td className="text-center">
+                      <Button
+                        variant="success"
+                        size="sm"
+                        disabled={String(receivingOrderId) === String(order.id)}
+                        onClick={() => handleCompleteOrder(order)}
+                      >
+                        <i className={String(receivingOrderId) === String(order.id) ? 'ti ti-loader-2 me-1' : 'ti ti-circle-check me-1'} />
+                        Complete
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })
+            ) : (
+              <tr>
+                <td colSpan={6}>
+                  <div className="text-center text-muted py-4">No delivery sales orders.</div>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </Table>
+      </MainCard>
 
       <MainCard
         className="claim-transaction-card"

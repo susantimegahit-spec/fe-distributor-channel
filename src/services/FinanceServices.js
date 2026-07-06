@@ -2,13 +2,13 @@ import { DataService } from '../config/dataService';
 import ProductServices from './ProductServices';
 
 const rewardTemplateHeaders = [
-  'Customer Code',
+  'Kode Customer',
   'Customer Name',
-  'Item Code',
+  'Kode Item',
   'Item Name',
   'Qty',
   'Selling Price @ Kg',
-  'Customer Type',
+  'Tipe Customer',
   'Transaction Date'
 ];
 
