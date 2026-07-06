@@ -1011,7 +1011,21 @@ export default function RewardList() {
 
       <Modal show={Boolean(selectedClaim)} onHide={() => setSelectedClaim(null)} size="xl" centered fullscreen>
         <Modal.Header closeButton>
-          <Modal.Title>Detail Claim Reward</Modal.Title>
+          <Stack direction="horizontal" gap={3} className="justify-content-between align-items-center w-100 me-3">
+            <Modal.Title>Detail Claim Reward</Modal.Title>
+            {canVerifySellOut ? (
+              <Button
+                variant="success"
+                size="sm"
+                onClick={handleBulkVerifySellOut}
+                disabled={submittingVerify || !selectedSellOutCount}
+              >
+                <i className="ti ti-checks me-1" />
+                {submittingVerify ? 'Verifying...' : 'Verify Selected'}
+                {!submittingVerify && selectedSellOutCount ? ` (${selectedSellOutCount})` : ''}
+              </Button>
+            ) : null}
+          </Stack>
         </Modal.Header>
         <Modal.Body>
           {selectedClaim && (
@@ -1064,18 +1078,6 @@ export default function RewardList() {
                         <option value="verified">Verified</option>
                         <option value="not-verified">Not Verified</option>
                       </Form.Select>
-                      {canVerifySellOut ? (
-                        <Button
-                          variant="success"
-                          size="sm"
-                          onClick={handleBulkVerifySellOut}
-                          disabled={submittingVerify || !selectedSellOutCount}
-                        >
-                          <i className="ti ti-checks me-1" />
-                          {submittingVerify ? 'Verifying...' : 'Verify Selected'}
-                          {!submittingVerify && selectedSellOutCount ? ` (${selectedSellOutCount})` : ''}
-                        </Button>
-                      ) : null}
                       <Badge bg={filteredSellOut.length ? 'primary' : 'secondary'} className="align-self-center">
                         {filteredSellOut.length} transactions
                       </Badge>
