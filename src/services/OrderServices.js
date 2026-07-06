@@ -64,6 +64,10 @@ class OrderServices {
     return DataService.post(`/sales-orders/${id}/arrive`);
   }
 
+  postArrive(id) {
+    return this.postArrived(id);
+  }
+
   downloadPdf(id) {
     return DataService.getBlob(`/sales-orders/${id}/pdf`);
   }

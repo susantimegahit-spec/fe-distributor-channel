@@ -228,7 +228,6 @@ const normalizePromo = (program, index) => ({
 
 const normalizeDetailResponse = (response) => {
   const payload = response?.data;
-  console.log('payload => ', response.data)
 
   if (payload?.data && !Array.isArray(payload.data)) return payload.data;
   if (payload?.program && !Array.isArray(payload.program)) return payload.program;
@@ -527,9 +526,7 @@ export default function MasterPromo() {
     setSubmittingPromo(true);
 
     try {
-      const response = editingPromoId
-        ? await PromoServices.updateProgram(editingPromoId, payload)
-        : await PromoServices.postPromo(payload);
+      const response = editingPromoId ? await PromoServices.updateProgram(editingPromoId, payload) : await PromoServices.postPromo(payload);
 
       if (response?.data?.success === false) {
         showAlert(response.data.message || `Failed to ${editingPromoId ? 'update' : 'add'} promo program`, 'danger');
@@ -613,6 +610,7 @@ export default function MasterPromo() {
         </MainCard>
 
         <MainCard
+          className="claim-transaction-card"
           title={
             <Stack gap={1}>
               <h5 className="mb-0">List Program Promo</h5>
@@ -1102,9 +1100,7 @@ export default function MasterPromo() {
                             </td>
                             <td className="text-end">{Number(rule.min_qty_kg || 0).toLocaleString('id-ID')} kg</td>
                             <td className="text-end">{Number(rule.max_qty_kg || 0).toLocaleString('id-ID')} kg</td>
-                            <td className="text-end fw-semibold">
-                              {formatCurrency(rule.harga_program_per_kg ?? rule.harga_promo_per_kg)}
-                            </td>
+                            <td className="text-end fw-semibold">{formatCurrency(rule.harga_program_per_kg ?? rule.harga_promo_per_kg)}</td>
                             <td className="text-end">{formatCurrency(rule.diskon_per_kg)}</td>
                           </tr>
                         ))

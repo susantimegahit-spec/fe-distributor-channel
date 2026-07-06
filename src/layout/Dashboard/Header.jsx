@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Cookies from 'js-cookie';
+import { useDispatch } from 'react-redux';
 
 // react-bootstrap
 import Button from 'react-bootstrap/Button';
@@ -31,11 +32,13 @@ import {
   normalizeNotification
 } from '../../utils/notification';
 import { DataService } from '../../config/dataService';
+import { destroyAuthState } from '../../redux/authReducer';
 
 // =============================|| MAIN LAYOUT - HEADER ||============================== //
 
 export default function Header() {
   const roleId = getCookies('role');
+  const dispatch = useDispatch();
   const { menuMaster } = useGetMenuMaster();
   const { showAlert } = useAlert();
   const drawerOpen = menuMaster?.isDashboardDrawerOpened;
@@ -188,6 +191,9 @@ export default function Header() {
       Cookies.remove('email');
       Cookies.remove('role');
       Cookies.remove('menu');
+      Cookies.remove('systems');
+      Cookies.remove('system');
+      dispatch(destroyAuthState());
       Cookies.remove('customerCode');
       Cookies.remove('distributorName');
       Cookies.remove('distributorId');
@@ -525,7 +531,7 @@ export default function Header() {
 
                   <div className="profile-notification-scroll position-relative">
                     {/* {roleId === 5 && ( */}
-                    <Dropdown.Item as={Link} to="/setting" className="sm-account-item">
+                    <Dropdown.Item as={Link} to="/customer-portal/setting" className="sm-account-item">
                       <span className="sm-account-item-icon">
                         <i className="ti ti-settings" />
                       </span>

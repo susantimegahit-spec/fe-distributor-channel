@@ -504,7 +504,6 @@ export default function OrderList() {
         const shouldLoadCreditLimit =
           normalizeStatus(orderDetail?.status || order?.status) === 'WAITING_FINANCE' && (isAdministrator || isFinanceUser);
         const customerCode = getOrderCustomerCode(orderDetail) || getOrderCustomerCode(order);
-        console.log('detail => ', orderDetail);
         setSelectedOrderDetail(orderDetail);
 
         if (shouldLoadCreditLimit && customerCode) {
@@ -748,7 +747,7 @@ export default function OrderList() {
         ) : null}
         {button.edit ? (
           <>
-            <Button as={Link} to={`/order/order-create/${order.id}`} className="rounded-circle" variant="outline-success" size="sm">
+            <Button as={Link} to={`/customer-portal/order/order-create/${order.id}`} className="rounded-circle" variant="outline-success" size="sm">
               <i className="ti ti-pencil" />
             </Button>
             &nbsp;
@@ -787,7 +786,6 @@ export default function OrderList() {
   const canShowCreditLimitInfo =
     selectedOrderDetail && normalizeStatus(selectedOrderDetail.status) === 'WAITING_FINANCE' && (isAdministrator || isFinanceUser);
   const formatCreditAmount = (value) => (value !== undefined && value !== null && value !== '' ? currency(parseAmount(value)) : '-');
-  console.log('credit => ', selectedOrderDetail);
 
   return (
     <>
@@ -1020,7 +1018,7 @@ export default function OrderList() {
                             Reset Filter
                           </Button>
                         ) : canCreateOrder ? (
-                          <Button variant="primary" as={Link} to={`/order/order-create`}>
+                          <Button variant="primary" as={Link} to={`/customer-portal/order/order-create`}>
                             <i className="ti ti-plus me-1" />
                             Add Order
                           </Button>

@@ -1,4 +1,5 @@
 import { lazy } from 'react';
+import { Navigate } from 'react-router-dom';
 
 // project-imports
 import Loadable from 'components/Loadable';
@@ -12,12 +13,20 @@ const FinanceRoutes = {
   element: <DashboardLayout />,
   children: [
     {
-      path: 'finance/reward',
+      path: 'customer-portal/finance/reward',
       element: <RewardList />
     },
     {
-      path: 'finance/reward/add',
+      path: 'customer-portal/finance/reward/add',
       element: <RewardAdd />
+    },
+    {
+      path: 'finance/reward',
+      element: <Navigate to="/customer-portal/finance/reward" replace />
+    },
+    {
+      path: 'finance/reward/add',
+      element: <Navigate to="/customer-portal/finance/reward/add" replace />
     }
   ]
 };

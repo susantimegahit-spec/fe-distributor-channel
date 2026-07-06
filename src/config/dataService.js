@@ -3,6 +3,8 @@ import { getCookies } from '../utils/cookies';
 import QueryString from 'qs';
 import Cookies from 'js-cookie';
 import { useAlert } from '../utils/alertContext';
+import store from '../redux/store';
+import { destroyAuthState } from '../redux/authReducer';
 
 const API_ENDPOINT = import.meta.env.VITE_APP_API_ENDPOINT_DEVELOPMENT;
 
@@ -131,6 +133,9 @@ client.interceptors.response.use(
         Cookies.remove('email');
         Cookies.remove('role');
         Cookies.remove('menu');
+        Cookies.remove('systems');
+        Cookies.remove('system');
+        store.dispatch(destroyAuthState());
         window.location.replace('/');
       } else if (response.status === 400) {
         return response;

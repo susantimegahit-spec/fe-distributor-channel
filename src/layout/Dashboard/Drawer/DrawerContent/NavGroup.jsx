@@ -5,12 +5,14 @@ import { matchPath, useLocation } from 'react-router-dom';
 import NavItem from './NavItem';
 import NavCollapse from './NavCollapse';
 import { getCookies } from '../../../../utils/cookies';
+import { isAdministratorRole, normalizePermissionMenu } from '../../../../systems';
 
 // ==============================|| NAVIGATION - GROUP ||============================== //
 
 export default function NavGroup(props) {
   const { item, lastItem, remItems, lastItemId, setSelectedID, setSelectedItems, selectedItems, setSelectedLevel, selectedLevel } = props;
-  const masterMenu = getCookies('menu');
+  const masterMenu = normalizePermissionMenu(getCookies('menu') || []);
+  const isAdministrator = isAdministratorRole(getCookies('role'));
   const { pathname } = useLocation();
   const [currentItem, setCurrentItem] = useState(item);
 
@@ -56,7 +58,7 @@ export default function NavGroup(props) {
 
     return currentItem.children.map((menuItem, index) => {
       const key = menuItem.id || `${menuItem.type}-${index}`;
-      const findMenu = masterMenu.find((menu) => menu === menuItem.id);
+      const findMenu = isAdministrator || masterMenu.includes(menuItem.id);
 
       switch (menuItem.type) {
         case 'collapse':
@@ -86,22 +88,33 @@ export default function NavGroup(props) {
           );
       }
     });
-  }, [currentItem, selectedItems, selectedLevel, setSelectedItems, setSelectedLevel]);
+  }, [currentItem, isAdministrator, masterMenu, selectedItems, selectedLevel, setSelectedItems, setSelectedLevel]);
+
+  const hasAllowedChild = (item) => {
+    if (isAdministrator) return true;
+    if (!item.children?.length) return masterMenu.includes(item.id);
+
+    return item.children.some((child) => hasAllowedChild(child));
+  };
 
   const findGroupLabel = (item) => {
-    const findMenu = masterMenu.find((menu) => menu.includes(item.id));
+    const findMenu = hasAllowedChild(item);
     if (findMenu) {
-      return item.label
+      return item.label;
     } else {
-      return null
+      return null;
     }
-  }
+  };
+
+  const groupLabel = findGroupLabel(item);
 
   return (
     <Fragment>
-      <li className="pc-item pc-caption" key={item.id}>
-        <label>{findGroupLabel(item)}</label>
-      </li>
+      {groupLabel && (
+        <li className="pc-item pc-caption" key={item.id}>
+          <label>{groupLabel}</label>
+        </li>
+      )}
       {navCollapse}
     </Fragment>
   );

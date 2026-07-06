@@ -1,11 +1,6 @@
-// react-bootstrap
 import Col from 'react-bootstrap/Col';
-import Nav from 'react-bootstrap/Nav';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
-
-// project-imports
-import branding from 'branding.json';
 
 // ==============================|| MAIN LAYOUT - FOOTER ||============================== //
 export default function Footer() {
@@ -15,9 +10,6 @@ export default function Footer() {
         <Row className="justify-content-center justify-content-md-between">
           {/* Footer Text */}
           <Col xs="auto" className="my-1">
-            {/* <p className="m-0">
-              Distributor Channel By PT. Susanti Megah
-            </p> */}
           </Col>
 
           {/* Footer Links */}

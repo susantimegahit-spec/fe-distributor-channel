@@ -1,10 +1,12 @@
 import { createRoot } from 'react-dom/client';
+import { Provider } from 'react-redux';
 
 // styles
 import './index.scss';
 
 // project-imports
 import App from './App';
+import store from './redux/store';
 
 import '@fontsource/open-sans/300.css';
 import '@fontsource/open-sans/400.css';
@@ -16,7 +18,11 @@ const root = createRoot(container);
 
 // ==============================|| MAIN - REACT DOM RENDER ||============================== //
 
-root.render(<App />);
+root.render(
+  <Provider store={store}>
+    <App />
+  </Provider>
+);
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

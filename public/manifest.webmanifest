@@ -1,7 +1,7 @@
 {
-  "name": "Customer Portal",
-  "short_name": "Customer Portal",
-  "description": "Customer Portal Distributor Channel",
+  "name": "sm-connect",
+  "short_name": "sm-connect",
+  "description": "Portal terpadu PT. Susanti Megah",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",

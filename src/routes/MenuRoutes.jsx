@@ -2,19 +2,13 @@ import { lazy } from 'react';
 
 // project-imports
 import Loadable from 'components/Loadable';
-import AuthLayout from 'layout/Auth';
-import { createBrowserRouter } from 'react-router-dom';
-import { getCookies } from '../utils/cookies';
 import DashboardLayout from 'layout/Dashboard';
 
-const ApexChart = Loadable(lazy(() => import('views/charts/ApexChart')));
-const GoogleMaps = Loadable(lazy(() => import('views/maps/GoogleMap')));
 const MasterProduct = Loadable(lazy(() => import('views/master/MasterProduct')));
 const MasterBuyingPrice = Loadable(lazy(() => import('views/master/MasterBuyingPrice')));
 const MasterDistributor = Loadable(lazy(() => import('views/master/MasterDistributor')));
 const SettingPage = Loadable(lazy(() => import('views/setting/SettingPage')));
 const OrderList = Loadable(lazy(() => import('views/order/OrderList')));
-const OrderRetur = Loadable(lazy(() => import('views/order/OrderRetur')));
 const RewardList = Loadable(lazy(() => import('views/reward/RewardList')));
 const RewardAdd = Loadable(lazy(() => import('views/reward/RewardAdd')));
 
@@ -23,45 +17,45 @@ const MenuRoutes = {
   element: <DashboardLayout />,
   children: [
     {
-      path: 'master/product',
+      path: 'customer-portal/master/product',
       element: <MasterProduct />
     },
     {
-      path: 'master/buying-price',
+      path: 'customer-portal/master/buying-price',
       element: <MasterBuyingPrice />
     },
     {
-      path: 'master/distributor',
+      path: 'customer-portal/master/distributor',
       element: <MasterDistributor />
     },
     {
-      path: 'setting/role-permission',
+      path: 'customer-portal/setting/role-permission',
       element: <SettingPage defaultTab="permissions" />
     },
     {
-      path: 'setting/user-list',
+      path: 'customer-portal/setting/user-list',
       element: <SettingPage defaultTab="users" />
     },
     {
-      path: 'setting',
+      path: 'customer-portal/setting',
       element: <SettingPage />
     },
     {
-      path: 'setting/:activeTab',
+      path: 'customer-portal/setting/:activeTab',
       element: <SettingPage />
     },
     {
-      path: 'order/order-list',
+      path: 'customer-portal/order/order-list',
       element: <OrderList />
     },
     {
-      path: 'finance/reward',
+      path: 'customer-portal/finance/reward',
       element: <RewardList />
     },
     {
-      path: 'finance/reward/add',
+      path: 'customer-portal/finance/reward/add',
       element: <RewardAdd />
-    },
+    }
   ]
 };
 

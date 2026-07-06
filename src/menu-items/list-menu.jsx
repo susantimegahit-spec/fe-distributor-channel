@@ -1,4 +1,4 @@
-// ==============================|| MENU ITEMS - FORM ||============================== //
+import customerPortalMenu from '../systems/customer-portal/menu';
 
 const listMenu = [
   {

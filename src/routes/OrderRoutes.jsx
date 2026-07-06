@@ -1,4 +1,5 @@
 import { lazy } from 'react';
+import { Navigate } from 'react-router-dom';
 
 // project-imports
 import Loadable from 'components/Loadable';
@@ -14,8 +15,12 @@ const OrderRoutes = {
   errorElement: <RouteErrorBoundary />,
   children: [
     {
-      path: 'order/order-list',
+      path: 'customer-portal/order/order-list',
       element: <OrderList />
+    },
+    {
+      path: 'order/order-list',
+      element: <Navigate to="/customer-portal/order/order-list" replace />
     }
   ]
 };

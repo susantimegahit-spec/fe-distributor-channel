@@ -7,6 +7,7 @@ import MasterRoutes from './MasterRoutes';
 import SettingRoutes from './SettingRoutes';
 import OrderRoutes from './OrderRoutes';
 import FinanceRoutes from './FinanceRoutes';
+import EkspedisiRoutes from './EkspedisiRoutes';
 import { NotFoundPage } from '../views/ErrorBoundary';
 
 // ==============================|| ROUTING RENDER ||============================== //
@@ -23,6 +24,7 @@ const router = createBrowserRouter(
     SettingRoutes,
     OrderRoutes,
     FinanceRoutes,
+    EkspedisiRoutes,
     OtherRoutes,
     { path: '*', element: <NotFoundPage /> }
     // MenuRoutes

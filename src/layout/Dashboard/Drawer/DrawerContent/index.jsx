@@ -1,5 +1,6 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 
 // react-bootstrap
 import ListGroup from 'react-bootstrap/ListGroup';
@@ -7,13 +8,16 @@ import ListGroup from 'react-bootstrap/ListGroup';
 // project imports
 import NavItem from './NavItem';
 import NavGroup from './NavGroup';
-import menuItems from 'menu-items';
+import { getActiveSystem, getSystemMenu } from '../../../../systems';
 
 // ==============================|| DRAWER CONTENT ||============================== //
 
 export default function Navigation({ selectedItems, setSelectedItems, setSelectTab }) {
   const [selectedID, setSelectedID] = useState('');
   const [selectedLevel, setSelectedLevel] = useState(0);
+  const { pathname } = useLocation();
+  const activeSystem = getActiveSystem(pathname);
+  const menuItems = { items: getSystemMenu(activeSystem.key) };
 
   const lastItem = null;
   let lastItemIndex = menuItems.items.length - 1;

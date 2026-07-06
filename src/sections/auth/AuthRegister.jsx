@@ -54,7 +54,7 @@ export default function AuthRegisterForm({ className, link }) {
     <MainCard className="mb-0">
       <div className="text-center">
         <a>
-          <Image src={CustomerPortalMark} alt="Customer Portal" className="sm-login-logo" />
+          <Image src={CustomerPortalMark} alt="sm-connect" className="sm-login-logo" />
         </a>
       </div>
       <Form onSubmit={handleSubmit(onSubmit)}>
