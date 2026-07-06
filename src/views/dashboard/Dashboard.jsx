@@ -241,7 +241,9 @@ const getSummaryValue = (source, valueKeys = [], labelKeys = []) => {
     if (matchedEntry) {
       const [, value] = matchedEntry;
 
-      return value && typeof value === 'object' ? getNumberValue(value, ['total', 'value', 'amount', 'count', 'qty', ...valueKeys]) : parseNumber(value);
+      return value && typeof value === 'object'
+        ? getNumberValue(value, ['total', 'value', 'amount', 'count', 'qty', ...valueKeys])
+        : parseNumber(value);
     }
   }
 
@@ -358,7 +360,7 @@ const normalizeChartSeriesData = (data = []) =>
     if (value && typeof value === 'object') {
       return {
         ...value,
-      y: parseNumber(value.y ?? value.value)
+        y: parseNumber(value.y ?? value.value)
       };
     }
 
@@ -426,9 +428,7 @@ const normalizeStatusSummary = (payload = {}) => {
     return Object.entries(source)
       .map(([status, value]) => {
         const total =
-          value && typeof value === 'object'
-            ? parseNumber(getFirstValue(value, ['total', 'count', 'value', 'qty']))
-            : parseNumber(value);
+          value && typeof value === 'object' ? parseNumber(getFirstValue(value, ['total', 'count', 'value', 'qty'])) : parseNumber(value);
 
         return { status, total, ...getStatusMeta(status) };
       })
@@ -439,22 +439,13 @@ const normalizeStatusSummary = (payload = {}) => {
 };
 
 const normalizeSummary = (payload = {}) => {
-  const source = findValueByKeys(payload, ['sales_summary', 'salesSummary']) || getFirstValue(payload, ['summary', 'totals', 'data']) || payload;
+  const source =
+    findValueByKeys(payload, ['sales_summary', 'salesSummary']) || getFirstValue(payload, ['summary', 'totals', 'data']) || payload;
   const topProductsTotal = getTopProductsTotal(payload);
 
   return {
-    totalOrder: getSummaryValue(
-      source,
-      [
-        'total_revenue_this_month',
-      ],
-    ),
-    totalAmount: getSummaryValue(
-      source,
-      [
-        'total_orders_this_month',
-      ],
-    ),
+    totalOrder: getSummaryValue(source, ['total_revenue_this_month']),
+    totalAmount: getSummaryValue(source, ['total_orders_this_month']),
     totalItem:
       getSummaryValue(
         source,
@@ -498,7 +489,9 @@ const normalizeChartData = (payload = {}) => {
 
   if (Array.isArray(source)) {
     const categories = source.map((item) => getFirstValue(item, ['label', 'month', 'period', 'date', 'name']) || '-');
-    const count = source.map((item) => parseNumber(getFirstValue(item, ['count', 'order_count', 'orderCount', 'total_order', 'totalOrder'])));
+    const count = source.map((item) =>
+      parseNumber(getFirstValue(item, ['count', 'order_count', 'orderCount', 'total_order', 'totalOrder']))
+    );
     const total = source.map((item) =>
       parseNumber(getFirstValue(item, ['total', 'amount', 'total_amount', 'totalAmount', 'order_value', 'orderValue']))
     );
@@ -537,7 +530,16 @@ const normalizeChartData = (payload = {}) => {
   }
 
   const count = getFirstValue(source, ['count', 'counts', 'order_count', 'orderCount', 'order_counts', 'orderCounts']);
-  const total = getFirstValue(source, ['total', 'totals', 'amount', 'amounts', 'total_amount', 'totalAmount', 'total_amounts', 'totalAmounts']);
+  const total = getFirstValue(source, [
+    'total',
+    'totals',
+    'amount',
+    'amounts',
+    'total_amount',
+    'totalAmount',
+    'total_amounts',
+    'totalAmounts'
+  ]);
 
   if (Array.isArray(categories)) {
     const countData = Array.isArray(count) ? count.map((item) => parseNumber(item)) : categories.map(() => 0);
@@ -586,7 +588,10 @@ export default function Dashboard() {
 
         if (summaryResponse?.data?.success === false || chartResponse?.data?.success === false || orderResponse?.data?.success === false) {
           showAlert(
-            summaryResponse?.data?.message || chartResponse?.data?.message || orderResponse?.data?.message || 'Failed to fetch dashboard data',
+            summaryResponse?.data?.message ||
+              chartResponse?.data?.message ||
+              orderResponse?.data?.message ||
+              'Failed to fetch dashboard data',
             'danger'
           );
           return;
@@ -737,6 +742,76 @@ export default function Dashboard() {
         }
       />
 
+      <MainCard
+        className="claim-transaction-card"
+        title={
+          <Stack gap={1}>
+            <h5 className="mb-0">Complete Order</h5>
+            <span className="text-muted f-12">Sales orders with delivery status that need to be completed.</span>
+          </Stack>
+        }
+      >
+        <Table className="mb-0 align-middle" responsive hover>
+          <thead>
+            <tr>
+              <th>No. SO</th>
+              <th>Depo</th>
+              <th>Date</th>
+              <th>Total Order</th>
+              <th>Status</th>
+              <th className="text-center">#</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoadingOrders ? (
+              <tr>
+                <td colSpan={6}>
+                  <div className="text-center text-muted py-4">Loading delivery sales orders...</div>
+                </td>
+              </tr>
+            ) : deliveryOrders.length > 0 ? (
+              deliveryOrders.map((order) => {
+                const orderDate = moment(getOrderValue(order, ['doc_date', 'docDate', 'created_at', 'createdAt'], null));
+
+                return (
+                  <tr key={order.id}>
+                    <td className="fw-semibold">
+                      {getOrderValue(order, ['sap_doc_num', 'sapDocNum', 'doc_num', 'docNum', 'order_no', 'orderNo'])}
+                    </td>
+                    <td>
+                      {getOrderValue(order, ['depo', 'depot', 'warehouse_name', 'warehouseName'])} -{' '}
+                      {getOrderValue(order, ['customer_name', 'customerName', 'card_name', 'cardName'])}
+                    </td>
+                    <td>{orderDate.isValid() ? orderDate.format('DD MMM YYYY') : '-'}</td>
+                    <td>{currency(getOrderValue(order, ['doc_total', 'docTotal', 'total', 'total_order', 'totalOrder'], 0))}</td>
+                    <td>
+                      <Badge bg="info">Delivery</Badge>
+                    </td>
+                    <td className="text-center">
+                      <Button
+                        variant="success"
+                        size="sm"
+                        disabled={String(receivingOrderId) === String(order.id)}
+                        onClick={() => handleCompleteOrder(order)}
+                      >
+                        <i className={String(receivingOrderId) === String(order.id) ? 'ti ti-loader-2 me-1' : 'ti ti-circle-check me-1'} />
+                        Complete
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })
+            ) : (
+              <tr>
+                <td colSpan={6}>
+                  <div className="text-center text-muted py-4">No delivery sales orders.</div>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </Table>
+      </MainCard>
+
       <Row className="g-3">
         <Col sm={6} xl={4}>
           <Card className="dashboard-summary-card border mb-0 h-100">
@@ -846,74 +921,6 @@ export default function Dashboard() {
           </MainCard>
         </Col>
       </Row>
-
-      <MainCard
-        className="claim-transaction-card"
-        title={
-          <Stack gap={1}>
-            <h5 className="mb-0">Complete Order</h5>
-            <span className="text-muted f-12">Sales orders with delivery status that need to be completed.</span>
-          </Stack>
-        }
-      >
-        <Table className="mb-0 align-middle" responsive hover>
-          <thead>
-            <tr>
-              <th>No. SO</th>
-              <th>Depo</th>
-              <th>Date</th>
-              <th>Total Order</th>
-              <th>Status</th>
-              <th className="text-center">#</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoadingOrders ? (
-              <tr>
-                <td colSpan={6}>
-                  <div className="text-center text-muted py-4">Loading delivery sales orders...</div>
-                </td>
-              </tr>
-            ) : deliveryOrders.length > 0 ? (
-              deliveryOrders.map((order) => {
-                const orderDate = moment(getOrderValue(order, ['doc_date', 'docDate', 'created_at', 'createdAt'], null));
-
-                return (
-                  <tr key={order.id}>
-                    <td className="fw-semibold">{getOrderValue(order, ['sap_doc_num', 'sapDocNum', 'doc_num', 'docNum', 'order_no', 'orderNo'])}</td>
-                    <td>
-                      {getOrderValue(order, ['depo', 'depot', 'warehouse_name', 'warehouseName'])} -{' '}
-                      {getOrderValue(order, ['customer_name', 'customerName', 'card_name', 'cardName'])}
-                    </td>
-                    <td>{orderDate.isValid() ? orderDate.format('DD MMM YYYY') : '-'}</td>
-                    <td>{currency(getOrderValue(order, ['doc_total', 'docTotal', 'total', 'total_order', 'totalOrder'], 0))}</td>
-                    <td>
-                      <Badge bg="info">Delivery</Badge>
-                    </td>
-                    <td className="text-center">
-                      <Button
-                        variant="success"
-                        size="sm"
-                        disabled={String(receivingOrderId) === String(order.id)}
-                        onClick={() => handleCompleteOrder(order)}
-                      >
-                        <i className={String(receivingOrderId) === String(order.id) ? 'ti ti-loader-2 me-1' : 'ti ti-circle-check me-1'} />
-                        Complete
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })
-            ) : (
-              <tr>
-                <td colSpan={6}>
-                  <div className="text-center text-muted py-4">No delivery sales orders.</div>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </Table>
-      </MainCard>
 
       <MainCard
         className="claim-transaction-card"

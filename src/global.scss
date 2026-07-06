@@ -1651,8 +1651,8 @@ body {
 .sm-account-header {
   padding: 18px !important;
   background:
-    linear-gradient(135deg, #2f327d 0%, #252866 58%, #151f4b 100%),
-    radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.2), transparent 36%);
+    radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.22), transparent 36%),
+    linear-gradient(135deg, #315fb4 0%, #12bfd7 100%);
 }
 
 .sm-account-header h6 {

@@ -530,16 +530,6 @@ export default function Header() {
                   </div>
 
                   <div className="profile-notification-scroll position-relative">
-                    <Dropdown.Item as={Link} to="/systems" className="sm-account-item">
-                      <span className="sm-account-item-icon">
-                        <i className="ti ti-apps" />
-                      </span>
-
-                      <span>
-                        <strong>Pilih Sistem</strong>
-                        <small>Customer portal atau ekspedisi</small>
-                      </span>
-                    </Dropdown.Item>
                     {/* {roleId === 5 && ( */}
                     <Dropdown.Item as={Link} to="/customer-portal/setting" className="sm-account-item">
                       <span className="sm-account-item-icon">
