@@ -6,7 +6,6 @@ import Cookies from 'js-cookie';
 import Button from 'react-bootstrap/Button';
 import Form from 'react-bootstrap/Form';
 import Image from 'react-bootstrap/Image';
-import InputGroup from 'react-bootstrap/InputGroup';
 import Modal from 'react-bootstrap/Modal';
 
 // third-party
@@ -132,7 +131,10 @@ export default function AuthLoginForm({ className }) {
           <Form.Label>
             <span>*</span> Username
           </Form.Label>
-          <InputGroup className="sm-input-group">
+          <div className="sm-input-group">
+            <span className="sm-input-icon" aria-hidden="true">
+              <i className="ti ti-user" />
+            </span>
             <Form.Control
               type="text"
               placeholder="Enter your username"
@@ -141,14 +143,17 @@ export default function AuthLoginForm({ className }) {
               name="username"
               className={className && 'bg-transparent border-white text-white border-opacity-25 '}
             />
-          </InputGroup>
+          </div>
           <Form.Control.Feedback type="invalid">{errors.username?.message}</Form.Control.Feedback>
         </Form.Group>
         <Form.Group className="sm-login-field" controlId="formPassword">
           <Form.Label>
             <span>*</span> Password
           </Form.Label>
-          <InputGroup className="sm-input-group">
+          <div className="sm-input-group">
+            <span className="sm-input-icon" aria-hidden="true">
+              <i className="ti ti-lock" />
+            </span>
             <Form.Control
               type={showPassword ? 'text' : 'password'}
               placeholder="Enter your password"
@@ -159,7 +164,7 @@ export default function AuthLoginForm({ className }) {
             <Button type="button" variant="light" className="sm-password-toggle" onClick={togglePasswordVisibility}>
               {showPassword ? <i className="ti ti-eye" /> : <i className="ti ti-eye-off" />}
             </Button>
-          </InputGroup>
+          </div>
           <Form.Control.Feedback type="invalid">{errors.password?.message}</Form.Control.Feedback>
         </Form.Group>
 
