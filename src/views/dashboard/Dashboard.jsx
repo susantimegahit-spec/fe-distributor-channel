@@ -6,11 +6,13 @@ import { Link } from 'react-router-dom';
 import ReactApexChart from 'react-apexcharts';
 
 // react-bootstrap
+import Badge from 'react-bootstrap/Badge';
 import Button from 'react-bootstrap/Button';
 import Card from 'react-bootstrap/Card';
 import Col from 'react-bootstrap/Col';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
+import Table from 'react-bootstrap/Table';
 
 // project-imports
 import MainCard from 'components/MainCard';
@@ -92,6 +94,13 @@ const salesOrderChartOptions = {
 };
 
 const getStatusMeta = (status) => statusConfig[status] || { label: status || 'Unknown', color: 'secondary', icon: 'ti ti-circle' };
+const formatOrderDate = (value) => {
+  if (!value) return '-';
+
+  const dateValue = moment(value);
+
+  return dateValue.isValid() ? dateValue.format('DD MMM YYYY') : '-';
+};
 
 const emptyChartData = () => ({
   categories: Array.from({ length: 6 }, (_, index) =>
@@ -535,6 +544,8 @@ const normalizeChartData = (payload = {}) => {
 export default function Dashboard() {
   const { showAlert } = useAlert();
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [receivingOrderId, setReceivingOrderId] = useState(null);
+  const [selectedReceiveOrder, setSelectedReceiveOrder] = useState(null);
   const [isChartReady, setIsChartReady] = useState(false);
   const [orderSummary, setOrderSummary] = useState({ totalOrder: 0, totalAmount: 0, totalItem: 0 });
   const [chartData, setChartData] = useState(() => emptyChartData());
@@ -579,6 +590,49 @@ export default function Dashboard() {
 
     fetchDashboardData();
   }, [isDistributor, showAlert]);
+
+  const deliveryOrders = useMemo(() => orders.filter((order) => normalizeStatus(order.status) === 'DELIVERY'), [orders]);
+
+  const handleOpenGoodsReceivedConfirm = (order) => {
+    setSelectedReceiveOrder(order);
+  };
+
+  const handleCloseGoodsReceivedConfirm = () => {
+    if (receivingOrderId) return;
+
+    setSelectedReceiveOrder(null);
+  };
+
+  const handleGoodsReceived = async () => {
+    if (!selectedReceiveOrder?.id) {
+      showAlert('Order ID not found', 'danger');
+      return;
+    }
+
+    setReceivingOrderId(selectedReceiveOrder.id);
+
+    try {
+      const response = await OrderServices.postArrived(selectedReceiveOrder.id);
+
+      if (response?.data?.success) {
+        const updatedOrder = response.data.data || { ...selectedReceiveOrder, status: 'ARRIVED' };
+
+        setOrders((currentOrders) =>
+          currentOrders.map((item) =>
+            String(item.id) === String(selectedReceiveOrder.id) ? { ...item, ...updatedOrder, status: 'ARRIVED' } : item
+          )
+        );
+        showAlert(response.data.message || 'Sales order marked as received', 'success');
+        setSelectedReceiveOrder(null);
+      } else {
+        showAlert(response?.data?.message || 'Failed to mark sales order as received', 'danger');
+      }
+    } catch (error) {
+      showAlert(error?.message || 'Failed to mark sales order as received', 'danger');
+    } finally {
+      setReceivingOrderId(null);
+    }
+  };
 
   const chartOptions = useMemo(
     () => ({

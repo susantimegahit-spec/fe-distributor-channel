@@ -28,8 +28,8 @@ import RoleServices from '../../services/RoleServices';
 const statusOptions = [
   { value: '', label: 'All Statuses' },
   { value: 'DRAFT', label: 'Draft' },
-  { value: 'WAITING_OM', label: 'Waiting OM' },
-  { value: 'WAITING_ASM', label: 'Waiting ASM' },
+  { value: 'WAITING_OM', label: 'Waiting OM Distributor' },
+  { value: 'WAITING_ASM', label: 'Waiting ASM PT. Susanti Megah' },
   { value: 'WAITING_ADMIN_SALES', label: 'Waiting Admin Sales' },
   { value: 'WAITING_FINANCE', label: 'Waiting Finance' },
   // { value: 'WAITING_APPROVAL', label: 'Waiting Approval SM' },
@@ -74,6 +74,11 @@ const normalizeStatus = (value) =>
   String(value || '')
     .trim()
     .toUpperCase();
+
+const getStatusLabel = (value) => {
+  const normalizedStatus = normalizeStatus(value);
+  return statusOptions.find((item) => item.value === normalizedStatus)?.label || normalizedStatus.replace(/_/g, ' ');
+};
 
 const parseAmount = (value) => {
   if (typeof value === 'number') return value;
@@ -949,7 +954,7 @@ export default function OrderList() {
             {isLoading ? (
               <tbody>
                 <tr>
-                  <td colSpan={8}>
+                  <td colSpan={9}>
                     <LoaderData />
                   </td>
                 </tr>
@@ -967,7 +972,17 @@ export default function OrderList() {
                       <td>{getOrderLines(order).length}</td>
                       <td>{currency(order?.doc_total)}</td>
                       <td>
-                        <Badge bg={statusVariant[order.status] || 'secondary'}>{order.status.replace('_', ' ')}</Badge>
+                        <Badge bg={statusVariant[order.status] || 'secondary'}>
+                          {getStatusLabel(order.status)}
+                          {order.status === 'DELIVERY' ? (
+                            <>
+                              <br />
+                              {formatOrderDate(
+                                getOrderValue(order, ['actual_delivery_date', 'actualDeliveryDate', 'ActualDeliveryDate', 'delivery_date'])
+                              )}
+                            </>
+                          ) : null}
+                        </Badge>
                       </td>
                       <td>
                         {getOrderAttachments(order).length > 0 ? (
@@ -987,7 +1002,7 @@ export default function OrderList() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={8}>
+                    <td colSpan={9}>
                       <div className="text-center py-5">
                         <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                           <i className="ti ti-clipboard-list f-24" />
@@ -1046,7 +1061,7 @@ export default function OrderList() {
                   <Form.Label className="f-12 text-muted">Status</Form.Label>
                   <div>
                     <Badge bg={statusVariant[selectedOrderDetail.status] || 'secondary'}>
-                      {getOrderValue(selectedOrderDetail, ['status'])}
+                      {getStatusLabel(getOrderValue(selectedOrderDetail, ['status']))}
                     </Badge>
                   </div>
                 </Col>
@@ -1069,8 +1084,20 @@ export default function OrderList() {
                   <div>{formatOrderDate(getOrderValue(selectedOrderDetail, ['eta_date', 'etaDate', 'ETA', 'u_eta', 'U_ETA'], ''))}</div>
                 </Col>
                 <Col md={4}>
+                  <Form.Label className="f-12 text-muted">Delivery Date</Form.Label>
+                  <div>
+                    {formatOrderDate(
+                      getOrderValue(
+                        selectedOrderDetail,
+                        ['actual_delivery_date', 'actualDeliveryDate', 'ActualDeliveryDate', 'delivery_date'],
+                        ''
+                      )
+                    )}
+                  </div>
+                </Col>
+                <Col md={4}>
                   <Form.Label className="f-12 text-muted">Series Name</Form.Label>
-                  <div>{getOrderValue(selectedOrderDetail, seriesNameKeys)}</div>
+                  <div>{selectedOrderDetail?.series ? getOrderValue(selectedOrderDetail, seriesNameKeys) : '-'}</div>
                 </Col>
                 <Col md={4}>
                   <Form.Label className="f-12 text-muted">Sales</Form.Label>

@@ -31,6 +31,7 @@ export default function OrderPost() {
   const roleNumber = Number(roleId);
   const isCustomerRole = roleNumber === 1;
   const canSelectSales = roleNumber === 2 || roleNumber === 5;
+  const shouldShowSeriesSalesOrder = ![1, 2].includes(roleNumber);
   const navigate = useNavigate();
   const { id } = useParams();
   const isDetailMode = Boolean(id);
@@ -198,13 +199,13 @@ export default function OrderPost() {
   }, [id]);
 
   useEffect(() => {
-    if (!orderInput.docDate) {
+    if (!shouldShowSeriesSalesOrder || !orderInput.docDate) {
       setListSeries([]);
       return;
     }
 
     fetchSalesOrderSeries(orderInput.docDate);
-  }, [orderInput.docDate]);
+  }, [orderInput.docDate, shouldShowSeriesSalesOrder]);
 
   const getValue = (data, keys, defaultValue = '') => {
     for (const key of keys) {
@@ -1307,7 +1308,7 @@ export default function OrderPost() {
       eta_date: orderInput.etaDate,
       Series: orderInput.series,
       series_name: orderInput.seriesName || getSelectedSeriesOption()?.label || '',
-      slp_code: orderInput.slpCode,
+      slp_code: '',
       cntct: orderInput.cnctCode,
       pay_to_code: orderInput.address?.value,
       address: orderInput.address?.label,
@@ -1530,7 +1531,7 @@ export default function OrderPost() {
                     ? `Showing detail ${orderDetail?.order_no || orderDetail?.doc_num || 'order'} yang dipilih.`
                     : 'Complete customer information, addresses, and product details before saving the order.'}
                 </span>
-                {isDetailMode && orderInput.series ? (
+                {shouldShowSeriesSalesOrder && isDetailMode && orderInput.series ? (
                   <span className="text-muted f-12">Series: {getSelectedSeriesOption()?.label || orderInput.series}</span>
                 ) : null}
               </Stack>
@@ -1729,21 +1730,23 @@ export default function OrderPost() {
                             />
                           </Form.Group>
                         </Col>
-                        <Col md={6} xl={4}>
-                          <Form.Group>
-                            <Form.Label className="small text-muted">Series Sales Order</Form.Label>
-                            <Select
-                              value={getSelectedSeriesOption()}
-                              options={listSeries}
-                              isLoading={loadingSeries}
-                              isDisabled={!orderInput.docDate || loadingSeries}
-                              menuPosition="fixed"
-                              onChange={handleSelectSeries}
-                              placeholder={orderInput.docDate ? 'Select series' : 'Select document date first'}
-                              isClearable
-                            />
-                          </Form.Group>
-                        </Col>
+                        {shouldShowSeriesSalesOrder ? (
+                          <Col md={6} xl={4}>
+                            <Form.Group>
+                              <Form.Label className="small text-muted">Series Sales Order</Form.Label>
+                              <Select
+                                value={getSelectedSeriesOption()}
+                                options={listSeries}
+                                isLoading={loadingSeries}
+                                isDisabled={!orderInput.docDate || loadingSeries}
+                                menuPosition="fixed"
+                                onChange={handleSelectSeries}
+                                placeholder={orderInput.docDate ? 'Select series' : 'Select document date first'}
+                                isClearable
+                              />
+                            </Form.Group>
+                          </Col>
+                        ) : null}
                         <Col md={12}>
                           <Form.Group>
                             <Form.Label className="small text-muted">Notes</Form.Label>
