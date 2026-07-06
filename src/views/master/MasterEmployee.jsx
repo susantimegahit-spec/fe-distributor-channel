@@ -438,7 +438,7 @@ export default function MasterEmployee() {
           }
           secondary={
             <Stack direction="horizontal" gap={2}>
-              <Button onClick={openAddModal} variant="success" disabled={loadingData}>
+              <Button className="btn-add-sales" onClick={openAddModal} variant="light" disabled={loadingData}>
                 <i className="ti ti-plus me-1" />
                 Add Sales
               </Button>
@@ -631,7 +631,7 @@ export default function MasterEmployee() {
                               Reset Filter
                             </Button>
                           ) : (
-                            <Button onClick={openAddModal} variant="success" disabled={loadingData}>
+                            <Button className="btn-add-sales" onClick={openAddModal} variant="primary" disabled={loadingData}>
                               <i className="ti ti-plus me-1" />
                               Add Sales
                             </Button>

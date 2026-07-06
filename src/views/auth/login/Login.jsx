@@ -29,9 +29,9 @@ export default function LoginPage() {
               SM-CONNECT
             </span>
             <div className="sm-auth-copy">
-              <h1>
+              {/* <h1>
                 Distributor <span>operations</span> control room.
-              </h1>
+              </h1> */}
               <p>Secure access to manage sales orders, inventory, customers, and daily reports from one workspace.</p>
             </div>
             <div className="sm-auth-products" aria-label="Product brands">

@@ -617,7 +617,9 @@ export default function RewardList() {
                         </span>
                         <div>
                           <div className="fw-semibold">Withdraw</div>
-                          <small className={activeRewardTab === 'withdraw' ? 'text-white-50' : 'text-muted'}>Submit reward withdrawals</small>
+                          <small className={activeRewardTab === 'withdraw' ? 'text-white-50' : 'text-muted'}>
+                            Submit reward withdrawals
+                          </small>
                         </div>
                       </Stack>
                       <Badge
@@ -636,6 +638,7 @@ export default function RewardList() {
           <Tab.Content>
             <Tab.Pane eventKey="claim">
               <MainCard
+                className="claim-transaction-card"
                 title={
                   <Stack gap={1}>
                     <h5 className="mb-0">Claim Transactions</h5>
@@ -727,6 +730,7 @@ export default function RewardList() {
 
             <Tab.Pane eventKey="withdraw">
               <MainCard
+                className="claim-transaction-card"
                 title={
                   <Stack gap={1}>
                     <h5 className="mb-0">Withdrawal Transactions</h5>

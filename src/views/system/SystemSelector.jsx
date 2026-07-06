@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 
 // react-bootstrap
 import Button from 'react-bootstrap/Button';
@@ -10,17 +11,20 @@ import Stack from 'react-bootstrap/Stack';
 
 // project-imports
 import { getCookies } from '../../utils/cookies';
-import { getAvailableSystems } from '../../systems';
+import { getAvailableSystems, normalizeAccessibleSystems, systems } from '../../systems';
 
 export default function SystemSelector() {
   const roleId = getCookies('role');
   const menuPermission = getCookies('menu');
   const systemPermission = getCookies('systems');
+  const reduxSystemAccess = useSelector((state) => state.auth?.accessible_system || []);
+  const systemAccess = reduxSystemAccess.length ? reduxSystemAccess : normalizeAccessibleSystems(getCookies('system'));
   const permissionMenu = [
     ...(Array.isArray(menuPermission) ? menuPermission : []),
     ...(Array.isArray(systemPermission) ? systemPermission : [])
   ];
-  const availableSystems = getAvailableSystems(permissionMenu, roleId);
+  const permissionSystems = getAvailableSystems(permissionMenu, roleId);
+  const availableSystems = systemAccess.length ? systems.filter((system) => systemAccess.includes(system.key)) : permissionSystems;
 
   return (
     <div className="d-flex align-items-center justify-content-center" style={{ minHeight: '60vh' }}>

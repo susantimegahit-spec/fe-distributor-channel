@@ -1,6 +1,7 @@
 import PropTypes from 'prop-types';
 import { useState } from 'react';
 import Cookies from 'js-cookie';
+import { useDispatch } from 'react-redux';
 
 // react-bootstrap
 import Button from 'react-bootstrap/Button';
@@ -27,6 +28,8 @@ import { DataService } from '../../config/dataService';
 import LoaderButton from '../../components/LoaderButton';
 import Turnstile from 'components/Turnstile';
 import { AUTH_STATE_CHANGED_EVENT } from '../../utils/authEvents';
+import { normalizeAccessibleSystems } from '../../systems';
+import { setAccessibleSystem } from '../../redux/authReducer';
 
 // ==============================|| AUTH LOGIN FORM ||============================== //
 
@@ -41,6 +44,7 @@ const productLogos = [
 
 export default function AuthLoginForm({ className }) {
   const [showPassword, setShowPassword] = useState(false);
+  const dispatch = useDispatch();
   const { showAlert } = useAlert();
   const [isLoading, setIsLoading] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState(null);
@@ -72,17 +76,29 @@ export default function AuthLoginForm({ className }) {
       const response = await DataService.post('/auth/login', payload);
 
       if (response.data.success === true) {
+        const loginData = response.data.data || {};
+        const userData = loginData.user || {};
+        const accessibleSystemSource =
+          loginData.accessible_system ||
+          loginData.accessible_systems ||
+          userData.accessible_system ||
+          userData.accessible_systems ||
+          [];
+        const accessibleSystems = normalizeAccessibleSystems(accessibleSystemSource);
+
         Cookies.set('isLoggedIn', true);
-        Cookies.set('accessToken', response.data.data.access_token);
-        Cookies.set('id', response.data.data.user.id);
-        Cookies.set('name', response.data.data.user.name);
-        Cookies.set('email', response.data.data.user.email);
-        Cookies.set('role', response.data.data.user.role_id);
-        Cookies.set('menu', JSON.stringify(response.data.data?.menu));
-        Cookies.set('systems', JSON.stringify(response.data.data?.systems || response.data.data?.system_permissions || []));
-        Cookies.set('customerCode', response.data.data?.user?.code_customer);
-        Cookies.set('distributorName', response.data.data?.user?.name_distributor);
-        Cookies.set('distributorId', response.data.data?.user?.id_distributor);
+        Cookies.set('accessToken', loginData.access_token);
+        Cookies.set('id', userData.id);
+        Cookies.set('name', userData.name);
+        Cookies.set('email', userData.email);
+        Cookies.set('role', userData.role_id);
+        Cookies.set('menu', JSON.stringify(loginData?.menu));
+        Cookies.set('systems', JSON.stringify(loginData?.systems || loginData?.system_permissions || []));
+        Cookies.set('system', JSON.stringify(accessibleSystems));
+        dispatch(setAccessibleSystem(accessibleSystems));
+        Cookies.set('customerCode', userData?.code_customer);
+        Cookies.set('distributorName', userData?.name_distributor);
+        Cookies.set('distributorId', userData?.id_distributor);
         window.dispatchEvent(new Event(AUTH_STATE_CHANGED_EVENT));
         setTimeout(() => {
           showAlert('Login berhasil', 'success');

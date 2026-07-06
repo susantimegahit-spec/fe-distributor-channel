@@ -339,6 +339,7 @@ export default function MasterPrice() {
     <>
       <Stack gap={3}>
         <MainCard
+          content={false}
           title={
             <Stack gap={1}>
               <h5 className="mb-0">Price List</h5>
@@ -357,70 +358,7 @@ export default function MasterPrice() {
               </Button>
             </Stack>
           }
-        >
-          {/* <Row className="g-3">
-            <Col sm={6} xl={3}>
-              <Card className="border mb-0 h-100">
-                <Card.Body className="py-3">
-                  <Stack direction="horizontal" gap={3} className="justify-content-between">
-                    <div>
-                      <div className="text-muted f-12">Total Prices</div>
-                      <h4 className="mb-0">{summary.total}</h4>
-                    </div>
-                    <span className="avtar avtar-s bg-light-primary text-primary">
-                      <i className="ti ti-currency-dollar" />
-                    </span>
-                  </Stack>
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col sm={6} xl={3}>
-              <Card className="border mb-0 h-100">
-                <Card.Body className="py-3">
-                  <Stack direction="horizontal" gap={3} className="justify-content-between">
-                    <div>
-                      <div className="text-muted f-12">Active</div>
-                      <h4 className="mb-0">{summary.active}</h4>
-                    </div>
-                    <span className="avtar avtar-s bg-light-success text-success">
-                      <i className="ti ti-circle-check" />
-                    </span>
-                  </Stack>
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col sm={6} xl={3}>
-              <Card className="border mb-0 h-100">
-                <Card.Body className="py-3">
-                  <Stack direction="horizontal" gap={3} className="justify-content-between">
-                    <div>
-                      <div className="text-muted f-12">Inactive</div>
-                      <h4 className="mb-0">{summary.inactive}</h4>
-                    </div>
-                    <span className="avtar avtar-s bg-light-secondary text-secondary">
-                      <i className="ti ti-circle-x" />
-                    </span>
-                  </Stack>
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col sm={6} xl={3}>
-              <Card className="border mb-0 h-100">
-                <Card.Body className="py-3">
-                  <Stack direction="horizontal" gap={3} className="justify-content-between">
-                    <div>
-                      <div className="text-muted f-12">Average Price</div>
-                      <h5 className="mb-0">{formatCurrency(summary.averagePrice)}</h5>
-                    </div>
-                    <span className="avtar avtar-s bg-light-warning text-warning">
-                      <i className="ti ti-chart-bar" />
-                    </span>
-                  </Stack>
-                </Card.Body>
-              </Card>
-            </Col>
-          </Row> */}
-        </MainCard>
+        />
 
         <MainCard>
           <Row className="g-2 align-items-end mb-3">

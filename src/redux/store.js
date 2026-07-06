@@ -1,5 +1,5 @@
 import { createStore, applyMiddleware, compose } from 'redux';
-import thunk from 'redux-thunk';
+import { thunk } from 'redux-thunk';
 // import { composeWithDevTools } from 'redux-devtools-extension';
 import rootReducer from './rootReducers';
 
@@ -8,7 +8,7 @@ import rootReducer from './rootReducers';
 //   process.env.NODE_ENV === 'development'
 //     ? composeWithDevTools(applyMiddleware(thunk.withExtraArgument()))
 //     : compose(applyMiddleware(thunk.withExtraArgument()));
-const reduxDevTool = compose(applyMiddleware(thunk.withExtraArgument()));
+const reduxDevTool = compose(applyMiddleware(thunk));
 const store = createStore(rootReducer, reduxDevTool);
 
 export default store;

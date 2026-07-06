@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Cookies from 'js-cookie';
+import { useDispatch } from 'react-redux';
 
 // react-bootstrap
 import Button from 'react-bootstrap/Button';
@@ -31,11 +32,13 @@ import {
   normalizeNotification
 } from '../../utils/notification';
 import { DataService } from '../../config/dataService';
+import { destroyAuthState } from '../../redux/authReducer';
 
 // =============================|| MAIN LAYOUT - HEADER ||============================== //
 
 export default function Header() {
   const roleId = getCookies('role');
+  const dispatch = useDispatch();
   const { menuMaster } = useGetMenuMaster();
   const { showAlert } = useAlert();
   const drawerOpen = menuMaster?.isDashboardDrawerOpened;
@@ -189,6 +192,8 @@ export default function Header() {
       Cookies.remove('role');
       Cookies.remove('menu');
       Cookies.remove('systems');
+      Cookies.remove('system');
+      dispatch(destroyAuthState());
       Cookies.remove('customerCode');
       Cookies.remove('distributorName');
       Cookies.remove('distributorId');

@@ -28,6 +28,15 @@ export const systems = [
 ];
 
 const adminRoleId = 5;
+const systemAccessAliases = {
+  distributor: SYSTEM_KEYS.CUSTOMER_PORTAL,
+  'customer-portal': SYSTEM_KEYS.CUSTOMER_PORTAL,
+  customer_portal: SYSTEM_KEYS.CUSTOMER_PORTAL,
+  'customer portal': SYSTEM_KEYS.CUSTOMER_PORTAL,
+  customerportal: SYSTEM_KEYS.CUSTOMER_PORTAL,
+  ekspedisi: SYSTEM_KEYS.EKSPEDISI,
+  expedition: SYSTEM_KEYS.EKSPEDISI
+};
 
 const flattenMenuIds = (menuItems = []) =>
   menuItems.flatMap((item) => [item.id, ...(item.children?.length ? flattenMenuIds(item.children) : [])]).filter(Boolean);
@@ -41,6 +50,44 @@ export const normalizePermissionMenu = (menu = []) => {
       return item?.id || item?.value || item?.menu_id || item?.menuId;
     })
     .filter(Boolean);
+};
+
+const normalizeArray = (value) => {
+  if (Array.isArray(value)) return value.filter((item) => item !== undefined && item !== null && item !== '');
+  if (value === undefined || value === null || value === '') return [];
+  return [value];
+};
+
+const getSystemAccessValue = (item) => {
+  if (typeof item === 'string') return item;
+
+  return item?.key || item?.value || item?.system || item?.system_key || item?.systemKey || item?.name || item?.title || '';
+};
+
+export const normalizeAccessibleSystems = (value) => {
+  let accessibleSystems = normalizeArray(value);
+
+  if (typeof value === 'string') {
+    try {
+      const parsedValue = JSON.parse(value);
+
+      accessibleSystems = Array.isArray(parsedValue) ? parsedValue : normalizeArray(parsedValue);
+    } catch {
+      accessibleSystems = value.split(',');
+    }
+  }
+
+  const normalized = [
+    ...new Set(
+      accessibleSystems
+        .map((item) => String(getSystemAccessValue(item)).trim().toLowerCase())
+        .filter(Boolean)
+        .flatMap((item) => (['all', '*'].includes(item) ? systems.map((system) => system.key) : [systemAccessAliases[item] || item]))
+        .filter((item) => systems.some((system) => system.key === item))
+    )
+  ];
+
+  return normalized;
 };
 
 export const isAdministratorRole = (roleId) => Number(roleId) === adminRoleId;

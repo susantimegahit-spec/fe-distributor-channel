@@ -856,10 +856,146 @@ body {
 }
 
 .pc-content .card-header {
+  border-bottom-color: transparent;
+  background: linear-gradient(135deg, #315fb4 0%, #12bfd7 100%) !important;
+  color: #fff;
+}
+
+.pc-content .card-header h1,
+.pc-content .card-header h2,
+.pc-content .card-header h3,
+.pc-content .card-header h4,
+.pc-content .card-header h5,
+.pc-content .card-header h6,
+.pc-content .card-header .text-muted {
+  color: #fff !important;
+}
+
+.pc-content .card-header .text-muted {
+  opacity: 0.82;
+}
+
+.pc-content .card-header .btn-primary {
+  --bs-btn-bg: #fff;
+  --bs-btn-border-color: #fff;
+  --bs-btn-color: #315fb4;
+  --bs-btn-hover-bg: rgba(255, 255, 255, 0.88);
+  --bs-btn-hover-border-color: rgba(255, 255, 255, 0.88);
+  --bs-btn-hover-color: #274f9b;
+  --bs-btn-active-bg: rgba(255, 255, 255, 0.82);
+  --bs-btn-active-border-color: rgba(255, 255, 255, 0.82);
+  --bs-btn-active-color: #274f9b;
+  font-weight: 700;
+  box-shadow: 0 10px 20px rgba(10, 36, 78, 0.16);
+}
+
+.btn-add-sales.btn {
+  --bs-btn-bg: #fff;
+  --bs-btn-border-color: #fff;
+  --bs-btn-color: #315fb4;
+  --bs-btn-hover-bg: rgba(255, 255, 255, 0.88);
+  --bs-btn-hover-border-color: rgba(255, 255, 255, 0.88);
+  --bs-btn-hover-color: #274f9b;
+  --bs-btn-active-bg: rgba(255, 255, 255, 0.82);
+  --bs-btn-active-border-color: rgba(255, 255, 255, 0.82);
+  --bs-btn-active-color: #274f9b;
+  font-weight: 800;
+  box-shadow: 0 10px 20px rgba(10, 36, 78, 0.16);
+}
+
+.pc-content .card-body .btn-add-sales.btn {
+  --bs-btn-bg: #315fb4;
+  --bs-btn-border-color: #315fb4;
+  --bs-btn-color: #fff;
+  --bs-btn-hover-bg: #274f9b;
+  --bs-btn-hover-border-color: #274f9b;
+  --bs-btn-hover-color: #fff;
+  --bs-btn-active-bg: #274f9b;
+  --bs-btn-active-border-color: #274f9b;
+  --bs-btn-active-color: #fff;
+  box-shadow: 0 10px 20px rgba(49, 95, 180, 0.18);
+}
+
+.pc-content .claim-transaction-card > .card-header {
   border-bottom-color: rgba(49, 95, 180, 0.08);
-  background:
-    linear-gradient(90deg, rgba(115, 229, 245, 0.08), transparent 38%),
-    rgba(255, 255, 255, 0.82);
+  background: #fff !important;
+  color: #111827;
+}
+
+.pc-content .claim-transaction-card > .card-header h5 {
+  color: #111827 !important;
+}
+
+.pc-content .claim-transaction-card > .card-header .text-muted {
+  color: #6b7280 !important;
+  opacity: 1;
+}
+
+.pc-content .claim-transaction-card > .card-header .btn-primary {
+  --bs-btn-bg: #315fb4;
+  --bs-btn-border-color: #315fb4;
+  --bs-btn-color: #fff;
+  --bs-btn-hover-bg: #274f9b;
+  --bs-btn-hover-border-color: #274f9b;
+  --bs-btn-hover-color: #fff;
+  --bs-btn-active-bg: #274f9b;
+  --bs-btn-active-border-color: #274f9b;
+  --bs-btn-active-color: #fff;
+  box-shadow: 0 10px 20px rgba(49, 95, 180, 0.18);
+}
+
+.pc-content .dashboard-title-card.card {
+  overflow: hidden;
+  background: linear-gradient(135deg, #315fb4 0%, #12bfd7 100%) !important;
+}
+
+.pc-content .dashboard-title-card > .card-header {
+  border-bottom-color: transparent;
+  background: linear-gradient(135deg, #315fb4 0%, #12bfd7 100%) !important;
+  color: #fff;
+}
+
+.pc-content .dashboard-title-card > .card-header h5,
+.pc-content .dashboard-title-card > .card-header .text-muted {
+  color: #fff !important;
+}
+
+.pc-content .dashboard-title-card > .card-header .text-muted {
+  opacity: 0.82;
+}
+
+.pc-content .dashboard-title-action.btn {
+  border: 0;
+  color: #315fb4;
+  font-weight: 700;
+  box-shadow: 0 10px 20px rgba(10, 36, 78, 0.16);
+}
+
+.pc-content .dashboard-summary-card.card {
+  border-color: rgba(49, 95, 180, 0.08) !important;
+  background: #fff !important;
+  color: #111827;
+  box-shadow: 0 18px 38px rgba(28, 54, 102, 0.08);
+}
+
+.pc-content .dashboard-summary-card .text-muted,
+.pc-content .dashboard-summary-card h4 {
+  color: #111827 !important;
+}
+
+.pc-content .dashboard-summary-card h4 {
+  font-weight: 800;
+  text-shadow: none;
+}
+
+.pc-content .dashboard-summary-card .text-muted {
+  font-weight: 700;
+  opacity: 0.72;
+  text-shadow: none;
+}
+
+.pc-content .dashboard-summary-card .avtar {
+  box-shadow: inset 0 0 0 1px rgba(49, 95, 180, 0.08);
 }
 
 .pc-sidebar {
@@ -1723,12 +1859,18 @@ body {
       box-shadow: 0 10px 26px rgba(23, 31, 79, 0.16);
     }
 
-    &.reward-tab-claim.active {
-      background: #2f327d;
+    &.reward-tab-claim.active,
+    &.reward-tab-withdraw.active {
+      background: linear-gradient(135deg, #315fb4 0%, #12bfd7 100%);
+      box-shadow: 0 15px 28px rgba(39, 104, 196, 0.26);
     }
 
-    &.reward-tab-withdraw.active {
-      background: #198754;
+    &.reward-tab-claim.active:hover,
+    &.reward-tab-claim.active:focus,
+    &.reward-tab-withdraw.active:hover,
+    &.reward-tab-withdraw.active:focus {
+      background: linear-gradient(135deg, #274f9b 0%, #0faec7 100%);
+      box-shadow: 0 18px 34px rgba(39, 104, 196, 0.32);
     }
   }
 
