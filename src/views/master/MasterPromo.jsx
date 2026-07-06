@@ -17,6 +17,7 @@ import MainCard from 'components/MainCard';
 import ConfirmDialog from 'components/ConfirmDialog';
 import TablePagination from 'components/TablePagination';
 import LoaderData from '../../components/LoaderData';
+import DistributorServices from '../../services/DistributorServices';
 import ProductServices from '../../services/ProductServices';
 import PromoServices from '../../services/PromoServices';
 import { useAlert } from '../../utils/alertContext';
@@ -25,6 +26,7 @@ const pageSize = 10;
 
 const initialPromoInput = {
   program_name: '',
+  customer_code: [],
   items: [],
   start_date: '',
   end_date: '',
@@ -105,6 +107,16 @@ const normalizeStatus = (value) => {
   return 'active';
 };
 
+const normalizeValueList = (value) => {
+  if (Array.isArray(value)) return value;
+  if (!value) return [];
+
+  return String(value)
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
+
 const getProgramItems = (program) => {
   const itemCodes = Array.isArray(program.item_code) ? program.item_code : program.item_code ? [program.item_code] : [];
   const itemNames = Array.isArray(program.item_name) ? program.item_name : program.item_name ? [program.item_name] : [];
@@ -137,6 +149,65 @@ const getProgramItems = (program) => {
   });
 };
 
+const getProgramCustomers = (program) => {
+  const programCustomerCode = program.customer_code || program.code_customer || program.customer_codes || program.code_customers;
+  const customerCodes = normalizeValueList(programCustomerCode);
+  const programCustomerName = program.customer_name || program.name_customer || program.customer_names || program.name_customers;
+  const customerNames = normalizeValueList(programCustomerName);
+  const customerDepos = normalizeValueList(program.depo);
+  const programCustomers = program.customers || program.customer || program.distributors || program.program_customers;
+  const customers = Array.isArray(programCustomers) && !programCustomers.length ? customerCodes : programCustomers || customerCodes;
+  const normalizedCustomers = Array.isArray(customers) ? customers : [customers];
+
+  return normalizedCustomers.filter(Boolean).map((customer, index) => {
+    if (typeof customer === 'string') {
+      const customerName = customerNames[index] || '';
+      const depo = customerDepos[index] || '';
+      const labelParts = [customer, depo, customerName].filter(Boolean);
+
+      return {
+        value: customer,
+        customer_code: customer,
+        label: labelParts.join(' - '),
+        customer: {
+          customer_code: customer,
+          customer_name: customerName,
+          depo
+        }
+      };
+    }
+
+    const customerCode = customer.customer_code || customer.code_customer || customer.distributor_code || customer.value || '';
+    const customerName = customer.customer_name || customer.name_customer || customer.name || customer.label || '';
+    const depo = customer.depo || customer.customer_depo || '';
+    const labelParts = [customerCode, depo, customerName].filter(Boolean);
+
+    return {
+      value: customerCode || customerName,
+      customer_code: customerCode,
+      label: customer.label || labelParts.join(' - ') || '-',
+      customer
+    };
+  });
+};
+
+const getCustomerOptionCode = (customer) => customer?.customer_code || customer?.code_customer || customer?.distributor_code || customer?.value || '';
+
+const enrichCustomerOption = (customer, customerOptionMap) => {
+  const customerCode = getCustomerOptionCode(customer);
+  const masterCustomer = customerOptionMap.get(customerCode);
+
+  if (!masterCustomer) return customer;
+
+  return {
+    ...customer,
+    ...masterCustomer,
+    value: masterCustomer.value,
+    customer_code: masterCustomer.customer_code,
+    label: masterCustomer.label
+  };
+};
+
 const getProgramRules = (program) => {
   const rules = program.strata || program.details || program.rules || program.program_details || [];
 
@@ -146,6 +217,7 @@ const getProgramRules = (program) => {
 const normalizePromo = (program, index) => ({
   id: program.id || program.program_id || index,
   program_name: program.program_name || program.name || '',
+  customer_code: getProgramCustomers(program),
   items: getProgramItems(program),
   start_date: program.start_date || program.startDate || '',
   end_date: program.end_date || program.endDate || '',
@@ -179,9 +251,14 @@ export default function MasterPromo() {
   const [promoInput, setPromoInput] = useState(initialPromoInput);
   const [promoRules, setPromoRules] = useState(initialPromoRules);
   const [listItem, setListItem] = useState([]);
+  const [listCustomer, setListCustomer] = useState([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [submittingPromo, setSubmittingPromo] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const customerOptionMap = useMemo(
+    () => new Map(listCustomer.map((customer) => [customer.customer_code || customer.value, customer])),
+    [listCustomer]
+  );
 
   const fetchPromos = useCallback(async () => {
     setLoadingData(true);
@@ -199,12 +276,12 @@ export default function MasterPromo() {
     }
   }, [showAlert]);
 
-  const fetchItems = useCallback(async () => {
+  const fetchOptions = useCallback(async () => {
     setLoadingOptions(true);
 
     try {
-      const response = await ProductServices.getAllProduct('');
-      const options = normalizeList(response).map((item) => {
+      const [itemResponse, customerResponse] = await Promise.all([ProductServices.getAllProduct(''), DistributorServices.getAllDistributor('')]);
+      const itemOptions = normalizeList(itemResponse).map((item) => {
         const itemCode = item.item_code || item.code || item.itemCode || '';
         const itemName = item.item_name || item.name || item.itemName || '';
 
@@ -215,9 +292,26 @@ export default function MasterPromo() {
         };
       });
 
-      setListItem(options);
+      const customerOptions = normalizeList(customerResponse)
+        .map((customer) => {
+          const customerCode = customer.code_customer || customer.customer_code || customer.distributor_code || '';
+          const customerName = customer.name || customer.customer_name || customer.name_customer || '';
+          const depo = customer.depo || customer.customer_depo || '';
+
+          return {
+            value: customerCode,
+            customer_code: customerCode,
+            label: [customerCode, depo, customerName].filter(Boolean).join(' - ') || '-',
+            id: customer.id,
+            customer
+          };
+        })
+        .filter((customer) => customer.value);
+
+      setListItem(itemOptions);
+      setListCustomer(customerOptions);
     } catch (error) {
-      showAlert(error?.message || 'Failed to fetch item data', 'danger');
+      showAlert(error?.message || 'Failed to fetch promo dropdown data', 'danger');
     } finally {
       setLoadingOptions(false);
     }
@@ -225,8 +319,8 @@ export default function MasterPromo() {
 
   useEffect(() => {
     fetchPromos();
-    fetchItems();
-  }, [fetchItems, fetchPromos]);
+    fetchOptions();
+  }, [fetchOptions, fetchPromos]);
 
   const pageCount = Math.max(Math.ceil(promoPrograms.length / pageSize), 1);
   const paginatedPromos = useMemo(() => {
@@ -271,7 +365,13 @@ export default function MasterPromo() {
         return;
       }
 
-      setSelectedPromo(normalizePromo(detail, program.id));
+      const normalizedPromo = normalizePromo(detail, program.id);
+      const normalizedCustomers = normalizedPromo.customer_code.map((customer) => enrichCustomerOption(customer, customerOptionMap));
+
+      setSelectedPromo({
+        ...normalizedPromo,
+        customer_code: normalizedCustomers
+      });
     } catch (error) {
       showAlert(error?.message || 'Failed to fetch promo program detail', 'danger');
     } finally {
@@ -300,9 +400,11 @@ export default function MasterPromo() {
       }
 
       const normalizedPromo = normalizePromo(detail, program.id);
+      const normalizedCustomers = normalizedPromo.customer_code.map((customer) => enrichCustomerOption(customer, customerOptionMap));
 
       setPromoInput({
         program_name: normalizedPromo.program_name,
+        customer_code: normalizedCustomers,
         items: normalizedPromo.items,
         start_date: formatInputDate(normalizedPromo.start_date),
         end_date: formatInputDate(normalizedPromo.end_date),
@@ -382,8 +484,8 @@ export default function MasterPromo() {
   };
 
   const handleSubmitPromo = async () => {
-    if (!promoInput.program_name || !promoInput.items.length || !promoInput.start_date || !promoInput.end_date) {
-      showAlert('Program name, item, start date, and end date are required', 'danger');
+    if (!promoInput.program_name || !promoInput.customer_code.length || !promoInput.items.length || !promoInput.start_date || !promoInput.end_date) {
+      showAlert('Program name, customer, item, start date, and end date are required', 'danger');
       return;
     }
 
@@ -401,9 +503,12 @@ export default function MasterPromo() {
       return;
     }
     const items = promoInput.items.map((item) => item?.value);
+    const customerCodes = promoInput.customer_code.map((customer) => customer?.customer_code || customer?.value).filter(Boolean);
 
     const payload = {
       program_name: promoInput.program_name,
+      customer_code: customerCodes,
+      code_customer: customerCodes.toString(),
       item_name: promoInput.items.map((item) => item.label),
       item_code: promoInput.items.map((item) => item.value),
       items,
@@ -519,6 +624,7 @@ export default function MasterPromo() {
             <thead>
               <tr>
                 <th style={{ minWidth: 220 }}>Program Name</th>
+                <th style={{ minWidth: 260 }}>Customer</th>
                 <th style={{ minWidth: 190 }}>Periode</th>
                 <th style={{ minWidth: 260 }}>Item</th>
                 <th style={{ minWidth: 240 }}>Keterangan</th>
@@ -531,17 +637,32 @@ export default function MasterPromo() {
             <tbody>
               {loadingData ? (
                 <tr>
-                  <td colSpan={6}>
+                  <td colSpan={7}>
                     <LoaderData />
                   </td>
                 </tr>
               ) : paginatedPromos.length ? (
                 paginatedPromos.map((program) => {
                   const programItems = program.items || [];
+                  const programCustomers = (program.customer_code || []).map((customer) => enrichCustomerOption(customer, customerOptionMap));
 
                   return (
                     <tr key={program.id}>
                       <td className="fw-semibold">{program.program_name || '-'}</td>
+                      <td>
+                        {programCustomers.length ? (
+                          <Stack gap={1}>
+                            {programCustomers.slice(0, 2).map((customer, index) => (
+                              <span key={`${customer.value || customer.customer_code}-${index}`}>{customer.label}</span>
+                            ))}
+                            {programCustomers.length > 2 && (
+                              <small className="text-muted">+{programCustomers.length - 2} customer lainnya</small>
+                            )}
+                          </Stack>
+                        ) : (
+                          '-'
+                        )}
+                      </td>
                       <td>
                         {formatDate(program.start_date)} - {formatDate(program.end_date)}
                       </td>
@@ -615,7 +736,7 @@ export default function MasterPromo() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={6}>
+                  <td colSpan={7}>
                     <div className="text-center py-5">
                       <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                         <i className="ti ti-discount-2 f-24" />
@@ -672,6 +793,20 @@ export default function MasterPromo() {
                       menuPosition="fixed"
                       onChange={(value) => handleChangePromoInput('items', value || [])}
                       placeholder="Select item promo"
+                    />
+                  </Col>
+                  <Col md={6}>
+                    <Form.Label className="f-12 text-muted">Customer</Form.Label>
+                    <Select
+                      isMulti
+                      closeMenuOnSelect={false}
+                      isLoading={loadingOptions}
+                      styles={selectStyles}
+                      value={promoInput.customer_code}
+                      options={listCustomer}
+                      menuPosition="fixed"
+                      onChange={(value) => handleChangePromoInput('customer_code', value || [])}
+                      placeholder="Select customer"
                     />
                   </Col>
                   <Col md={3}>
@@ -860,6 +995,42 @@ export default function MasterPromo() {
                       </div>
                     </Col>
                   </Row>
+                </Card.Body>
+              </Card>
+
+              <Card className="border-0 shadow-sm mb-0">
+                <Card.Header className="bg-white py-3">
+                  <h6 className="mb-0">Customer Program</h6>
+                </Card.Header>
+                <Card.Body className="p-0">
+                  <Table className="mb-0 align-middle" responsive>
+                    <thead>
+                      <tr>
+                        <th style={{ width: 70 }}>No.</th>
+                        <th style={{ minWidth: 160 }}>Customer Code</th>
+                        <th style={{ minWidth: 180 }}>Depo</th>
+                        <th style={{ minWidth: 260 }}>Customer Name</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedPromo.customer_code?.length ? (
+                        selectedPromo.customer_code.map((customer, index) => (
+                          <tr key={`${customer.customer_code || customer.value}-${index}`}>
+                            <td>{index + 1}</td>
+                            <td className="fw-semibold">{customer.customer_code || customer.value || '-'}</td>
+                            <td>{customer.customer?.depo || customer.depo || '-'}</td>
+                            <td>{customer.customer?.name || customer.customer?.customer_name || customer.customer?.name_customer || customer.label || '-'}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={4} className="text-center text-muted py-4">
+                            Customer program tidak tersedia
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </Table>
                 </Card.Body>
               </Card>
 
