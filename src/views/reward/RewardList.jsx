@@ -113,7 +113,7 @@ const normalizeBatch = (batch, index) => ({
   fileName: batch.file_name || batch.original_file_name || batch.original_filename || batch.filename || '-',
   uploadedBy: batch.uploaded_by_name || batch.uploaded_by || batch.created_by_name || batch.created_by || '-',
   uploadedAt: batch.created_at || batch.uploaded_at || batch.createdAt || '',
-  customerName: batch.customer_name|| '',
+  customerName: batch.customer_name || '',
   depo: batch.depo || batch.customer_depo || '',
   rewardAmount: batch.total_diskon,
   totalTransactions: Number(batch.total_rows || batch.total_records || batch.result_count || batch.total_transactions || 0),
@@ -426,7 +426,14 @@ export default function RewardList() {
   const handleSubmitWithdraw = async () => {
     const rawWithdrawAmount = Number(withdrawAmount) || 0;
 
-    if (!canManageReward || !canCreateWithdrawal || !effectiveCustomerCode || !rawWithdrawAmount || rawWithdrawAmount > summary.availableBalance) return;
+    if (
+      !canManageReward ||
+      !canCreateWithdrawal ||
+      !effectiveCustomerCode ||
+      !rawWithdrawAmount ||
+      rawWithdrawAmount > summary.availableBalance
+    )
+      return;
 
     setSubmittingWithdraw(true);
 
@@ -1014,12 +1021,7 @@ export default function RewardList() {
           <Stack direction="horizontal" gap={3} className="justify-content-between align-items-center w-100 me-3">
             <Modal.Title>Detail Claim Reward</Modal.Title>
             {canVerifySellOut ? (
-              <Button
-                variant="success"
-                size="sm"
-                onClick={handleBulkVerifySellOut}
-                disabled={submittingVerify || !selectedSellOutCount}
-              >
+              <Button variant="success" size="sm" onClick={handleBulkVerifySellOut} disabled={submittingVerify || !selectedSellOutCount}>
                 <i className="ti ti-checks me-1" />
                 {submittingVerify ? 'Verifying...' : 'Verify Selected'}
                 {!submittingVerify && selectedSellOutCount ? ` (${selectedSellOutCount})` : ''}
@@ -1133,7 +1135,7 @@ export default function RewardList() {
                               <Badge bg={transaction.status === 'VALID PROGRAM' ? 'success' : 'danger'}>{transaction.status}</Badge>
                             </td>
                             <td className="text-center">
-                              {canVerifySellOut ? (
+                              {transaction.status === 'VALID PROGRAM' && canVerifySellOut ? (
                                 <Form.Check
                                   type="checkbox"
                                   className="m-0 d-inline-flex"

@@ -1412,9 +1412,9 @@ body {
 
 .pc-header .sm-notification-toggle.pc-head-link:hover,
 .pc-header .sm-notification-toggle.pc-head-link:focus {
-  border-color: rgba(47, 50, 125, 0.26);
+  border-color: rgba(49, 95, 180, 0.26);
   background: #f7f8fc;
-  color: #2f327d;
+  color: #315fb4;
 }
 
 .pc-header .sm-notification-toggle.pc-head-link > i {
@@ -1469,7 +1469,7 @@ body {
   height: 38px;
   border-radius: 999px;
   background: #eef2ff;
-  color: #2f327d;
+  color: #315fb4;
 }
 
 .sm-notification-icon.is-unread {
@@ -1543,7 +1543,7 @@ body {
   margin-bottom: 4px;
   border-radius: 999px;
   background: #f7f8fc;
-  color: #2f327d;
+  color: #315fb4;
 }
 
 .sm-notification-empty-icon i {
@@ -1574,13 +1574,13 @@ body {
 
 .pc-header .sm-account-toggle.pc-head-link:hover,
 .pc-header .sm-account-toggle.pc-head-link:focus {
-  border-color: rgba(47, 50, 125, 0.26);
+  border-color: rgba(49, 95, 180, 0.26);
   background: #f7f8fc;
-  color: #2f327d;
+  color: #315fb4;
 }
 
 .pc-header .sm-account-toggle.pc-head-link > i {
-  color: #2f327d;
+  color: #315fb4;
   font-size: 0.95rem;
 }
 
@@ -1592,7 +1592,7 @@ body {
   min-width: 34px;
   height: 34px;
   border-radius: 999px;
-  background: #2f327d;
+  background: #315fb4;
   color: #fff;
   font-size: 0.9rem;
   font-weight: 800;
@@ -1604,7 +1604,7 @@ body {
   min-width: 48px;
   height: 48px;
   background: #fff;
-  color: #2f327d;
+  color: #315fb4;
   font-size: 1.15rem;
 }
 
@@ -1721,7 +1721,7 @@ body {
 .pc-header .sm-account-menu .sm-account-item.dropdown-item:focus {
   border-color: #e2e6f2;
   background: #f7f8fc;
-  color: #2f327d;
+  color: #315fb4;
 }
 
 .sm-account-item-icon {
@@ -1732,8 +1732,8 @@ body {
   min-width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: rgba(47, 50, 125, 0.09);
-  color: #2f327d;
+  background: rgba(49, 95, 180, 0.09);
+  color: #315fb4;
 }
 
 .sm-account-item-icon i {
@@ -1789,7 +1789,7 @@ body {
     .page-link {
       border: 1px solid #dfe3f0;
       border-radius: 8px;
-      color: #2f327d;
+      color: #315fb4;
       font-weight: 600;
       padding: 6px 12px;
       transition: all 0.2s ease-in-out;
@@ -1803,21 +1803,21 @@ body {
 
       &:hover {
         background-color: #f3f5fb;
-        border-color: #2f327d;
-        color: #2f327d;
+        border-color: #315fb4;
+        color: #315fb4;
       }
 
       &:focus {
-        box-shadow: 0 0 0 0.2rem rgba(47, 50, 125, 0.15);
+        box-shadow: 0 0 0 0.2rem rgba(49, 95, 180, 0.15);
       }
     }
 
     &.active {
       .page-link {
-        background-color: #2f327d;
-        border-color: #2f327d;
+        background-color: #315fb4;
+        border-color: #315fb4;
         color: #fff !important;
-        box-shadow: 0 4px 10px rgba(47, 50, 125, 0.25);
+        box-shadow: 0 4px 10px rgba(49, 95, 180, 0.25);
       }
     }
 
@@ -1848,7 +1848,7 @@ body {
     &:hover,
     &:focus {
       color: #252b36;
-      border-color: rgba(47, 50, 125, 0.28) !important;
+      border-color: rgba(49, 95, 180, 0.28) !important;
       box-shadow: 0 8px 22px rgba(23, 31, 79, 0.08);
       transform: translateY(-1px);
     }
