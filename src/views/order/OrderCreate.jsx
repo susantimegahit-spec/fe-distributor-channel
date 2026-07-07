@@ -250,8 +250,28 @@ export default function OrderPost() {
 
   const ocrValueKeys = ['value', 'ocr_code', 'ocrCode', 'OcrCode', 'branch_code', 'branchCode', 'code'];
   const ocrNameKeys = ['label', 'ocr_name', 'ocrName', 'OcrName', 'branch_name', 'branchName', 'name'];
-  const ocr2ValueKeys = ['value', 'ocr_code2', 'ocrCode2', 'OcrCode2', 'business_unit_code', 'businessUnitCode', 'ocr_code', 'ocrCode', 'code'];
-  const ocr2NameKeys = ['label', 'ocr_name2', 'ocrName2', 'OcrName2', 'business_unit_name', 'businessUnitName', 'ocr_name', 'ocrName', 'name'];
+  const ocr2ValueKeys = [
+    'value',
+    'ocr_code2',
+    'ocrCode2',
+    'OcrCode2',
+    'business_unit_code',
+    'businessUnitCode',
+    'ocr_code',
+    'ocrCode',
+    'code'
+  ];
+  const ocr2NameKeys = [
+    'label',
+    'ocr_name2',
+    'ocrName2',
+    'OcrName2',
+    'business_unit_name',
+    'businessUnitName',
+    'ocr_name',
+    'ocrName',
+    'name'
+  ];
   const ocr3ValueKeys = ['value', 'ocr_code3', 'ocrCode3', 'OcrCode3', 'department_code', 'departmentCode', 'ocr_code', 'ocrCode', 'code'];
   const ocr3NameKeys = ['label', 'ocr_name3', 'ocrName3', 'OcrName3', 'department_name', 'departmentName', 'ocr_name', 'ocrName', 'name'];
 
@@ -309,7 +329,11 @@ export default function OrderPost() {
     if (selectedOption) return selectedOption;
     if (!orderInput.series) return null;
 
-    const fallbackLabel = getValue(orderDetail, [...orderSeriesNameKeys, 'series', 'Series', 'series_code', 'seriesCode'], orderInput.series);
+    const fallbackLabel = getValue(
+      orderDetail,
+      [...orderSeriesNameKeys, 'series', 'Series', 'series_code', 'seriesCode'],
+      orderInput.series
+    );
 
     return {
       value: orderInput.series,
@@ -502,8 +526,7 @@ export default function OrderPost() {
     const docDate = formatDateInput(getValue(order, ['doc_date', 'docDate', 'DocDate']));
     const docDueDate = formatDateInput(getValue(order, ['doc_due_date', 'docDueDate', 'DocDueDate']));
     const minEtaDate = docDueDate || todayDate;
-    const orderEtaDate =
-      formatDateInput(getValue(order, ['eta_date', 'etaDate', 'ETA', 'u_eta', 'U_ETA'])) || addDaysToDate(minEtaDate, 7);
+    const orderEtaDate = formatDateInput(getValue(order, ['eta_date', 'etaDate', 'ETA', 'u_eta', 'U_ETA'])) || addDaysToDate(minEtaDate, 7);
     const etaDate = orderEtaDate < minEtaDate ? minEtaDate : orderEtaDate;
 
     setOrderInput({
@@ -1111,13 +1134,13 @@ export default function OrderPost() {
       const discountConfig = Array.isArray(payload) ? payload[0] : payload;
       const rawPercentage =
         typeof discountConfig === 'object'
-          ? discountConfig.max_discount ??
+          ? (discountConfig.max_discount ??
             discountConfig.maxDiscount ??
             discountConfig.maximum_discount ??
             discountConfig.max_discount_percentage ??
             discountConfig.percentage ??
             discountConfig.discount_percentage ??
-            discountConfig.value
+            discountConfig.value)
           : discountConfig;
       const parsedPercentage = Number.parseFloat(String(rawPercentage).replace('%', ''));
 
@@ -1667,13 +1690,7 @@ export default function OrderPost() {
                             <Form.Label className="small text-muted">
                               <RequiredLabel>Document Date</RequiredLabel>
                             </Form.Label>
-                            <Form.Control
-                              onChange={handleSetDocDate}
-                              value={orderInput.docDate}
-                              type="date"
-                              min={todayDate}
-                              size="sm"
-                            />
+                            <Form.Control onChange={handleSetDocDate} value={orderInput.docDate} type="date" min={todayDate} size="sm" />
                           </Form.Group>
                         </Col>
                         <Col md={6} xl={4}>
@@ -1702,6 +1719,23 @@ export default function OrderPost() {
                             />
                           </Form.Group>
                         </Col>
+                        {shouldShowSeriesSalesOrder ? (
+                          <Col md={6} xl={4}>
+                            <Form.Group>
+                              <Form.Label className="small text-muted">Series Sales Order</Form.Label>
+                              <Select
+                                value={getSelectedSeriesOption()}
+                                options={listSeries}
+                                isLoading={loadingSeries}
+                                isDisabled={!orderInput.docDate || loadingSeries}
+                                menuPosition="fixed"
+                                onChange={handleSelectSeries}
+                                placeholder={orderInput.docDate ? 'Select series' : 'Select document date first'}
+                                isClearable
+                              />
+                            </Form.Group>
+                          </Col>
+                        ) : null}
                         <Col md={6}>
                           <Form.Group>
                             <Form.Label className="small text-muted">
@@ -1730,23 +1764,6 @@ export default function OrderPost() {
                             />
                           </Form.Group>
                         </Col>
-                        {shouldShowSeriesSalesOrder ? (
-                          <Col md={6} xl={4}>
-                            <Form.Group>
-                              <Form.Label className="small text-muted">Series Sales Order</Form.Label>
-                              <Select
-                                value={getSelectedSeriesOption()}
-                                options={listSeries}
-                                isLoading={loadingSeries}
-                                isDisabled={!orderInput.docDate || loadingSeries}
-                                menuPosition="fixed"
-                                onChange={handleSelectSeries}
-                                placeholder={orderInput.docDate ? 'Select series' : 'Select document date first'}
-                                isClearable
-                              />
-                            </Form.Group>
-                          </Col>
-                        ) : null}
                         <Col md={12}>
                           <Form.Group>
                             <Form.Label className="small text-muted">Notes</Form.Label>
