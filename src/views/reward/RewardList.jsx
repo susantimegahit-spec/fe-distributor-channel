@@ -142,6 +142,7 @@ const normalizeWithdraw = (item, index) => ({
   id: item.id || item.withdraw_id || item.claim_withdraw_id || index,
   withdrawNo: item.withdraw_no || item.withdraw_code || item.reference_no || `WD-${item.id || index + 1}`,
   submittedAt: item.created_at || item.submitted_at || item.withdraw_date || item.createdAt || '',
+  transferDate: item.transfer_date || item.transfer_at || item.transferred_at || item.transferDate || '',
   amount: Number(item.amount || item.nominal || item.withdraw_amount || item.total_amount || 0),
   status: String(item.status || item.withdraw_status || 'pending').replace('_', ' ')
 });
@@ -910,6 +911,7 @@ export default function RewardList() {
                     <tr>
                       <th style={{ minWidth: 180 }}>Withdrawal No.</th>
                       <th style={{ minWidth: 190 }}>Submission Date</th>
+                      <th style={{ minWidth: 190 }}>Transfer Date</th>
                       <th style={{ minWidth: 190 }}>Amount</th>
                       <th style={{ minWidth: 160 }}>Status</th>
                       <th className="text-center" style={{ width: 120 }}>
@@ -920,7 +922,7 @@ export default function RewardList() {
                   <tbody>
                     {loadingWithdraws ? (
                       <tr>
-                        <td colSpan={5}>
+                        <td colSpan={6}>
                           <LoaderData />
                         </td>
                       </tr>
@@ -929,6 +931,7 @@ export default function RewardList() {
                         <tr key={withdraw.id}>
                           <td className="fw-semibold">{withdraw.withdrawNo}</td>
                           <td>{formatDate(withdraw.submittedAt)}</td>
+                          <td>{formatDate(withdraw.transferDate)}</td>
                           <td>{formatCurrency(withdraw.amount)}</td>
                           <td>
                             <Badge bg={getWithdrawStatusVariant(withdraw.status)}>{withdraw.status}</Badge>
@@ -952,7 +955,7 @@ export default function RewardList() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={5}>
+                        <td colSpan={6}>
                           <div className="text-center py-5">
                             <div className="avtar avtar-xl bg-light-success text-success mx-auto mb-3">
                               <i className="ti ti-wallet f-24" />
