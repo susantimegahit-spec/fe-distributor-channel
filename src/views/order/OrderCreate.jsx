@@ -511,6 +511,7 @@ export default function OrderPost() {
 
     setOrderDetail(order);
     setExistingDocuments(Array.isArray(orderDocuments) ? orderDocuments : []);
+    setDocuments([]);
     setDiscId(orderDiscountId);
     setDetailDisc(
       discountDetails.length > 0
@@ -1021,6 +1022,10 @@ export default function OrderPost() {
     }
 
     setDocuments((prevDocuments) => {
+      if (isDetailMode && existingDocuments.length) {
+        return validFiles;
+      }
+
       const existingKeys = new Set(prevDocuments.map((file) => `${file.name}-${file.size}-${file.lastModified}`));
       const nextFiles = validFiles.filter((file) => !existingKeys.has(`${file.name}-${file.size}-${file.lastModified}`));
 
@@ -1331,7 +1336,7 @@ export default function OrderPost() {
       eta_date: orderInput.etaDate,
       Series: orderInput.series,
       series_name: orderInput.seriesName || getSelectedSeriesOption()?.label || '',
-      slp_code: '',
+      slp_code: orderInput.slpCode,
       cntct: orderInput.cnctCode,
       pay_to_code: orderInput.address?.value,
       address: orderInput.address?.label,
@@ -1854,8 +1859,12 @@ export default function OrderPost() {
                           <i className="ti ti-file-upload f-24" />
                         </div>
                         <div>
-                          <h6 className="mb-1">Upload Document</h6>
-                          {/* <small className="text-muted">Bisa upload lebih dari satu file, maksimal 1MB per file.</small> */}
+                          <h6 className="mb-1">{isDetailMode && existingDocuments.length ? 'Upload Replacement Document' : 'Upload Document'}</h6>
+                          <small className="text-muted">
+                            {isDetailMode && existingDocuments.length
+                              ? 'Select a new file only when you want to replace the saved document.'
+                              : 'Select one or more supporting documents.'}
+                          </small>
                         </div>
                       </div>
                       <Form.Group>
@@ -1866,7 +1875,7 @@ export default function OrderPost() {
                           accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
                           onChange={handleSelectDocuments}
                         />
-                        <Form.Text className="text-muted">Format: PDF, Word, Excel, PNG, JPG, JPEG. Maksimal 1MB per file.</Form.Text>
+                        <Form.Text className="text-muted">Format: PDF, Word, Excel, PNG, JPG, JPEG. Maximum 1MB per file.</Form.Text>
                       </Form.Group>
                     </Stack>
                   </Card.Body>
@@ -1878,16 +1887,30 @@ export default function OrderPost() {
                     <Stack direction="horizontal" className="justify-content-between">
                       <div>
                         <h5 className="mb-0">Document List</h5>
-                        <small className="text-muted">Files will be sent when the order is saved.</small>
+                        <small className="text-muted">
+                          {isDetailMode && existingDocuments.length
+                            ? 'Saved documents stay unchanged unless a new file is selected.'
+                            : 'Files will be sent when the order is saved.'}
+                        </small>
                       </div>
-                      <Badge bg={documents.length ? 'primary' : 'secondary'}>{documents.length} file baru</Badge>
+                      <Badge bg={documents.length ? 'primary' : 'secondary'}>
+                        {documents.length} new {documents.length === 1 ? 'file' : 'files'}
+                      </Badge>
                     </Stack>
                   </Card.Header>
                   <Card.Body>
                     <Stack gap={2}>
+                      {isDetailMode && existingDocuments.length && documents.length ? (
+                        <div className="alert alert-warning py-2 mb-1">
+                          New uploaded files will replace the saved documents when this order is saved.
+                        </div>
+                      ) : null}
+
                       {existingDocuments.length ? (
                         <>
-                          <small className="text-muted fw-semibold">Saved Documents</small>
+                          <small className="text-muted fw-semibold">
+                            {documents.length && isDetailMode ? 'Saved Documents (will be replaced)' : 'Saved Documents'}
+                          </small>
                           {existingDocuments.map((documentItem, index) => {
                             const fileName = getValue(
                               documentItem,
@@ -1919,7 +1942,7 @@ export default function OrderPost() {
 
                       {documents.length ? (
                         <>
-                          {existingDocuments.length ? <small className="text-muted fw-semibold mt-2">File baru</small> : null}
+                          {existingDocuments.length ? <small className="text-muted fw-semibold mt-2">Replacement Files</small> : null}
                           {documents.map((file, index) => (
                             <div
                               key={`${file.name}-${file.lastModified}`}

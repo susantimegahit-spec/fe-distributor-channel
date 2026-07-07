@@ -23,9 +23,9 @@ const documentTagOptions = [
   { value: 'PROFORMA_INVOICE', label: 'Proforma Invoice' },
   { value: 'PURCHASE_ORDER', label: 'Purchase Order' },
   { value: 'SALES_ORDER', label: 'Sales Order' },
-  { value: 'DELIVERY_ORDER', label: 'Surat Jalan' },
+  { value: 'DELIVERY_ORDER', label: 'Delivery Order' },
   { value: 'INVOICE', label: 'Invoice' },
-  { value: 'RECEIPT', label: 'Kwitansi' }
+  { value: 'RECEIPT', label: 'Receipt' }
 ];
 
 const normalizeDocumentTags = (value) => {
@@ -217,7 +217,7 @@ export default function MasterSignature() {
 
   if (loading || loadingUsers) {
     return (
-      <MainCard title="Setting TTD PI">
+      <MainCard title="PI Signature Settings">
         <LoaderData />
       </MainCard>
     );
@@ -228,7 +228,7 @@ export default function MasterSignature() {
       <MainCard
         title={
           <Stack gap={1}>
-            <h5 className="mb-0">Setting TTD Proforma Invoice</h5>
+            <h5 className="mb-0">Proforma Invoice Signature Settings</h5>
             <span className="text-muted f-12">Manage the name, position, and digital signature image displayed on the Proforma Invoice.</span>
           </Stack>
         }
@@ -245,7 +245,7 @@ export default function MasterSignature() {
                       options={userOptions}
                       menuPosition="fixed"
                       onChange={handleSelectUser}
-                      placeholder="Search nama user"
+                      placeholder="Search user name"
                       isClearable
                       isSearchable
                       formatOptionLabel={(option) => (
@@ -262,7 +262,7 @@ export default function MasterSignature() {
                   <Form.Label className="fw-semibold">Signer Name</Form.Label>
                   <Form.Control
                     type="text"
-                    placeholder="Contoh: Kushan Wijono"
+                    placeholder="Example: Kushan Wijono"
                     value={signerName}
                     onChange={(e) => setSignerName(e.target.value)}
                     required
@@ -273,7 +273,7 @@ export default function MasterSignature() {
                   <Form.Label className="fw-semibold">Signer Position</Form.Label>
                   <Form.Control
                     type="text"
-                    placeholder="Contoh: Branch Manager"
+                    placeholder="Example: Branch Manager"
                     value={signerTitle}
                     onChange={(e) => setSignerTitle(e.target.value)}
                     required
@@ -294,14 +294,14 @@ export default function MasterSignature() {
                 </Form.Group>
 
                 <Form.Group controlId="signatureFile">
-                  <Form.Label className="fw-semibold">Gambar Tanda Tangan (JPEG/PNG/WebP)</Form.Label>
+                  <Form.Label className="fw-semibold">Signature Image (JPEG/PNG/WebP)</Form.Label>
                   <Form.Control
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
                     onChange={handleFileChange}
                   />
                   <Form.Text className="text-muted">
-                    Format gambar yang didukung: JPEG, PNG, WebP. Maksimal ukuran file 2MB. Gambar akan otomatis dikonversi ke JPEG dengan latar belakang putih.
+                    Supported image formats: JPEG, PNG, WebP. Maximum file size is 2MB. Images will be automatically converted to JPEG with a white background.
                   </Form.Text>
                 </Form.Group>
 
@@ -326,7 +326,7 @@ export default function MasterSignature() {
             <Col lg={5}>
               <Card className="border">
                 <Card.Header className="py-3 bg-light">
-                  <h6 className="mb-0">Pratinjau Tanda Tangan</h6>
+                  <h6 className="mb-0">Signature Preview</h6>
                 </Card.Header>
                 <Card.Body className="d-flex flex-column align-items-center justify-content-center py-4" style={{ minHeight: 200 }}>
                   {previewUrl ? (
@@ -334,17 +334,17 @@ export default function MasterSignature() {
                       <div className="mb-2 text-primary f-12 fw-semibold">New Signature (Not Saved Yet)</div>
                       <img
                         src={previewUrl}
-                        alt="Tanda Tangan Baru"
+                        alt="New Signature"
                         className="img-fluid border p-2 bg-white"
                         style={{ maxHeight: 150, maxWidth: '100%', objectFit: 'contain' }}
                       />
                     </div>
                   ) : signatureUrl ? (
                     <div className="text-center">
-                      <div className="mb-2 text-success f-12 fw-semibold">Tanda Tangan Saat Ini</div>
+                      <div className="mb-2 text-success f-12 fw-semibold">Current Signature</div>
                       <img
                         src={signatureUrl}
-                        alt="Tanda Tangan Saat Ini"
+                        alt="Current Signature"
                         className="img-fluid border p-2 bg-white"
                         style={{ maxHeight: 150, maxWidth: '100%', objectFit: 'contain' }}
                       />
