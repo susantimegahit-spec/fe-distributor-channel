@@ -181,10 +181,10 @@ export default function MasterSignature() {
       showAlert('Signer name is required', 'warning');
       return;
     }
-    if (!signerTitle.trim()) {
-      showAlert('Signer position is required', 'warning');
-      return;
-    }
+    // if (!signerTitle.trim()) {
+    //   showAlert('Signer position is required', 'warning');
+    //   return;
+    // }
 
     setSaving(true);
     try {
@@ -269,7 +269,7 @@ export default function MasterSignature() {
                   />
                 </Form.Group>
 
-                <Form.Group controlId="signerTitle">
+                {/* <Form.Group controlId="signerTitle">
                   <Form.Label className="fw-semibold">Signer Position</Form.Label>
                   <Form.Control
                     type="text"
@@ -279,7 +279,7 @@ export default function MasterSignature() {
                     required
                   />
                 </Form.Group>
-
+ */}
                 <Form.Group controlId="documentTags">
                   <Form.Label className="fw-semibold">Document Tag</Form.Label>
                   <Select

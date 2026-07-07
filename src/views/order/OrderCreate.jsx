@@ -31,7 +31,7 @@ export default function OrderPost() {
   const roleNumber = Number(roleId);
   const isCustomerRole = roleNumber === 1;
   const canSelectSales = roleNumber === 2 || roleNumber === 5;
-  const shouldShowSeriesSalesOrder = ![1, 2].includes(roleNumber);
+  const shouldShowSeriesSalesOrder = !isCustomerRole;
   const navigate = useNavigate();
   const { id } = useParams();
   const isDetailMode = Boolean(id);
