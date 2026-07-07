@@ -21,6 +21,7 @@ import PromoServices from '../../services/PromoServices';
 import RoleServices from '../../services/RoleServices';
 import { useAlert } from '../../utils/alertContext';
 import { getCookies } from '../../utils/cookies';
+import ConfirmDialog from 'components/ConfirmDialog';
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
 import LoaderData from '../../components/LoaderData';
@@ -176,6 +177,7 @@ export default function RewardList() {
   const [loadingWithdraws, setLoadingWithdraws] = useState(false);
   const [loadingDetailId, setLoadingDetailId] = useState(null);
   const [selectedClaim, setSelectedClaim] = useState(null);
+  const [claimToDelete, setClaimToDelete] = useState(null);
   const [selectedWithdraw, setSelectedWithdraw] = useState(null);
   const [showClaimModal, setShowClaimModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
@@ -189,6 +191,7 @@ export default function RewardList() {
   const [submittingWithdraw, setSubmittingWithdraw] = useState(false);
   const [submittingVerifyWithdraw, setSubmittingVerifyWithdraw] = useState(false);
   const [submittingVerify, setSubmittingVerify] = useState(false);
+  const [deletingClaimId, setDeletingClaimId] = useState(null);
   const [downloadingTemplate, setDownloadingTemplate] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [withdrawCurrentPage, setWithdrawCurrentPage] = useState(1);
@@ -570,6 +573,35 @@ export default function RewardList() {
     }
   };
 
+  const handleDeleteClaim = async () => {
+    if (!isAdministrator || !claimToDelete?.id || deletingClaimId !== null) return;
+
+    const claim = claimToDelete;
+    setClaimToDelete(null);
+    setDeletingClaimId(claim.id);
+
+    try {
+      const response = await PromoServices.deleteClaim(claim.id);
+
+      if (!response || response.status < 200 || response.status >= 300 || response?.data?.success === false) {
+        showAlert(response?.data?.message || 'Failed to delete claim transaction', 'danger');
+        return;
+      }
+
+      if (selectedClaim && String(selectedClaim.id) === String(claim.id)) {
+        setSelectedClaim(null);
+      }
+
+      await fetchClaimBatches();
+      await fetchTotalReward();
+      showAlert(response?.data?.message || 'Claim transaction deleted successfully', 'success');
+    } catch (error) {
+      showAlert(error?.message || 'Failed to delete claim transaction', 'danger');
+    } finally {
+      setDeletingClaimId(null);
+    }
+  };
+
   const handleDownloadTemplate = async () => {
     setDownloadingTemplate(true);
 
@@ -765,12 +797,17 @@ export default function RewardList() {
                       <th className="text-center" style={{ width: 90 }}>
                         Detail
                       </th>
+                      {isAdministrator ? (
+                        <th className="text-center" style={{ width: 90 }}>
+                          Delete
+                        </th>
+                      ) : null}
                     </tr>
                   </thead>
                   <tbody>
                     {loadingClaims ? (
                       <tr>
-                        <td colSpan={5}>
+                        <td colSpan={isAdministrator ? 6 : 5}>
                           <LoaderData />
                         </td>
                       </tr>
@@ -798,11 +835,28 @@ export default function RewardList() {
                               )}
                             </Button>
                           </td>
+                          {isAdministrator ? (
+                            <td className="text-center">
+                              <Button
+                                className="rounded-circle"
+                                variant="outline-danger"
+                                size="sm"
+                                onClick={() => setClaimToDelete(claim)}
+                                disabled={deletingClaimId !== null}
+                              >
+                                {String(deletingClaimId) === String(claim.id) ? (
+                                  <span className="spinner-border spinner-border-sm" aria-hidden="true" />
+                                ) : (
+                                  <i className="ti ti-trash" />
+                                )}
+                              </Button>
+                            </td>
+                          ) : null}
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={5}>
+                        <td colSpan={isAdministrator ? 6 : 5}>
                           <div className="text-center py-5">
                             <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                               <i className="ti ti-gift f-24" />
@@ -1179,6 +1233,15 @@ export default function RewardList() {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      <ConfirmDialog
+        show={Boolean(claimToDelete)}
+        title="Delete Claim"
+        subTitle={`Are you sure you want to delete claim ${claimToDelete?.claimNo || 'this'}?`}
+        onSubmit={handleDeleteClaim}
+        onCancel={() => setClaimToDelete(null)}
+        loading={deletingClaimId !== null}
+      />
 
       <Modal show={showWithdrawModal} onHide={() => setShowWithdrawModal(false)} centered>
         <Modal.Header closeButton>

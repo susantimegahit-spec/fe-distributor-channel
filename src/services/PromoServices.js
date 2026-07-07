@@ -37,6 +37,10 @@ class PromoServices {
     return DataService.get('/claims/batches', payload);
   }
 
+  deleteClaim(id) {
+    return DataService.delete(`/claims/batches/${id}`);
+  }
+
   getListWithdraw(payload = {}) {
     return DataService.get('/claims/withdraws', payload);
   }
