@@ -30,6 +30,7 @@ export default function OrderPost() {
   const roleId = getCookies('role');
   const roleNumber = Number(roleId);
   const isCustomerRole = roleNumber === 1;
+  const isAdminSalesRole = roleNumber === 2;
   const canSelectSales = roleNumber === 2 || roleNumber === 5;
   const shouldShowSeriesSalesOrder = !isCustomerRole;
   const navigate = useNavigate();
@@ -1328,6 +1329,8 @@ export default function OrderPost() {
       ocr_code3: getPrimitiveValue(item?.ocrCode3, ocr3ValueKeys)
     }));
 
+    const shouldPostSalesCode = isDetailMode && isAdminSalesRole;
+
     return {
       card_code: orderInput.cardCode,
       po_number: orderInput.poNumber,
@@ -1336,7 +1339,7 @@ export default function OrderPost() {
       eta_date: orderInput.etaDate,
       Series: orderInput.series,
       series_name: orderInput.seriesName || getSelectedSeriesOption()?.label || '',
-      slp_code: orderInput.slpCode,
+      ...(shouldPostSalesCode ? { slp_code: orderInput.slpCode } : {}),
       cntct: orderInput.cnctCode,
       pay_to_code: orderInput.address?.value,
       address: orderInput.address?.label,
