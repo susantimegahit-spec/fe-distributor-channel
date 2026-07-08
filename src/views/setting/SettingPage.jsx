@@ -14,7 +14,7 @@ import Stack from 'react-bootstrap/Stack';
 import MainCard from 'components/MainCard';
 import { useAlert } from '../../utils/alertContext';
 import { getCookies } from '../../utils/cookies';
-import MasterSignature from '../master/MasterSignature';
+import MasterSignature from './MasterSignature';
 import PermissionList from './permission/PermissionList';
 import UserList from './users/UserList';
 import CronJobList from './cronjob/CronJobList';

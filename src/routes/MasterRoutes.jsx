@@ -12,7 +12,7 @@ const MasterDistributor = Loadable(lazy(() => import('views/master/MasterDistrib
 const MasterEmployee = Loadable(lazy(() => import('views/master/MasterEmployee')));
 const MasterWarehouse = Loadable(lazy(() => import('views/master/MasterWarehouse')));
 const MasterPromo = Loadable(lazy(() => import('views/master/MasterPromo')));
-const MasterSignature = Loadable(lazy(() => import('views/master/MasterSignature')));
+const MasterSignature = Loadable(lazy(() => import('views/setting/MasterSignature')));
 
 const MasterRoutes = {
   path: '/',
