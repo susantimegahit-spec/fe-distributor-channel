@@ -16,12 +16,12 @@ import Select from 'react-select';
 // project-imports
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
-import LoaderData from '../../components/LoaderData';
-import DistributorServices from '../../services/DistributorServices';
-import PriceServices from '../../services/PriceServices';
-import ProductServices from '../../services/ProductServices';
-import { useAlert } from '../../utils/alertContext';
-import { useConfirm } from '../../utils/confirmContext';
+import LoaderData from '../../../components/LoaderData';
+import DistributorServices from '../../../services/DistributorServices';
+import PriceServices from '../../../services/PriceServices';
+import ProductServices from '../../../services/ProductServices';
+import { useAlert } from '../../../utils/alertContext';
+import { useConfirm } from '../../../utils/confirmContext';
 
 const pageSize = 10;
 const initialPriceInput = {

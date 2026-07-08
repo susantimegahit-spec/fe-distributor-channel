@@ -5,8 +5,8 @@ import { Navigate } from 'react-router-dom';
 import Loadable from 'components/Loadable';
 import DashboardLayout from 'layout/Dashboard';
 
-const RewardList = Loadable(lazy(() => import('views/reward/RewardList')));
-const RewardAdd = Loadable(lazy(() => import('views/reward/RewardAdd')));
+const RewardList = Loadable(lazy(() => import('views/customer-portal/reward/RewardList')));
+const RewardAdd = Loadable(lazy(() => import('views/customer-portal/reward/RewardAdd')));
 
 const FinanceRoutes = {
   path: '/',

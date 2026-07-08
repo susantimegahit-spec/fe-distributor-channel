@@ -1,9 +1,11 @@
 import customerPortalMenu from './customer-portal/menu';
-import ekspedisiMenu from './ekspedisi/menu';
+import expeditionMenu from './expedition/menu';
+import pickingListMenu from './picking-list/menu';
 
 export const SYSTEM_KEYS = {
   CUSTOMER_PORTAL: 'customer-portal',
-  EKSPEDISI: 'ekspedisi'
+  EXPEDITION: 'expedition',
+  PICKING_LIST: 'picking-list'
 };
 
 export const systems = [
@@ -17,13 +19,22 @@ export const systems = [
     menu: customerPortalMenu
   },
   {
-    key: SYSTEM_KEYS.EKSPEDISI,
+    key: SYSTEM_KEYS.EXPEDITION,
     title: 'Expedition',
     description: 'Shipping operations and expedition monitoring.',
     icon: 'ti ti-truck-delivery',
-    basePath: '/ekspedisi',
-    defaultPath: '/ekspedisi/dashboard',
-    menu: ekspedisiMenu
+    basePath: '/expedition',
+    defaultPath: '/expedition/dashboard',
+    menu: expeditionMenu
+  },
+  {
+    key: SYSTEM_KEYS.PICKING_LIST,
+    title: 'Picking List',
+    description: 'Warehouse picking tasks, rules, and fulfillment monitoring.',
+    icon: 'ti ti-clipboard-list',
+    basePath: '/picking-list',
+    defaultPath: '/picking-list/dashboard',
+    menu: pickingListMenu
   }
 ];
 
@@ -34,8 +45,12 @@ const systemAccessAliases = {
   customer_portal: SYSTEM_KEYS.CUSTOMER_PORTAL,
   'customer portal': SYSTEM_KEYS.CUSTOMER_PORTAL,
   customerportal: SYSTEM_KEYS.CUSTOMER_PORTAL,
-  ekspedisi: SYSTEM_KEYS.EKSPEDISI,
-  expedition: SYSTEM_KEYS.EKSPEDISI
+  ekspedisi: SYSTEM_KEYS.EXPEDITION,
+  expedition: SYSTEM_KEYS.EXPEDITION,
+  pickinglist: SYSTEM_KEYS.PICKING_LIST,
+  picking_list: SYSTEM_KEYS.PICKING_LIST,
+  'picking-list': SYSTEM_KEYS.PICKING_LIST,
+  'picking list': SYSTEM_KEYS.PICKING_LIST
 };
 
 const flattenMenuIds = (menuItems = []) =>

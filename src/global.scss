@@ -829,6 +829,15 @@ body {
   z-index: 1;
 }
 
+.pc-header.pc-header-no-sidebar {
+  left: 0;
+}
+
+.pc-container.pc-container-no-sidebar,
+.pc-footer.pc-footer-no-sidebar {
+  margin-left: 0;
+}
+
 .pc-header {
   --pc-header-background: rgba(248, 251, 255, 0.82);
   --pc-header-color: #445371;

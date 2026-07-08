@@ -4,18 +4,18 @@ import Row from 'react-bootstrap/Row';
 
 import MainCard from 'components/MainCard';
 import { Badge, Button, Card, Form, Modal, Stack, Table } from 'react-bootstrap';
-import { getCookies } from '../../utils/cookies';
-import DistributorServices from '../../services/DistributorServices';
-import { useAlert } from '../../utils/alertContext';
-import LoaderData from '../../components/LoaderData';
+import { getCookies } from '../../../utils/cookies';
+import DistributorServices from '../../../services/DistributorServices';
+import { useAlert } from '../../../utils/alertContext';
+import LoaderData from '../../../components/LoaderData';
 import Select from 'react-select';
-import ProductServices from '../../services/ProductServices';
-import WarehouseServices from '../../services/WarehouseServices';
+import ProductServices from '../../../services/ProductServices';
+import WarehouseServices from '../../../services/WarehouseServices';
 import { useNavigate, useParams } from 'react-router-dom';
-import EmployeeServices from '../../services/EmployeeServices';
-import OrderServices from '../../services/OrderServices';
-import PriceServices from '../../services/PriceServices';
-import LoaderFull from '../../components/LoaderFull';
+import EmployeeServices from '../../../services/EmployeeServices';
+import OrderServices from '../../../services/OrderServices';
+import PriceServices from '../../../services/PriceServices';
+import LoaderFull from '../../../components/LoaderFull';
 
 export default function OrderCreate() {
   const navigate = useNavigate();

@@ -17,13 +17,13 @@ import Table from 'react-bootstrap/Table';
 // project-imports
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
-import OrderServices from '../../services/OrderServices';
-import LoaderData from '../../components/LoaderData';
-import { currency } from '../../utils/global';
-import { getCookies } from '../../utils/cookies';
-import { useAlert } from '../../utils/alertContext';
-import { downloadSalesOrderPdf } from '../../utils/orderPdf';
-import RoleServices from '../../services/RoleServices';
+import OrderServices from '../../../services/OrderServices';
+import LoaderData from '../../../components/LoaderData';
+import { currency } from '../../../utils/global';
+import { getCookies } from '../../../utils/cookies';
+import { useAlert } from '../../../utils/alertContext';
+import { downloadSalesOrderPdf } from '../../../utils/orderPdf';
+import RoleServices from '../../../services/RoleServices';
 
 const statusOptions = [
   { value: '', label: 'All Statuses' },

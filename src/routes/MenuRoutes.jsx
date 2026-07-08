@@ -4,13 +4,13 @@ import { lazy } from 'react';
 import Loadable from 'components/Loadable';
 import DashboardLayout from 'layout/Dashboard';
 
-const MasterProduct = Loadable(lazy(() => import('views/master/MasterProduct')));
-const MasterBuyingPrice = Loadable(lazy(() => import('views/master/MasterBuyingPrice')));
-const MasterDistributor = Loadable(lazy(() => import('views/master/MasterDistributor')));
+const MasterProduct = Loadable(lazy(() => import('views/customer-portal/master/MasterProduct')));
+const MasterBuyingPrice = Loadable(lazy(() => import('views/customer-portal/master/MasterBuyingPrice')));
+const MasterDistributor = Loadable(lazy(() => import('views/customer-portal/master/MasterDistributor')));
 const SettingPage = Loadable(lazy(() => import('views/setting/SettingPage')));
-const OrderList = Loadable(lazy(() => import('views/order/OrderList')));
-const RewardList = Loadable(lazy(() => import('views/reward/RewardList')));
-const RewardAdd = Loadable(lazy(() => import('views/reward/RewardAdd')));
+const OrderList = Loadable(lazy(() => import('views/customer-portal/order/OrderList')));
+const RewardList = Loadable(lazy(() => import('views/customer-portal/reward/RewardList')));
+const RewardAdd = Loadable(lazy(() => import('views/customer-portal/reward/RewardAdd')));
 
 const MenuRoutes = {
   path: '/',
@@ -29,19 +29,19 @@ const MenuRoutes = {
       element: <MasterDistributor />
     },
     {
-      path: 'customer-portal/setting/role-permission',
+      path: 'setting/role-permission',
       element: <SettingPage defaultTab="permissions" />
     },
     {
-      path: 'customer-portal/setting/user-list',
+      path: 'setting/user-list',
       element: <SettingPage defaultTab="users" />
     },
     {
-      path: 'customer-portal/setting',
+      path: 'setting',
       element: <SettingPage />
     },
     {
-      path: 'customer-portal/setting/:activeTab',
+      path: 'setting/:activeTab',
       element: <SettingPage />
     },
     {

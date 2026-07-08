@@ -5,13 +5,13 @@ import { Navigate } from 'react-router-dom';
 import Loadable from 'components/Loadable';
 import DashboardLayout from 'layout/Dashboard';
 
-const MasterProduct = Loadable(lazy(() => import('views/master/MasterProduct')));
-const MasterPrice = Loadable(lazy(() => import('views/master/MasterPrice')));
-const MasterBuyingPrice = Loadable(lazy(() => import('views/master/MasterBuyingPrice')));
-const MasterDistributor = Loadable(lazy(() => import('views/master/MasterDistributor')));
-const MasterEmployee = Loadable(lazy(() => import('views/master/MasterEmployee')));
-const MasterWarehouse = Loadable(lazy(() => import('views/master/MasterWarehouse')));
-const MasterPromo = Loadable(lazy(() => import('views/master/MasterPromo')));
+const MasterProduct = Loadable(lazy(() => import('views/customer-portal/master/MasterProduct')));
+const MasterPrice = Loadable(lazy(() => import('views/customer-portal/master/MasterPrice')));
+const MasterBuyingPrice = Loadable(lazy(() => import('views/customer-portal/master/MasterBuyingPrice')));
+const MasterDistributor = Loadable(lazy(() => import('views/customer-portal/master/MasterDistributor')));
+const MasterEmployee = Loadable(lazy(() => import('views/customer-portal/master/MasterEmployee')));
+const MasterWarehouse = Loadable(lazy(() => import('views/customer-portal/master/MasterWarehouse')));
+const MasterPromo = Loadable(lazy(() => import('views/customer-portal/master/MasterPromo')));
 const MasterSignature = Loadable(lazy(() => import('views/setting/MasterSignature')));
 
 const MasterRoutes = {

@@ -3,10 +3,10 @@ import Col from 'react-bootstrap/Col';
 import Row from 'react-bootstrap/Row';
 
 import MainCard from 'components/MainCard';
-import { useAlert } from '../../utils/alertContext';
+import { useAlert } from '../../../utils/alertContext';
 import { Badge, Button, Form, Table } from 'react-bootstrap';
-import LoaderData from '../../components/LoaderData';
-import DistributorServices from '../../services/DistributorServices';
+import LoaderData from '../../../components/LoaderData';
+import DistributorServices from '../../../services/DistributorServices';
 
 export default function MasterItem() {
   const { showAlert } = useAlert();

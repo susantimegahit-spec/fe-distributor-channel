@@ -17,9 +17,9 @@ import Table from 'react-bootstrap/Table';
 // project-imports
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
-import wilayahIndonesia from '../../data/wilayah-indonesia.json';
-import { useAlert } from '../../utils/alertContext';
-import { currency } from '../../utils/global';
+import wilayahIndonesia from '../../../data/wilayah-indonesia.json';
+import { useAlert } from '../../../utils/alertContext';
+import { currency } from '../../../utils/global';
 
 const selectStyles = {
   menuPortal: (base) => ({ ...base, zIndex: 1060 }),
@@ -80,7 +80,7 @@ const normalizeStatus = (value) => {
   return ['inactive', 'tidak aktif', 'nonaktif', '0'].includes(status) ? 'inactive' : 'active';
 };
 
-const dummyEkspedisi = [
+const dummyExpedition = [
   {
     id: 1,
     code: 'EXP-001',
@@ -147,10 +147,10 @@ const dummyEkspedisi = [
   }
 ];
 
-export default function MasterEkspedisi() {
+export default function MasterExpedition() {
   const { showAlert } = useAlert();
   const uploadInputRef = useRef(null);
-  const [dataSource, setDataSource] = useState(dummyEkspedisi);
+  const [dataSource, setDataSource] = useState(dummyExpedition);
   const [keywords, setKeywords] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [showForm, setShowForm] = useState(false);

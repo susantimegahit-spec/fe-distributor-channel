@@ -4,22 +4,22 @@ import Row from 'react-bootstrap/Row';
 
 import MainCard from 'components/MainCard';
 import { Badge, Button, Card, Form, Modal, Stack, Table } from 'react-bootstrap';
-import { getCookies } from '../../utils/cookies';
-import DistributorServices from '../../services/DistributorServices';
-import { useAlert } from '../../utils/alertContext';
-import LoaderData from '../../components/LoaderData';
+import { getCookies } from '../../../utils/cookies';
+import DistributorServices from '../../../services/DistributorServices';
+import { useAlert } from '../../../utils/alertContext';
+import LoaderData from '../../../components/LoaderData';
 import Select from 'react-select';
-import ProductServices from '../../services/ProductServices';
-import WarehouseServices from '../../services/WarehouseServices';
+import ProductServices from '../../../services/ProductServices';
+import WarehouseServices from '../../../services/WarehouseServices';
 import { useNavigate, useParams } from 'react-router-dom';
-import EmployeeServices from '../../services/EmployeeServices';
-import OrderServices from '../../services/OrderServices';
-import PromoServices from '../../services/PromoServices';
-import PriceServices from '../../services/PriceServices';
-import LoaderFull from '../../components/LoaderFull';
-import LoaderButton from '../../components/LoaderButton';
-import { currency } from '../../utils/global';
-import ConfirmDialog from '../../components/ConfirmDialog';
+import EmployeeServices from '../../../services/EmployeeServices';
+import OrderServices from '../../../services/OrderServices';
+import PromoServices from '../../../services/PromoServices';
+import PriceServices from '../../../services/PriceServices';
+import LoaderFull from '../../../components/LoaderFull';
+import LoaderButton from '../../../components/LoaderButton';
+import { currency } from '../../../utils/global';
+import ConfirmDialog from '../../../components/ConfirmDialog';
 import CreatableSelect from 'react-select/creatable';
 
 // #FBD43C -> soft yellow

@@ -7,7 +7,7 @@ import DashboardLayout from 'layout/Dashboard';
 import NotFound from '../views/ErrorBoundary';
 
 // render - dashboard pages
-const Dashboard = Loadable(lazy(() => import('views/dashboard/Dashboard')));
+const Dashboard = Loadable(lazy(() => import('views/customer-portal/dashboard/Dashboard')));
 const SystemSelector = Loadable(lazy(() => import('views/system/SystemSelector')));
 
 // ==============================|| NAVIGATION ROUTING ||============================== //

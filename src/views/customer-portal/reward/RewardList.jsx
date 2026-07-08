@@ -15,16 +15,16 @@ import Table from 'react-bootstrap/Table';
 import Select from 'react-select';
 
 // project-imports
-import DistributorServices from '../../services/DistributorServices';
-import FinanceServices from '../../services/FinanceServices';
-import PromoServices from '../../services/PromoServices';
-import RoleServices from '../../services/RoleServices';
-import { useAlert } from '../../utils/alertContext';
-import { getCookies } from '../../utils/cookies';
+import DistributorServices from '../../../services/DistributorServices';
+import FinanceServices from '../../../services/FinanceServices';
+import PromoServices from '../../../services/PromoServices';
+import RoleServices from '../../../services/RoleServices';
+import { useAlert } from '../../../utils/alertContext';
+import { getCookies } from '../../../utils/cookies';
 import ConfirmDialog from 'components/ConfirmDialog';
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
-import LoaderData from '../../components/LoaderData';
+import LoaderData from '../../../components/LoaderData';
 
 const pageSize = 10;
 

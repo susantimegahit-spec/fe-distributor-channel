@@ -47,13 +47,19 @@ const allDistributorOption = {
 };
 const accessibleSystemOptions = [
   { value: SYSTEM_KEYS.CUSTOMER_PORTAL, label: 'Distributor' },
-  { value: SYSTEM_KEYS.EKSPEDISI, label: 'Expedition' }
+  { value: SYSTEM_KEYS.EXPEDITION, label: 'Expedition' },
+  { value: SYSTEM_KEYS.PICKING_LIST, label: 'PickingList' }
 ];
 const accessibleSystemAliases = {
   distributor: SYSTEM_KEYS.CUSTOMER_PORTAL,
   'customer-portal': SYSTEM_KEYS.CUSTOMER_PORTAL,
   'customer portal': SYSTEM_KEYS.CUSTOMER_PORTAL,
-  ekspedisi: SYSTEM_KEYS.EKSPEDISI
+  ekspedisi: SYSTEM_KEYS.EXPEDITION,
+  expedition: SYSTEM_KEYS.EXPEDITION,
+  pickinglist: SYSTEM_KEYS.PICKING_LIST,
+  picking_list: SYSTEM_KEYS.PICKING_LIST,
+  'picking-list': SYSTEM_KEYS.PICKING_LIST,
+  'picking list': SYSTEM_KEYS.PICKING_LIST
 };
 
 const getUserDistributorCode = (item) =>

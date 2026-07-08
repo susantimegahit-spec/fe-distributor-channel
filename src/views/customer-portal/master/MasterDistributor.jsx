@@ -15,17 +15,17 @@ import Table from 'react-bootstrap/Table';
 // project-imports
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
-import LoaderData from '../../components/LoaderData';
-import ProductServices from '../../services/ProductServices';
-import { useAlert } from '../../utils/alertContext';
+import LoaderData from '../../../components/LoaderData';
+import DistributorServices from '../../../services/DistributorServices';
+import { useAlert } from '../../../utils/alertContext';
 
-export default function MasterProduct() {
+export default function MasterDistributor() {
   const { showAlert } = useAlert();
   const [dataSource, setDataSource] = useState([]);
   const [loadingData, setLoadingData] = useState(false);
   const [keywords, setKeywords] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
-  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [selectedDistributor, setSelectedDistributor] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
@@ -43,13 +43,9 @@ export default function MasterProduct() {
     fetchData();
   }, [keywords]);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [selectedStatus]);
-
   const fetchData = async () => {
     setLoadingData(true);
-    const response = await ProductServices.getAllProduct(keywords);
+    const response = await DistributorServices.getAllDistributor(keywords);
     if (response.data.success) {
       setDataSource(response.data.data);
       setLoadingData(false);
@@ -61,9 +57,9 @@ export default function MasterProduct() {
 
   const syncData = async () => {
     setLoadingData(true);
-    const response = await ProductServices.syncProduct();
+    const response = await DistributorServices.syncDistributor();
     if (response.data.success) {
-      showAlert('Item data synced successfully', 'success');
+      showAlert('Distributor data synced successfully', 'success');
       fetchData();
     } else {
       showAlert(response.data.message, 'danger');
@@ -77,14 +73,9 @@ export default function MasterProduct() {
     return dataSource.filter((item) => String(item.status) === selectedStatus);
   }, [dataSource, selectedStatus]);
 
-  const summary = useMemo(
-    () => ({
-      total: dataSource.length,
-      active: dataSource.filter((item) => item.status === 1).length,
-      inactive: dataSource.filter((item) => item.status !== 1).length
-    }),
-    [dataSource]
-  );
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedStatus]);
 
   const pageCount = Math.max(Math.ceil(filteredData.length / pageSize), 1);
   const paginatedData = useMemo(() => {
@@ -93,12 +84,22 @@ export default function MasterProduct() {
     return filteredData.slice(startIndex, startIndex + pageSize);
   }, [currentPage, filteredData]);
 
-  const hasActiveFilter = Boolean(keywords || selectedStatus);
+  const summary = useMemo(
+    () => ({
+      total: dataSource.length,
+      active: dataSource.filter((item) => item.status === 1).length,
+      inactive: dataSource.filter((item) => item.status !== 1).length,
+      depo: new Set(dataSource.map((item) => item.depo).filter(Boolean)).size
+    }),
+    [dataSource]
+  );
 
   const resetFilters = () => {
     setKeywords('');
     setSelectedStatus('');
   };
+
+  const hasActiveFilter = Boolean(keywords || selectedStatus);
 
   return (
     <>
@@ -106,8 +107,8 @@ export default function MasterProduct() {
         <MainCard
           title={
             <Stack gap={1}>
-              <h5 className="mb-0">Item Data</h5>
-              <span className="text-muted f-12">Manage product item lists and sync data from the central system.</span>
+              <h5 className="mb-0">Distributor Data</h5>
+              <span className="text-muted f-12">Manage and sync distributor data from the central system.</span>
             </Stack>
           }
           secondary={
@@ -118,22 +119,22 @@ export default function MasterProduct() {
           }
         >
           <Row className="g-3">
-            <Col md={4}>
+            <Col sm={6} xl={3}>
               <Card className="border mb-0 h-100">
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <div className="text-muted f-12">Total Item</div>
+                      <div className="text-muted f-12">Total Distributor</div>
                       <h4 className="mb-0">{summary.total}</h4>
                     </div>
                     <span className="avtar avtar-s bg-light-primary text-primary">
-                      <i className="ti ti-clipboard-list" />
+                      <i className="ti ti-building-store" />
                     </span>
                   </Stack>
                 </Card.Body>
               </Card>
             </Col>
-            {/* <Col md={4}>
+            {/* <Col sm={6} xl={3}>
               <Card className="border mb-0 h-100">
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
@@ -148,7 +149,7 @@ export default function MasterProduct() {
                 </Card.Body>
               </Card>
             </Col>
-            <Col md={4}>
+            <Col sm={6} xl={3}>
               <Card className="border mb-0 h-100">
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
@@ -163,13 +164,28 @@ export default function MasterProduct() {
                 </Card.Body>
               </Card>
             </Col> */}
+            <Col sm={6} xl={3}>
+              <Card className="border mb-0 h-100">
+                <Card.Body className="py-3">
+                  <Stack direction="horizontal" gap={3} className="justify-content-between">
+                    <div>
+                      <div className="text-muted f-12">Depo</div>
+                      <h4 className="mb-0">{summary.depo}</h4>
+                    </div>
+                    <span className="avtar avtar-s bg-light-warning text-warning">
+                      <i className="ti ti-map-pin" />
+                    </span>
+                  </Stack>
+                </Card.Body>
+              </Card>
+            </Col>
           </Row>
         </MainCard>
 
         <MainCard>
           <Row className="g-2 align-items-end mb-3">
             <Col lg={5} md={6}>
-              <Form.Label className="f-12 text-muted">Search Item</Form.Label>
+              <Form.Label className="f-12 text-muted">Search Distributor</Form.Label>
               <InputGroup>
                 <InputGroup.Text>
                   <i className="ti ti-search" />
@@ -178,7 +194,7 @@ export default function MasterProduct() {
                   value={keywords}
                   onChange={(event) => setKeywords(event.target.value)}
                   type="text"
-                  placeholder="Code or item name"
+                  placeholder="Code, name, phone, or depo"
                 />
               </InputGroup>
             </Col>
@@ -208,7 +224,7 @@ export default function MasterProduct() {
             {loadingData ? (
               <tbody>
                 <tr>
-                  <td colSpan={4}>
+                  <td>
                     <LoaderData />
                   </td>
                 </tr>
@@ -217,8 +233,11 @@ export default function MasterProduct() {
               <>
                 <thead>
                   <tr>
-                    <th style={{ minWidth: 160 }}>Item Code</th>
-                    <th style={{ minWidth: 300 }}>Item Name</th>
+                    <th style={{ minWidth: 130 }}>Code</th>
+                    <th style={{ minWidth: 220 }}>Distributor Name</th>
+                    <th style={{ minWidth: 150 }}>Phone</th>
+                    <th style={{ minWidth: 140 }}>Depo</th>
+                    <th style={{ minWidth: 320 }}>Address</th>
                     <th style={{ minWidth: 120 }}>Status</th>
                     <th className="text-center" style={{ width: 80 }}>
                       #
@@ -227,13 +246,21 @@ export default function MasterProduct() {
                 </thead>
                 <tbody>
                   {filteredData.length > 0 ? (
-                    paginatedData.map((item, index) => (
-                      <tr key={item.id || item.item_code || index}>
-                        <td className="fw-semibold">{item.item_code || '-'}</td>
-                        <td style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>{item.item_name || '-'}</td>
+                    paginatedData.map((item) => (
+                      <tr key={item.id || item.code_customer}>
+                        <td className="fw-semibold">{item.code_customer || '-'}</td>
+                        <td style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>{item.name || '-'}</td>
+                        <td>{item.phone || '-'}</td>
+                        <td>{item.depo || '-'}</td>
+                        <td style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>{item.address || '-'}</td>
                         <td>{item.status === 1 ? <Badge bg="success">Active</Badge> : <Badge bg="secondary">Inactive</Badge>}</td>
                         <td className="text-center">
-                          <Button className="rounded-circle" variant="outline-primary" size="sm" onClick={() => setSelectedProduct(item)}>
+                          <Button
+                            className="rounded-circle"
+                            variant="outline-primary"
+                            size="sm"
+                            onClick={() => setSelectedDistributor(item)}
+                          >
                             <i className="ti ti-eye" />
                           </Button>
                         </td>
@@ -241,16 +268,16 @@ export default function MasterProduct() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={4}>
+                      <td colSpan={7}>
                         <div className="text-center py-5">
                           <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
-                            <i className="ti ti-clipboard-list f-24" />
+                            <i className="ti ti-building-store f-24" />
                           </div>
-                          <h5 className="mb-1">{hasActiveFilter ? 'Item not found' : 'No item data yet'}</h5>
+                          <h5 className="mb-1">{hasActiveFilter ? 'Distributor not found' : 'No distributor data yet'}</h5>
                           <p className="text-muted mb-3">
                             {hasActiveFilter
                               ? 'Change the keyword or status to view other data.'
-                              : 'Use synchronize to fetch the latest item data.'}
+                              : 'Use synchronize to fetch the latest distributor data.'}
                           </p>
                           {hasActiveFilter ? (
                             <Button variant="light-primary" onClick={resetFilters}>
@@ -277,35 +304,49 @@ export default function MasterProduct() {
             pageCount={pageCount}
             pageSize={pageSize}
             total={filteredData.length}
-            itemLabel="item"
+            itemLabel="distributor"
           />
         </MainCard>
       </Stack>
 
-      <Modal show={Boolean(selectedProduct)} onHide={() => setSelectedProduct(null)} centered>
+      <Modal show={Boolean(selectedDistributor)} onHide={() => setSelectedDistributor(null)} centered size="lg">
         <Modal.Header closeButton>
-          <Modal.Title>Detail Item</Modal.Title>
+          <Modal.Title>Distributor Detail</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          {selectedProduct && (
+          {selectedDistributor && (
             <Row className="g-3">
               <Col md={6}>
-                <Form.Label className="f-12 text-muted">Item Code</Form.Label>
-                <div className="fw-semibold">{selectedProduct.item_code || '-'}</div>
+                <Form.Label className="f-12 text-muted">Customer Code</Form.Label>
+                <div className="fw-semibold">{selectedDistributor.code_customer || '-'}</div>
               </Col>
               <Col md={6}>
                 <Form.Label className="f-12 text-muted">Status</Form.Label>
-                <div>{selectedProduct.status === 1 ? <Badge bg="success">Active</Badge> : <Badge bg="secondary">Inactive</Badge>}</div>
+                <div>
+                  {selectedDistributor.status === 1 ? <Badge bg="success">Active</Badge> : <Badge bg="secondary">Inactive</Badge>}
+                </div>
+              </Col>
+              <Col md={6}>
+                <Form.Label className="f-12 text-muted">Distributor Name</Form.Label>
+                <div>{selectedDistributor.name || '-'}</div>
+              </Col>
+              <Col md={6}>
+                <Form.Label className="f-12 text-muted">No. Telepon</Form.Label>
+                <div>{selectedDistributor.phone || '-'}</div>
+              </Col>
+              <Col md={6}>
+                <Form.Label className="f-12 text-muted">Depo</Form.Label>
+                <div>{selectedDistributor.depo || '-'}</div>
               </Col>
               <Col md={12}>
-                <Form.Label className="f-12 text-muted">Item Name</Form.Label>
-                <div>{selectedProduct.item_name || '-'}</div>
+                <Form.Label className="f-12 text-muted">Address</Form.Label>
+                <div>{selectedDistributor.address || '-'}</div>
               </Col>
             </Row>
           )}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="light-secondary" onClick={() => setSelectedProduct(null)}>
+          <Button variant="light-secondary" onClick={() => setSelectedDistributor(null)}>
             Close
           </Button>
         </Modal.Footer>

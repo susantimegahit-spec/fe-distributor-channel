@@ -15,6 +15,7 @@ import MainCard from 'components/MainCard';
 import { useAlert } from '../../utils/alertContext';
 import { getCookies } from '../../utils/cookies';
 import MasterSignature from './MasterSignature';
+import DocumentBuilder from './DocumentBuilder';
 import PermissionList from './permission/PermissionList';
 import UserList from './users/UserList';
 import CronJobList from './cronjob/CronJobList';
@@ -27,6 +28,7 @@ const tabs = [
   // { key: 'general', title: 'Setting', icon: 'ti ti-settings' },
   { key: 'permissions', title: 'Access Control', icon: 'ti ti-shield-lock' },
   { key: 'signatures', title: 'Signatures', icon: 'ti ti-signature' },
+  { key: 'document-builder', title: 'Document Builder', icon: 'ti ti-file-text', adminOnly: true },
   { key: 'cronjobs', title: 'Automation', icon: 'ti ti-alarm', adminOnly: true }
 ];
 
@@ -72,7 +74,7 @@ function GeneralSettings() {
     <MainCard
       title={
         <Stack gap={1}>
-          <h5 className="mb-0">Setting</h5>
+          <h5 className="mb-0">Settings</h5>
           <span className="text-muted f-12">Manage general distributor channel application configuration.</span>
         </Stack>
       }
@@ -108,7 +110,7 @@ function GeneralSettings() {
           </Col>
           <Col md={6}>
             <Form.Group controlId="settingLanguage">
-              <Form.Label className="fw-semibold">Bahasa</Form.Label>
+              <Form.Label className="fw-semibold">Language</Form.Label>
               <Form.Select value={settings.language} onChange={(event) => handleChange('language', event.target.value)}>
                 <option value="id">Indonesia</option>
                 <option value="en">English</option>
@@ -178,6 +180,8 @@ export default function SettingPage({ defaultTab = 'users' }) {
         return <PermissionList />;
       case 'signatures':
         return <MasterSignature />;
+      case 'document-builder':
+        return <DocumentBuilder />;
       case 'cronjobs':
         return <CronJobList />;
       case 'users':
@@ -188,7 +192,7 @@ export default function SettingPage({ defaultTab = 'users' }) {
 
   const handleSelect = (tabKey) => {
     if (!tabKey) return;
-    navigate(`/customer-portal/setting/${tabKey}`);
+    navigate(`/setting/${tabKey}`);
   };
 
   return (

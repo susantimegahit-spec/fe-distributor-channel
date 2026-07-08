@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 import Cookies from 'js-cookie';
 import { useDispatch } from 'react-redux';
@@ -36,7 +37,7 @@ import { destroyAuthState } from '../../redux/authReducer';
 
 // =============================|| MAIN LAYOUT - HEADER ||============================== //
 
-export default function Header() {
+export default function Header({ showSidebar = true }) {
   const roleId = getCookies('role');
   const dispatch = useDispatch();
   const { menuMaster } = useGetMenuMaster();
@@ -380,29 +381,33 @@ export default function Header() {
   }, [handleIncomingNotification, userId]);
 
   return (
-    <header className="pc-header">
+    <header className={`pc-header ${!showSidebar ? 'pc-header-no-sidebar' : ''}`}>
       <div className="header-wrapper">
         <div className="me-auto pc-mob-drp">
           <Nav className="list-unstyled">
-            <Nav.Item className="pc-h-item pc-sidebar-collapse">
-              <Nav.Link
-                as={Link}
-                to="#"
-                className="pc-head-link ms-0"
-                id="sidebar-hide"
-                onClick={() => {
-                  handlerDrawerOpen(!drawerOpen);
-                }}
-              >
-                <i className="ph ph-list" />
-              </Nav.Link>
-            </Nav.Item>
+            {showSidebar && (
+              <>
+                <Nav.Item className="pc-h-item pc-sidebar-collapse">
+                  <Nav.Link
+                    as={Link}
+                    to="#"
+                    className="pc-head-link ms-0"
+                    id="sidebar-hide"
+                    onClick={() => {
+                      handlerDrawerOpen(!drawerOpen);
+                    }}
+                  >
+                    <i className="ph ph-list" />
+                  </Nav.Link>
+                </Nav.Item>
 
-            <Nav.Item className="pc-h-item pc-sidebar-popup">
-              <Nav.Link as={Link} to="#" className="pc-head-link ms-0" id="mobile-collapse" onClick={() => handlerDrawerOpen(!drawerOpen)}>
-                <i className="ph ph-list" />
-              </Nav.Link>
-            </Nav.Item>
+                <Nav.Item className="pc-h-item pc-sidebar-popup">
+                  <Nav.Link as={Link} to="#" className="pc-head-link ms-0" id="mobile-collapse" onClick={() => handlerDrawerOpen(!drawerOpen)}>
+                    <i className="ph ph-list" />
+                  </Nav.Link>
+                </Nav.Item>
+              </>
+            )}
 
             {/* <Dropdown className="pc-h-item dropdown">
               <Dropdown.Toggle variant="link" className="pc-head-link arrow-none m-0 trig-drp-search" id="dropdown-search">
@@ -530,8 +535,17 @@ export default function Header() {
                   </div>
 
                   <div className="profile-notification-scroll position-relative">
+                    <Dropdown.Item as={Link} to="/systems" className="sm-account-item">
+                      <span className="sm-account-item-icon">
+                        <i className="ti ti-arrows-exchange" />
+                      </span>
+                      <span>
+                        <strong>Switch System</strong>
+                        <small>Choose another workspace</small>
+                      </span>
+                    </Dropdown.Item>
                     {/* {roleId === 5 && ( */}
-                    <Dropdown.Item as={Link} to="/customer-portal/setting" className="sm-account-item">
+                    <Dropdown.Item as={Link} to="/setting" className="sm-account-item">
                       <span className="sm-account-item-icon">
                         <i className="ti ti-settings" />
                       </span>
@@ -652,3 +666,7 @@ export default function Header() {
     </header>
   );
 }
+
+Header.propTypes = {
+  showSidebar: PropTypes.bool
+};

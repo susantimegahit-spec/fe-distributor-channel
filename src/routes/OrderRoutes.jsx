@@ -6,8 +6,8 @@ import Loadable from 'components/Loadable';
 import DashboardLayout from 'layout/Dashboard';
 import { RouteErrorBoundary } from 'views/ErrorBoundary';
 
-const OrderList = Loadable(lazy(() => import('views/order/OrderList')));
-// const OrderRetur = Loadable(lazy(() => import('views/order/OrderRetur')));
+const OrderList = Loadable(lazy(() => import('views/customer-portal/order/OrderList')));
+// const OrderRetur = Loadable(lazy(() => import('views/customer-portal/order/OrderRetur')));
 
 const OrderRoutes = {
   path: '/',

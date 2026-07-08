@@ -16,11 +16,11 @@ import Table from 'react-bootstrap/Table';
 
 // project-imports
 import MainCard from 'components/MainCard';
-import DashboardServices from '../../services/DashboardServices';
-import OrderServices from '../../services/OrderServices';
-import { currency } from '../../utils/global';
-import { useAlert } from '../../utils/alertContext';
-import { getCookies } from '../../utils/cookies';
+import DashboardServices from '../../../services/DashboardServices';
+import OrderServices from '../../../services/OrderServices';
+import { currency } from '../../../utils/global';
+import { useAlert } from '../../../utils/alertContext';
+import { getCookies } from '../../../utils/cookies';
 
 const statusConfig = {
   DRAFT: { label: 'Draft', color: 'secondary', icon: 'ti ti-clipboard-list' },

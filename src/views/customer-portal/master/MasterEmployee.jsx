@@ -16,11 +16,11 @@ import Select from 'react-select';
 // project-imports
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
-import LoaderData from '../../components/LoaderData';
-import DistributorServices from '../../services/DistributorServices';
-import EmployeeServices from '../../services/EmployeeServices';
-import { useAlert } from '../../utils/alertContext';
-import { useConfirm } from '../../utils/confirmContext';
+import LoaderData from '../../../components/LoaderData';
+import DistributorServices from '../../../services/DistributorServices';
+import EmployeeServices from '../../../services/EmployeeServices';
+import { useAlert } from '../../../utils/alertContext';
+import { useConfirm } from '../../../utils/confirmContext';
 
 const initialSalesInput = {
   slpCode: [],

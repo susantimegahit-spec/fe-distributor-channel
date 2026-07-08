@@ -1,11 +1,12 @@
+import PropTypes from 'prop-types';
 import Col from 'react-bootstrap/Col';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 
 // ==============================|| MAIN LAYOUT - FOOTER ||============================== //
-export default function Footer() {
+export default function Footer({ showSidebar = true }) {
   return (
-    <footer className="pc-footer">
+    <footer className={`pc-footer ${!showSidebar ? 'pc-footer-no-sidebar' : ''}`}>
       <div className="footer-wrapper container-fluid">
         <Row className="justify-content-center justify-content-md-between">
           {/* Footer Text */}
@@ -33,3 +34,7 @@ export default function Footer() {
     </footer>
   );
 }
+
+Footer.propTypes = {
+  showSidebar: PropTypes.bool
+};

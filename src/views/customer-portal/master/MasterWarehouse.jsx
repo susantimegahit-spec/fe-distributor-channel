@@ -15,9 +15,9 @@ import Table from 'react-bootstrap/Table';
 // project-imports
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
-import LoaderData from '../../components/LoaderData';
-import WarehouseServices from '../../services/WarehouseServices';
-import { useAlert } from '../../utils/alertContext';
+import LoaderData from '../../../components/LoaderData';
+import WarehouseServices from '../../../services/WarehouseServices';
+import { useAlert } from '../../../utils/alertContext';
 
 export default function MasterWarehouse() {
   const { showAlert } = useAlert();

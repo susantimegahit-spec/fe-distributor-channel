@@ -12,7 +12,7 @@ import Table from 'react-bootstrap/Table';
 
 // project-imports
 import MainCard from 'components/MainCard';
-import { currency } from '../../utils/global';
+import { currency } from '../../../utils/global';
 
 const cities = ['Surabaya', 'Jakarta', 'Bandung', 'Semarang', 'Yogyakarta', 'Denpasar', 'Medan', 'Makassar'];
 
@@ -103,7 +103,7 @@ const getRouteDistance = (departure, destination) => {
 
 const formatEta = (days) => `${days}-${days + 1} hari`;
 
-export default function EkspedisiDashboard() {
+export default function ExpeditionDashboard() {
   const [form, setForm] = useState({
     departure: 'Surabaya',
     destination: 'Jakarta',

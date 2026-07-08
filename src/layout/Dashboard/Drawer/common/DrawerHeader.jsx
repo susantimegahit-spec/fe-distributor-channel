@@ -16,7 +16,7 @@ export const DrawerHeader = () => {
       <Link to={APP_DEFAULT_PATH} className="b-brand sm-sidebar-brand">
         <Image src={CustomerPortalMark} alt="sm-connect" className="sm-sidebar-logo" />
         <span className="sm-sidebar-brand-text">
-          <strong>sm-connect</strong>
+          <strong>SM-CONNECT</strong>
           <small>{getSystemLabel(pathname)}</small>
         </span>
       </Link>

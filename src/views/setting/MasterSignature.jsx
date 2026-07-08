@@ -228,8 +228,8 @@ export default function MasterSignature() {
       <MainCard
         title={
           <Stack gap={1}>
-            <h5 className="mb-0">Proforma Invoice Signature Settings</h5>
-            <span className="text-muted f-12">Manage the name, position, and digital signature image displayed on the Proforma Invoice.</span>
+            <h5 className="mb-0">Signature Settings</h5>
+            <span className="text-muted f-12">Manage the name, position, and digital signature image.</span>
           </Stack>
         }
       >
@@ -294,14 +294,14 @@ export default function MasterSignature() {
                 </Form.Group>
 
                 <Form.Group controlId="signatureFile">
-                  <Form.Label className="fw-semibold">Signature Image (JPEG/PNG/WebP)</Form.Label>
+                  <Form.Label className="fw-semibold">Signature Image (JPEG/PNG)</Form.Label>
                   <Form.Control
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
                     onChange={handleFileChange}
                   />
                   <Form.Text className="text-muted">
-                    Supported image formats: JPEG, PNG, WebP. Maximum file size is 2MB. Images will be automatically converted to JPEG with a white background.
+                    Supported image formats: JPEG, PNG, WebP. Maximum file size is 1MB. Images will be automatically converted to JPEG with a white background.
                   </Form.Text>
                 </Form.Group>
 

@@ -7,7 +7,7 @@ import DashboardLayout from 'layout/Dashboard';
 import { RouteErrorBoundary } from 'views/ErrorBoundary';
 
 // render - other pages
-const OrderCreate = Loadable(lazy(() => import('views/order/OrderCreate')));
+const OrderCreate = Loadable(lazy(() => import('views/customer-portal/order/OrderCreate')));
 const NotificationList = Loadable(lazy(() => import('views/notification/NotificationList')));
 
 function LegacyOrderCreateRedirect() {
