@@ -170,7 +170,7 @@ export default function NotificationList() {
                   <th>Notifications</th>
                   <th style={{ width: 190 }}>Waktu</th>
                   <th className="text-end" style={{ width: 180 }}>
-                    Aksi
+                    Actions
                   </th>
                 </tr>
               </thead>

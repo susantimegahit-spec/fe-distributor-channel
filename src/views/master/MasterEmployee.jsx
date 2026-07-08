@@ -248,7 +248,7 @@ export default function MasterEmployee() {
     const distributorName = getDistributorName(item);
 
     if (!salesDistributorId) {
-      showAlert('ID relasi sales tidak ditemukan', 'danger');
+      showAlert('Sales relation ID not found', 'danger');
       return;
     }
 
@@ -368,7 +368,7 @@ export default function MasterEmployee() {
     const salesDistributorId = getSalesDistributorId(item);
 
     if (!salesDistributorId) {
-      showAlert('ID relasi sales tidak ditemukan', 'danger');
+      showAlert('Sales relation ID not found', 'danger');
       return;
     }
 
@@ -510,7 +510,7 @@ export default function MasterEmployee() {
                   value={keywords}
                   onChange={(event) => setKeywords(event.target.value)}
                   type="text"
-                  placeholder="Code atau nama sales"
+                  placeholder="Code or sales name"
                 />
               </InputGroup>
             </Col>
@@ -524,7 +524,7 @@ export default function MasterEmployee() {
                 isClearable
                 isLoading={loadingOptions}
                 placeholder="Select Customer"
-                noOptionsMessage={() => 'Customer tidak ditemukan'}
+                noOptionsMessage={() => 'Customer not found'}
               />
 
               {/* <Form.Select value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value)}>
@@ -567,7 +567,7 @@ export default function MasterEmployee() {
                     <th style={{ minWidth: 260 }}>Depo</th>
                     {/* <th style={{ minWidth: 120 }}>Status</th> */}
                     <th className="text-center" style={{ minWidth: 150 }}>
-                      Aksi
+                      Actions
                     </th>
                   </tr>
                 </thead>
@@ -624,7 +624,7 @@ export default function MasterEmployee() {
                           <p className="text-muted mb-3">
                             {hasActiveFilter
                               ? 'Change the keyword or status to view other data.'
-                              : 'Gunakan synchronize untuk mengambil data sales terbaru.'}
+                              : 'Use synchronize to fetch the latest sales data.'}
                           </p>
                           {hasActiveFilter ? (
                             <Button variant="light-primary" onClick={resetFilters}>
@@ -744,15 +744,15 @@ export default function MasterEmployee() {
               </Col>
               <Col md={6}>
                 <Form.Label>Code Sales</Form.Label>
-                <Form.Control value={salesInput.slpCode.join(', ')} disabled placeholder="Terisi otomatis dari pilihan sales" />
+                <Form.Control value={salesInput.slpCode.join(', ')} disabled placeholder="Automatically filled from the selected sales" />
               </Col>
               <Col md={6}>
                 <Form.Label>Code Distributor</Form.Label>
-                <Form.Control value={salesInput.distributorCode} disabled placeholder="Terisi otomatis dari pilihan distributor" />
+                <Form.Control value={salesInput.distributorCode} disabled placeholder="Automatically filled from the selected distributor" />
               </Col>
               <Col md={6}>
                 <Form.Label>Distributor Name</Form.Label>
-                <Form.Control value={salesInput.distributorName} disabled placeholder="Terisi otomatis dari pilihan distributor" />
+                <Form.Control value={salesInput.distributorName} disabled placeholder="Automatically filled from the selected distributor" />
               </Col>
               <Col md={6}>
                 <Form.Label>Status</Form.Label>

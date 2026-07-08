@@ -92,7 +92,7 @@ const dummyEkspedisi = [
     district: 'Tandes',
     subdistrict: 'Tandes',
     village: '',
-    leadTime: '3-4 hari',
+    leadTime: '3-4 days',
     basePrice: 12000,
     perKg: 3100,
     status: 'active'
@@ -171,7 +171,7 @@ export default function MasterEkspedisi() {
   const provinceSelectOptions = provinceOptions.map((item) => ({ value: item.kode, label: item.nama }));
   const citySelectOptions = cityOptions.map((item) => ({
     value: item.kode,
-    label: `${item.tipe} ${item.nama.replace(/^(Kota|Kabupaten)\s+/i, '')}`
+    label: `${item.tipe === 'Kota' ? 'City' : 'Regency'} ${item.nama.replace(/^(Kota|Kabupaten)\s+/i, '')}`
   }));
   const districtSelectOptions = districtOptions.map((item) => ({ value: item.kode, label: item.nama }));
   const subdistrictSelectOptions = subdistrictOptions.map((item) => ({ value: item, label: item }));
@@ -320,7 +320,7 @@ export default function MasterEkspedisi() {
     const extension = file.name.split('.').pop()?.toLowerCase();
 
     if (!['xlsx', 'xls'].includes(extension)) {
-      showAlert('Format file harus XLSX atau XLS', 'danger');
+      showAlert('File format must be XLSX or XLS', 'danger');
       event.target.value = '';
       return;
     }
@@ -360,16 +360,16 @@ export default function MasterEkspedisi() {
         .filter(Boolean);
 
       if (importedData.length === 0) {
-        showAlert('Tidak ada data valid. Minimal isi kolom nama dan layanan.', 'danger');
+        showAlert('No valid data found. At minimum, fill in the name and service columns.', 'danger');
         return;
       }
 
       setDataSource((current) => [...importedData, ...current]);
       setCurrentPage(1);
       setShowUpload(false);
-      showAlert(`${importedData.length} data ekspedisi berhasil diimport`, 'success');
+      showAlert(`${importedData.length} expedition records imported successfully`, 'success');
     } catch (error) {
-      showAlert(error?.message || 'Gagal membaca file Excel', 'danger');
+      showAlert(error?.message || 'Failed to read Excel file', 'danger');
     } finally {
       setUploadingExcel(false);
       event.target.value = '';
@@ -382,8 +382,8 @@ export default function MasterEkspedisi() {
         <MainCard
           title={
             <Stack gap={1}>
-              <h5 className="mb-0">Master Ekspedisi</h5>
-              <span className="text-muted f-12">Kelola daftar ekspedisi, layanan, dan tarif dasar pengiriman.</span>
+              <h5 className="mb-0">Expedition Master</h5>
+              <span className="text-muted f-12">Manage expeditions, services, and base shipping rates.</span>
             </Stack>
           }
           secondary={
@@ -394,7 +394,7 @@ export default function MasterEkspedisi() {
               </Button>
               <Button variant="primary" onClick={handleOpenForm}>
                 <i className="ti ti-plus me-1" />
-                Tambah
+                Add
               </Button>
             </Stack>
           }
@@ -405,7 +405,7 @@ export default function MasterEkspedisi() {
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <div className="text-muted f-12">Total Ekspedisi</div>
+                      <div className="text-muted f-12">Total Expeditions</div>
                       <h4 className="mb-0">{summary.total}</h4>
                     </div>
                     <span className="avtar avtar-s bg-light-primary text-primary">
@@ -420,7 +420,7 @@ export default function MasterEkspedisi() {
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <div className="text-muted f-12">Aktif</div>
+                      <div className="text-muted f-12">Active</div>
                       <h4 className="mb-0">{summary.active}</h4>
                     </div>
                     <span className="avtar avtar-s bg-light-success text-success">
@@ -435,7 +435,7 @@ export default function MasterEkspedisi() {
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
                     <div>
-                      <div className="text-muted f-12">Tidak Aktif</div>
+                      <div className="text-muted f-12">Inactive</div>
                       <h4 className="mb-0">{summary.inactive}</h4>
                     </div>
                     <span className="avtar avtar-s bg-light-secondary text-secondary">
@@ -451,7 +451,7 @@ export default function MasterEkspedisi() {
         <MainCard>
           <Row className="g-2 align-items-end mb-3">
             <Col lg={5} md={6}>
-              <Form.Label className="f-12 text-muted">Cari Ekspedisi</Form.Label>
+              <Form.Label className="f-12 text-muted">Search Expedition</Form.Label>
               <InputGroup>
                 <InputGroup.Text>
                   <i className="ti ti-search" />
@@ -463,7 +463,7 @@ export default function MasterEkspedisi() {
                     setCurrentPage(1);
                   }}
                   type="text"
-                  placeholder="Kode, nama, layanan, telepon, atau wilayah"
+                  placeholder="Code, name, service, phone, or area"
                 />
               </InputGroup>
             </Col>
@@ -476,9 +476,9 @@ export default function MasterEkspedisi() {
                   setCurrentPage(1);
                 }}
               >
-                <option value="">Semua Status</option>
-                <option value="active">Aktif</option>
-                <option value="inactive">Tidak Aktif</option>
+                <option value="">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
               </Form.Select>
             </Col>
             <Col lg={2} md={6}>
@@ -488,9 +488,9 @@ export default function MasterEkspedisi() {
               </Button>
             </Col>
             <Col lg={2} md={6} className="text-lg-end">
-              <span className="text-muted f-12">Menampilkan</span>
+              <span className="text-muted f-12">Showing</span>
               <div className="fw-semibold">
-                {filteredData.length} dari {dataSource.length}
+                {filteredData.length} of {dataSource.length}
               </div>
             </Col>
           </Row>
@@ -498,17 +498,17 @@ export default function MasterEkspedisi() {
           <Table className="mb-0 align-middle" responsive hover>
             <thead>
               <tr>
-                <th style={{ minWidth: 120 }}>Kode</th>
-                <th style={{ minWidth: 220 }}>Nama Ekspedisi</th>
-                <th style={{ minWidth: 160 }}>Layanan</th>
-                <th style={{ minWidth: 150 }}>No. Telepon</th>
-                <th style={{ minWidth: 150 }}>Propinsi</th>
-                <th style={{ minWidth: 150 }}>Kota/Kabupaten</th>
-                <th style={{ minWidth: 150 }}>Kecamatan</th>
-                <th style={{ minWidth: 150 }}>Kelurahan/Desa</th>
-                <th style={{ minWidth: 120 }}>Estimasi</th>
-                <th style={{ minWidth: 130 }}>Tarif Dasar</th>
-                <th style={{ minWidth: 130 }}>Tarif / Kg</th>
+                <th style={{ minWidth: 120 }}>Code</th>
+                <th style={{ minWidth: 220 }}>Expedition Name</th>
+                <th style={{ minWidth: 160 }}>Service</th>
+                <th style={{ minWidth: 150 }}>Phone No.</th>
+                <th style={{ minWidth: 150 }}>Province</th>
+                <th style={{ minWidth: 150 }}>City/Regency</th>
+                <th style={{ minWidth: 150 }}>District</th>
+                <th style={{ minWidth: 150 }}>Subdistrict/Village</th>
+                <th style={{ minWidth: 120 }}>Estimate</th>
+                <th style={{ minWidth: 130 }}>Base Rate</th>
+                <th style={{ minWidth: 130 }}>Rate / Kg</th>
                 <th style={{ minWidth: 120 }}>Status</th>
               </tr>
             </thead>
@@ -528,7 +528,7 @@ export default function MasterEkspedisi() {
                     <td>{currency(item.basePrice)}</td>
                     <td>{currency(item.perKg)}</td>
                     <td>
-                      {item.status === 'active' ? <Badge bg="success">Aktif</Badge> : <Badge bg="secondary">Tidak Aktif</Badge>}
+                      {item.status === 'active' ? <Badge bg="success">Active</Badge> : <Badge bg="secondary">Inactive</Badge>}
                     </td>
                   </tr>
                 ))
@@ -539,8 +539,8 @@ export default function MasterEkspedisi() {
                       <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                         <i className="ti ti-package-off f-24" />
                       </div>
-                      <h5 className="mb-1">Ekspedisi tidak ditemukan</h5>
-                      <p className="text-muted mb-3">Ubah kata kunci atau status untuk melihat data lain.</p>
+                      <h5 className="mb-1">Expedition not found</h5>
+                      <p className="text-muted mb-3">Change the keyword or status to view other data.</p>
                       <Button variant="light-primary" onClick={resetFilters}>
                         Reset Filter
                       </Button>
@@ -557,7 +557,7 @@ export default function MasterEkspedisi() {
             pageCount={pageCount}
             pageSize={pageSize}
             total={filteredData.length}
-            itemLabel="ekspedisi"
+            itemLabel="expedition"
           />
         </MainCard>
       </Stack>
@@ -565,44 +565,44 @@ export default function MasterEkspedisi() {
       <Modal show={showForm} onHide={handleCloseForm} centered size="lg">
         <Form onSubmit={handleSubmit}>
           <Modal.Header closeButton>
-            <Modal.Title>Tambah Ekspedisi</Modal.Title>
+            <Modal.Title>Add Expedition</Modal.Title>
           </Modal.Header>
           <Modal.Body>
             <Row className="g-3">
               <Col md={4}>
                 <Form.Group>
-                  <Form.Label>Kode Ekspedisi</Form.Label>
+                  <Form.Label>Expedition Code</Form.Label>
                   <Form.Control value={form.code} onChange={handleChange('code')} placeholder="EXP-001" required />
                 </Form.Group>
               </Col>
               <Col md={8}>
                 <Form.Group>
-                  <Form.Label>Nama Ekspedisi</Form.Label>
-                  <Form.Control value={form.name} onChange={handleChange('name')} placeholder="Nama perusahaan ekspedisi" required />
+                  <Form.Label>Expedition Name</Form.Label>
+                  <Form.Control value={form.name} onChange={handleChange('name')} placeholder="Expedition company name" required />
                 </Form.Group>
               </Col>
               <Col md={6}>
                 <Form.Group>
-                  <Form.Label>Layanan</Form.Label>
-                  <Form.Control value={form.service} onChange={handleChange('service')} placeholder="Reguler, Express, Cargo Laut" required />
+                  <Form.Label>Service</Form.Label>
+                  <Form.Control value={form.service} onChange={handleChange('service')} placeholder="Regular, Express, Sea Cargo" required />
                 </Form.Group>
               </Col>
               <Col md={6}>
                 <Form.Group>
-                  <Form.Label>No. Telepon</Form.Label>
+                  <Form.Label>Phone No.</Form.Label>
                   <Form.Control value={form.phone} onChange={handleChange('phone')} placeholder="021-0000-0000" required />
                 </Form.Group>
               </Col>
               <Col md={6}>
                 <Form.Group>
-                  <Form.Label>Propinsi</Form.Label>
+                  <Form.Label>Province</Form.Label>
                   <Select
                     classNamePrefix="react-select"
                     menuPortalTarget={document.body}
-                    noOptionsMessage={() => 'Propinsi tidak ditemukan'}
+                    noOptionsMessage={() => 'Province not found'}
                     onChange={handleProvinceChange}
                     options={provinceSelectOptions}
-                    placeholder="Cari propinsi"
+                    placeholder="Search province"
                     styles={selectStyles}
                     value={selectedProvinceOption}
                   />
@@ -610,15 +610,15 @@ export default function MasterEkspedisi() {
               </Col>
               <Col md={6}>
                 <Form.Group>
-                  <Form.Label>Kota/Kabupaten</Form.Label>
+                  <Form.Label>City/Regency</Form.Label>
                   <Select
                     classNamePrefix="react-select"
                     isDisabled={!form.provinceCode || citySelectOptions.length === 0}
                     menuPortalTarget={document.body}
-                    noOptionsMessage={() => 'Kota/kabupaten tidak ditemukan'}
+                    noOptionsMessage={() => 'City/regency not found'}
                     onChange={handleCityChange}
                     options={citySelectOptions}
-                    placeholder={citySelectOptions.length > 0 ? 'Cari kota/kabupaten' : 'Data kota/kabupaten belum tersedia'}
+                    placeholder={citySelectOptions.length > 0 ? 'Search city/regency' : 'City/regency data is not available yet'}
                     styles={selectStyles}
                     value={selectedCityOption}
                   />
@@ -626,15 +626,15 @@ export default function MasterEkspedisi() {
               </Col>
               <Col md={6}>
                 <Form.Group>
-                  <Form.Label>Kecamatan</Form.Label>
+                  <Form.Label>District</Form.Label>
                   <Select
                     classNamePrefix="react-select"
                     isDisabled={!form.cityCode || districtSelectOptions.length === 0}
                     menuPortalTarget={document.body}
-                    noOptionsMessage={() => 'Kecamatan tidak ditemukan'}
+                    noOptionsMessage={() => 'District not found'}
                     onChange={handleDistrictChange}
                     options={districtSelectOptions}
-                    placeholder={districtSelectOptions.length > 0 ? 'Cari kecamatan' : 'Data kecamatan belum tersedia'}
+                    placeholder={districtSelectOptions.length > 0 ? 'Search district' : 'District data is not available yet'}
                     styles={selectStyles}
                     value={selectedDistrictOption}
                   />
@@ -642,15 +642,15 @@ export default function MasterEkspedisi() {
               </Col>
               <Col md={6}>
                 <Form.Group>
-                  <Form.Label>Kelurahan</Form.Label>
+                  <Form.Label>Subdistrict</Form.Label>
                   <Select
                     classNamePrefix="react-select"
                     isDisabled={!form.districtCode || subdistrictSelectOptions.length === 0}
                     menuPortalTarget={document.body}
-                    noOptionsMessage={() => 'Kelurahan tidak ditemukan'}
+                    noOptionsMessage={() => 'Subdistrict not found'}
                     onChange={handleSubdistrictChange}
                     options={subdistrictSelectOptions}
-                    placeholder={subdistrictSelectOptions.length > 0 ? 'Cari kelurahan' : 'Data kelurahan tidak tersedia'}
+                    placeholder={subdistrictSelectOptions.length > 0 ? 'Search subdistrict' : 'Subdistrict data is not available'}
                     styles={selectStyles}
                     value={selectedSubdistrictOption}
                   />
@@ -658,15 +658,15 @@ export default function MasterEkspedisi() {
               </Col>
               <Col md={6}>
                 <Form.Group>
-                  <Form.Label>Desa</Form.Label>
+                  <Form.Label>Village</Form.Label>
                   <Select
                     classNamePrefix="react-select"
                     isDisabled={!form.districtCode || villageSelectOptions.length === 0}
                     menuPortalTarget={document.body}
-                    noOptionsMessage={() => 'Desa tidak ditemukan'}
+                    noOptionsMessage={() => 'Village not found'}
                     onChange={handleVillageChange}
                     options={villageSelectOptions}
-                    placeholder={villageSelectOptions.length > 0 ? 'Cari desa' : 'Data desa tidak tersedia'}
+                    placeholder={villageSelectOptions.length > 0 ? 'Search village' : 'Village data is not available'}
                     styles={selectStyles}
                     value={selectedVillageOption}
                   />
@@ -674,19 +674,19 @@ export default function MasterEkspedisi() {
               </Col>
               <Col md={6}>
                 <Form.Group>
-                  <Form.Label>Estimasi Pengiriman</Form.Label>
-                  <Form.Control value={form.leadTime} onChange={handleChange('leadTime')} placeholder="3-4 hari" required />
+                  <Form.Label>Estimate Pengiriman</Form.Label>
+                  <Form.Control value={form.leadTime} onChange={handleChange('leadTime')} placeholder="3-4 days" required />
                 </Form.Group>
               </Col>
               <Col md={4}>
                 <Form.Group>
-                  <Form.Label>Tarif Dasar</Form.Label>
+                  <Form.Label>Base Rate</Form.Label>
                   <Form.Control min={0} type="number" value={form.basePrice} onChange={handleChange('basePrice')} placeholder="12000" required />
                 </Form.Group>
               </Col>
               <Col md={4}>
                 <Form.Group>
-                  <Form.Label>Tarif / Kg</Form.Label>
+                  <Form.Label>Rate / Kg</Form.Label>
                   <Form.Control min={0} type="number" value={form.perKg} onChange={handleChange('perKg')} placeholder="3100" required />
                 </Form.Group>
               </Col>
@@ -694,8 +694,8 @@ export default function MasterEkspedisi() {
                 <Form.Group>
                   <Form.Label>Status</Form.Label>
                   <Form.Select value={form.status} onChange={handleChange('status')}>
-                    <option value="active">Aktif</option>
-                    <option value="inactive">Tidak Aktif</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
                   </Form.Select>
                 </Form.Group>
               </Col>
@@ -703,11 +703,11 @@ export default function MasterEkspedisi() {
           </Modal.Body>
           <Modal.Footer>
             <Button variant="light-secondary" onClick={handleCloseForm}>
-              Batal
+              Cancel
             </Button>
             <Button variant="primary" type="submit" disabled={!isLocationComplete}>
               <i className="ti ti-device-floppy me-1" />
-              Simpan
+              Save
             </Button>
           </Modal.Footer>
         </Form>
@@ -715,7 +715,7 @@ export default function MasterEkspedisi() {
 
       <Modal show={showUpload} onHide={() => setShowUpload(false)} centered>
         <Modal.Header closeButton>
-          <Modal.Title>Upload Data Ekspedisi</Modal.Title>
+          <Modal.Title>Upload Expedition Data</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Stack gap={3}>
@@ -726,8 +726,8 @@ export default function MasterEkspedisi() {
                     <i className="ti ti-table" />
                   </span>
                   <div>
-                    <h6 className="mb-1">Format Kolom Excel</h6>
-                    <p className="text-muted mb-2">Baris pertama digunakan sebagai header. Minimal isi kolom nama dan layanan.</p>
+                    <h6 className="mb-1">Excel Column Format</h6>
+                    <p className="text-muted mb-2">The first row is used as the header. At minimum, fill in the name and service columns.</p>
                     <div className="d-flex flex-wrap gap-2">
                       {excelTemplateColumns.map((column) => (
                         <Badge key={column} bg="light" text="dark" className="border">
@@ -742,14 +742,14 @@ export default function MasterEkspedisi() {
 
             <Button variant="primary" onClick={() => uploadInputRef.current?.click()} disabled={uploadingExcel}>
               <i className={`${uploadingExcel ? 'ti ti-loader-2' : 'ti ti-upload'} me-1`} />
-              {uploadingExcel ? 'Membaca file...' : 'Pilih File Excel'}
+              {uploadingExcel ? 'Reading file...' : 'Choose Excel File'}
             </Button>
             <Form.Control ref={uploadInputRef} type="file" accept=".xlsx,.xls" className="d-none" onChange={handleUploadExcel} />
           </Stack>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="light-secondary" onClick={() => setShowUpload(false)} disabled={uploadingExcel}>
-            Tutup
+            Close
           </Button>
         </Modal.Footer>
       </Modal>

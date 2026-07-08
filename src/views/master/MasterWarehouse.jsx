@@ -178,7 +178,7 @@ export default function MasterWarehouse() {
                   value={keywords}
                   onChange={(event) => setKeywords(event.target.value)}
                   type="text"
-                  placeholder="Code atau nama warehouse"
+                  placeholder="Code or warehouse name"
                 />
               </InputGroup>
             </Col>
@@ -250,7 +250,7 @@ export default function MasterWarehouse() {
                           <p className="text-muted mb-3">
                             {hasActiveFilter
                               ? 'Change the keyword or status to view other data.'
-                              : 'Gunakan synchronize untuk mengambil data warehouse terbaru.'}
+                              : 'Use synchronize to fetch the latest warehouse data.'}
                           </p>
                           {hasActiveFilter ? (
                             <Button variant="light-primary" onClick={resetFilters}>

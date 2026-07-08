@@ -10,7 +10,7 @@ export const systems = [
   {
     key: SYSTEM_KEYS.CUSTOMER_PORTAL,
     title: 'Customer Portal',
-    description: 'Order, master data, reward, dan pengaturan customer portal.',
+    description: 'Orders, master data, rewards, and customer portal settings.',
     icon: 'ti ti-building-store',
     basePath: '/customer-portal',
     defaultPath: '/customer-portal/dashboard',
@@ -18,8 +18,8 @@ export const systems = [
   },
   {
     key: SYSTEM_KEYS.EKSPEDISI,
-    title: 'Ekspedisi',
-    description: 'Operasional pengiriman dan monitoring ekspedisi.',
+    title: 'Expedition',
+    description: 'Shipping operations and expedition monitoring.',
     icon: 'ti ti-truck-delivery',
     basePath: '/ekspedisi',
     defaultPath: '/ekspedisi/dashboard',

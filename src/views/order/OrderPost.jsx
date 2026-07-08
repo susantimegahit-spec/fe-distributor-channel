@@ -682,7 +682,7 @@ export default function OrderCreate() {
       let data = {
         TypeDiscount: item?.name?.value,
         Persentase: 0,
-        TotalDiskon: item?.value,
+        TotalDiscount: item?.value,
         Remarks: item?.remarks
       };
       dataDisc.push(data);
@@ -711,7 +711,7 @@ export default function OrderCreate() {
                 <h5 className="mb-0">{isDetailMode ? 'Detail Order' : 'Create Order'}</h5>
                 <span className="text-muted f-12">
                   {isDetailMode
-                    ? `Showing detail ${orderDetail?.order_no || orderDetail?.doc_num || 'order'} yang dipilih.`
+                    ? `Showing detail ${orderDetail?.order_no || orderDetail?.doc_num || 'order'} selected.`
                     : 'Complete customer information, addresses, and product details before saving the order.'}
                 </span>
               </Stack>
@@ -728,7 +728,7 @@ export default function OrderCreate() {
                 </Button>
                 <Button onClick={() => handleSubmitOrder('create')} variant="success">
                   <i className="ti ti-send" />
-                  Kirim
+                  Send
                 </Button>
               </Stack>
             }
@@ -793,12 +793,12 @@ export default function OrderCreate() {
                         </Col>
                         <Col md={6} xl={4}>
                           <Form.Group>
-                            <Form.Label className="small text-muted">Kontak Pelanggan</Form.Label>
+                            <Form.Label className="small text-muted">Customer Contact</Form.Label>
                             <Form.Control
                               onChange={(e) => handleSetInput(e, 'cnctCode')}
                               value={orderInput.cnctCode}
                               type="text"
-                              placeholder="Kontak Pelanggan"
+                              placeholder="Customer Contact"
                               size="sm"
                             />
                           </Form.Group>
@@ -811,7 +811,7 @@ export default function OrderCreate() {
                         </Col>
                         <Col md={6} xl={4}>
                           <Form.Group>
-                            <Form.Label className="small text-muted">Jatuh Tempo</Form.Label>
+                            <Form.Label className="small text-muted">Due Date</Form.Label>
                             <Form.Control
                               onChange={(e) => handleSetInput(e, 'docDueDate')}
                               value={orderInput.docDueDate}
@@ -822,7 +822,7 @@ export default function OrderCreate() {
                         </Col>
                         <Col md={6}>
                           <Form.Group>
-                            <Form.Label className="small text-muted">Alamat Tagih</Form.Label>
+                            <Form.Label className="small text-muted">Billing Address</Form.Label>
                             <Select
                               value={orderInput.address || null}
                               options={listAddressB}
@@ -834,7 +834,7 @@ export default function OrderCreate() {
                         </Col>
                         <Col md={6}>
                           <Form.Group>
-                            <Form.Label className="small text-muted">Alamat Kirim</Form.Label>
+                            <Form.Label className="small text-muted">Shipping Address</Form.Label>
                             <Select
                               value={orderInput.address2 || null}
                               options={listAddressS}
@@ -864,8 +864,8 @@ export default function OrderCreate() {
                 <Col lg={4}>
                   <Card className="border mb-0 h-100">
                     <Card.Header className="py-3">
-                      <h6 className="mb-0">Ringkasan Order</h6>
-                      <small className="text-muted">Estimasi berdasarkan detail produk</small>
+                      <h6 className="mb-0">Order Summary</h6>
+                      <small className="text-muted">Estimate based on product details</small>
                     </Card.Header>
                     <Card.Body>
                       <Stack gap={3}>
@@ -878,7 +878,7 @@ export default function OrderCreate() {
                           <strong>{formatCurrency(orderSubtotal)}</strong>
                         </Stack>
                         <Stack direction="horizontal" className="justify-content-between">
-                          <span className="text-muted">Diskon {discId ? `- ${discId}` : ''}</span>
+                          <span className="text-muted">Discount {discId ? `- ${discId}` : ''}</span>
                           <Button variant="link" className="p-0 text-decoration-none" onClick={() => setShowDisc(true)}>
                             {formatCurrency(discountTotal)}
                           </Button>
@@ -920,14 +920,14 @@ export default function OrderCreate() {
                 <tr>
                   <th style={{ minWidth: 240 }}>Item</th>
                   <th style={{ minWidth: 90 }}>Qty</th>
-                  <th style={{ minWidth: 90 }}>Satuan</th>
+                  <th style={{ minWidth: 90 }}>Unit</th>
                   <th style={{ minWidth: 160 }}>Price</th>
                   <th style={{ minWidth: 220 }}>Warehouse</th>
                   <th style={{ minWidth: 160 }}>Total</th>
                   <th style={{ minWidth: 160 }}>Vat</th>
                   <th style={{ minWidth: 220 }}>Notes</th>
-                  <th style={{ minWidth: 220 }}>Cabang</th>
-                  <th style={{ minWidth: 220 }}>Bisnis Unit</th>
+                  <th style={{ minWidth: 220 }}>Branch</th>
+                  <th style={{ minWidth: 220 }}>Business Unit</th>
                   <th style={{ minWidth: 220 }}>Department</th>
                   <th className="text-center" style={{ width: 72 }}>
                     #
@@ -1065,7 +1065,7 @@ export default function OrderCreate() {
             <thead>
               <tr>
                 <th>Type</th>
-                <th>Keterangan</th>
+                <th>Remarks</th>
                 <th>Amount</th>
                 <th className="text-center">#</th>
               </tr>
@@ -1084,7 +1084,7 @@ export default function OrderCreate() {
                     />
                   </td>
                   <td>
-                    <Form.Control value={item.remarks} onChange={(e) => handleInputRemarks(index, e)} size="sm" placeholder="Keterangan" />
+                    <Form.Control value={item.remarks} onChange={(e) => handleInputRemarks(index, e)} size="sm" placeholder="Remarks" />
                   </td>
                   <td>
                     <Form.Control
@@ -1112,7 +1112,7 @@ export default function OrderCreate() {
             </tbody>
           </Table>
           <Stack direction="horizontal" className="justify-content-between border-top mt-3 pt-3">
-            <span className="text-muted">Total Diskon</span>
+            <span className="text-muted">Total Discount</span>
             <strong>{formatCurrency(discountTotal)}</strong>
           </Stack>
         </Modal.Body>

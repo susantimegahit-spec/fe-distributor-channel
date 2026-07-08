@@ -81,10 +81,10 @@ const listMenu = [
       },
       {
         id: 'master-promo',
-        title: 'Program Promo',
+        title: 'Promo Program',
         type: 'item',
         value: 'master-promo',
-        label: 'Program Promo',
+        label: 'Promo Program',
         selected: true,
         icon: 'ti ti-discount-2',
         url: '/master/promo'

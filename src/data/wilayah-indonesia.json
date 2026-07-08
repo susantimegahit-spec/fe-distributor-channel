@@ -2,7 +2,7 @@
   "metadata": {
     "negara": "Indonesia",
     "format": "propinsi > kota_kabupaten > kecamatan > kelurahan/desa",
-    "catatan": "File ini disiapkan untuk dropdown bertingkat. Seluruh propinsi memiliki seed kota/kabupaten dan kecamatan; detail lengkap yang tersedia saat ini adalah Kota Surabaya."
+  "catatan": "This file is prepared for cascading dropdowns. All provinces have seeded city/regency and district data; the currently available complete detail is Surabaya City."
   },
   "propinsi": [
     {

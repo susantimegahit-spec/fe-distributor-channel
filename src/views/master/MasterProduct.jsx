@@ -178,7 +178,7 @@ export default function MasterProduct() {
                   value={keywords}
                   onChange={(event) => setKeywords(event.target.value)}
                   type="text"
-                  placeholder="Code atau nama item"
+                  placeholder="Code or item name"
                 />
               </InputGroup>
             </Col>
@@ -250,7 +250,7 @@ export default function MasterProduct() {
                           <p className="text-muted mb-3">
                             {hasActiveFilter
                               ? 'Change the keyword or status to view other data.'
-                              : 'Gunakan synchronize untuk mengambil data item terbaru.'}
+                              : 'Use synchronize to fetch the latest item data.'}
                           </p>
                           {hasActiveFilter ? (
                             <Button variant="light-primary" onClick={resetFilters}>

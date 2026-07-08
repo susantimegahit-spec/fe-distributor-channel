@@ -146,14 +146,14 @@ export default function EkspedisiDashboard() {
       <MainCard
         title={
           <Stack gap={1}>
-            <h5 className="mb-0">Dashboard Ekspedisi</h5>
-            <span className="text-muted f-12">Cari rekomendasi ekspedisi berdasarkan rute dan berat kiriman.</span>
+            <h5 className="mb-0">Expedition Dashboard</h5>
+            <span className="text-muted f-12">Find expedition recommendations based on route and shipment weight.</span>
           </Stack>
         }
         secondary={
           cheapestRecommendation ? (
             <Badge bg="success" className="py-2 px-3">
-              Termurah: {cheapestRecommendation.name}
+              Cheapest: {cheapestRecommendation.name}
             </Badge>
           ) : null
         }
@@ -161,7 +161,7 @@ export default function EkspedisiDashboard() {
         <Row className="g-3">
           <Col md={6} xl={3}>
             <Form.Group>
-              <Form.Label>Keberangkatan</Form.Label>
+              <Form.Label>Origin</Form.Label>
               <Form.Select value={form.departure} onChange={handleChange('departure')}>
                 {cities.map((city) => (
                   <option value={city} key={city}>
@@ -173,7 +173,7 @@ export default function EkspedisiDashboard() {
           </Col>
           <Col md={6} xl={3}>
             <Form.Group>
-              <Form.Label>Tujuan</Form.Label>
+              <Form.Label>Destination</Form.Label>
               <Form.Select value={form.destination} onChange={handleChange('destination')}>
                 {cities.map((city) => (
                   <option value={city} key={city}>
@@ -185,13 +185,13 @@ export default function EkspedisiDashboard() {
           </Col>
           <Col md={6} xl={3}>
             <Form.Group>
-              <Form.Label>Berat</Form.Label>
+              <Form.Label>Weight</Form.Label>
               <Form.Control min={1} type="number" value={form.weight} onChange={handleChange('weight')} />
             </Form.Group>
           </Col>
           <Col md={6} xl={3}>
             <div className="border rounded p-3 h-100">
-              <span className="text-muted f-12">Estimasi Jarak</span>
+              <span className="text-muted f-12">Estimated Distance</span>
               <h4 className="mb-0 mt-2">{routeDistance} km</h4>
             </div>
           </Col>
@@ -204,7 +204,7 @@ export default function EkspedisiDashboard() {
             <Card.Body>
               <Stack direction="horizontal" className="justify-content-between" gap={3}>
                 <div>
-                  <div className="text-muted f-12">Rute</div>
+                  <div className="text-muted f-12">Route</div>
                   <h5 className="mb-0">
                     {form.departure} - {form.destination}
                   </h5>
@@ -221,7 +221,7 @@ export default function EkspedisiDashboard() {
             <Card.Body>
               <Stack direction="horizontal" className="justify-content-between" gap={3}>
                 <div>
-                  <div className="text-muted f-12">Berat Kiriman</div>
+                  <div className="text-muted f-12">Shipment Weight</div>
                   <h5 className="mb-0">{weight > 0 ? `${weight} kg` : '-'}</h5>
                 </div>
                 <span className="avtar avtar-s bg-light-info text-info">
@@ -236,7 +236,7 @@ export default function EkspedisiDashboard() {
             <Card.Body>
               <Stack direction="horizontal" className="justify-content-between" gap={3}>
                 <div>
-                  <div className="text-muted f-12">Harga Terendah</div>
+                  <div className="text-muted f-12">Lowest Price</div>
                   <h5 className="mb-0">{cheapestRecommendation ? currency(cheapestRecommendation.totalPrice) : '-'}</h5>
                 </div>
                 <span className="avtar avtar-s bg-light-success text-success">
@@ -251,8 +251,8 @@ export default function EkspedisiDashboard() {
       <MainCard
         title={
           <Stack gap={1}>
-            <h5 className="mb-0">Rekomendasi Ekspedisi</h5>
-            <span className="text-muted f-12">Data dummy diurutkan otomatis dari harga paling murah.</span>
+            <h5 className="mb-0">Expedition Recommendations</h5>
+            <span className="text-muted f-12">Dummy data is automatically sorted from the lowest price.</span>
           </Stack>
         }
         secondary={
@@ -265,13 +265,13 @@ export default function EkspedisiDashboard() {
         <Table className="mb-0 align-middle" responsive hover>
           <thead>
             <tr>
-              <th>Ekspedisi</th>
-              <th>Layanan</th>
-              <th className="text-end">Estimasi Harga</th>
-              <th className="text-end">Harga / Kg</th>
+              <th>Expedition</th>
+              <th>Service</th>
+              <th className="text-end">Estimated Price</th>
+              <th className="text-end">Price / Kg</th>
               <th>ETA</th>
               <th className="text-center">Rating</th>
-              <th className="text-center">Rekomendasi</th>
+              <th className="text-center">Recommendation</th>
             </tr>
           </thead>
           <tbody>
@@ -281,7 +281,7 @@ export default function EkspedisiDashboard() {
                   <td>
                     <div className="fw-semibold">{item.name}</div>
                     <div className="text-muted f-12">
-                      {form.departure} ke {form.destination}
+                      {form.departure} to {form.destination}
                     </div>
                   </td>
                   <td>{item.service}</td>
@@ -291,10 +291,10 @@ export default function EkspedisiDashboard() {
                   <td className="text-center">{item.rating}</td>
                   <td className="text-center">
                     {index === 0 ? (
-                      <Badge bg="success">Paling Murah</Badge>
+                      <Badge bg="success">Cheapest</Badge>
                     ) : (
                       <Badge bg="light" text="dark">
-                        Alternatif
+                        Alternative
                       </Badge>
                     )}
                   </td>
@@ -303,7 +303,7 @@ export default function EkspedisiDashboard() {
             ) : (
               <tr>
                 <td colSpan={7} className="text-center text-muted py-4">
-                  Lengkapi keberangkatan, tujuan, dan berat untuk melihat rekomendasi.
+                  Complete the origin, destination, and weight to view recommendations.
                 </td>
               </tr>
             )}

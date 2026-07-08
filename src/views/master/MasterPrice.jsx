@@ -234,7 +234,7 @@ export default function MasterPrice() {
     const priceId = getPriceId(item);
 
     if (!priceId) {
-      showAlert('ID master price tidak ditemukan', 'danger');
+      showAlert('Master price ID not found', 'danger');
       return;
     }
 
@@ -303,7 +303,7 @@ export default function MasterPrice() {
     const priceId = getPriceId(item);
 
     if (!priceId) {
-      showAlert('ID master price tidak ditemukan', 'danger');
+      showAlert('Master price ID not found', 'danger');
       return;
     }
 
@@ -418,7 +418,7 @@ export default function MasterPrice() {
                     <th style={{ minWidth: 100 }}>Price</th>
                     <th style={{ minWidth: 110 }}>Status</th>
                     <th className="text-center" style={{ minWidth: 150 }}>
-                      Aksi
+                      Actions
                     </th>
                   </tr>
                 </thead>
@@ -480,7 +480,7 @@ export default function MasterPrice() {
                           <p className="text-muted mb-3">
                             {hasActiveFilter
                               ? 'Change the keyword or status to view other data.'
-                              : 'Klik refresh untuk mengambil data harga terbaru.'}
+                              : 'Click refresh to fetch the latest price data.'}
                           </p>
                           <Button
                             variant={hasActiveFilter ? 'light-primary' : 'primary'}

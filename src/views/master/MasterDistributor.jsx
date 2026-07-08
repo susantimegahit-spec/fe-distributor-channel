@@ -277,7 +277,7 @@ export default function MasterDistributor() {
                           <p className="text-muted mb-3">
                             {hasActiveFilter
                               ? 'Change the keyword or status to view other data.'
-                              : 'Gunakan synchronize untuk mengambil data distributor terbaru.'}
+                              : 'Use synchronize to fetch the latest distributor data.'}
                           </p>
                           {hasActiveFilter ? (
                             <Button variant="light-primary" onClick={resetFilters}>
@@ -339,7 +339,7 @@ export default function MasterDistributor() {
                 <div>{selectedDistributor.depo || '-'}</div>
               </Col>
               <Col md={12}>
-                <Form.Label className="f-12 text-muted">Alamat</Form.Label>
+                <Form.Label className="f-12 text-muted">Address</Form.Label>
                 <div>{selectedDistributor.address || '-'}</div>
               </Col>
             </Row>

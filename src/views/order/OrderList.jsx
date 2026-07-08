@@ -423,7 +423,7 @@ export default function OrderList() {
     const attachmentUrl = getAttachmentUrl(attachment);
 
     if (!attachmentUrl) {
-      showAlert('URL lampiran tidak ditemukan', 'danger');
+      showAlert('Attachment URL not found', 'danger');
       return;
     }
 
@@ -534,7 +534,7 @@ export default function OrderList() {
             setIsLoadingCreditLimit(false);
           }
         } else if (shouldLoadCreditLimit && !customerCode) {
-          setCreditLimitError('Customer code tidak ditemukan untuk mengambil limit kredit');
+          setCreditLimitError('Customer code was not found to fetch the credit limit');
         }
       } else {
         showAlert(response?.data?.message || 'Failed to fetch order detail', 'danger');
@@ -595,7 +595,7 @@ export default function OrderList() {
     const nextStatus = getNextApprovalStatus(selectedOrderDetail);
 
     if (!nextStatus) {
-      showAlert('Status order tidak memiliki alur approve berikutnya', 'warning');
+      showAlert('This order status has no next approval flow', 'warning');
       return;
     }
 
@@ -1011,7 +1011,7 @@ export default function OrderList() {
                         <p className="text-muted mb-3">
                           {hasActiveFilter
                             ? 'Change the filter or reset the search to view other data.'
-                            : 'Mulai buat order baru untuk add transaksi distributor.'}
+                            : 'Start creating a new order to add distributor transactions.'}
                         </p>
                         {hasActiveFilter ? (
                           <Button variant="light-primary" onClick={resetFilters}>
@@ -1043,7 +1043,7 @@ export default function OrderList() {
       </Stack>
       <Modal show={Boolean(selectedOrderDetail)} onHide={closeDetailModal} centered size="xl">
         <Modal.Header closeButton>
-          <Modal.Title>Detail Order</Modal.Title>
+          <Modal.Title>Order Detail</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           {selectedOrderDetail ? (
@@ -1104,11 +1104,11 @@ export default function OrderList() {
                   <div>{getOrderValue(selectedOrderDetail, ['sales_employee_name', 'sales_employee_name'])}</div>
                 </Col>
                 <Col md={4}>
-                  <Form.Label className="f-12 text-muted">Alamat Tagih</Form.Label>
+                  <Form.Label className="f-12 text-muted">Billing Address</Form.Label>
                   <div>{getOrderValue(selectedOrderDetail, ['address', 'bill_to_address', 'Address'])}</div>
                 </Col>
                 <Col md={4}>
-                  <Form.Label className="f-12 text-muted">Alamat Kirim</Form.Label>
+                  <Form.Label className="f-12 text-muted">Shipping Address</Form.Label>
                   <div>{getOrderValue(selectedOrderDetail, ['address2', 'ship_to_address', 'Address2'])}</div>
                 </Col>
                 <Col md={12}>
@@ -1122,7 +1122,7 @@ export default function OrderList() {
                   <tr>
                     <th>Item</th>
                     <th className="text-end">Qty</th>
-                    <th>Satuan</th>
+                    <th>Unit</th>
                     <th className="text-end">Price</th>
                     <th className="text-end">Total</th>
                     <th>Warehouse</th>
@@ -1148,7 +1148,7 @@ export default function OrderList() {
                   ) : (
                     <tr>
                       <td colSpan={6} className="text-center text-muted py-4">
-                        Detail item tidak tersedia
+                        Item details are not available
                       </td>
                     </tr>
                   )}
@@ -1203,7 +1203,7 @@ export default function OrderList() {
                       ) : (
                         <tr>
                           <td colSpan={6} className="text-center text-muted py-4">
-                            Detail discount tidak tersedia
+                            Discount details are not available
                           </td>
                         </tr>
                       )}
@@ -1225,7 +1225,7 @@ export default function OrderList() {
                 </Col>
                 <Col md={4}>
                   <div className="border rounded p-3 h-100 text-end">
-                    <div className="text-muted f-12 mb-1">Total Diskon</div>
+                    <div className="text-muted f-12 mb-1">Total Discount</div>
                     <div className="fw-semibold text-danger">- {currency(selectedOrderDiscountTotal)}</div>
                   </div>
                 </Col>

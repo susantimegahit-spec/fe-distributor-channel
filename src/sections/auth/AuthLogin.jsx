@@ -105,14 +105,14 @@ export default function AuthLoginForm({ className }) {
         }, 150);
       } else if (
         response.data.active_session === true ||
-        response.data.message === 'Akun ini sedang aktif di perangkat lain. Silakan logout terlebih dahulu dari perangkat tersebut.'
+        response.data.message === 'This account is active on another device. Please log out from that device first.'
       ) {
         setShowConfirmModal(true);
       } else {
         showAlert(response.data.message, 'danger');
       }
     } catch (error) {
-      showAlert(error?.message || 'Login gagal. Silakan coba kembali.', 'danger');
+      showAlert(error?.message || 'Login failed. Please try again.', 'danger');
     } finally {
       setIsLoading(false);
     }

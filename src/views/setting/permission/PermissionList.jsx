@@ -328,9 +328,9 @@ export default function PermissionList() {
               </Button>
             </Col>
             <Col lg={2} md={6} className="text-lg-end">
-              <span className="text-muted f-12">Menampilkan</span>
+              <span className="text-muted f-12">Showing</span>
               <div className="fw-semibold">
-                {filteredData.length} dari {dataSource.length}
+                {filteredData.length} of {dataSource.length}
               </div>
             </Col>
           </Row>
@@ -350,7 +350,7 @@ export default function PermissionList() {
                   <tr>
                     <th style={{ minWidth: 260 }}>Role Name</th>
                     <th style={{ minWidth: 180 }}>Permission</th>
-                    <th style={{ minWidth: 140 }}>Menu Akses</th>
+                    <th style={{ minWidth: 140 }}>Menu Access</th>
                     <th style={{ minWidth: 120 }}>Status</th>
                     <th className="text-center" style={{ width: 120 }}>
                       #
@@ -445,7 +445,7 @@ export default function PermissionList() {
                       <Form.Label className="f-12 text-muted">Role Name</Form.Label>
                       <Form.Control
                         type="text"
-                        placeholder="Contoh: Admin Sales"
+                        placeholder="Example: Sales Admin"
                         name="roleName"
                         value={menuName}
                         onChange={(event) => setMenuName(event.target.value)}
@@ -479,7 +479,7 @@ export default function PermissionList() {
                   <Stack direction="horizontal" gap={2} className="justify-content-between">
                     <div>
                       <h6 className="mb-0">Menu List</h6>
-                      <small className="text-muted">Centang menu untuk memberi akses.</small>
+                      <small className="text-muted">Check menus to grant access.</small>
                     </div>
                     <Badge bg="light" text="dark">
                       {summary.menu} menu

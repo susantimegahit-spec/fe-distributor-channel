@@ -402,7 +402,7 @@ export default function OrderPost() {
         item.totalReward ||
         item.total_discount ||
         item.total_diskon ||
-        item.totalDiskon ||
+        item.totalDiscount ||
         item.reward_amount ||
         item.rewardAmount ||
         item.discount_amount ||
@@ -1014,7 +1014,7 @@ export default function OrderPost() {
     const validFiles = files.filter((file) => file.size <= maxDocumentUploadSizeBytes);
 
     if (oversizedFiles.length) {
-      showAlert('Ukuran file maksimal 1MB per file', 'danger');
+      showAlert('Maximum file size is 1MB per file', 'danger');
     }
 
     if (!validFiles.length) {
@@ -1049,7 +1049,7 @@ export default function OrderPost() {
     setRewardResultCount(0);
 
     if (!orderInput.cardCode) {
-      showAlert('Select customer terlebih dahulu untuk mengambil total Reward', 'danger');
+      showAlert('Select a customer first to fetch the total Reward', 'danger');
       return;
     }
 
@@ -1065,7 +1065,7 @@ export default function OrderPost() {
           : payload?.batches || payload?.items || payload?.rows || payload?.data || [];
 
       if (!batches.length) {
-        showAlert('Data Reward tidak tersedia', 'danger');
+        showAlert('Reward data is not available', 'danger');
         return;
       }
 
@@ -1116,7 +1116,7 @@ export default function OrderPost() {
       );
 
       if (totalReward <= 0) {
-        showAlert(`Total Reward untuk customer ${orderInput.cardCode} masih 0`, 'danger');
+        showAlert(`Total Reward for customer ${orderInput.cardCode} is still 0`, 'danger');
       }
     } catch (error) {
       showAlert(error?.message || 'Failed to fetch Reward data', 'danger');
@@ -1446,7 +1446,7 @@ export default function OrderPost() {
     const dataDisc = activeDiscounts.map((item) => ({
       TypeDiscount: item?.name?.value,
       Persentase: 0,
-      TotalDiskon: item?.value,
+      TotalDiscount: item?.value,
       Remarks: item?.remarks
     }));
     const payload = {
@@ -1513,7 +1513,7 @@ export default function OrderPost() {
 
     // Check Products
     if (!itemArr || itemArr.length === 0) {
-      return 'Minimal harus add 1 item produk.';
+      return 'At least one product item is required.';
     }
 
     for (let i = 0; i < itemArr.length; i++) {
@@ -1559,7 +1559,7 @@ export default function OrderPost() {
                 <h5 className="mb-0">{isDetailMode ? 'Detail Order' : 'Create Order'}</h5>
                 <span className="text-muted f-12">
                   {isDetailMode
-                    ? `Showing detail ${orderDetail?.order_no || orderDetail?.doc_num || 'order'} yang dipilih.`
+                    ? `Showing detail ${orderDetail?.order_no || orderDetail?.doc_num || 'order'} selected.`
                     : 'Complete customer information, addresses, and product details before saving the order.'}
                 </span>
                 {shouldShowSeriesSalesOrder && isDetailMode && orderInput.series ? (
@@ -1582,7 +1582,7 @@ export default function OrderPost() {
                     </Button>
                     <Button onClick={() => handleShowConfirm('WAITING_OM')} variant="primary">
                       <i className="ti ti-send" />
-                      Kirim
+                      Send
                     </Button>
                   </>
                 ) : null}
@@ -1682,13 +1682,13 @@ export default function OrderPost() {
                         <Col md={6} xl={4}>
                           <Form.Group>
                             <Form.Label className="small text-muted">
-                              <RequiredLabel>Kontak Pelanggan</RequiredLabel>
+                              <RequiredLabel>Customer Contact</RequiredLabel>
                             </Form.Label>
                             <Form.Control
                               onChange={(e) => handleSetInput(e, 'cnctCode')}
                               value={orderInput.cnctCode}
                               type="text"
-                              placeholder="Kontak Pelanggan"
+                              placeholder="Customer Contact"
                               size="sm"
                             />
                           </Form.Group>
@@ -1747,7 +1747,7 @@ export default function OrderPost() {
                         <Col md={6}>
                           <Form.Group>
                             <Form.Label className="small text-muted">
-                              <RequiredLabel>Alamat Tagih</RequiredLabel>
+                              <RequiredLabel>Billing Address</RequiredLabel>
                             </Form.Label>
                             <Select
                               value={orderInput.address || null}
@@ -1761,7 +1761,7 @@ export default function OrderPost() {
                         <Col md={6}>
                           <Form.Group>
                             <Form.Label className="small text-muted">
-                              <RequiredLabel>Alamat Kirim</RequiredLabel>
+                              <RequiredLabel>Shipping Address</RequiredLabel>
                             </Form.Label>
                             <Select
                               value={orderInput.address2 || null}
@@ -1793,8 +1793,8 @@ export default function OrderPost() {
                   <Col lg={3}>
                     <Card className="border mb-0 h-100 claim-transaction-card">
                       <Card.Header className="py-3">
-                        <h5 className="mb-0">Ringkasan Order</h5>
-                        <small className="text-muted">Estimasi berdasarkan detail produk</small>
+                        <h5 className="mb-0">Order Summary</h5>
+                        <small className="text-muted">Estimate based on product details</small>
                       </Card.Header>
                       <Card.Body>
                         <Stack gap={3}>
@@ -1811,11 +1811,11 @@ export default function OrderPost() {
                             <strong>{formatCurrency(orderVatTotal)}</strong>
                           </Stack> */}
                           {/* <Stack direction="horizontal" className="justify-content-between">
-                            <span className="text-muted">Total Setelah VAT</span>
+                            <span className="text-muted">Total After VAT</span>
                             <strong>{formatCurrency(orderTotalAfterVat)}</strong>
                           </Stack> */}
                           <Stack direction="horizontal" className="justify-content-between">
-                            <span className="text-muted">Diskon {discId ? `- ${discId}` : ''}</span>
+                            <span className="text-muted">Discount {discId ? `- ${discId}` : ''}</span>
                             <Button variant="link" className="p-0 text-decoration-none" onClick={handleOpenDiscount}>
                               {formatCurrency(discountTotal)}
                             </Button>
@@ -2008,7 +2008,7 @@ export default function OrderPost() {
                   <th style={{ minWidth: 90 }}>
                     <RequiredLabel>Qty</RequiredLabel>
                   </th>
-                  <th style={{ minWidth: 90 }}>Satuan</th>
+                  <th style={{ minWidth: 90 }}>Unit</th>
                   <th style={{ minWidth: 160 }}>Price</th>
                   <th style={{ minWidth: 160 }}>Total</th>
                   {!isCustomerRole && (
@@ -2021,8 +2021,8 @@ export default function OrderPost() {
                       </th> */}
                       {/* <th style={{ minWidth: 160 }}>Total VAT</th> */}
                       <th style={{ minWidth: 220 }}>Notes</th>
-                      <th style={{ minWidth: 220 }}>Cabang</th>
-                      <th style={{ minWidth: 220 }}>Bisnis Unit</th>
+                      <th style={{ minWidth: 220 }}>Branch</th>
+                      <th style={{ minWidth: 220 }}>Business Unit</th>
                       <th style={{ minWidth: 220 }}>Department</th>
                     </>
                   )}
@@ -2174,7 +2174,7 @@ export default function OrderPost() {
               <Card.Body className="py-3">
                 <Row className="g-3">
                   <Col md={6}>
-                    <Form.Label className="fw-semibold mb-1">Kategori Tujuan</Form.Label>
+                    <Form.Label className="fw-semibold mb-1">Target Category</Form.Label>
                     <Select
                       value={rewardTargetOptions.find((option) => option.value === selectedRewardTarget) || null}
                       options={rewardTargetOptions}
@@ -2190,7 +2190,7 @@ export default function OrderPost() {
                       <div>
                         <Form.Label className="fw-semibold mb-1">Total Reward Customer</Form.Label>
                         <div className="text-muted f-12">
-                          Reward otomatis dihitung dari seluruh data reward yang cocok dengan customer pada order ini.
+                          Reward is automatically calculated from all reward data matching the customer on this order.
                         </div>
                       </div>
                       <Button
@@ -2215,17 +2215,17 @@ export default function OrderPost() {
                       <Col sm={4}>
                         <small className="text-muted d-block">Total Reward</small>
                         <strong>{formatCurrency(rewardTotal)}</strong>
-                        <small className="text-muted d-block">{rewardResultCount} data ditemukan</small>
+                        <small className="text-muted d-block">{rewardResultCount} records found</small>
                       </Col>
                       <Col sm={4}>
-                        <small className="text-muted d-block">Sisa Maksimal Diskon</small>
-                        <strong>{loadingMaxDiscount ? 'Memuat...' : formatCurrency(remainingDiscountLimit)}</strong>
+                        <small className="text-muted d-block">Remaining Maximum Discount</small>
+                        <strong>{loadingMaxDiscount ? 'Loading...' : formatCurrency(remainingDiscountLimit)}</strong>
                         <small className="text-muted d-block">
                           {maxDiscountPercentage ?? 0}% total order - previous discount
                         </small>
                       </Col>
                       <Col sm={4} className="text-sm-end">
-                        <small className="text-muted d-block">Amount yang Diterapkan</small>
+                        <small className="text-muted d-block">Applied Amount</small>
                         <h5 className="text-primary mb-2">{formatCurrency(applicableRewardDiscount)}</h5>
                         <Button
                           size="sm"
@@ -2233,7 +2233,7 @@ export default function OrderPost() {
                           onClick={addRewardDiscount}
                           disabled={loadingReward || loadingMaxDiscount || selectedRewardTarget === null || !applicableRewardDiscount}
                         >
-                          Terapkan ke Kategori
+                          Apply to Category
                         </Button>
                       </Col>
                     </Row>
@@ -2241,8 +2241,8 @@ export default function OrderPost() {
                 ) : (
                   <div className="bg-light rounded p-3 mt-3 text-muted f-12">
                     {orderInput.cardCode
-                      ? 'Total Reward belum tersedia untuk customer ini.'
-                      : 'Select customer terlebih dahulu untuk mengambil total Reward.'}
+                      ? 'Total Reward is not available for this customer yet.'
+                      : 'Select a customer first to fetch the total Reward.'}
                   </div>
                 )}
               </Card.Body>
@@ -2252,7 +2252,7 @@ export default function OrderPost() {
               <Card.Header className="py-3">
                 <Stack direction="horizontal" className="justify-content-between">
                   <div>
-                    <h6 className="mb-1">Komponen Diskon</h6>
+                    <h6 className="mb-1">Discount Components</h6>
                     <small className="text-muted">All rows below will be saved as one order discount.</small>
                   </div>
                   <Button size="sm" variant="light-primary" onClick={addItemDisc}>
@@ -2265,8 +2265,8 @@ export default function OrderPost() {
                 <Table className="mb-0 align-middle" responsive hover>
                   <thead>
                     <tr>
-                      <th style={{ minWidth: 210 }}>Kategori</th>
-                      <th style={{ minWidth: 170 }}>Keterangan</th>
+                      <th style={{ minWidth: 210 }}>Category</th>
+                      <th style={{ minWidth: 170 }}>Remarks</th>
                       <th style={{ minWidth: 130 }}>Amount</th>
                       <th className="text-center">#</th>
                     </tr>
@@ -2282,7 +2282,7 @@ export default function OrderPost() {
                             menuPosition="fixed"
                             onChange={(e) => handleSelectDiscType(e, index)}
                             placeholder="Select or type a category"
-                            formatCreateLabel={(value) => `Gunakan “${value}”`}
+                            formatCreateLabel={(value) => `Use "${value}"`}
                           />
                         </td>
                         <td>
@@ -2290,7 +2290,7 @@ export default function OrderPost() {
                             value={item.remarks || ''}
                             onChange={(e) => handleInputRemarks(index, e)}
                             size="sm"
-                            placeholder="Keterangan"
+                            placeholder="Remarks"
                           />
                         </td>
                         <td>
@@ -2323,7 +2323,7 @@ export default function OrderPost() {
 
             <Stack direction="horizontal" className="justify-content-between bg-light rounded p-3">
               <div>
-                <span className="fw-semibold d-block">Total Diskon Gabungan</span>
+                <span className="fw-semibold d-block">Combined Total Discount</span>
                 <small className="text-muted">{detailDisc.filter((item) => Number(item.value) > 0).length} discount components</small>
               </div>
               <h4 className="mb-0 text-primary">{formatCurrency(discountTotal)}</h4>
@@ -2335,7 +2335,7 @@ export default function OrderPost() {
             Cancel
           </Button>
           <Button onClick={() => handleSubmitDisc()} variant="primary" disabled={loaderDisc || loadingReward || !discountTotal}>
-            {loaderDisc ? <LoaderButton /> : 'Save sebagai 1 Diskon'}
+            {loaderDisc ? <LoaderButton /> : 'Save as 1 Discount'}
           </Button>
         </Modal.Footer>
       </Modal>

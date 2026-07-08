@@ -47,7 +47,7 @@ const allDistributorOption = {
 };
 const accessibleSystemOptions = [
   { value: SYSTEM_KEYS.CUSTOMER_PORTAL, label: 'Distributor' },
-  { value: SYSTEM_KEYS.EKSPEDISI, label: 'Ekspedisi' }
+  { value: SYSTEM_KEYS.EKSPEDISI, label: 'Expedition' }
 ];
 const accessibleSystemAliases = {
   distributor: SYSTEM_KEYS.CUSTOMER_PORTAL,
@@ -578,9 +578,9 @@ export default function UserList() {
               </Button>
             </Col>
             <Col lg={2} md={6} className="text-lg-end">
-              <span className="text-muted f-12">Menampilkan</span>
+              <span className="text-muted f-12">Showing</span>
               <div className="fw-semibold">
-                {filteredData.length} dari {dataSource.length}
+                {filteredData.length} of {dataSource.length}
               </div>
             </Col>
           </Row>
@@ -602,7 +602,7 @@ export default function UserList() {
                     <th style={{ minWidth: 220 }}>Email</th>
                     <th style={{ minWidth: 220 }}>Distributor</th>
                     <th style={{ minWidth: 180 }}>Accessible System</th>
-                    <th style={{ minWidth: 180 }}>Hak Akses</th>
+                    <th style={{ minWidth: 180 }}>Access Rights</th>
                     <th style={{ minWidth: 120 }}>Status</th>
                     <th className="text-center" style={{ width: 140 }}>
                       #
@@ -706,7 +706,7 @@ export default function UserList() {
                   <div className="avtar avtar-xl bg-light-primary text-primary mb-3">
                     <i className="ti ti-user-plus f-24" />
                   </div>
-                  <h6 className="mb-1">{formMode === 'edit' ? 'Perbarui Account' : 'Account Baru'}</h6>
+                  <h6 className="mb-1">{formMode === 'edit' ? 'Update Account' : 'New Account'}</h6>
                   <p className="text-muted mb-0">Complete the user identity, role, and linked distributor code.</p>
                 </Card.Body>
               </Card>
@@ -741,7 +741,7 @@ export default function UserList() {
                   />
                 </Col>
                 <Col md={6}>
-                  <Form.Label className="f-12 text-muted">Hak Akses</Form.Label>
+                  <Form.Label className="f-12 text-muted">Access Rights</Form.Label>
                   <Form.Select value={input.roleId} onChange={(event) => handleSetState('roleId', event)}>
                     <option value="">Select Access Rights</option>
                     {listRole.map((role) => (
@@ -780,11 +780,11 @@ export default function UserList() {
                 </Col>
                 {/* ) : null} */}
                 <Col md={12}>
-                  <Form.Label className="f-12 text-muted">{formMode === 'edit' ? 'Password Baru' : 'Password'}</Form.Label>
+                  <Form.Label className="f-12 text-muted">{formMode === 'edit' ? 'New Password' : 'Password'}</Form.Label>
                   <div className="sm-user-password-field">
                     <Form.Control
                       type={showPassword ? 'text' : 'password'}
-                      placeholder={formMode === 'edit' ? 'Kosongkan jika tidak diubah' : 'Password awal'}
+                      placeholder={formMode === 'edit' ? 'Leave blank if unchanged' : 'Initial password'}
                       value={input.password}
                       onChange={(event) => handleSetState('password', event)}
                     />
@@ -837,7 +837,7 @@ export default function UserList() {
                     <div className="fw-semibold">{selectedUser.username || '-'}</div>
                   </Col>
                   <Col md={6}>
-                    <Form.Label className="f-12 text-muted">Hak Akses</Form.Label>
+                    <Form.Label className="f-12 text-muted">Access Rights</Form.Label>
                     <div>{selectedUser.role?.name || '-'}</div>
                   </Col>
                   <Col md={6}>

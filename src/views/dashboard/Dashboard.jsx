@@ -848,7 +848,7 @@ export default function Dashboard() {
             <Card.Body>
               <Stack direction="horizontal" className="justify-content-between" gap={3}>
                 <div>
-                  <div className="text-muted f-12">Total Quntity (Kg)</div>
+                  <div className="text-muted f-12">Total Quantity (Kg)</div>
                   <h4 className="mb-0">{isLoadingOrders ? '-' : orderSummary.totalItem}</h4>
                 </div>
                 <span className="avtar avtar-s bg-light-info text-info">
@@ -867,7 +867,7 @@ export default function Dashboard() {
             bodyClassName="dashboard-order-overview-body"
             title={
               <Stack gap={1}>
-                <h5 className="mb-0">Tren Sales Order</h5>
+                <h5 className="mb-0">Sales Order Trend</h5>
                 <span className="text-muted f-12">Sales order count and value in the last 6 months.</span>
               </Stack>
             }
@@ -875,7 +875,7 @@ export default function Dashboard() {
             <div ref={chartContainerRef} style={{ minHeight: 340, width: '100%' }}>
               {isLoadingOrders || !isChartReady ? (
                 <div className="d-flex align-items-center justify-content-center text-muted" style={{ minHeight: 340 }}>
-                  Memuat data sales order...
+                  Loading sales order data...
                 </div>
               ) : (
                 <ReactApexChart options={chartOptions} series={chartData.series} type={chartData.type} height={340} width="100%" />
@@ -890,13 +890,13 @@ export default function Dashboard() {
             title={
               <Stack gap={1}>
                 <h5 className="mb-0">Status Order</h5>
-                <span className="text-muted f-12">Information status dari sales order yang dibuat.</span>
+                <span className="text-muted f-12">Status information for created sales orders.</span>
               </Stack>
             }
           >
             <Stack gap={2} style={{ height: 340, overflowY: 'auto', paddingRight: 4 }}>
               {isLoadingOrders ? (
-                <div className="d-flex align-items-center justify-content-center text-muted h-100">Memuat status order...</div>
+                <div className="d-flex align-items-center justify-content-center text-muted h-100">Loading order status...</div>
               ) : statusSummary.length > 0 ? (
                 statusSummary.map((item) => (
                   <Card className="border mb-0" key={item.status}>
@@ -936,7 +936,7 @@ export default function Dashboard() {
         <div style={{ minHeight: 320, width: '100%' }}>
           {isLoadingOrders || !isChartReady ? (
             <div className="d-flex align-items-center justify-content-center text-muted" style={{ minHeight: 320 }}>
-              Memuat data top product...
+              Loading top product data...
             </div>
           ) : topProductsChartData.categories.length > 0 ? (
             <ReactApexChart options={topProductsChartOptions} series={topProductsChartData.series} type="bar" height={320} width="100%" />

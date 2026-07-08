@@ -198,7 +198,7 @@ export default function CronJobList() {
         {loading ? (
           <div className="text-center py-5">
             <Spinner animation="border" variant="primary" />
-            <p className="text-muted mt-2">Memuat konfigurasi cron job...</p>
+            <p className="text-muted mt-2">Loading cron job configuration...</p>
           </div>
         ) : jobs.length === 0 ? (
           <div className="text-center py-5 text-muted">
@@ -212,11 +212,11 @@ export default function CronJobList() {
                 <tr>
                   <th style={{ width: '25%' }}>Name & Description</th>
                   <th>Artisan Command</th>
-                  <th>Jadwal (Cron Expression)</th>
-                  <th>Terakhir Dijalankan</th>
-                  <th>Status Terakhir</th>
+                  <th>Schedule (Cron Expression)</th>
+                  <th>Last Run</th>
+                  <th>Last Status</th>
                   <th className="text-center">Active</th>
-                  <th className="text-end">Aksi</th>
+                  <th className="text-end">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -257,14 +257,14 @@ export default function CronJobList() {
                           <i className="ti ti-file-text me-1" />
                           Log
                         </Button>
-                        <Button variant="outline-primary" size="sm" title="Edit Jadwal" onClick={() => openEditModal(job)}>
+                        <Button variant="outline-primary" size="sm" title="Edit Schedule" onClick={() => openEditModal(job)}>
                           <i className="ti ti-edit me-1" />
                           Edit
                         </Button>
                         <Button
                           variant="success"
                           size="sm"
-                          title="Jalankan Sekarang"
+                          title="Run Now"
                           onClick={() => handleRunJob(job)}
                           disabled={runningJobId === job.id}
                         >
@@ -273,7 +273,7 @@ export default function CronJobList() {
                           ) : (
                             <i className="ti ti-player-play me-1" />
                           )}
-                          Jalankan
+                          Run
                         </Button>
                       </div>
                     </td>
@@ -293,7 +293,7 @@ export default function CronJobList() {
           </Modal.Header>
           <Modal.Body>
             <Form.Group className="mb-3" controlId="formExpression">
-              <Form.Label className="fw-semibold">Cron Expression (Format: Menit Jam Hari Bulan Hari-Minggu)</Form.Label>
+              <Form.Label className="fw-semibold">Cron Expression (Format: Minute Hour Day Month Day-of-Week)</Form.Label>
               <InputGroup>
                 <Form.Control
                   type="text"
@@ -304,17 +304,17 @@ export default function CronJobList() {
                 />
               </InputGroup>
               <Form.Text className="text-muted">
-                Contoh: <code>* * * * *</code> (Setiap Menit), <code>*/15 * * * *</code> (15 Menit Sekali),{' '}
+                Example: <code>* * * * *</code> (Every Minute), <code>*/15 * * * *</code> (Every 15 Minutes),{' '}
                 <code>0 0 * * *</code> (Midnight).
               </Form.Text>
             </Form.Group>
 
             <Form.Group className="mb-3" controlId="formDescription">
-              <Form.Label className="fw-semibold">Deskripsi</Form.Label>
+              <Form.Label className="fw-semibold">Description</Form.Label>
               <Form.Control
                 as="textarea"
                 rows={3}
-                placeholder="Deskripsi tugas otomatis"
+                placeholder="Description tugas otomatis"
                 value={editForm.description}
                 onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
               />
@@ -349,7 +349,7 @@ export default function CronJobList() {
           {logsLoading ? (
             <div className="text-center py-4">
               <Spinner animation="border" />
-              <p className="text-muted mt-2">Memuat riwayat logs...</p>
+              <p className="text-muted mt-2">Loading log history...</p>
             </div>
           ) : logs.length === 0 ? (
             <div className="text-center py-4 text-muted">No log history for this task yet.</div>

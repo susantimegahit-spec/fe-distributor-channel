@@ -625,7 +625,7 @@ export default function MasterPromo() {
                 <th style={{ minWidth: 260 }}>Customer</th>
                 <th style={{ minWidth: 190 }}>Periode</th>
                 <th style={{ minWidth: 260 }}>Item</th>
-                <th style={{ minWidth: 240 }}>Keterangan</th>
+                <th style={{ minWidth: 240 }}>Remarks</th>
                 <th style={{ minWidth: 120 }}>Status</th>
                 <th className="text-center" style={{ minWidth: 150 }}>
                   #
@@ -858,8 +858,8 @@ export default function MasterPromo() {
                       <th style={{ minWidth: 140 }}>Min Qty Kg</th>
                       <th style={{ minWidth: 140 }}>Max Qty Kg</th>
                       <th style={{ minWidth: 180 }}>Price Promo / Kg</th>
-                      <th style={{ minWidth: 160 }}>Diskon / Kg</th>
-                      {/* <th style={{ minWidth: 160 }}>Estimasi Net</th> */}
+                      <th style={{ minWidth: 160 }}>Discount / Kg</th>
+                      {/* <th style={{ minWidth: 160 }}>Estimated Net</th> */}
                       <th className="text-center" style={{ width: 72 }}>
                         #
                       </th>
@@ -1023,7 +1023,7 @@ export default function MasterPromo() {
                       ) : (
                         <tr>
                           <td colSpan={4} className="text-center text-muted py-4">
-                            Customer program tidak tersedia
+                            Customer program is not available
                           </td>
                         </tr>
                       )}
@@ -1057,7 +1057,7 @@ export default function MasterPromo() {
                       ) : (
                         <tr>
                           <td colSpan={3} className="text-center text-muted py-4">
-                            Item program tidak tersedia
+                            Item program is not available
                           </td>
                         </tr>
                       )}
@@ -1086,7 +1086,7 @@ export default function MasterPromo() {
                           Price Promo / Kg
                         </th>
                         <th className="text-end" style={{ minWidth: 160 }}>
-                          Diskon / Kg
+                          Discount / Kg
                         </th>
                       </tr>
                     </thead>

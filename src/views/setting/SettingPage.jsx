@@ -23,11 +23,11 @@ const adminRoleId = 5;
 const generalSettingKey = 'dc-general-settings';
 
 const tabs = [
-  { key: 'users', title: 'Setting User', icon: 'ti ti-users' },
+  { key: 'users', title: 'Users', icon: 'ti ti-users' },
   // { key: 'general', title: 'Setting', icon: 'ti ti-settings' },
-  { key: 'permissions', title: 'Hak Akses', icon: 'ti ti-shield-lock' },
-  { key: 'signatures', title: 'Setting TTD User', icon: 'ti ti-signature' },
-  { key: 'cronjobs', title: 'Setting Cron Job', icon: 'ti ti-alarm', adminOnly: true }
+  { key: 'permissions', title: 'Access Control', icon: 'ti ti-shield-lock' },
+  { key: 'signatures', title: 'Signatures', icon: 'ti ti-signature' },
+  { key: 'cronjobs', title: 'Automation', icon: 'ti ti-alarm', adminOnly: true }
 ];
 
 const canAccessTab = (tab, isAdministrator) => !tab.adminOnly || isAdministrator;

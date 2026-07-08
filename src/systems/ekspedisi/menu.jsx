@@ -1,28 +1,28 @@
 const ekspedisiMenu = [
   {
     id: 'ekspedisi-dashboard',
-    title: 'Ekspedisi',
+    title: 'Expedition',
     type: 'group',
     value: 'ekspedisi',
-    label: 'Ekspedisi',
+    label: 'Expedition',
     selected: true,
     children: [
       {
         id: 'ekspedisi-overview',
-        title: 'Dashboard Ekspedisi',
+        title: 'Expedition Dashboard',
         type: 'item',
         value: 'ekspedisi-overview',
-        label: 'Dashboard Ekspedisi',
+        label: 'Expedition Dashboard',
         selected: true,
         icon: 'ti ti-truck-delivery',
         url: '/ekspedisi/dashboard'
       },
       {
         id: 'ekspedisi-master',
-        title: 'Master Ekspedisi',
+        title: 'Expedition Master',
         type: 'item',
         value: 'ekspedisi-master',
-        label: 'Master Ekspedisi',
+        label: 'Expedition Master',
         icon: 'ti ti-package-export',
         url: '/ekspedisi/master/ekspedisi'
       }

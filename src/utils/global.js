@@ -9,7 +9,7 @@ const currencyFormat = (angka, prefix = 'Rp') => {
     rupiah = split[0].substr(0, sisa),
     ribuan = split[0].substr(sisa).match(/\d{3}/gi);
 
-  // tambahkan titik jika yang di input sudah menjadi angka ribuan
+  // Add thousand separators after the numeric input is normalized.
   if (ribuan) {
     let separator = sisa ? '.' : '';
     rupiah += separator + ribuan.join('.');

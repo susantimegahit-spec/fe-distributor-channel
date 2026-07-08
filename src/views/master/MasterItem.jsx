@@ -76,7 +76,7 @@ export default function MasterItem() {
                     <th>Name</th>
                     <th>No. Telpon</th>
                     <th>Depo</th>
-                    <th className="w-25">Alamat</th>
+                    <th className="w-25">Address</th>
                     <th>Status</th>
                     <th className="text-center">#</th>
                   </tr>

@@ -30,17 +30,17 @@ export const formatNotificationTime = (value) => {
 };
 
 export const getNotificationSectionDate = (value) => {
-  if (!value) return 'Terbaru';
+  if (!value) return 'Latest';
 
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Terbaru';
+  if (Number.isNaN(date.getTime())) return 'Latest';
 
   const today = new Date();
   const yesterday = new Date();
   yesterday.setDate(today.getDate() - 1);
 
-  if (date.toDateString() === today.toDateString()) return 'Hari ini';
-  if (date.toDateString() === yesterday.toDateString()) return 'Kemarin';
+  if (date.toDateString() === today.toDateString()) return 'Today';
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
 
   return date.toLocaleDateString('id-ID', {
     day: '2-digit',
