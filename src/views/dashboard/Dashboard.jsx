@@ -863,7 +863,8 @@ export default function Dashboard() {
       <Row className="g-3">
         <Col xl={8}>
           <MainCard
-            className="claim-transaction-card"
+            className="claim-transaction-card dashboard-order-overview-card h-100"
+            bodyClassName="dashboard-order-overview-body"
             title={
               <Stack gap={1}>
                 <h5 className="mb-0">Tren Sales Order</h5>
@@ -884,7 +885,8 @@ export default function Dashboard() {
         </Col>
         <Col xl={4} className="d-flex">
           <MainCard
-            className="claim-transaction-card h-100 w-100"
+            className="claim-transaction-card dashboard-order-overview-card h-100 w-100"
+            bodyClassName="dashboard-order-overview-body"
             title={
               <Stack gap={1}>
                 <h5 className="mb-0">Status Order</h5>
