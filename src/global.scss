@@ -530,6 +530,249 @@ body {
   box-shadow: none;
 }
 
+.sm-change-password-dialog.modal-dialog {
+  max-width: 440px;
+}
+
+.sm-change-password-modal {
+  overflow: hidden;
+  border: 0;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 20px 56px rgba(23, 31, 79, 0.2);
+}
+
+.sm-change-password-header.modal-header {
+  align-items: center;
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid #eef1f7;
+  background: #fbfcff;
+}
+
+.sm-change-password-header .btn-close {
+  margin-top: 2px;
+  opacity: 0.55;
+}
+
+.sm-change-password-header .btn-close:hover,
+.sm-change-password-header .btn-close:focus {
+  opacity: 0.85;
+  box-shadow: none;
+}
+
+.sm-change-password-title.modal-title {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  max-width: calc(100% - 34px);
+  color: #202944;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.sm-change-password-title span span {
+  display: block;
+  font-weight: 700;
+}
+
+.sm-change-password-title small {
+  display: block;
+  margin-top: 2px;
+  color: #6f7890;
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+
+.sm-change-password-title-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: #edf5ff;
+  color: #315fb4;
+  font-size: 1.25rem;
+}
+
+.sm-change-password-body.modal-body {
+  padding: 20px 22px 8px;
+}
+
+.sm-change-password-note {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border: 1px solid #dfe9fb;
+  border-radius: 10px;
+  background: #f5f9ff;
+  color: #445371;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.sm-change-password-note i {
+  margin-top: 2px;
+  color: #315fb4;
+  font-size: 1rem;
+}
+
+.sm-change-password-control .form-label {
+  margin-bottom: 7px;
+  color: #697386 !important;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.sm-change-password-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 46px;
+  border: 1px solid #dfe3ee;
+  border-radius: 10px;
+  background: #fff;
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.sm-change-password-input:focus-within {
+  border-color: #3569bd;
+  box-shadow: 0 0 0 0.2rem rgba(53, 105, 189, 0.1);
+}
+
+.sm-change-password-input.is-invalid {
+  border-color: #d82f43;
+}
+
+.sm-change-password-input.is-invalid:focus-within {
+  box-shadow: 0 0 0 0.2rem rgba(216, 47, 67, 0.1);
+}
+
+.sm-change-password-input-icon {
+  display: inline-flex;
+  flex: 0 0 46px;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  border-right: 1px solid #edf0f6;
+  border-radius: 10px 0 0 10px;
+  background: #f7f9fd;
+  color: #6e7894;
+  font-size: 1rem;
+}
+
+.sm-change-password-input:focus-within .sm-change-password-input-icon {
+  color: #315fb4;
+  background: #f3f8ff;
+}
+
+.sm-change-password-input-control.form-control {
+  min-width: 0;
+  min-height: 44px;
+  padding: 9px 48px 9px 14px;
+  border: 0;
+  background: transparent;
+  border-color: #dfe3ee;
+  color: #202944;
+  font-size: 0.92rem;
+  box-shadow: none;
+}
+
+.sm-change-password-input-control.form-control:focus {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.sm-change-password-input-control.form-control::placeholder {
+  color: #9aa1bd;
+}
+
+.sm-change-password-visibility.btn {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  color: #858bad;
+  text-decoration: none;
+  transform: translateY(-50%);
+}
+
+.sm-change-password-visibility.btn:hover,
+.sm-change-password-visibility.btn:focus {
+  background: #f3f6fb;
+  color: #315fb4;
+  box-shadow: none;
+}
+
+.sm-change-password-feedback {
+  margin-top: 6px;
+  color: #d82f43;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.sm-change-password-footer.modal-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 16px 22px 22px;
+  border-top: 0;
+}
+
+.sm-change-password-footer.modal-footer > * {
+  margin: 0;
+}
+
+.sm-change-password-footer .btn {
+  min-width: 108px;
+  min-height: 42px;
+  border-radius: 10px;
+  font-weight: 700;
+}
+
+.sm-change-password-cancel.btn {
+  border-color: #e3e7f0;
+  background: #f7f9fd;
+  color: #4d5870;
+}
+
+.sm-change-password-cancel.btn:hover,
+.sm-change-password-cancel.btn:focus {
+  border-color: #d8deeb;
+  background: #eef2f8;
+  color: #202944;
+}
+
+.sm-change-password-submit.btn {
+  border: 0;
+  background: #315fb4;
+  box-shadow: 0 10px 18px rgba(49, 95, 180, 0.2);
+}
+
+.sm-change-password-submit.btn:hover,
+.sm-change-password-submit.btn:focus {
+  background: #274f9b;
+  box-shadow: 0 12px 22px rgba(49, 95, 180, 0.25);
+}
+
+.sm-change-password-submit.btn:disabled {
+  background: #aab6cc;
+  box-shadow: none;
+}
+
 .sm-login-action {
   margin-top: 26px;
 }
@@ -725,6 +968,37 @@ body {
   .sm-password-toggle {
     top: 50%;
     right: 7px;
+  }
+
+  .sm-change-password-dialog.modal-dialog {
+    margin: 12px;
+  }
+
+  .sm-change-password-header.modal-header {
+    padding: 18px 18px 15px;
+  }
+
+  .sm-change-password-body.modal-body {
+    padding: 18px 18px 8px;
+  }
+
+  .sm-change-password-title.modal-title {
+    gap: 11px;
+  }
+
+  .sm-change-password-title-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+
+  .sm-change-password-footer.modal-footer {
+    flex-direction: column-reverse;
+    padding: 14px 18px 18px;
+  }
+
+  .sm-change-password-footer .btn {
+    width: 100%;
   }
 
   .sm-login-action {

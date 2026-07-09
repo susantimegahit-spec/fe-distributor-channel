@@ -43,6 +43,8 @@ export default function OrderPost() {
   const [rewardDiscountPreview, setRewardDiscountPreview] = useState([]);
   const [rewardResultCount, setRewardResultCount] = useState(0);
   const [loadingReward, setLoadingReward] = useState(false);
+  const [availableBalance, setAvailableBalance] = useState(0);
+  const [loadingAvailableBalance, setLoadingAvailableBalance] = useState(false);
   const [maxDiscountPercentage, setMaxDiscountPercentage] = useState(null);
   const [loadingMaxDiscount, setLoadingMaxDiscount] = useState(false);
   const [loadingSeries, setLoadingSeries] = useState(false);
@@ -158,6 +160,7 @@ export default function OrderPost() {
     docDate: todayDate,
     docDueDate: todayDate,
     etaDate: addDaysToDate(todayDate, 7),
+    useBalance: false,
     series: '',
     seriesName: '',
     slpCode: '',
@@ -208,6 +211,48 @@ export default function OrderPost() {
     fetchSalesOrderSeries(orderInput.docDate);
   }, [orderInput.docDate, shouldShowSeriesSalesOrder]);
 
+  useEffect(() => {
+    let isActive = true;
+
+    const fetchAvailableBalance = async () => {
+      if (!orderInput.cardCode) {
+        setAvailableBalance(0);
+        return;
+      }
+
+      setLoadingAvailableBalance(true);
+
+      try {
+        const response = await PromoServices.getTotalReward({
+          customer_code: orderInput.cardCode
+        });
+
+        if (!isActive) return;
+
+        if (response?.data?.success === false) {
+          setAvailableBalance(0);
+          return;
+        }
+
+        setAvailableBalance(getAvailableBalance(response));
+      } catch (error) {
+        if (isActive) {
+          setAvailableBalance(0);
+        }
+      } finally {
+        if (isActive) {
+          setLoadingAvailableBalance(false);
+        }
+      }
+    };
+
+    fetchAvailableBalance();
+
+    return () => {
+      isActive = false;
+    };
+  }, [orderInput.cardCode]);
+
   const getValue = (data, keys, defaultValue = '') => {
     for (const key of keys) {
       const value = String(key)
@@ -220,6 +265,20 @@ export default function OrderPost() {
     }
 
     return defaultValue;
+  };
+
+  const normalizeBoolean = (value) => {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value === 1;
+
+    return ['1', 'true', 'yes', 'y'].includes(String(value || '').trim().toLowerCase());
+  };
+
+  const getAvailableBalance = (response) => {
+    const payload = response?.data?.data ?? response?.data;
+    const source = Array.isArray(payload) ? payload[0] : payload?.data && !Array.isArray(payload.data) ? payload.data : payload;
+
+    return Number(source?.available_balance ?? source?.availableBalance ?? 0) || 0;
   };
 
   const getPrimitiveValue = (data, keys, defaultValue = '') => {
@@ -526,8 +585,8 @@ export default function OrderPost() {
           ]
     );
     const docDate = formatDateInput(getValue(order, ['doc_date', 'docDate', 'DocDate']));
-    const docDueDate = formatDateInput(getValue(order, ['doc_due_date', 'docDueDate', 'DocDueDate']));
-    const minEtaDate = docDueDate || todayDate;
+    const docDueDate = docDate;
+    const minEtaDate = docDate || todayDate;
     const orderEtaDate = formatDateInput(getValue(order, ['eta_date', 'etaDate', 'ETA', 'u_eta', 'U_ETA'])) || addDaysToDate(minEtaDate, 7);
     const etaDate = orderEtaDate < minEtaDate ? minEtaDate : orderEtaDate;
 
@@ -537,6 +596,7 @@ export default function OrderPost() {
       docDate,
       docDueDate,
       etaDate,
+      useBalance: normalizeBoolean(getValue(order, ['use_balance', 'useBalance'], false)),
       series: getValue(order, ['series', 'Series', 'series_code', 'seriesCode']),
       seriesName: getValue(order, orderSeriesNameKeys, ''),
       slpCode: getValue(order, ['slp_code', 'slpCode', 'SlpCode']),
@@ -855,26 +915,20 @@ export default function OrderPost() {
   };
 
   const handleSetDocDate = (e) => {
+    const docDate = e.target.value;
+
     setOrderInput({
       ...orderInput,
-      docDate: e.target.value,
+      docDate,
+      docDueDate: docDate,
+      etaDate: addDaysToDate(docDate, 7),
       series: '',
       seriesName: ''
     });
   };
 
-  const handleSetDocDueDate = (e) => {
-    const docDueDate = e.target.value;
-
-    setOrderInput({
-      ...orderInput,
-      docDueDate,
-      etaDate: addDaysToDate(docDueDate, 7)
-    });
-  };
-
   const handleSetEtaDate = (e) => {
-    const minEtaDate = orderInput.etaDate || orderInput.docDueDate || todayDate;
+    const minEtaDate = orderInput.docDate || todayDate;
     const etaDate = e.target.value;
 
     setOrderInput({
@@ -1309,6 +1363,9 @@ export default function OrderPost() {
     }))
     .filter((item) => item.label);
   const grandTotal = Math.max(orderSubtotal - discountTotal, 0);
+  const maximumDiscountEstimatePercentage = 20;
+  const maximumDiscountEstimateLimit = grandTotal * (maximumDiscountEstimatePercentage / 100);
+  const maximumDiscountEstimate = Math.min(maximumDiscountEstimateLimit, availableBalance);
 
   const createOrderPayload = (type) => {
     const arrItem = itemArr.map((item) => ({
@@ -1335,8 +1392,9 @@ export default function OrderPost() {
       card_code: orderInput.cardCode,
       po_number: orderInput.poNumber,
       doc_date: orderInput.docDate,
-      doc_due_date: orderInput.docDueDate,
+      doc_due_date: orderInput.docDate,
       eta_date: orderInput.etaDate,
+      use_balance: orderInput.useBalance,
       Series: orderInput.series,
       series_name: orderInput.seriesName || getSelectedSeriesOption()?.label || '',
       ...(shouldPostSalesCode ? { slp_code: orderInput.slpCode } : {}),
@@ -1489,14 +1547,11 @@ export default function OrderPost() {
     if (!orderInput.docDate) {
       return 'Document Date is required.';
     }
-    if (!orderInput.docDueDate) {
-      return 'Requested Delivery Date is required.';
-    }
     if (!orderInput.etaDate) {
       return 'ETA is required.';
     }
-    if (orderInput.etaDate < orderInput.docDueDate) {
-      return 'ETA cannot be before Requested Delivery Date.';
+    if (orderInput.etaDate < orderInput.docDate) {
+      return 'ETA cannot be before Document Date.';
     }
     if (!orderInput.address) {
       return 'Billing Address is required.';
@@ -1604,49 +1659,49 @@ export default function OrderPost() {
             {isLoading ? (
               <LoaderData />
             ) : (
-              <Row className="g-3">
+              <Row className="g-3 align-items-stretch">
                 <Col lg={isCustomerRole ? 12 : 9}>
                   <Card className="border mb-0 h-100 claim-transaction-card">
-                    <Card.Header className="py-3">
-                      <Stack direction="horizontal" gap={2} className="justify-content-between">
-                        <div>
-                          <h5 className="mb-0">Information Order</h5>
-                          <small className="text-muted">Main transaction and customer data</small>
-                        </div>
-                        <Badge bg="light" text="dark">
-                          Draft
-                        </Badge>
-                      </Stack>
-                    </Card.Header>
-                    <Card.Body>
-                      <Row className="g-4">
-                        <Col md={6} xl={4}>
-                          <Form.Group>
-                            <Form.Label className="small text-muted">
-                              <RequiredLabel>Customer Code</RequiredLabel>
-                            </Form.Label>
-                            {isCustomerRole ? (
-                              <Form.Control
-                                readOnly
-                                onChange={(e) => handleSetInput(e, 'cardCode')}
-                                value={orderInput.cardCode}
-                                type="text"
-                                placeholder="Customer Code"
-                                size="sm"
-                              />
-                            ) : (
-                              <Select
-                                styles={customStyles}
-                                value={listDistributor.find((item) => item.value === orderInput.cardCode) || null}
-                                options={listDistributor}
-                                menuPosition="fixed"
-                                onChange={handleSelectDistributor}
-                                placeholder="Select Customer"
-                                isClearable
-                              />
-                            )}
-                          </Form.Group>
-                        </Col>
+                      <Card.Header className="py-3">
+                        <Stack direction="horizontal" gap={2} className="justify-content-between">
+                          <div>
+                            <h5 className="mb-0">Information Order</h5>
+                            <small className="text-muted">Main transaction and customer data</small>
+                          </div>
+                          <Badge bg="light" text="dark">
+                            Draft
+                          </Badge>
+                        </Stack>
+                      </Card.Header>
+                      <Card.Body>
+                        <Row className="g-4">
+                          <Col md={6} xl={4}>
+                            <Form.Group>
+                              <Form.Label className="small text-muted">
+                                <RequiredLabel>Customer Code</RequiredLabel>
+                              </Form.Label>
+                              {isCustomerRole ? (
+                                <Form.Control
+                                  readOnly
+                                  onChange={(e) => handleSetInput(e, 'cardCode')}
+                                  value={orderInput.cardCode}
+                                  type="text"
+                                  placeholder="Customer Code"
+                                  size="sm"
+                                />
+                              ) : (
+                                <Select
+                                  styles={customStyles}
+                                  value={listDistributor.find((item) => item.value === orderInput.cardCode) || null}
+                                  options={listDistributor}
+                                  menuPosition="fixed"
+                                  onChange={handleSelectDistributor}
+                                  placeholder="Select Customer"
+                                  isClearable
+                                />
+                              )}
+                            </Form.Group>
+                          </Col>
                         <Col md={6} xl={4}>
                           <Form.Group>
                             <Form.Label className="small text-muted">
@@ -1703,26 +1758,12 @@ export default function OrderPost() {
                         </Col>
                         <Col md={6} xl={4}>
                           <Form.Group>
-                            <Form.Label className="small text-muted">
-                              <RequiredLabel>Requested Delivery Date</RequiredLabel>
-                            </Form.Label>
-                            <Form.Control
-                              onChange={handleSetDocDueDate}
-                              value={orderInput.docDueDate}
-                              type="date"
-                              min={todayDate}
-                              size="sm"
-                            />
-                          </Form.Group>
-                        </Col>
-                        <Col md={6} xl={4}>
-                          <Form.Group>
-                            <Form.Label className="small text-muted">ETA</Form.Label>
+                            <Form.Label className="small text-muted">Estimate Time Arrival</Form.Label>
                             <Form.Control
                               onChange={handleSetEtaDate}
                               value={orderInput.etaDate}
                               type="date"
-                              min={orderInput.etaDate || orderInput.docDueDate || todayDate}
+                              min={orderInput.docDate || todayDate}
                               size="sm"
                             />
                           </Form.Group>
@@ -1790,7 +1831,7 @@ export default function OrderPost() {
                   </Card>
                 </Col>
                 {canSelectSales ? (
-                  <Col lg={3}>
+                  <Col lg={3} className="d-flex">
                     <Card className="border mb-0 h-100 claim-transaction-card">
                       <Card.Header className="py-3">
                         <h5 className="mb-0">Order Summary</h5>
@@ -1835,6 +1876,51 @@ export default function OrderPost() {
                     </Card>
                   </Col>
                 ) : null}
+                <Col lg={12}>
+                  <Card className="border mb-0 claim-transaction-card">
+                    <Card.Body>
+                      <Stack gap={3}>
+                        <Stack direction="horizontal" gap={3} className="align-items-start justify-content-between">
+                          <div>
+                            <h5 className="mb-1">Use Available Balance</h5>
+                            <small className="text-muted">When enabled, this order will use the available balance.</small>
+                          </div>
+                          <Form.Check
+                            className="fs-4 mb-0"
+                            type="switch"
+                            id="use_balance"
+                            name="use_balance"
+                            checked={Boolean(orderInput.useBalance)}
+                            onChange={(event) =>
+                              setOrderInput((prevState) => ({
+                                ...prevState,
+                                useBalance: event.target.checked
+                              }))
+                            }
+                          />
+                        </Stack>
+                        <Row className="g-3">
+                          <Col md={orderInput.useBalance ? 6 : 12}>
+                            <div className="border rounded p-3 h-100">
+                              <div className="text-muted f-12 mb-1">Available Balance</div>
+                              <h5 className="mb-0 text-success">
+                                {loadingAvailableBalance ? 'Loading...' : formatCurrency(availableBalance)}
+                              </h5>
+                            </div>
+                          </Col>
+                          {orderInput.useBalance ? (
+                            <Col md={6}>
+                              <div className="border rounded p-3 h-100 bg-light">
+                                <div className="text-muted f-12 mb-1">Maximum Estimated Discount Value</div>
+                                <h5 className="mb-1 text-primary">{formatCurrency(maximumDiscountEstimate)}</h5>
+                              </div>
+                            </Col>
+                          ) : null}
+                        </Row>
+                      </Stack>
+                    </Card.Body>
+                  </Card>
+                </Col>
               </Row>
             )}
           </MainCard>

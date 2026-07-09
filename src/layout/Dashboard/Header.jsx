@@ -6,12 +6,9 @@ import { useDispatch } from 'react-redux';
 
 // react-bootstrap
 import Button from 'react-bootstrap/Button';
-import Card from 'react-bootstrap/Card';
-import Col from 'react-bootstrap/Col';
 import Dropdown from 'react-bootstrap/Dropdown';
 import Form from 'react-bootstrap/Form';
 import Nav from 'react-bootstrap/Nav';
-import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 
 // project-imports
@@ -19,7 +16,7 @@ import SimpleBarScroll from 'components/third-party/SimpleBar';
 import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
 
 import { getCookies } from '../../utils/cookies';
-import { InputGroup, Modal } from 'react-bootstrap';
+import { Modal } from 'react-bootstrap';
 import UserServices from '../../services/UserServices';
 import NotificationServices from '../../services/NotificationServices';
 import LoaderButton from '../../components/LoaderButton';
@@ -578,87 +575,99 @@ export default function Header({ showSidebar = true }) {
           </Nav>
         </div>
       </div>
-      <Modal show={showChangePass} size="lg" centered onHide={closeChangePassword}>
-        <Modal.Header closeButton>
-          <Modal.Title>Change Password</Modal.Title>
+      <Modal
+        show={showChangePass}
+        centered
+        onHide={closeChangePassword}
+        dialogClassName="sm-change-password-dialog"
+        contentClassName="sm-change-password-modal"
+      >
+        <Modal.Header closeButton className="sm-change-password-header">
+          <Modal.Title className="sm-change-password-title">
+            <span className="sm-change-password-title-icon">
+              <i className="ph ph-lock-key" />
+            </span>
+            <span className="min-w-0">
+              <span>Change Password</span>
+              <small>Update your account security credentials.</small>
+            </span>
+          </Modal.Title>
         </Modal.Header>
-        <Modal.Body>
-          <Row className="g-3">
-            <Col lg={4}>
-              <Card className="border mb-0 h-100">
-                <Card.Body>
-                  <div className="avtar avtar-xl bg-light-primary text-primary mb-3">
-                    <i className="ph ph-lock-key f-24" />
-                  </div>
-                  <h6 className="mb-1">Account Security</h6>
-                  <p className="text-muted mb-0">Use a new password that is different and easy for you to remember.</p>
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col lg={8}>
-              <Stack gap={3}>
-                <div>
-                  <Form.Label className="f-12 text-muted">Old Password</Form.Label>
-                  <InputGroup className="sm-input-group">
-                    <InputGroup.Text>
-                      <i className="ti ti-lock" />
-                    </InputGroup.Text>
-                    <Form.Control
-                      type={showOldPassword ? 'text' : 'password'}
-                      placeholder="Enter old password"
-                      value={oldPass}
-                      onChange={(e) => setOldPass(e.target.value)}
-                    />
-                    <Button type="button" variant="light" className="sm-password-toggle" onClick={toggleOldPass}>
-                      {showOldPassword ? <i className="ti ti-eye" /> : <i className="ti ti-eye-off" />}
-                    </Button>
-                  </InputGroup>
-                </div>
-                <div>
-                  <Form.Label className="f-12 text-muted">New Password</Form.Label>
-                  <InputGroup className="sm-input-group">
-                    <InputGroup.Text>
-                      <i className="ti ti-key" />
-                    </InputGroup.Text>
-                    <Form.Control
-                      type={showNewPassword ? 'text' : 'password'}
-                      placeholder="Enter new password"
-                      value={newPass}
-                      onChange={(e) => setNewPass(e.target.value)}
-                    />
-                    <Button type="button" variant="light" className="sm-password-toggle" onClick={toggleNewPass}>
-                      {showNewPassword ? <i className="ti ti-eye" /> : <i className="ti ti-eye-off" />}
-                    </Button>
-                  </InputGroup>
-                </div>
-                <div>
-                  <Form.Label className="f-12 text-muted">Confirm Password</Form.Label>
-                  <InputGroup className="sm-input-group">
-                    <InputGroup.Text>
-                      <i className="ti ti-checkup-list" />
-                    </InputGroup.Text>
-                    <Form.Control
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      placeholder="Repeat new password"
-                      value={confirmPass}
-                      onChange={(e) => setConfirmPass(e.target.value)}
-                      isInvalid={Boolean(confirmPass && newPass !== confirmPass)}
-                    />
-                    <Button type="button" variant="light" className="sm-password-toggle" onClick={toggleConfirmPass}>
-                      {showConfirmPassword ? <i className="ti ti-eye" /> : <i className="ti ti-eye-off" />}
-                    </Button>
-                    <Form.Control.Feedback type="invalid">Password confirmation does not match.</Form.Control.Feedback>
-                  </InputGroup>
-                </div>
-              </Stack>
-            </Col>
-          </Row>
+        <Modal.Body className="sm-change-password-body">
+          <Stack gap={3}>
+            <div className="sm-change-password-note">
+              <i className="ti ti-shield-lock" />
+              <span>Use a new password that is different from your current password.</span>
+            </div>
+            <div className="sm-change-password-control">
+              <Form.Label className="f-12 text-muted">Old Password</Form.Label>
+              <div className="sm-change-password-input">
+                <span className="sm-change-password-input-icon">
+                  <i className="ti ti-lock" />
+                </span>
+                <Form.Control
+                  className="sm-change-password-input-control"
+                  type={showOldPassword ? 'text' : 'password'}
+                  placeholder="Enter old password"
+                  value={oldPass}
+                  onChange={(e) => setOldPass(e.target.value)}
+                />
+                <Button type="button" variant="link" className="sm-change-password-visibility" onClick={toggleOldPass}>
+                  {showOldPassword ? <i className="ti ti-eye" /> : <i className="ti ti-eye-off" />}
+                </Button>
+              </div>
+            </div>
+            <div className="sm-change-password-control">
+              <Form.Label className="f-12 text-muted">New Password</Form.Label>
+              <div className="sm-change-password-input">
+                <span className="sm-change-password-input-icon">
+                  <i className="ti ti-key" />
+                </span>
+                <Form.Control
+                  className="sm-change-password-input-control"
+                  type={showNewPassword ? 'text' : 'password'}
+                  placeholder="Enter new password"
+                  value={newPass}
+                  onChange={(e) => setNewPass(e.target.value)}
+                />
+                <Button type="button" variant="link" className="sm-change-password-visibility" onClick={toggleNewPass}>
+                  {showNewPassword ? <i className="ti ti-eye" /> : <i className="ti ti-eye-off" />}
+                </Button>
+              </div>
+            </div>
+            <div className="sm-change-password-control">
+              <Form.Label className="f-12 text-muted">Confirm Password</Form.Label>
+              <div className={`sm-change-password-input ${confirmPass && newPass !== confirmPass ? 'is-invalid' : ''}`}>
+                <span className="sm-change-password-input-icon">
+                  <i className="ti ti-checkup-list" />
+                </span>
+                <Form.Control
+                  className="sm-change-password-input-control"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  placeholder="Repeat new password"
+                  value={confirmPass}
+                  onChange={(e) => setConfirmPass(e.target.value)}
+                />
+                <Button type="button" variant="link" className="sm-change-password-visibility" onClick={toggleConfirmPass}>
+                  {showConfirmPassword ? <i className="ti ti-eye" /> : <i className="ti ti-eye-off" />}
+                </Button>
+              </div>
+              {confirmPass && newPass !== confirmPass ? (
+                <div className="sm-change-password-feedback">Password confirmation does not match.</div>
+              ) : null}
+            </div>
+          </Stack>
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="light-secondary" onClick={closeChangePassword}>
+        <Modal.Footer className="sm-change-password-footer">
+          <Button variant="light-secondary" className="sm-change-password-cancel" onClick={closeChangePassword}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={() => handleChangePassword()} disabled={loadingSubmit || !canSubmitPassword}>
+          <Button
+            variant="primary"
+            className="sm-change-password-submit"
+            onClick={() => handleChangePassword()}
+            disabled={loadingSubmit || !canSubmitPassword}
+          >
             {loadingSubmit ? <LoaderButton /> : 'Save'}
           </Button>
         </Modal.Footer>

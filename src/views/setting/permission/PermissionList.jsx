@@ -14,6 +14,7 @@ import Modal from 'react-bootstrap/Modal';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
+import Select from 'react-select';
 
 // project-imports
 import MainCard from 'components/MainCard';
@@ -21,12 +22,16 @@ import TablePagination from 'components/TablePagination';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import LoaderButton from '../../../components/LoaderButton';
 import LoaderData from '../../../components/LoaderData';
-import listMenu from '../../../menu-items/list-menu';
 import RoleServices from '../../../services/RoleServices';
+import { SYSTEM_KEYS, getSystemByKey, normalizeAccessibleSystems, normalizePermissionMenu } from '../../../systems';
 import { useAlert } from '../../../utils/alertContext';
 
-const defaultExpanded = ['dashboard', 'masterData', 'order', 'finance'];
 const pageSize = 10;
+const accessibleSystemOptions = [
+  { value: SYSTEM_KEYS.CUSTOMER_PORTAL, label: 'Customer Portal' },
+  { value: SYSTEM_KEYS.EXPEDITION, label: 'Expedition' },
+  { value: SYSTEM_KEYS.PICKING_LIST, label: 'Picking List' }
+];
 
 const getMasterApprovalId = (item) => item?.id || '';
 
@@ -38,12 +43,101 @@ const getMasterApprovalName = (item) =>
   item?.name_master_approval ||
   '';
 
-const countMenuNodes = (menus) =>
-  menus.reduce((total, item) => {
-    const children = item.children?.length ? countMenuNodes(item.children) : 0;
+const getMenuValue = (item) => item?.value || item?.id || '';
+const getPermissionMenuValue = (item) => item?.id || item?.value || '';
 
-    return total + 1 + children;
-  }, 0);
+const scopeMenuNode = (item, systemKey) => {
+  const isParentNode = Boolean(item.children?.length);
+  const value = getMenuValue(item);
+
+  return {
+    ...item,
+    value: isParentNode ? `${systemKey}:${value}` : getPermissionMenuValue(item),
+    label: item.label || item.title,
+    children: item.children?.map((child) => scopeMenuNode(child, systemKey))
+  };
+};
+
+const buildMenuNodesBySystems = (systemKeys = []) =>
+  systemKeys.map((systemKey) => {
+    const system = getSystemByKey(systemKey);
+
+    return {
+      id: system.key,
+      title: system.title,
+      label: system.title,
+      value: system.key,
+      type: 'group',
+      selected: true,
+      children: system.menu.map((item) => scopeMenuNode(item, system.key))
+    };
+  });
+
+const flattenMenuValues = (menus = []) =>
+  menus.flatMap((item) => [getMenuValue(item), ...(item.children?.length ? flattenMenuValues(item.children) : [])]).filter(Boolean);
+
+const flattenExpandableMenuValues = (menus = []) =>
+  menus
+    .flatMap((item) => (item.children?.length ? [getMenuValue(item), ...flattenExpandableMenuValues(item.children)] : []))
+    .filter(Boolean);
+
+const flattenLeafMenuValues = (menus = []) =>
+  menus.flatMap((item) => (item.children?.length ? flattenLeafMenuValues(item.children) : [getMenuValue(item)])).filter(Boolean);
+
+const allSystemKeys = accessibleSystemOptions.map((option) => option.value);
+
+const getSystemMenuValues = (systemKey) => new Set(flattenLeafMenuValues(buildMenuNodesBySystems([systemKey])));
+
+const getRoleMenus = (item) =>
+  normalizePermissionMenu(
+    item?.menu ||
+      item?.menus ||
+      item?.permissions ||
+      item?.role_permissions ||
+      item?.rolePermissions ||
+      item?.role_menu?.menu ||
+      item?.roleMenu?.menu ||
+      item?.role_menu?.menus ||
+      item?.roleMenu?.menus
+  );
+
+const getAccessibleSystemsByMenus = (menus = []) => {
+  const selectedMenus = new Set(menus);
+
+  return allSystemKeys.filter((systemKey) => {
+    if (selectedMenus.has(systemKey) || selectedMenus.has(`${systemKey}:access`)) return true;
+
+    const systemMenuValues = getSystemMenuValues(systemKey);
+
+    return [...selectedMenus].some((menu) => systemMenuValues.has(menu));
+  });
+};
+
+const getRoleAccessibleSystems = (item) =>
+  normalizeAccessibleSystems(
+    item?.accessible_system ||
+      item?.accessible_systems ||
+      item?.accessibleSystems ||
+      item?.systems ||
+      item?.system_permissions ||
+      item?.role_menu?.accessible_system ||
+      item?.role_menu?.accessible_systems
+  );
+
+const resolveRoleAccessibleSystems = (item) => {
+  const roleAccessibleSystems = getRoleAccessibleSystems(item);
+
+  return roleAccessibleSystems.length ? roleAccessibleSystems : getAccessibleSystemsByMenus(getRoleMenus(item));
+};
+
+const formatAccessibleSystems = (item) => {
+  const selectedSystems = resolveRoleAccessibleSystems(item);
+
+  return accessibleSystemOptions
+    .filter((option) => selectedSystems.includes(option.value))
+    .map((option) => option.label)
+    .join(', ');
+};
 
 export default function PermissionList() {
   const { showAlert } = useAlert();
@@ -55,13 +149,23 @@ export default function PermissionList() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [roleId, setRoleId] = useState(null);
   const [checked, setChecked] = useState([]);
-  const [expanded, setExpanded] = useState(defaultExpanded);
+  const [expanded, setExpanded] = useState([]);
   const [menuName, setMenuName] = useState('');
-  const [approvalId, setApprovalId] = useState(null);
+  const [accessibleSystems, setAccessibleSystems] = useState([]);
   const [masterApprovalId, setMasterApprovalId] = useState('');
   const [keywords, setKeywords] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const allMenuNodes = useMemo(() => buildMenuNodesBySystems(allSystemKeys), []);
+  const selectedMenuNodes = useMemo(() => buildMenuNodesBySystems(accessibleSystems), [accessibleSystems]);
+  const selectedMenuValues = useMemo(() => new Set(flattenMenuValues(selectedMenuNodes)), [selectedMenuNodes]);
+  const selectedLeafMenuValues = useMemo(() => new Set(flattenLeafMenuValues(selectedMenuNodes)), [selectedMenuNodes]);
+  const allMenuCount = useMemo(() => flattenLeafMenuValues(allMenuNodes).length, [allMenuNodes]);
+  const selectedMenuCount = selectedLeafMenuValues.size;
+  const selectedCheckedMenus = useMemo(
+    () => [...new Set(checked.filter((item) => selectedLeafMenuValues.has(item)))],
+    [checked, selectedLeafMenuValues]
+  );
 
   useEffect(() => {
     fetchData();
@@ -96,11 +200,17 @@ export default function PermissionList() {
     setLoadingSubmit(true);
     const response = await RoleServices.fetchRole(id);
     if (response.data.success) {
-      setMenuName(response.data.data?.name || '');
-      setMasterApprovalId(getMasterApprovalId(response.data.data?.role_menu?.approval));
-      setChecked(response.data.data?.role_menu?.menu || []);
-      
-      setExpanded(defaultExpanded);
+      const roleDetail = response.data.data;
+      const roleMenus = getRoleMenus(roleDetail);
+      const roleAccessibleSystems = resolveRoleAccessibleSystems(roleDetail);
+      const roleMenuNodes = buildMenuNodesBySystems(roleAccessibleSystems);
+      const roleMenuValues = new Set(flattenMenuValues(roleMenuNodes));
+
+      setMenuName(roleDetail?.name || '');
+      setMasterApprovalId(getMasterApprovalId(roleDetail?.role_menu?.approval));
+      setChecked(roleMenus.filter((item) => roleMenuValues.has(item)));
+      setAccessibleSystems(roleAccessibleSystems);
+      setExpanded(flattenExpandableMenuValues(roleMenuNodes));
       setShowMenu(true);
     } else {
       showAlert('Failed to fetch role detail', 'danger');
@@ -122,9 +232,9 @@ export default function PermissionList() {
       total: dataSource.length,
       active: dataSource.filter((item) => item.is_active).length,
       inactive: dataSource.filter((item) => !item.is_active).length,
-      menu: countMenuNodes(listMenu)
+      menu: allMenuCount
     }),
-    [dataSource]
+    [allMenuCount, dataSource]
   );
 
   const hasActiveFilter = Boolean(keywords || selectedStatus);
@@ -138,9 +248,10 @@ export default function PermissionList() {
   const resetForm = () => {
     setRoleId(null);
     setMenuName('');
+    setAccessibleSystems([]);
     setMasterApprovalId('');
     setChecked([]);
-    setExpanded(defaultExpanded);
+    setExpanded([]);
     setShowMenu(false);
   };
 
@@ -152,9 +263,10 @@ export default function PermissionList() {
   const showAddMenu = () => {
     setRoleId(null);
     setMenuName('');
+    setAccessibleSystems([]);
     setMasterApprovalId('');
     setChecked([]);
-    setExpanded(defaultExpanded);
+    setExpanded([]);
     setShowMenu(true);
   };
 
@@ -168,8 +280,9 @@ export default function PermissionList() {
     const payload = {
       name: menuName,
       is_active: true,
+      accessible_systems: accessibleSystems.toString(),
       approval_id: masterApprovalId,
-      menu: checked
+      menu: selectedCheckedMenus
     };
 
     const response = await RoleServices.postCreateRole(payload);
@@ -188,20 +301,38 @@ export default function PermissionList() {
     const payload = {
       name: menuName,
       is_active: true,
+      accessible_systems: accessibleSystems,
       approval_id: masterApprovalId,
-      menu: checked
+      menu: selectedCheckedMenus
     };
 
     const response = await RoleServices.putEditRole(roleId, payload);
     if (response.data.success) {
       showAlert('Data updated successfully', 'success');
-      Cookies.set('menu', JSON.stringify(checked));
+      Cookies.set('menu', JSON.stringify(selectedCheckedMenus));
+      Cookies.set('system', JSON.stringify(accessibleSystems));
       resetForm();
       window.location.replace('/');
     } else {
       showAlert(response.data.message || 'Failed to update role', 'danger');
     }
     setLoadingSubmit(false);
+  };
+
+  const selectedAccessibleSystems = accessibleSystemOptions.filter((item) => accessibleSystems.includes(item.value));
+
+  const handleSelectAccessibleSystems = (options) => {
+    const selectedSystems = (options || []).map((option) => option.value);
+    const nextMenuNodes = buildMenuNodesBySystems(selectedSystems);
+    const nextMenuValues = new Set(flattenMenuValues(nextMenuNodes));
+
+    setAccessibleSystems(selectedSystems);
+    setChecked((currentChecked) => currentChecked.filter((item) => nextMenuValues.has(item)));
+    setExpanded(flattenExpandableMenuValues(nextMenuNodes));
+  };
+
+  const handleCheckMenu = (value) => {
+    setChecked(value.filter((item) => selectedMenuValues.has(item)));
   };
 
   const handleShowConfirm = (id) => {
@@ -339,7 +470,7 @@ export default function PermissionList() {
             {loadingData ? (
               <tbody>
                 <tr>
-                  <td colSpan={5}>
+                  <td colSpan={6}>
                     <LoaderData />
                   </td>
                 </tr>
@@ -350,6 +481,7 @@ export default function PermissionList() {
                   <tr>
                     <th style={{ minWidth: 260 }}>Role Name</th>
                     <th style={{ minWidth: 180 }}>Permission</th>
+                    <th style={{ minWidth: 220 }}>Accessible System</th>
                     <th style={{ minWidth: 140 }}>Menu Access</th>
                     <th style={{ minWidth: 120 }}>Status</th>
                     <th className="text-center" style={{ width: 120 }}>
@@ -366,6 +498,7 @@ export default function PermissionList() {
                           <small className="text-muted">Role ID: {item.id}</small>
                         </td>
                         <td>{getMasterApprovalName(item) || '-'}</td>
+                        <td>{formatAccessibleSystems(item) || '-'}</td>
                         <td>
                           <Badge bg="light" text="dark">
                             {item.role_menu?.menu?.length || 0} menu
@@ -391,7 +524,7 @@ export default function PermissionList() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={5}>
+                      <td colSpan={6}>
                         <div className="text-center py-5">
                           <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                             <i className="ti ti-shield-lock f-24" />
@@ -431,7 +564,7 @@ export default function PermissionList() {
         </MainCard>
       </Stack>
 
-      <Modal show={showMenu} onHide={resetForm} size="lg" centered>
+      <Modal show={showMenu} onHide={resetForm} size="xl" centered>
         <Modal.Header closeButton>
           <Modal.Title>{roleId ? 'Edit Role Permission' : 'Add Role Permission'}</Modal.Title>
         </Modal.Header>
@@ -449,6 +582,19 @@ export default function PermissionList() {
                         name="roleName"
                         value={menuName}
                         onChange={(event) => setMenuName(event.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Form.Label className="f-12 text-muted">Accessible System</Form.Label>
+                      <Select
+                        value={selectedAccessibleSystems}
+                        options={accessibleSystemOptions}
+                        menuPosition="fixed"
+                        onChange={handleSelectAccessibleSystems}
+                        placeholder="Select accessible system"
+                        isClearable
+                        isMulti
+                        closeMenuOnSelect={false}
                       />
                     </div>
                     <div>
@@ -482,33 +628,37 @@ export default function PermissionList() {
                       <small className="text-muted">Check menus to grant access.</small>
                     </div>
                     <Badge bg="light" text="dark">
-                      {summary.menu} menu
+                      {selectedMenuCount} menu
                     </Badge>
                   </Stack>
                 </Card.Header>
                 <Card.Body style={{ maxHeight: 420, overflow: 'auto' }}>
-                  <CheckboxTree
-                    nodes={listMenu}
-                    checked={checked}
-                    expanded={expanded}
-                    onCheck={(value) => setChecked(value)}
-                    onExpand={(value) => setExpanded(value)}
-                    showNodeIcon={false}
-                    iconsClass="fa4"
-                    showExpandAll
-                    icons={{
-                      check: <span className="ti ti-square-check-filled text-primary" />,
-                      uncheck: <span className="ti ti-crop-1-1" />,
-                      halfCheck: <span className="ti ti-crop-16-9-filled text-primary" />,
-                      expandClose: <span className="ti ti-chevron-up" />,
-                      expandOpen: <span className="ti ti-chevron-down" />,
-                      expandAll: <span className="ti ti-chevrons-down" />,
-                      collapseAll: <span className="ti ti-chevrons-up" />,
-                      parentClose: <span className="ti ti-folder" />,
-                      parentOpen: <span className="ti ti-folder-open" />,
-                      leaf: <span className="ti ti-point" />
-                    }}
-                  />
+                  {selectedMenuNodes.length ? (
+                    <CheckboxTree
+                      nodes={selectedMenuNodes}
+                      checked={checked}
+                      expanded={expanded}
+                      onCheck={handleCheckMenu}
+                      onExpand={(value) => setExpanded(value)}
+                      showNodeIcon={false}
+                      iconsClass="fa4"
+                      showExpandAll
+                      icons={{
+                        check: <span className="ti ti-square-check-filled text-primary" />,
+                        uncheck: <span className="ti ti-crop-1-1" />,
+                        halfCheck: <span className="ti ti-crop-16-9-filled text-primary" />,
+                        expandClose: <span className="ti ti-chevron-up" />,
+                        expandOpen: <span className="ti ti-chevron-down" />,
+                        expandAll: <span className="ti ti-chevrons-down" />,
+                        collapseAll: <span className="ti ti-chevrons-up" />,
+                        parentClose: <span className="ti ti-folder" />,
+                        parentOpen: <span className="ti ti-folder-open" />,
+                        leaf: <span className="ti ti-point" />
+                      }}
+                    />
+                  ) : (
+                    <div className="text-center text-muted py-4">Select an accessible system to view available menus.</div>
+                  )}
                 </Card.Body>
               </Card>
             </Col>
@@ -521,7 +671,7 @@ export default function PermissionList() {
           <Button
             variant="primary"
             onClick={() => (roleId ? handleEdit() : handleCreate())}
-            disabled={loadingSubmit || !menuName || !masterApprovalId}
+            disabled={loadingSubmit || !menuName || !masterApprovalId || !accessibleSystems.length || !selectedCheckedMenus.length}
           >
             {loadingSubmit ? <LoaderButton /> : 'Save'}
           </Button>

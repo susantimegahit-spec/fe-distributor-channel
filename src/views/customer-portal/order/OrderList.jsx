@@ -80,6 +80,89 @@ const getStatusLabel = (value) => {
   return statusOptions.find((item) => item.value === normalizedStatus)?.label || normalizedStatus.replace(/_/g, ' ');
 };
 
+const WAITING_STATUS_FILTER = 'WAITING_APPROVAL';
+const isWaitingStatus = (value) => normalizeStatus(value).startsWith('WAITING_');
+
+const statusSummaryItems = [
+  {
+    value: 'DRAFT',
+    label: 'Draft',
+    icon: 'ti ti-clipboard-list',
+    avatarClassName: 'bg-light-secondary text-secondary',
+    activeClassName: 'border-secondary shadow-sm'
+  },
+  {
+    value: WAITING_STATUS_FILTER,
+    label: 'Waiting',
+    icon: 'ti ti-clock-hour-4',
+    avatarClassName: 'bg-light-warning text-warning',
+    activeClassName: 'border-warning shadow-sm'
+  },
+  {
+    value: 'WAITING_ADMIN_SALES',
+    label: 'Waiting Admin Sales',
+    icon: 'ti ti-user-cog',
+    avatarClassName: 'bg-light-primary text-primary',
+    activeClassName: 'border-primary shadow-sm'
+  },
+  {
+    value: 'WAITING_FINANCE',
+    label: 'Waiting Finance',
+    icon: 'ti ti-cash',
+    avatarClassName: 'bg-light-success text-success',
+    activeClassName: 'border-success shadow-sm'
+  },
+  {
+    value: 'WAITING_OM',
+    label: 'Waiting OM',
+    icon: 'ti ti-user-check',
+    avatarClassName: 'bg-light-warning text-warning',
+    activeClassName: 'border-warning shadow-sm'
+  },
+  {
+    value: 'WAITING_ASM',
+    label: 'Waiting ASM',
+    icon: 'ti ti-users',
+    avatarClassName: 'bg-light-info text-info',
+    activeClassName: 'border-info shadow-sm'
+  },
+  {
+    value: 'ORDER_APPROVED',
+    label: 'Order Approved',
+    icon: 'ti ti-circle-check',
+    avatarClassName: 'bg-light-success text-success',
+    activeClassName: 'border-success shadow-sm'
+  },
+  {
+    value: 'DELIVERY',
+    label: 'Delivery',
+    icon: 'ti ti-truck-delivery',
+    avatarClassName: 'bg-light-info text-info',
+    activeClassName: 'border-info shadow-sm'
+  },
+  {
+    value: 'ARRIVED',
+    label: 'Arrived',
+    icon: 'ti ti-package-import',
+    avatarClassName: 'bg-light-success text-success',
+    activeClassName: 'border-success shadow-sm'
+  },
+  {
+    value: 'REJECTED',
+    label: 'Rejected',
+    icon: 'ti ti-user-cancel',
+    avatarClassName: 'bg-light-orange text-orange',
+    activeClassName: 'border-orange shadow-sm'
+  },
+  {
+    value: 'FAILED',
+    label: 'Failed',
+    icon: 'ti ti-forbid',
+    avatarClassName: 'bg-light-danger text-danger',
+    activeClassName: 'border-danger shadow-sm'
+  }
+];
+
 const parseAmount = (value) => {
   if (typeof value === 'number') return value;
 
@@ -144,39 +227,95 @@ export default function OrderList() {
       const matchesKeyword = !normalizedKeyword || order.order_no?.toLowerCase().includes(normalizedKeyword);
       // ||order.distributor?.toLowerCase().includes(normalizedKeyword);
       const matchesDistributor = !distributor || order.distributorId === distributor;
-      const matchesStatus = !status || order.status === status;
+      const matchesStatus =
+        !status ||
+        (status === WAITING_STATUS_FILTER ? isWaitingStatus(order.status) : normalizeStatus(order.status) === normalizeStatus(status));
       const matchesDate = !date || order.date === date;
 
       return matchesKeyword && matchesDistributor && matchesStatus && matchesDate;
     });
   }, [date, distributor, keywords, orders, status]);
 
-  const selectedStatusOption = useMemo(() => statusOptions.find((item) => item.value === status), [status]);
+  const summaryOrders = useMemo(() => {
+    const normalizedKeyword = keywords.trim().toLowerCase();
+
+    return orders.filter((order) => {
+      const matchesKeyword = !normalizedKeyword || order.order_no?.toLowerCase().includes(normalizedKeyword);
+      const matchesDistributor = !distributor || order.distributorId === distributor;
+      const matchesDate = !date || order.date === date;
+
+      return matchesKeyword && matchesDistributor && matchesDate;
+    });
+  }, [date, distributor, keywords, orders]);
 
   const summary = useMemo(
-    () => ({
-      total: filteredOrders.length,
-      DRAFT: filteredOrders.filter((order) => order.status === 'DRAFT').length,
-      APPROVED: filteredOrders.filter((order) => ['APPROVED', 'ORDER_APPROVED', 'DELIVERY', 'ARRIVED'].includes(order.status)).length,
-      WAITING_APPROVAL: filteredOrders.filter((order) => String(order.status).startsWith('WAITING_')).length,
-      REJECTED: filteredOrders.filter((order) => order.status === 'REJECTED').length,
-      FAILED: filteredOrders.filter((order) => order.status === 'FAILED').length
-      // waiti: orders.filter((order) => order.status === 'rejected').length
-    }),
-    [filteredOrders]
+    () =>
+      statusSummaryItems.reduce(
+        (currentSummary, item) => ({
+          ...currentSummary,
+          [item.value]:
+            item.value === WAITING_STATUS_FILTER
+              ? summaryOrders.filter((order) => isWaitingStatus(order.status)).length
+              : summaryOrders.filter((order) => normalizeStatus(order.status) === item.value).length
+        }),
+        { total: summaryOrders.length }
+      ),
+    [summaryOrders]
   );
 
-  const summaryLabels = useMemo(
-    () => ({
-      DRAFT: status === 'DRAFT' ? selectedStatusOption?.label || 'Draft' : 'Draft',
-      WAITING_APPROVAL: String(status).startsWith('WAITING_') ? selectedStatusOption?.label || 'Waiting' : 'Waiting',
-      APPROVED: ['APPROVED', 'ORDER_APPROVED', 'DELIVERY', 'ARRIVED'].includes(status)
-        ? selectedStatusOption?.label || 'Approved'
-        : 'Approved',
-      REJECTED: status === 'REJECTED' ? selectedStatusOption?.label || 'Rejected' : 'Rejected',
-      FAILED: status === 'FAILED' ? selectedStatusOption?.label || 'Failed' : 'Failed'
-    }),
-    [selectedStatusOption?.label, status]
+  const handleStatusSummaryClick = (nextStatus) => {
+    setStatus((currentStatus) => (currentStatus === nextStatus ? '' : nextStatus));
+  };
+
+  const renderStatusFilterBoxes = () => (
+    <Row className="g-3 mb-3">
+      <Col sm={6} xl={2}>
+        <button
+          type="button"
+          aria-pressed={!status}
+          className={`card border mb-0 h-100 w-100 text-start bg-body p-0 overflow-hidden ${!status ? 'border-primary shadow-sm' : ''}`}
+          style={{ minHeight: 120 }}
+          onClick={() => setStatus('')}
+        >
+          <span className="card-body py-4">
+            <Stack direction="horizontal" gap={3} className="justify-content-between">
+              <span>
+                <span className="d-block text-muted f-12">Total Order</span>
+                <span className="d-block h4 mb-0">{summary.total}</span>
+              </span>
+              <span className="avtar avtar-s bg-light-primary text-primary">
+                <i className="ti ti-shopping-cart" />
+              </span>
+            </Stack>
+          </span>
+        </button>
+      </Col>
+      {statusSummaryItems.map((item) => (
+        <Col key={item.value} sm={6} xl={2}>
+          <button
+            type="button"
+            aria-pressed={status === item.value}
+            className={`card border mb-0 h-100 w-100 text-start bg-body p-0 overflow-hidden ${
+              status === item.value ? item.activeClassName : ''
+            }`}
+            style={{ minHeight: 120 }}
+            onClick={() => handleStatusSummaryClick(item.value)}
+          >
+            <span className="card-body py-4">
+              <Stack direction="horizontal" gap={3} className="justify-content-between">
+                <span>
+                  <span className="d-block text-muted f-12">{item.label}</span>
+                  <span className="d-block h4 mb-0">{summary[item.value]}</span>
+                </span>
+                <span className={`avtar avtar-s ${item.avatarClassName}`}>
+                  <i className={item.icon} />
+                </span>
+              </Stack>
+            </span>
+          </button>
+        </Col>
+      ))}
+    </Row>
   );
 
   const hasActiveFilter = Boolean(keywords || distributor || status || date);
@@ -791,6 +930,7 @@ export default function OrderList() {
     <>
       <Stack gap={3}>
         <MainCard
+          content={false}
           title={
             <Stack gap={1}>
               <h5 className="mb-0">Order List</h5>
@@ -811,102 +951,10 @@ export default function OrderList() {
               ) : null}
             </Stack>
           }
-        >
-          <Row className="g-3">
-            <Col sm={6} xl={2}>
-              <Card className="border mb-0 h-100">
-                <Card.Body className="py-3">
-                  <Stack direction="horizontal" gap={3} className="justify-content-between">
-                    <div>
-                      <div className="text-muted f-12">Total Order</div>
-                      <h4 className="mb-0">{summary.total}</h4>
-                    </div>
-                    <span className="avtar avtar-s bg-light-primary text-primary">
-                      <i className="ti ti-shopping-cart" />
-                    </span>
-                  </Stack>
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col sm={6} xl={2}>
-              <Card className="border mb-0 h-100">
-                <Card.Body className="py-3">
-                  <Stack direction="horizontal" gap={3} className="justify-content-between">
-                    <div>
-                      <div className="text-muted f-12">{summaryLabels.DRAFT}</div>
-                      <h4 className="mb-0">{summary.DRAFT}</h4>
-                    </div>
-                    <span className="avtar avtar-s bg-light-secondary text-secondary">
-                      <i className="ti ti-clipboard-list" />
-                    </span>
-                  </Stack>
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col sm={6} xl={2}>
-              <Card className="border mb-0 h-100">
-                <Card.Body className="py-3">
-                  <Stack direction="horizontal" gap={3} className="justify-content-between">
-                    <div>
-                      <div className="text-muted f-12">{summaryLabels.WAITING_APPROVAL}</div>
-                      <h4 className="mb-0">{summary.WAITING_APPROVAL}</h4>
-                    </div>
-                    <span className="avtar avtar-s bg-light-warning text-warning">
-                      <i className="ti ti-clock-hour-4" />
-                    </span>
-                  </Stack>
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col sm={6} xl={2}>
-              <Card className="border mb-0 h-100">
-                <Card.Body className="py-3">
-                  <Stack direction="horizontal" gap={3} className="justify-content-between">
-                    <div>
-                      <div className="text-muted f-12">{summaryLabels.APPROVED}</div>
-                      <h4 className="mb-0">{summary.APPROVED}</h4>
-                    </div>
-                    <span className="avtar avtar-s bg-light-primary text-primary">
-                      <i className="ti ti-user-check" />
-                    </span>
-                  </Stack>
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col sm={6} xl={2}>
-              <Card className="border mb-0 h-100">
-                <Card.Body className="py-3">
-                  <Stack direction="horizontal" gap={3} className="justify-content-between">
-                    <div>
-                      <div className="text-muted f-12">{summaryLabels.REJECTED}</div>
-                      <h4 className="mb-0">{summary.REJECTED}</h4>
-                    </div>
-                    <span className="avtar avtar-s bg-light-orange text-orange">
-                      <i className="ti ti-user-cancel" />
-                    </span>
-                  </Stack>
-                </Card.Body>
-              </Card>
-            </Col>
-            <Col sm={6} xl={2}>
-              <Card className="border mb-0 h-100">
-                <Card.Body className="py-3">
-                  <Stack direction="horizontal" gap={3} className="justify-content-between">
-                    <div>
-                      <div className="text-muted f-12">{summaryLabels.FAILED}</div>
-                      <h4 className="mb-0">{summary.FAILED}</h4>
-                    </div>
-                    <span className="avtar avtar-s bg-light-danger text-danger">
-                      <i className="ti ti-forbid" />
-                    </span>
-                  </Stack>
-                </Card.Body>
-              </Card>
-            </Col>
-          </Row>
-        </MainCard>
+        />
 
         <MainCard>
+          {renderStatusFilterBoxes()}
           <Row className="g-2 align-items-end mb-3">
             <Col lg={4} md={6}>
               <Form.Label className="f-12 text-muted">Search Order</Form.Label>
@@ -918,16 +966,6 @@ export default function OrderList() {
               </InputGroup>
             </Col>
             <Col lg={4} md={6}>
-              <Form.Label className="f-12 text-muted">Status</Form.Label>
-              <Form.Select value={status} onChange={(event) => setStatus(event.target.value)}>
-                {statusOptions.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </Form.Select>
-            </Col>
-            <Col lg={3} md={6}>
               <Form.Label className="f-12 text-muted">Date</Form.Label>
               <Form.Control value={date} onChange={(event) => setDate(event.target.value)} type="date" />
             </Col>

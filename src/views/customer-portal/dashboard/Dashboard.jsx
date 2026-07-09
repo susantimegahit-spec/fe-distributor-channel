@@ -15,6 +15,7 @@ import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
 
 // project-imports
+import ConfirmDialog from 'components/ConfirmDialog';
 import MainCard from 'components/MainCard';
 import DashboardServices from '../../../services/DashboardServices';
 import OrderServices from '../../../services/OrderServices';
@@ -565,6 +566,7 @@ export default function Dashboard() {
   const { showAlert } = useAlert();
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [receivingOrderId, setReceivingOrderId] = useState(null);
+  const [orderToComplete, setOrderToComplete] = useState(null);
   const [orders, setOrders] = useState([]);
   const [isChartReady, setIsChartReady] = useState(false);
   const [orderSummary, setOrderSummary] = useState({ totalOrder: 0, totalAmount: 0, totalItem: 0 });
@@ -647,6 +649,7 @@ export default function Dashboard() {
       showAlert(error?.message || 'Failed to complete sales order', 'danger');
     } finally {
       setReceivingOrderId(null);
+      setOrderToComplete(null);
     }
   };
 
@@ -724,7 +727,8 @@ export default function Dashboard() {
   }, [isLoadingOrders, chartData.categories, chartData.series, topProductsChartData.categories, topProductsChartData.series]);
 
   return (
-    <Stack gap={3}>
+    <>
+      <Stack gap={3}>
       <MainCard
         className="dashboard-title-card"
         content={false}
@@ -792,7 +796,7 @@ export default function Dashboard() {
                         variant="success"
                         size="sm"
                         disabled={String(receivingOrderId) === String(order.id)}
-                        onClick={() => handleCompleteOrder(order)}
+                        onClick={() => setOrderToComplete(order)}
                       >
                         <i className={String(receivingOrderId) === String(order.id) ? 'ti ti-loader-2 me-1' : 'ti ti-circle-check me-1'} />
                         Complete
@@ -947,6 +951,18 @@ export default function Dashboard() {
           )}
         </div>
       </MainCard>
-    </Stack>
+      </Stack>
+
+      <ConfirmDialog
+        show={Boolean(orderToComplete)}
+        title="Complete Sales Order"
+        subTitle={`Are you sure you want to complete sales order ${
+          getOrderValue(orderToComplete, ['sap_doc_num', 'sapDocNum', 'doc_num', 'docNum', 'order_no', 'orderNo'], 'this order')
+        }?`}
+        onSubmit={() => handleCompleteOrder(orderToComplete)}
+        onCancel={() => setOrderToComplete(null)}
+        loading={receivingOrderId !== null}
+      />
+    </>
   );
 }
