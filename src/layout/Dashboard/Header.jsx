@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Cookies from 'js-cookie';
 import { useDispatch } from 'react-redux';
 
@@ -35,6 +35,8 @@ import { destroyAuthState } from '../../redux/authReducer';
 // =============================|| MAIN LAYOUT - HEADER ||============================== //
 
 export default function Header({ showSidebar = true }) {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
   const roleId = getCookies('role');
   const dispatch = useDispatch();
   const { menuMaster } = useGetMenuMaster();
@@ -66,6 +68,11 @@ export default function Header({ showSidebar = true }) {
   const knownNotificationIdsRef = useRef(new Set());
   const hasLoadedNotificationsRef = useRef(false);
   const canSubmitPassword = Boolean(oldPass && newPass && confirmPass && newPass === confirmPass);
+  const showBackButton =
+    pathname === '/notifications' ||
+    pathname === '/setting' ||
+    pathname.startsWith('/setting/') ||
+    pathname.startsWith('/customer-portal/setting');
 
   const playNotificationSound = useCallback(() => {
     try {
@@ -404,6 +411,15 @@ export default function Header({ showSidebar = true }) {
                   </Nav.Link>
                 </Nav.Item>
               </>
+            )}
+
+            {showBackButton && (
+              <Nav.Item className="pc-h-item">
+                <Button className="sm-page-back-button sm-header-back-button" onClick={() => navigate(-1)}>
+                  <i className="ti ti-arrow-left me-1" />
+                  Back
+                </Button>
+              </Nav.Item>
             )}
 
             {/* <Dropdown className="pc-h-item dropdown">

@@ -198,16 +198,18 @@ export default function SettingPage({ defaultTab = 'users' }) {
   return (
     <Stack gap={3}>
       <MainCard bodyClassName="py-2">
-        <Nav variant="tabs" activeKey={selectedTab} onSelect={handleSelect} className="border-0">
-          {availableTabs.map((tab) => (
-            <Nav.Item key={tab.key}>
-              <Nav.Link eventKey={tab.key} className="d-flex align-items-center gap-2">
-                <i className={tab.icon} />
-                {tab.title}
-              </Nav.Link>
-            </Nav.Item>
-          ))}
-        </Nav>
+        <Stack direction="horizontal" gap={2} className="align-items-center flex-wrap">
+          <Nav variant="tabs" activeKey={selectedTab} onSelect={handleSelect} className="border-0 flex-grow-1">
+            {availableTabs.map((tab) => (
+              <Nav.Item key={tab.key}>
+                <Nav.Link eventKey={tab.key} className="d-flex align-items-center gap-2">
+                  <i className={tab.icon} />
+                  {tab.title}
+                </Nav.Link>
+              </Nav.Item>
+            ))}
+          </Nav>
+        </Stack>
       </MainCard>
       {currentContent}
     </Stack>

@@ -2285,6 +2285,26 @@ body {
   }
 }
 
+.sm-page-back-button.btn {
+  background: #315fb4;
+  border-color: #315fb4;
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(49, 95, 180, 0.22);
+
+  &:hover,
+  &:focus {
+    background: #274f9b;
+    border-color: #274f9b;
+    color: #fff;
+  }
+}
+
+.sm-header-back-button.btn {
+  min-height: 42px;
+  padding: 0.5rem 0.9rem;
+  margin-left: 0.5rem;
+}
+
 @media (max-width: 575.98px) {
   .reward-tab-nav {
     .reward-tab-link.nav-link {
