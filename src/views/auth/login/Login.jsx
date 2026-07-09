@@ -6,6 +6,7 @@ import GaramCapTanganLogo from 'assets/images/garam-cap-tangan.png';
 import GaramiLogo from 'assets/images/garami.png';
 import GaramJempolLogo from 'assets/images/garam-jempol.png';
 import GaramkuLogo from 'assets/images/garamku.png';
+import LoginCharacters from 'assets/images/login-characters.png';
 
 // ===========================|| AUTH - LOGIN PAGE ||=========================== //
 

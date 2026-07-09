@@ -32,6 +32,10 @@ class OrderServices {
     return DataService.get(`/sales-orders/credit-limit?${query}`);
   }
 
+  getCheckEta(payload) {
+    return DataService.get('/sales-orders/check-eta', payload);
+  }
+
   getDetailOrder(id) {
     return DataService.get(`/sales-orders/${id}`);
   }

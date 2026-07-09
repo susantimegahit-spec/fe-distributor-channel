@@ -157,10 +157,24 @@ const getOrderValue = (order = {}, keys = [], fallback = '-') => {
   return value ?? fallback;
 };
 
+const getEtaValue = (item = {}, keys = [], fallback = '-') => getOrderValue(item, keys, fallback);
+
 const getOrderListPayload = (payload) => {
   if (Array.isArray(payload)) return payload;
 
   return getFirstValue(payload, ['data', 'items', 'results', 'orders', 'sales_orders', 'salesOrders']) || [];
+};
+
+const getEtaListPayload = (payload) => {
+  if (Array.isArray(payload)) return payload;
+
+  const list = getFirstValue(payload, ['data', 'items', 'results', 'eta', 'etas', 'warnings', 'check_eta', 'checkEta']);
+
+  if (Array.isArray(list)) return list;
+  if (list && typeof list === 'object') return [list];
+  if (payload && typeof payload === 'object') return [payload];
+
+  return [];
 };
 
 const parseNumber = (value) => {
@@ -573,6 +587,9 @@ export default function Dashboard() {
   const [chartData, setChartData] = useState(() => emptyChartData());
   const [topProductsChartData, setTopProductsChartData] = useState(() => emptyTopProductsChartData());
   const [statusSummary, setStatusSummary] = useState([]);
+  const [etaWarnings, setEtaWarnings] = useState([]);
+  const [isLoadingEta, setIsLoadingEta] = useState(false);
+  const [etaError, setEtaError] = useState('');
   const chartContainerRef = useRef(null);
   const customerCode = getCookies('customerCode');
   const isDistributor = Boolean(customerCode);
@@ -621,6 +638,37 @@ export default function Dashboard() {
 
     fetchDashboardData();
   }, [isDistributor, showAlert]);
+
+  useEffect(() => {
+    const fetchEtaWarning = async () => {
+      setIsLoadingEta(true);
+      setEtaError('');
+
+      const payload = {
+        customer_code: isDistributor ? customerCode || '' : '',
+        eta_date_request: moment().format('YYYY-MM-DD')
+      };
+
+      try {
+        const response = await OrderServices.getCheckEta(payload);
+
+        if (response?.data?.success === false) {
+          setEtaWarnings([]);
+          setEtaError(response.data.message || 'Failed to fetch ETA warning data');
+          return;
+        }
+
+        setEtaWarnings(getEtaListPayload(getResponsePayload(response)));
+      } catch (error) {
+        setEtaWarnings([]);
+        setEtaError(error?.message || 'Failed to fetch ETA warning data');
+      } finally {
+        setIsLoadingEta(false);
+      }
+    };
+
+    fetchEtaWarning();
+  }, [customerCode, isDistributor]);
 
   const deliveryOrders = useMemo(() => orders.filter((order) => normalizeStatus(order.status) === 'DELIVERY'), [orders]);
 
@@ -729,236 +777,313 @@ export default function Dashboard() {
   return (
     <>
       <Stack gap={3}>
-      <MainCard
-        className="dashboard-title-card"
-        content={false}
-        title={
-          <Stack gap={1}>
-            <h5 className="mb-0">Dashboard</h5>
-            <span className="text-muted f-12">Summary of distributor channel main feature access.</span>
-          </Stack>
-        }
-        secondary={
-          <Button as={Link} to="/customer-portal/order/order-list" variant="light" className="dashboard-title-action">
-            <i className="ph ph-list-bullets me-1" />
-            View Order
-          </Button>
-        }
-      />
-
-      <MainCard
-        className="claim-transaction-card"
-        title={
-          <Stack gap={1}>
-            <h5 className="mb-0">Complete Order</h5>
-            <span className="text-muted f-12">Sales orders with delivery status that need to be completed.</span>
-          </Stack>
-        }
-      >
-        <Table className="mb-0 align-middle" responsive hover>
-          <thead>
-            <tr>
-              <th>No. SO</th>
-              <th>Depo</th>
-              <th>Date</th>
-              <th>Total Order</th>
-              <th>Status</th>
-              <th className="text-center">#</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoadingOrders ? (
-              <tr>
-                <td colSpan={6}>
-                  <div className="text-center text-muted py-4">Loading delivery sales orders...</div>
-                </td>
-              </tr>
-            ) : deliveryOrders.length > 0 ? (
-              deliveryOrders.map((order) => {
-                const orderDate = moment(getOrderValue(order, ['doc_date', 'docDate', 'created_at', 'createdAt'], null));
-
-                return (
-                  <tr key={order.id}>
-                    <td className="fw-semibold">
-                      {getOrderValue(order, ['sap_doc_num', 'sapDocNum', 'doc_num', 'docNum', 'order_no', 'orderNo'])}
-                    </td>
-                    <td>
-                      {getOrderValue(order, ['depo', 'depot', 'warehouse_name', 'warehouseName'])} -{' '}
-                      {getOrderValue(order, ['customer_name', 'customerName', 'card_name', 'cardName'])}
-                    </td>
-                    <td>{orderDate.isValid() ? orderDate.format('DD MMM YYYY') : '-'}</td>
-                    <td>{currency(getOrderValue(order, ['doc_total', 'docTotal', 'total', 'total_order', 'totalOrder'], 0))}</td>
-                    <td>
-                      <Badge bg="info">Delivery</Badge>
-                    </td>
-                    <td className="text-center">
-                      <Button
-                        variant="success"
-                        size="sm"
-                        disabled={String(receivingOrderId) === String(order.id)}
-                        onClick={() => setOrderToComplete(order)}
-                      >
-                        <i className={String(receivingOrderId) === String(order.id) ? 'ti ti-loader-2 me-1' : 'ti ti-circle-check me-1'} />
-                        Complete
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })
-            ) : (
-              <tr>
-                <td colSpan={6}>
-                  <div className="text-center text-muted py-4">No delivery sales orders.</div>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </Table>
-      </MainCard>
-
-      <Row className="g-3">
-        <Col sm={6} xl={4}>
-          <Card className="dashboard-summary-card border mb-0 h-100">
-            <Card.Body>
-              <Stack direction="horizontal" className="justify-content-between" gap={3}>
-                <div>
-                  <div className="text-muted f-12">Total Sales Order</div>
-                  <h4 className="mb-0">{isLoadingOrders ? '-' : currency(orderSummary.totalOrder)}</h4>
-                </div>
-                <span className="avtar avtar-s bg-light-primary text-primary">
-                  <i className="ti ti-shopping-cart" />
-                </span>
-              </Stack>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col sm={6} xl={4}>
-          <Card className="dashboard-summary-card border mb-0 h-100">
-            <Card.Body>
-              <Stack direction="horizontal" className="justify-content-between" gap={3}>
-                <div>
-                  <div className="text-muted f-12">Total Order</div>
-                  <h4 className="mb-0">{isLoadingOrders ? '-' : orderSummary.totalAmount}</h4>
-                </div>
-                <span className="avtar avtar-s bg-light-success text-success">
-                  <i className="ti ti-cash" />
-                </span>
-              </Stack>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col sm={6} xl={4}>
-          <Card className="dashboard-summary-card border mb-0 h-100">
-            <Card.Body>
-              <Stack direction="horizontal" className="justify-content-between" gap={3}>
-                <div>
-                  <div className="text-muted f-12">Total Quantity (Kg)</div>
-                  <h4 className="mb-0">{isLoadingOrders ? '-' : orderSummary.totalItem}</h4>
-                </div>
-                <span className="avtar avtar-s bg-light-info text-info">
-                  <i className="ti ti-package" />
-                </span>
-              </Stack>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-
-      <Row className="g-3">
-        <Col xl={8}>
-          <MainCard
-            className="claim-transaction-card dashboard-order-overview-card h-100"
-            bodyClassName="dashboard-order-overview-body"
-            title={
-              <Stack gap={1}>
-                <h5 className="mb-0">Sales Order Trend</h5>
-                <span className="text-muted f-12">Sales order count and value in the last 6 months.</span>
-              </Stack>
-            }
-          >
-            <div ref={chartContainerRef} style={{ minHeight: 340, width: '100%' }}>
-              {isLoadingOrders || !isChartReady ? (
-                <div className="d-flex align-items-center justify-content-center text-muted" style={{ minHeight: 340 }}>
-                  Loading sales order data...
-                </div>
-              ) : (
-                <ReactApexChart options={chartOptions} series={chartData.series} type={chartData.type} height={340} width="100%" />
-              )}
-            </div>
-          </MainCard>
-        </Col>
-        <Col xl={4} className="d-flex">
-          <MainCard
-            className="claim-transaction-card dashboard-order-overview-card h-100 w-100"
-            bodyClassName="dashboard-order-overview-body"
-            title={
-              <Stack gap={1}>
-                <h5 className="mb-0">Status Order</h5>
-                <span className="text-muted f-12">Status information for created sales orders.</span>
-              </Stack>
-            }
-          >
-            <Stack gap={2} style={{ height: 340, overflowY: 'auto', paddingRight: 4 }}>
-              {isLoadingOrders ? (
-                <div className="d-flex align-items-center justify-content-center text-muted h-100">Loading order status...</div>
-              ) : statusSummary.length > 0 ? (
-                statusSummary.map((item) => (
-                  <Card className="border mb-0" key={item.status}>
-                    <Card.Body className="py-2">
-                      <Stack direction="horizontal" className="justify-content-between" gap={3}>
-                        <Stack direction="horizontal" gap={2}>
-                          <span className={`avtar avtar-xs bg-light-${item.color} text-${item.color}`}>
-                            <i className={item.icon} />
-                          </span>
-                          <div>
-                            <div className="fw-semibold">{item.label}</div>
-                            <div className="text-muted f-12">{item.status}</div>
-                          </div>
-                        </Stack>
-                        <h5 className="mb-0">{item.total}</h5>
-                      </Stack>
-                    </Card.Body>
-                  </Card>
-                ))
-              ) : (
-                <div className="d-flex align-items-center justify-content-center text-muted h-100">No sales orders yet.</div>
-              )}
+        <MainCard
+          className="dashboard-title-card"
+          content={false}
+          title={
+            <Stack gap={1}>
+              <h5 className="mb-0">Dashboard</h5>
+              <span className="text-muted f-12">Summary of distributor channel main feature access.</span>
             </Stack>
-          </MainCard>
-        </Col>
-      </Row>
+          }
+          secondary={
+            <Button as={Link} to="/customer-portal/order/order-list" variant="light" className="dashboard-title-action">
+              <i className="ph ph-list-bullets me-1" />
+              View Order
+            </Button>
+          }
+        />
 
-      <MainCard
-        className="claim-transaction-card"
-        title={
-          <Stack gap={1}>
-            <h5 className="mb-0">Top Products</h5>
-            <span className="text-muted f-12">Product ranking based on total ordered items.</span>
-          </Stack>
-        }
-      >
-        <div style={{ minHeight: 320, width: '100%' }}>
-          {isLoadingOrders || !isChartReady ? (
-            <div className="d-flex align-items-center justify-content-center text-muted" style={{ minHeight: 320 }}>
-              Loading top product data...
-            </div>
-          ) : topProductsChartData.categories.length > 0 ? (
-            <ReactApexChart options={topProductsChartOptions} series={topProductsChartData.series} type="bar" height={320} width="100%" />
+        <MainCard
+          className="claim-transaction-card eta-warning-card border border-danger"
+          title={
+            <Stack direction="horizontal" className="justify-content-between align-items-start" gap={3}>
+              <Stack gap={1}>
+                <Stack direction="horizontal" gap={2} className="align-items-center">
+                  <h5 className="mb-0">ETA Warning</h5>
+                  <Badge bg="danger">Warning</Badge>
+                </Stack>
+                <span className="text-muted f-12">
+                  ETA check for {moment().format('DD MMM YYYY')}
+                  {isDistributor && customerCode ? ` - ${customerCode}` : ''}
+                </span>
+              </Stack>
+              <span className="avtar avtar-s bg-danger text-white eta-warning-icon">
+                <i className="ti ti-alert-triangle" />
+              </span>
+            </Stack>
+          }
+        >
+          {isLoadingEta ? (
+            <div className="text-center text-muted py-4">Loading ETA warning data...</div>
+          ) : etaError ? (
+            <div className="text-center text-danger py-4">{etaError}</div>
+          ) : etaWarnings.length > 0 ? (
+            <Table className="mb-0 align-middle" responsive hover>
+              <thead>
+                <tr>
+                  <th>No. SO</th>
+                  <th>Tgl ETA</th>
+                  <th>Total</th>
+                  <th>Customer / Depo</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {etaWarnings.map((item, index) => {
+                  const etaDate = getEtaValue(item, ['eta_date_request', 'etaDateRequest', 'eta_date', 'etaDate', 'date'], null);
+                  const parsedEtaDate = moment(etaDate);
+                  const status = getEtaValue(item, ['status', 'type', 'level'], 'Warning');
+                  const salesOrderNumber = getEtaValue(
+                    item,
+                    ['sap_doc_num', 'sapDocNum', 'doc_num', 'docNum', 'order_no', 'orderNo', 'so_no', 'soNo'],
+                    '-'
+                  );
+                  const totalOrder = getEtaValue(item, ['doc_total', 'docTotal', 'total', 'total_order', 'totalOrder'], 0);
+
+                  return (
+                    <tr key={`${salesOrderNumber}-${index}`}>
+                      <td className="fw-semibold">{salesOrderNumber}</td>
+                      <td>{parsedEtaDate.isValid() ? parsedEtaDate.format('DD MMM YYYY') : '-'}</td>
+                      <td>{currency(totalOrder)}</td>
+                      <td>
+                        <div className="fw-semibold">
+                          {getEtaValue(item, ['customer_name', 'customerName', 'card_name', 'cardName', 'name'], '-')}
+                        </div>
+                        <div className="text-muted f-12">
+                          {getEtaValue(item, ['depo', 'depot', 'warehouse_name', 'warehouseName'], '-')}
+                        </div>
+                      </td>
+                      <td>
+                        <Badge bg="danger">{status}</Badge>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
           ) : (
-            <div className="d-flex align-items-center justify-content-center text-muted" style={{ minHeight: 320 }}>
-              No top product data yet.
-            </div>
+            <div className="text-center text-muted py-4">No ETA warning for today.</div>
           )}
-        </div>
-      </MainCard>
+        </MainCard>
+
+        <MainCard
+          className="claim-transaction-card"
+          title={
+            <Stack gap={1}>
+              <h5 className="mb-0">Complete Order</h5>
+              <span className="text-muted f-12">Sales orders with delivery status that need to be completed.</span>
+            </Stack>
+          }
+        >
+          <Table className="mb-0 align-middle" responsive hover>
+            <thead>
+              <tr>
+                <th>No. SO</th>
+                <th>Depo</th>
+                <th>Date</th>
+                <th>Total Order</th>
+                <th>Status</th>
+                <th className="text-center">#</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoadingOrders ? (
+                <tr>
+                  <td colSpan={6}>
+                    <div className="text-center text-muted py-4">Loading delivery sales orders...</div>
+                  </td>
+                </tr>
+              ) : deliveryOrders.length > 0 ? (
+                deliveryOrders.map((order) => {
+                  const orderDate = moment(getOrderValue(order, ['doc_date', 'docDate', 'created_at', 'createdAt'], null));
+
+                  return (
+                    <tr key={order.id}>
+                      <td className="fw-semibold">
+                        {getOrderValue(order, ['sap_doc_num', 'sapDocNum', 'doc_num', 'docNum', 'order_no', 'orderNo'])}
+                      </td>
+                      <td>
+                        {getOrderValue(order, ['depo', 'depot', 'warehouse_name', 'warehouseName'])} -{' '}
+                        {getOrderValue(order, ['customer_name', 'customerName', 'card_name', 'cardName'])}
+                      </td>
+                      <td>{orderDate.isValid() ? orderDate.format('DD MMM YYYY') : '-'}</td>
+                      <td>{currency(getOrderValue(order, ['doc_total', 'docTotal', 'total', 'total_order', 'totalOrder'], 0))}</td>
+                      <td>
+                        <Badge bg="info">Delivery</Badge>
+                      </td>
+                      <td className="text-center">
+                        <Button
+                          variant="success"
+                          size="sm"
+                          disabled={String(receivingOrderId) === String(order.id)}
+                          onClick={() => setOrderToComplete(order)}
+                        >
+                          <i
+                            className={String(receivingOrderId) === String(order.id) ? 'ti ti-loader-2 me-1' : 'ti ti-circle-check me-1'}
+                          />
+                          Complete
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={6}>
+                    <div className="text-center text-muted py-4">No delivery sales orders.</div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </Table>
+        </MainCard>
+
+        <Row className="g-3">
+          <Col sm={6} xl={4}>
+            <Card className="dashboard-summary-card border mb-0 h-100">
+              <Card.Body>
+                <Stack direction="horizontal" className="justify-content-between" gap={3}>
+                  <div>
+                    <div className="text-muted f-12">Total Sales Order</div>
+                    <h4 className="mb-0">{isLoadingOrders ? '-' : currency(orderSummary.totalOrder)}</h4>
+                  </div>
+                  <span className="avtar avtar-s bg-light-primary text-primary">
+                    <i className="ti ti-shopping-cart" />
+                  </span>
+                </Stack>
+              </Card.Body>
+            </Card>
+          </Col>
+          <Col sm={6} xl={4}>
+            <Card className="dashboard-summary-card border mb-0 h-100">
+              <Card.Body>
+                <Stack direction="horizontal" className="justify-content-between" gap={3}>
+                  <div>
+                    <div className="text-muted f-12">Total Order</div>
+                    <h4 className="mb-0">{isLoadingOrders ? '-' : orderSummary.totalAmount}</h4>
+                  </div>
+                  <span className="avtar avtar-s bg-light-success text-success">
+                    <i className="ti ti-cash" />
+                  </span>
+                </Stack>
+              </Card.Body>
+            </Card>
+          </Col>
+          <Col sm={6} xl={4}>
+            <Card className="dashboard-summary-card border mb-0 h-100">
+              <Card.Body>
+                <Stack direction="horizontal" className="justify-content-between" gap={3}>
+                  <div>
+                    <div className="text-muted f-12">Total Quantity (Kg)</div>
+                    <h4 className="mb-0">{isLoadingOrders ? '-' : orderSummary.totalItem}</h4>
+                  </div>
+                  <span className="avtar avtar-s bg-light-info text-info">
+                    <i className="ti ti-package" />
+                  </span>
+                </Stack>
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
+
+        <Row className="g-3">
+          <Col xl={8}>
+            <MainCard
+              className="claim-transaction-card dashboard-order-overview-card h-100"
+              bodyClassName="dashboard-order-overview-body"
+              title={
+                <Stack gap={1}>
+                  <h5 className="mb-0">Sales Order Trend</h5>
+                  <span className="text-muted f-12">Sales order count and value in the last 6 months.</span>
+                </Stack>
+              }
+            >
+              <div ref={chartContainerRef} style={{ minHeight: 340, width: '100%' }}>
+                {isLoadingOrders || !isChartReady ? (
+                  <div className="d-flex align-items-center justify-content-center text-muted" style={{ minHeight: 340 }}>
+                    Loading sales order data...
+                  </div>
+                ) : (
+                  <ReactApexChart options={chartOptions} series={chartData.series} type={chartData.type} height={340} width="100%" />
+                )}
+              </div>
+            </MainCard>
+          </Col>
+          <Col xl={4} className="d-flex">
+            <MainCard
+              className="claim-transaction-card dashboard-order-overview-card h-100 w-100"
+              bodyClassName="dashboard-order-overview-body"
+              title={
+                <Stack gap={1}>
+                  <h5 className="mb-0">Status Order</h5>
+                  <span className="text-muted f-12">Status information for created sales orders.</span>
+                </Stack>
+              }
+            >
+              <Stack gap={2} style={{ height: 340, overflowY: 'auto', paddingRight: 4 }}>
+                {isLoadingOrders ? (
+                  <div className="d-flex align-items-center justify-content-center text-muted h-100">Loading order status...</div>
+                ) : statusSummary.length > 0 ? (
+                  statusSummary.map((item) => (
+                    <Card className="border mb-0" key={item.status}>
+                      <Card.Body className="py-2">
+                        <Stack direction="horizontal" className="justify-content-between" gap={3}>
+                          <Stack direction="horizontal" gap={2}>
+                            <span className={`avtar avtar-xs bg-light-${item.color} text-${item.color}`}>
+                              <i className={item.icon} />
+                            </span>
+                            <div>
+                              <div className="fw-semibold">{item.label}</div>
+                              <div className="text-muted f-12">{item.status}</div>
+                            </div>
+                          </Stack>
+                          <h5 className="mb-0">{item.total}</h5>
+                        </Stack>
+                      </Card.Body>
+                    </Card>
+                  ))
+                ) : (
+                  <div className="d-flex align-items-center justify-content-center text-muted h-100">No sales orders yet.</div>
+                )}
+              </Stack>
+            </MainCard>
+          </Col>
+        </Row>
+
+        <MainCard
+          className="claim-transaction-card"
+          title={
+            <Stack gap={1}>
+              <h5 className="mb-0">Top Products</h5>
+              <span className="text-muted f-12">Product ranking based on total ordered items.</span>
+            </Stack>
+          }
+        >
+          <div style={{ minHeight: 320, width: '100%' }}>
+            {isLoadingOrders || !isChartReady ? (
+              <div className="d-flex align-items-center justify-content-center text-muted" style={{ minHeight: 320 }}>
+                Loading top product data...
+              </div>
+            ) : topProductsChartData.categories.length > 0 ? (
+              <ReactApexChart options={topProductsChartOptions} series={topProductsChartData.series} type="bar" height={320} width="100%" />
+            ) : (
+              <div className="d-flex align-items-center justify-content-center text-muted" style={{ minHeight: 320 }}>
+                No top product data yet.
+              </div>
+            )}
+          </div>
+        </MainCard>
       </Stack>
 
       <ConfirmDialog
         show={Boolean(orderToComplete)}
         title="Complete Sales Order"
-        subTitle={`Are you sure you want to complete sales order ${
-          getOrderValue(orderToComplete, ['sap_doc_num', 'sapDocNum', 'doc_num', 'docNum', 'order_no', 'orderNo'], 'this order')
-        }?`}
+        subTitle={`Are you sure you want to complete sales order ${getOrderValue(
+          orderToComplete,
+          ['sap_doc_num', 'sapDocNum', 'doc_num', 'docNum', 'order_no', 'orderNo'],
+          'this order'
+        )}?`}
         onSubmit={() => handleCompleteOrder(orderToComplete)}
         onCancel={() => setOrderToComplete(null)}
         loading={receivingOrderId !== null}

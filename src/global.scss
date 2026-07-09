@@ -207,6 +207,38 @@ body {
   line-height: 1.7;
 }
 
+.sm-auth-character-scene {
+  position: relative;
+  width: min(560px, 100%);
+  height: clamp(180px, 25vh, 270px);
+  margin-top: 28px;
+  overflow: hidden;
+  border: 1px solid rgba(180, 234, 255, 0.2);
+  border-radius: 20px;
+  background: rgba(2, 10, 30, 0.28);
+  box-shadow:
+    0 26px 54px rgba(3, 14, 42, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.sm-auth-character-scene::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(7, 17, 38, 0.1), rgba(7, 17, 38, 0.28)),
+    radial-gradient(circle at 50% 104%, rgba(115, 229, 245, 0.18), transparent 42%);
+}
+
+.sm-auth-character-scene img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 58%;
+}
+
 .sm-auth-products {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 116px));
@@ -826,6 +858,11 @@ body {
     margin-top: 28px;
   }
 
+  .sm-auth-character-scene {
+    height: clamp(160px, 22vh, 230px);
+    margin-top: 24px;
+  }
+
   .sm-auth-product {
     padding: 8px 10px;
   }
@@ -866,6 +903,13 @@ body {
     max-width: 520px;
     max-height: none;
     border-radius: 22px;
+  }
+}
+
+@media (max-height: 760px) and (min-width: 992px) {
+  .sm-auth-character-scene {
+    height: 150px;
+    margin-top: 18px;
   }
 }
 
@@ -1222,6 +1266,78 @@ body {
   --bs-btn-active-border-color: #274f9b;
   --bs-btn-active-color: #fff;
   box-shadow: 0 10px 20px rgba(49, 95, 180, 0.18);
+}
+
+.pc-content .eta-warning-card.card {
+  overflow: hidden;
+  border-color: rgba(220, 53, 69, 0.58) !important;
+  background: linear-gradient(135deg, #fff5f6 0%, #fff 56%, #ffe8eb 100%) !important;
+  box-shadow:
+    0 18px 38px rgba(220, 53, 69, 0.14),
+    0 0 0 1px rgba(220, 53, 69, 0.08);
+  animation: eta-warning-pulse 1.8s ease-in-out infinite;
+}
+
+.pc-content .eta-warning-card > .card-header {
+  border-bottom-color: rgba(220, 53, 69, 0.2);
+  background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%) !important;
+  color: #fff;
+}
+
+.pc-content .eta-warning-card > .card-header h5,
+.pc-content .eta-warning-card > .card-header .text-muted {
+  color: #fff !important;
+}
+
+.pc-content .eta-warning-card > .card-header .text-muted {
+  opacity: 0.86;
+}
+
+.pc-content .eta-warning-card .eta-warning-icon {
+  box-shadow:
+    0 0 0 6px rgba(255, 255, 255, 0.16),
+    0 0 0 12px rgba(220, 53, 69, 0.2);
+  animation: eta-warning-icon-pulse 1.2s ease-in-out infinite;
+}
+
+.pc-content .order-status-filter-box .order-status-filter-label {
+  font-size: 0.78rem !important;
+  font-weight: 600;
+  line-height: 1.28;
+}
+
+.pc-content .order-status-filter-box .order-status-filter-value {
+  font-size: 1.3rem !important;
+  font-weight: 700;
+  line-height: 1.12;
+}
+
+@keyframes eta-warning-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 18px 38px rgba(220, 53, 69, 0.14),
+      0 0 0 1px rgba(220, 53, 69, 0.08);
+    transform: translateY(0);
+  }
+
+  50% {
+    box-shadow:
+      0 22px 46px rgba(220, 53, 69, 0.24),
+      0 0 0 4px rgba(220, 53, 69, 0.12);
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes eta-warning-icon-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.08);
+  }
 }
 
 .pc-content .dashboard-order-overview-card.card {

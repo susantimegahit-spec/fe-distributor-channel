@@ -30,8 +30,8 @@ const statusOptions = [
   { value: 'DRAFT', label: 'Draft' },
   { value: 'WAITING_OM', label: 'Waiting OM Distributor' },
   { value: 'WAITING_ASM', label: 'Waiting ASM PT. Susanti Megah' },
-  { value: 'WAITING_ADMIN_SALES', label: 'Waiting Admin Sales' },
-  { value: 'WAITING_FINANCE', label: 'Waiting Finance' },
+  { value: 'WAITING_ADMIN_SALES', label: 'Waiting Admin Sales PT. Susanti Megah' },
+  { value: 'WAITING_FINANCE', label: 'Waiting Finance PT. Susanti Megah' },
   // { value: 'WAITING_APPROVAL', label: 'Waiting Approval SM' },
   { value: 'ORDER_APPROVED', label: 'Order Approved' },
   { value: 'DELIVERY', label: 'Delivery' },
@@ -100,28 +100,28 @@ const statusSummaryItems = [
   },
   {
     value: 'WAITING_ADMIN_SALES',
-    label: 'Waiting Admin Sales',
+    label: 'Waiting Admin Sales PT. Susanti Megah',
     icon: 'ti ti-user-cog',
     avatarClassName: 'bg-light-primary text-primary',
     activeClassName: 'border-primary shadow-sm'
   },
   {
     value: 'WAITING_FINANCE',
-    label: 'Waiting Finance',
+    label: 'Waiting Finance PT. Susanti Megah',
     icon: 'ti ti-cash',
     avatarClassName: 'bg-light-success text-success',
     activeClassName: 'border-success shadow-sm'
   },
   {
     value: 'WAITING_OM',
-    label: 'Waiting OM',
+    label: 'Waiting OM Distributor',
     icon: 'ti ti-user-check',
     avatarClassName: 'bg-light-warning text-warning',
     activeClassName: 'border-warning shadow-sm'
   },
   {
     value: 'WAITING_ASM',
-    label: 'Waiting ASM',
+    label: 'Waiting ASM PT. Susanti Megah',
     icon: 'ti ti-users',
     avatarClassName: 'bg-light-info text-info',
     activeClassName: 'border-info shadow-sm'
@@ -273,15 +273,17 @@ export default function OrderList() {
         <button
           type="button"
           aria-pressed={!status}
-          className={`card border mb-0 h-100 w-100 text-start bg-body p-0 overflow-hidden ${!status ? 'border-primary shadow-sm' : ''}`}
+          className={`card order-status-filter-box border mb-0 h-100 w-100 text-start bg-body p-0 overflow-hidden ${
+            !status ? 'border-primary shadow-sm' : ''
+          }`}
           style={{ minHeight: 120 }}
           onClick={() => setStatus('')}
         >
           <span className="card-body py-4">
             <Stack direction="horizontal" gap={3} className="justify-content-between">
               <span>
-                <span className="d-block text-muted f-12">Total Order</span>
-                <span className="d-block h4 mb-0">{summary.total}</span>
+                <span className="d-block text-muted f-12 order-status-filter-label">Total Order</span>
+                <span className="d-block h4 mb-0 order-status-filter-value">{summary.total}</span>
               </span>
               <span className="avtar avtar-s bg-light-primary text-primary">
                 <i className="ti ti-shopping-cart" />
@@ -295,7 +297,7 @@ export default function OrderList() {
           <button
             type="button"
             aria-pressed={status === item.value}
-            className={`card border mb-0 h-100 w-100 text-start bg-body p-0 overflow-hidden ${
+            className={`card order-status-filter-box border mb-0 h-100 w-100 text-start bg-body p-0 overflow-hidden ${
               status === item.value ? item.activeClassName : ''
             }`}
             style={{ minHeight: 120 }}
@@ -304,8 +306,8 @@ export default function OrderList() {
             <span className="card-body py-4">
               <Stack direction="horizontal" gap={3} className="justify-content-between">
                 <span>
-                  <span className="d-block text-muted f-12">{item.label}</span>
-                  <span className="d-block h4 mb-0">{summary[item.value]}</span>
+                  <span className="d-block text-muted f-12 order-status-filter-label">{item.label}</span>
+                  <span className="d-block h4 mb-0 order-status-filter-value">{summary[item.value]}</span>
                 </span>
                 <span className={`avtar avtar-s ${item.avatarClassName}`}>
                   <i className={item.icon} />
@@ -886,7 +888,13 @@ export default function OrderList() {
         ) : null}
         {button.edit ? (
           <>
-            <Button as={Link} to={`/customer-portal/order/order-create/${order.id}`} className="rounded-circle" variant="outline-success" size="sm">
+            <Button
+              as={Link}
+              to={`/customer-portal/order/order-create/${order.id}`}
+              className="rounded-circle"
+              variant="outline-success"
+              size="sm"
+            >
               <i className="ti ti-pencil" />
             </Button>
             &nbsp;
