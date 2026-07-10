@@ -93,6 +93,50 @@ const getResponseList = (response, keys = []) => {
   return [];
 };
 
+const getBankCode = (value = {}) => {
+  const item = value || {};
+
+  return (
+    item.bank_code ||
+    item.bankCode ||
+    item.bank?.bank_code ||
+    item.bank?.code ||
+    item.customer?.bank_code ||
+    item.customer?.bankCode ||
+    item.distributor?.bank_code ||
+    item.distributor?.bankCode ||
+    ''
+  );
+};
+
+const getAccountBankNumber = (value = {}) => {
+  const item = value || {};
+
+  return (
+    item.account_bank_number ||
+    item.accountBankNumber ||
+    item.bank_account_number ||
+    item.bankAccountNumber ||
+    item.bank?.account_bank_number ||
+    item.bank?.accountBankNumber ||
+    item.customer?.account_bank_number ||
+    item.customer?.accountBankNumber ||
+    item.distributor?.account_bank_number ||
+    item.distributor?.accountBankNumber ||
+    ''
+  );
+};
+
+const formatBankAccount = (value = {}) => {
+  const item = value || {};
+  const bankCode = getBankCode(item);
+  const accountNumber = getAccountBankNumber(item);
+  const bankAccount = item.bank_account || item.bankAccount || item.bank?.account || '';
+
+  if (bankCode && accountNumber) return `${bankCode} - ${accountNumber}`;
+  return bankAccount || bankCode || accountNumber || '-';
+};
+
 const normalizeVerified = (item) => {
   const value =
     item.is_verified ?? item.verified ?? item.isVerified ?? item.verification_status ?? item.verified_status ?? item.status_verifikasi;
@@ -141,10 +185,31 @@ const normalizeUploadResult = (item, index) => ({
 const normalizeWithdraw = (item, index) => ({
   id: item.id || item.withdraw_id || item.claim_withdraw_id || index,
   withdrawNo: item.withdraw_no || item.withdraw_code || item.reference_no || `WD-${item.id || index + 1}`,
+  customerCode:
+    item.customer_code ||
+    item.code_customer ||
+    item.distributor_code ||
+    item.customer?.code_customer ||
+    item.customer?.customer_code ||
+    item.distributor?.code_customer ||
+    item.distributor?.customer_code ||
+    '',
+  customerName:
+    item.customer_name ||
+    item.name_customer ||
+    item.distributor_name ||
+    item.customer?.name ||
+    item.customer?.name_distributor ||
+    item.distributor?.name ||
+    item.distributor?.name_distributor ||
+    '',
   submittedAt: item.created_at || item.submitted_at || item.withdraw_date || item.createdAt || '',
   transferDate: item.transfer_date || item.transfer_at || item.transferred_at || item.transferDate || '',
   amount: Number(item.amount || item.nominal || item.withdraw_amount || item.total_amount || 0),
-  status: String(item.status || item.withdraw_status || 'pending').replace('_', ' ')
+  status: String(item.status || item.withdraw_status || 'pending').replace('_', ' '),
+  bankCode: getBankCode(item),
+  accountBankNumber: getAccountBankNumber(item),
+  bankAccount: formatBankAccount(item)
 });
 
 const normalizeTotalReward = (response) => {
@@ -156,9 +221,13 @@ const normalizeTotalReward = (response) => {
 
 const normalizeDistributorOption = (item) => ({
   value: item.code_customer || item.customer_code || item.distributor_code || '',
-  label: `${item.code_customer || item.customer_code || item.distributor_code || '-'} - ${item.name || item.name_distributor || '-'}`,
+  label: `${item.code_customer || item.customer_code || item.distributor_code || '-'} - ${item.depo || '-'} - ${item.name || item.name_distributor || '-'}`,
   id: item.id,
-  name: item.name || item.name_distributor || ''
+  depo: item.depo || '',
+  name: item.name || item.name_distributor || '',
+  bankCode: getBankCode(item),
+  accountBankNumber: getAccountBankNumber(item),
+  bankAccount: formatBankAccount(item)
 });
 
 export default function RewardList() {
@@ -220,7 +289,6 @@ export default function RewardList() {
       const options = getResponseList(response, ['distributors', 'items', 'rows'])
         .map(normalizeDistributorOption)
         .filter((item) => item.value);
-
       setListDistributor(options);
     } catch (error) {
       showAlert(error?.message || 'Failed to fetch distributor list', 'danger');
@@ -401,6 +469,23 @@ export default function RewardList() {
   const isAdminDistributor = Number(roleId) === 1 || roleName.includes('ADMIN_DISTRIBUTOR');
   const canVerifySellOut = isFinanceUser || isAdministrator;
   const canManageReward = isAdminDistributor;
+  const distributorByCode = useMemo(() => {
+    const entries = listDistributor.map((distributor) => [distributor.value, distributor]);
+
+    return new Map(entries);
+  }, [listDistributor]);
+  const selectedWithdrawCustomerCode =
+    selectedWithdraw?.customerCode || customerCode || (selectedDistributorCodes.length === 1 ? selectedDistributorCodes[0] : '');
+  const selectedWithdrawDistributor =
+    (selectedWithdrawCustomerCode && distributorByCode.get(selectedWithdrawCustomerCode)) ||
+    (selectedDistributorCodes.length === 1 ? selectedDistributors[0] : null);
+  const selectedWithdrawBankAccount = useMemo(() => {
+    const withdrawBankAccount = formatBankAccount(selectedWithdraw);
+
+    if (withdrawBankAccount !== '-') return withdrawBankAccount;
+
+    return formatBankAccount(selectedWithdrawDistributor);
+  }, [selectedWithdraw, selectedWithdrawDistributor]);
 
   const handleOpenWithdrawModal = () => {
     if (!canManageReward || !canCreateWithdrawal) return;
@@ -1312,6 +1397,10 @@ export default function RewardList() {
                     <div className="text-muted f-12">Withdrawal No.</div>
                     <h6 className="mb-1">{selectedWithdraw?.withdrawNo || '-'}</h6>
                     <div className="text-muted f-12">{formatCurrency(selectedWithdraw?.amount)}</div>
+                    <div className="mt-2">
+                      <div className="text-muted f-12">Bank Account</div>
+                      <div className="fw-semibold">{selectedWithdrawBankAccount}</div>
+                    </div>
                   </div>
                   <span className="avtar avtar-s bg-light-success text-success">
                     <i className="ti ti-circle-check" />

@@ -100,6 +100,13 @@ export default function MasterDistributor() {
   };
 
   const hasActiveFilter = Boolean(keywords || selectedStatus);
+  const formatBankAccount = (item = {}) => {
+    const bankCode = item.bank_code || item.bankCode || '';
+    const accountNumber = item.account_bank_number || item.accountBankNumber || '';
+
+    if (bankCode && accountNumber) return `${bankCode} - ${accountNumber}`;
+    return bankCode || accountNumber || '-';
+  };
 
   return (
     <>
@@ -237,6 +244,7 @@ export default function MasterDistributor() {
                     <th style={{ minWidth: 220 }}>Distributor Name</th>
                     <th style={{ minWidth: 150 }}>Phone</th>
                     <th style={{ minWidth: 140 }}>Depo</th>
+                    <th style={{ minWidth: 180 }}>Bank Account</th>
                     <th style={{ minWidth: 320 }}>Address</th>
                     <th style={{ minWidth: 120 }}>Status</th>
                     <th className="text-center" style={{ width: 80 }}>
@@ -252,6 +260,7 @@ export default function MasterDistributor() {
                         <td style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>{item.name || '-'}</td>
                         <td>{item.phone || '-'}</td>
                         <td>{item.depo || '-'}</td>
+                        <td>{formatBankAccount(item)}</td>
                         <td style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>{item.address || '-'}</td>
                         <td>{item.status === 1 ? <Badge bg="success">Active</Badge> : <Badge bg="secondary">Inactive</Badge>}</td>
                         <td className="text-center">
@@ -268,7 +277,7 @@ export default function MasterDistributor() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={7}>
+                      <td colSpan={8}>
                         <div className="text-center py-5">
                           <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                             <i className="ti ti-building-store f-24" />
@@ -322,9 +331,7 @@ export default function MasterDistributor() {
               </Col>
               <Col md={6}>
                 <Form.Label className="f-12 text-muted">Status</Form.Label>
-                <div>
-                  {selectedDistributor.status === 1 ? <Badge bg="success">Active</Badge> : <Badge bg="secondary">Inactive</Badge>}
-                </div>
+                <div>{selectedDistributor.status === 1 ? <Badge bg="success">Active</Badge> : <Badge bg="secondary">Inactive</Badge>}</div>
               </Col>
               <Col md={6}>
                 <Form.Label className="f-12 text-muted">Distributor Name</Form.Label>
@@ -337,6 +344,10 @@ export default function MasterDistributor() {
               <Col md={6}>
                 <Form.Label className="f-12 text-muted">Depo</Form.Label>
                 <div>{selectedDistributor.depo || '-'}</div>
+              </Col>
+              <Col md={6}>
+                <Form.Label className="f-12 text-muted">Bank Account</Form.Label>
+                <div>{formatBankAccount(selectedDistributor)}</div>
               </Col>
               <Col md={12}>
                 <Form.Label className="f-12 text-muted">Address</Form.Label>

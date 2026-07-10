@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import SingleCharacter from 'assets/images/single-character.png';
-import GeminiServices from '../services/GeminiServices';
+import LocalAIService from '../services/LocalAIService';
 
 const faqItems = [
   {
@@ -27,7 +27,6 @@ export default function FloatingFaq() {
   const [activeTab, setActiveTab] = useState('faq');
   const [question, setQuestion] = useState('');
   const [messages, setMessages] = useState([]);
-  const [previousInteractionId, setPreviousInteractionId] = useState('');
   const [isAsking, setIsAsking] = useState(false);
   const [aiError, setAiError] = useState('');
 
@@ -43,12 +42,11 @@ export default function FloatingFaq() {
     setMessages((current) => [...current, { role: 'user', content: nextQuestion }]);
 
     try {
-      const response = await GeminiServices.ask(nextQuestion, previousInteractionId);
+      const response = await LocalAIService.ask(nextQuestion, messages);
 
-      setPreviousInteractionId(response.interactionId || previousInteractionId);
       setMessages((current) => [...current, { role: 'assistant', content: response.text }]);
     } catch (error) {
-      setAiError(error?.message || 'Gemini gagal menjawab.');
+      setAiError(error?.message || 'AI lokal gagal menjawab.');
     } finally {
       setIsAsking(false);
     }
@@ -107,7 +105,7 @@ export default function FloatingFaq() {
                     {message.content}
                   </div>
                 ))}
-                {isAsking && <div className="sm-floating-ai-message assistant">Gemini sedang menjawab...</div>}
+                {isAsking && <div className="sm-floating-ai-message assistant">Salti sedang menjawab...</div>}
               </div>
               {aiError && <div className="sm-floating-ai-error">{aiError}</div>}
               <form className="sm-floating-ai-form" onSubmit={handleAskAi}>
