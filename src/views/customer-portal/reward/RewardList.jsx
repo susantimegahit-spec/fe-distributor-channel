@@ -79,6 +79,14 @@ const getWithdrawStatusVariant = (status) => {
   return 'warning';
 };
 
+const getSellOutStatusKey = (status) => normalizeApprovalText(status) || '__EMPTY__';
+
+const getSellOutStatusFilterKey = (status) => (getSellOutStatusKey(status) === 'VALID_PROGRAM' ? 'VALID_PROGRAM' : 'NOT_VALID');
+
+const getSellOutStatusLabel = (status) => String(status || '').trim() || 'Unknown';
+
+const getSellOutStatusVariant = (status) => (getSellOutStatusKey(status) === 'VALID_PROGRAM' ? 'success' : 'danger');
+
 const getResponseList = (response, keys = []) => {
   const payload = response?.data?.data;
 
@@ -216,15 +224,21 @@ const normalizeTotalReward = (response) => {
   const payload = response?.data?.data;
   const source = Array.isArray(payload) ? payload[0] : payload?.data && !Array.isArray(payload.data) ? payload.data : payload;
 
-  return Number(source?.available_balance);
+  return {
+    availableBalance: Number(source?.available_balance || source?.availableBalance || 0),
+    totalClaimed: Number(source?.total_claimed || source?.totalClaimed || 0),
+    totalVerified: Number(source?.total_verified || source?.totalVerified || 0)
+  };
 };
 
 const normalizeDistributorOption = (item) => ({
   value: item.code_customer || item.customer_code || item.distributor_code || '',
-  label: `${item.code_customer || item.customer_code || item.distributor_code || '-'} - ${item.depo || '-'} - ${item.name || item.name_distributor || '-'}`,
+  label: `${item.code_customer || item.customer_code || item.distributor_code || '-'} - ${item.depo || '-'} - ${
+    item.customer_name || item.name_customer || item.name || item.name_distributor || '-'
+  }`,
   id: item.id,
   depo: item.depo || '',
-  name: item.name || item.name_distributor || '',
+  name: item.customer_name || item.name_customer || item.name || item.name_distributor || '',
   bankCode: getBankCode(item),
   accountBankNumber: getAccountBankNumber(item),
   bankAccount: formatBankAccount(item)
@@ -241,7 +255,11 @@ export default function RewardList() {
   const [listDistributor, setListDistributor] = useState([]);
   const [selectedDistributors, setSelectedDistributors] = useState([]);
   const [loadingDistributors, setLoadingDistributors] = useState(false);
-  const [totalVerifiedReward, setTotalVerifiedReward] = useState(0);
+  const [rewardSummary, setRewardSummary] = useState({
+    availableBalance: 0,
+    totalClaimed: 0,
+    totalVerified: 0
+  });
   const [permissionDetail, setPermissionDetail] = useState(null);
   const [loadingClaims, setLoadingClaims] = useState(false);
   const [loadingWithdraws, setLoadingWithdraws] = useState(false);
@@ -256,6 +274,7 @@ export default function RewardList() {
   const [withdrawTransferDate, setWithdrawTransferDate] = useState(todayDate);
   const [activeRewardTab, setActiveRewardTab] = useState('claim');
   const [sellOutFilter, setSellOutFilter] = useState('all');
+  const [sellOutStatusFilter, setSellOutStatusFilter] = useState('all');
   const [selectedSellOutIds, setSelectedSellOutIds] = useState([]);
   const [uploadingClaim, setUploadingClaim] = useState(false);
   const [submittingWithdraw, setSubmittingWithdraw] = useState(false);
@@ -265,16 +284,31 @@ export default function RewardList() {
   const [downloadingTemplate, setDownloadingTemplate] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [withdrawCurrentPage, setWithdrawCurrentPage] = useState(1);
-  const showDistributorFilter = !customerCode;
+  const permissionApprovalName = useMemo(() => normalizeApprovalText(permissionDetail?.role_menu?.approval?.name), [permissionDetail]);
+
+  const roleName = useMemo(
+    () => normalizeApprovalText(permissionDetail?.name || permissionDetail?.role?.name || permissionDetail?.role_name),
+    [permissionDetail]
+  );
+
+  const roleNumber = Number(roleId);
+  const isAdministrator = roleNumber === 5;
+  const isAdminDistributor = roleNumber === 1 || roleName.includes('ADMIN_DISTRIBUTOR');
+  const isOmDistributor =
+    roleNumber === 2 ||
+    roleName === 'OM' ||
+    roleName.includes('OM_DISTRIBUTOR') ||
+    roleName.includes('OPERATIONAL_MANAGER');
+  const showDistributorFilter = !isAdminDistributor && !isOmDistributor;
   const selectedDistributorCodes = useMemo(
     () => selectedDistributors.map((distributor) => distributor.value).filter(Boolean),
     [selectedDistributors]
   );
-  const effectiveCustomerCode = customerCode || selectedDistributorCodes.toString();
+  const effectiveCustomerCode = selectedDistributorCodes.length ? selectedDistributorCodes.toString() : showDistributorFilter ? '' : customerCode;
   const canCreateWithdrawal = Boolean(customerCode || selectedDistributorCodes.length === 1);
 
   const fetchDistributors = useCallback(async () => {
-    if (customerCode) return;
+    if (!showDistributorFilter) return;
 
     setLoadingDistributors(true);
 
@@ -295,7 +329,7 @@ export default function RewardList() {
     } finally {
       setLoadingDistributors(false);
     }
-  }, [customerCode, showAlert]);
+  }, [showDistributorFilter, showAlert]);
 
   const fetchClaimBatches = useCallback(async () => {
     if (!effectiveCustomerCode) {
@@ -357,7 +391,11 @@ export default function RewardList() {
 
   const fetchTotalReward = useCallback(async () => {
     if (!effectiveCustomerCode) {
-      setTotalVerifiedReward(0);
+      setRewardSummary({
+        availableBalance: 0,
+        totalClaimed: 0,
+        totalVerified: 0
+      });
       return;
     }
 
@@ -371,7 +409,7 @@ export default function RewardList() {
         return;
       }
 
-      setTotalVerifiedReward(normalizeTotalReward(response));
+      setRewardSummary(normalizeTotalReward(response));
     } catch (error) {
       showAlert(error?.message || 'Failed to fetch total reward', 'danger');
     }
@@ -428,6 +466,7 @@ export default function RewardList() {
       const normalizedBatchDetail = normalizeBatch(detail, batch.id);
       const results = Array.isArray(resultResponse.data?.data) ? resultResponse.data.data.map(normalizeUploadResult) : [];
       setSellOutFilter('all');
+      setSellOutStatusFilter('all');
       setSelectedSellOutIds([]);
       setSelectedClaim({
         ...batch,
@@ -447,26 +486,20 @@ export default function RewardList() {
   };
 
   const summary = useMemo(() => {
-    const totalClaimed = Number(totalVerifiedReward) || 0;
+    const totalClaimed = Number(rewardSummary.totalClaimed) || 0;
+    const availableBalance = Number(rewardSummary.availableBalance) || 0;
+    const totalVerified = Number(rewardSummary.totalVerified) || 0;
     const totalWithdrawn = withdraws.reduce((total, item) => total + Number(item.amount), 0);
     return {
       totalClaimed,
+      totalVerified,
       totalWithdrawn,
-      availableBalance: Math.max(totalClaimed - totalWithdrawn, 0),
+      availableBalance,
       totalClaims: claims.length
     };
-  }, [claims, totalVerifiedReward, withdraws]);
-
-  const permissionApprovalName = useMemo(() => normalizeApprovalText(permissionDetail?.role_menu?.approval?.name), [permissionDetail]);
-
-  const roleName = useMemo(
-    () => normalizeApprovalText(permissionDetail?.name || permissionDetail?.role?.name || permissionDetail?.role_name),
-    [permissionDetail]
-  );
+  }, [claims, rewardSummary, withdraws]);
 
   const isFinanceUser = permissionApprovalName === 'WAITING_FINANCE' || roleName.includes('FINANCE');
-  const isAdministrator = Number(roleId) === 5;
-  const isAdminDistributor = Number(roleId) === 1 || roleName.includes('ADMIN_DISTRIBUTOR');
   const canVerifySellOut = isFinanceUser || isAdministrator;
   const canManageReward = isAdminDistributor;
   const distributorByCode = useMemo(() => {
@@ -592,16 +625,25 @@ export default function RewardList() {
 
   const filteredSellOut = useMemo(() => {
     const sellOut = selectedClaim?.sellOut || [];
+    const statusFilteredSellOut =
+      sellOutStatusFilter === 'all'
+        ? sellOut
+        : sellOut.filter((transaction) => getSellOutStatusFilterKey(transaction.status) === sellOutStatusFilter);
 
-    if (sellOutFilter === 'verified') return sellOut.filter((transaction) => transaction.verified);
-    if (sellOutFilter === 'not-verified') return sellOut.filter((transaction) => !transaction.verified);
+    if (sellOutFilter === 'verified') return statusFilteredSellOut.filter((transaction) => transaction.verified);
+    if (sellOutFilter === 'not-verified') return statusFilteredSellOut.filter((transaction) => !transaction.verified);
 
-    return sellOut;
-  }, [selectedClaim, sellOutFilter]);
+    return statusFilteredSellOut;
+  }, [selectedClaim, sellOutFilter, sellOutStatusFilter]);
 
   const selectedSellOutCount = selectedSellOutIds.length;
   const handleChangeSellOutFilter = (value) => {
     setSellOutFilter(value);
+    setSelectedSellOutIds([]);
+  };
+
+  const handleChangeSellOutStatusFilter = (value) => {
+    setSellOutStatusFilter(value);
     setSelectedSellOutIds([]);
   };
 
@@ -754,8 +796,8 @@ export default function RewardList() {
         >
           <Row className="g-3">
             {showDistributorFilter ? (
-              <Col md={6} xl={4}>
-                <Form.Label className="f-12 text-muted">Customer</Form.Label>
+              <Col xs={12}>
+                <Form.Label className="f-12 text-muted">Customer Code</Form.Label>
                 <Select
                   value={selectedDistributors}
                   options={listDistributor}
@@ -777,13 +819,46 @@ export default function RewardList() {
             <Col md={6} xl={3}>
               <Card className="border mb-0 h-100">
                 <Card.Body className="py-3">
-                  <Stack direction="horizontal" gap={3} className="justify-content-between">
+                  <Stack direction="horizontal" gap={3} className="justify-content-between align-items-start">
                     <div>
-                      <div className="text-muted f-12">Total Balance</div>
-                      <h4 className="mb-0">{formatCurrency(summary.totalClaimed)}</h4>
+                      <div className="text-muted f-12">Available Balance</div>
+                      <h4 className="mb-1">{formatCurrency(summary.availableBalance)}</h4>
+                      <small className="text-muted d-block">Reward balance available for withdrawal requests.</small>
                     </div>
                     <span className="avtar avtar-s bg-light-success text-success">
-                      <i className="ti ti-cash" />
+                      <i className="ti ti-wallet" />
+                    </span>
+                  </Stack>
+                </Card.Body>
+              </Card>
+            </Col>
+            <Col md={6} xl={3}>
+              <Card className="border mb-0 h-100">
+                <Card.Body className="py-3">
+                  <Stack direction="horizontal" gap={3} className="justify-content-between align-items-start">
+                    <div>
+                      <div className="text-muted f-12">Total Claimed</div>
+                      <h4 className="mb-1">{formatCurrency(summary.totalClaimed)}</h4>
+                      <small className="text-muted d-block">Total reward value submitted from all claims.</small>
+                    </div>
+                    <span className="avtar avtar-s bg-light-primary text-primary">
+                      <i className="ti ti-file-spreadsheet" />
+                    </span>
+                  </Stack>
+                </Card.Body>
+              </Card>
+            </Col>
+            <Col md={6} xl={3}>
+              <Card className="border mb-0 h-100">
+                <Card.Body className="py-3">
+                  <Stack direction="horizontal" gap={3} className="justify-content-between align-items-start">
+                    <div>
+                      <div className="text-muted f-12">Total Verified</div>
+                      <h4 className="mb-1">{formatCurrency(summary.totalVerified)}</h4>
+                      <small className="text-muted d-block">Total reward from verified sell-out transactions.</small>
+                    </div>
+                    <span className="avtar avtar-s bg-light-info text-info">
+                      <i className="ti ti-circle-check" />
                     </span>
                   </Stack>
                 </Card.Body>
@@ -1214,11 +1289,21 @@ export default function RewardList() {
                     <Stack direction="horizontal" gap={2} className="flex-wrap">
                       <Form.Select
                         size="sm"
+                        value={sellOutStatusFilter}
+                        onChange={(event) => handleChangeSellOutStatusFilter(event.target.value)}
+                        style={{ minWidth: 180 }}
+                      >
+                        <option value="all">All Claim Statuses</option>
+                        <option value="VALID_PROGRAM">VALID PROGRAM</option>
+                        <option value="NOT_VALID">NOT VALID</option>
+                      </Form.Select>
+                      <Form.Select
+                        size="sm"
                         value={sellOutFilter}
                         onChange={(event) => handleChangeSellOutFilter(event.target.value)}
                         style={{ minWidth: 170 }}
                       >
-                        <option value="all">All Statuses</option>
+                        <option value="all">All Verification</option>
                         <option value="verified">Verified</option>
                         <option value="not-verified">Not Verified</option>
                       </Form.Select>
@@ -1274,10 +1359,10 @@ export default function RewardList() {
                             <td className="text-end">{formatCurrency(transaction.amount2)}</td>
                             <td className="text-end">{formatCurrency(transaction.rewardAmount)}</td>
                             <td className="text-end">
-                              <Badge bg={transaction.status === 'VALID PROGRAM' ? 'success' : 'danger'}>{transaction.status}</Badge>
+                              <Badge bg={getSellOutStatusVariant(transaction.status)}>{getSellOutStatusLabel(transaction.status)}</Badge>
                             </td>
                             <td className="text-center">
-                              {transaction.status === 'VALID PROGRAM' && canVerifySellOut ? (
+                              {getSellOutStatusKey(transaction.status) === 'VALID_PROGRAM' && canVerifySellOut ? (
                                 <Form.Check
                                   type="checkbox"
                                   className="m-0 d-inline-flex"
