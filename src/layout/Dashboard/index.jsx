@@ -6,6 +6,7 @@ import Drawer from './Drawer';
 import Footer from './Footer';
 import Header from './Header';
 import Breadcrumbs from 'components/Breadcrumbs';
+import FloatingFaq from 'components/FloatingFaq';
 import NavigationScroll from 'components/NavigationScroll';
 import { getAvailableSystems, getSystemByPathname, isAdministratorRole, normalizeAccessibleSystems } from '../../systems';
 import { getCookies } from '../../utils/cookies';
@@ -53,6 +54,7 @@ export default function MainLayout() {
         </div>
       </div>
       <Footer showSidebar={showSidebar} />
+      {showSidebar && <FloatingFaq />}
     </>
   );
 }

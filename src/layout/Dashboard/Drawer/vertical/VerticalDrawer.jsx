@@ -1,6 +1,7 @@
 // project-imports
 import { DrawerHeader, DrawerOverlay, useDrawerLogic } from '../common';
 import VerticalDrawerContent from './VerticalDrawerContent';
+import LoginCharacters from 'assets/images/login-characters.png';
 
 // ==============================|| VERTICAL DRAWER ||============================== //
 
@@ -13,6 +14,9 @@ export const VerticalDrawer = () => {
         <DrawerHeader />
         <div className="navbar-content">
           <VerticalDrawerContent selectedItems={selectedItems} setSelectedItems={setSelectedItems} />
+        </div>
+        <div className="sm-sidebar-characters" aria-hidden="true">
+          <img src={LoginCharacters} alt="" />
         </div>
       </div>
       <DrawerOverlay drawerOpen={drawerOpen} isMobile={isMobile} overlayRef={overlayRef} />
