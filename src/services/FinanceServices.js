@@ -2,21 +2,50 @@ import { DataService } from '../config/dataService';
 import ProductServices from './ProductServices';
 
 const rewardTemplateHeaders = [
-  'Kode Customer',
-  'Customer Name',
+  'Kode Distributor',
+  'Nama Distributor',
   'Kode Item',
-  'Item Name',
+  'Nama Item',
   'Qty',
   'Selling Price @ Kg',
   'Tipe Customer',
-  'Transaction Date'
+  'Transaction Date',
+  'Depo',
+  'Kode Customer',
+  'Nama Customer',
+  'Alamat',
+  'Kota / Kabupaten',
+  'Kecamatan',
+  'Salesman Distributor',
+  'Jenis Barang',
+  'Jenis Transaksi',
+  'Channel',
+  'DPP',
+  'Diskon 1',
+  'Diskon 2',
+  'Diskon 3',
+  'Diskon 4',
+  'Diskon 5',
+  'PPN',
+  'NET'
 ];
+
+const normalizeList = (response) => {
+  const data = response?.data?.data;
+
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.rows)) return data.rows;
+
+  return [];
+};
 
 const getProductRows = (products) =>
   products.map((item) => ({
-    'Kode Item': item.item_code || item.code || '',
-    'Item Name': item.item_name || item.name || '',
-    Status: item.status === 1 ? 'Active' : 'Inactive'
+    'Item Code': item.item_code || item.code_item || item.itemCode || item.code || '',
+    'Item Name': item.item_name || item.itemName || item.name || '',
+    Status: item.status === 1 || String(item.status).toLowerCase() === 'active' ? 'Active' : 'Inactive'
   }));
 
 const escapeXml = (value) =>
@@ -102,7 +131,7 @@ class FinanceServices {
       throw new Error(response?.data?.message || 'Failed to fetch master item');
     }
 
-    const products = response.data.data || [];
+    const products = normalizeList(response);
     const masterItemRows = getProductRows(products);
     const masterItemHeaders = ['Item Code', 'Item Name', 'Status'];
     const templateRows = [
@@ -112,8 +141,8 @@ class FinanceServices {
         'TableCell'
       ),
       buildEmptyRow(),
-      buildRow(['*Customer Type must be filled with MT/GT'], 'Information'),
-      buildRow(['*Use Item Code and Item Name from the master item sheet'], 'Information')
+      buildRow(['*Untuk kolom tipe customer harap diisi dengan MT/GT'], 'Information'),
+      buildRow(['*Untuk kolom item code dan item name harap diisi dengan data dari sheet master item'], 'Information')
     ];
     const masterItemSheetRows = [
       buildRow(masterItemHeaders, 'Header'),
