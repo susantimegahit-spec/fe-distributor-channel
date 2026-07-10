@@ -293,13 +293,14 @@ export default function RewardList() {
 
   const roleNumber = Number(roleId);
   const isAdministrator = roleNumber === 5;
+  const isAdminSales = permissionApprovalName === 'WAITING_ADMIN_SALES' || roleName.includes('ADMIN_SALES');
   const isAdminDistributor = roleNumber === 1 || roleName.includes('ADMIN_DISTRIBUTOR');
   const isOmDistributor =
     roleNumber === 2 ||
     roleName === 'OM' ||
     roleName.includes('OM_DISTRIBUTOR') ||
     roleName.includes('OPERATIONAL_MANAGER');
-  const showDistributorFilter = !isAdminDistributor && !isOmDistributor;
+  const showDistributorFilter = isAdminSales || (!isAdminDistributor && !isOmDistributor);
   const selectedDistributorCodes = useMemo(
     () => selectedDistributors.map((distributor) => distributor.value).filter(Boolean),
     [selectedDistributors]
@@ -332,7 +333,7 @@ export default function RewardList() {
   }, [showDistributorFilter, showAlert]);
 
   const fetchClaimBatches = useCallback(async () => {
-    if (!effectiveCustomerCode) {
+    if (!effectiveCustomerCode && !showDistributorFilter) {
       setClaims([]);
       setCurrentPage(1);
       return;
@@ -358,10 +359,10 @@ export default function RewardList() {
     } finally {
       setLoadingClaims(false);
     }
-  }, [effectiveCustomerCode, showAlert]);
+  }, [effectiveCustomerCode, showAlert, showDistributorFilter]);
 
   const fetchWithdraws = useCallback(async () => {
-    if (!effectiveCustomerCode) {
+    if (!effectiveCustomerCode && !showDistributorFilter) {
       setWithdraws([]);
       setWithdrawCurrentPage(1);
       return;
@@ -387,10 +388,10 @@ export default function RewardList() {
     } finally {
       setLoadingWithdraws(false);
     }
-  }, [effectiveCustomerCode, showAlert]);
+  }, [effectiveCustomerCode, showAlert, showDistributorFilter]);
 
   const fetchTotalReward = useCallback(async () => {
-    if (!effectiveCustomerCode) {
+    if (!effectiveCustomerCode && !showDistributorFilter) {
       setRewardSummary({
         availableBalance: 0,
         totalClaimed: 0,
@@ -413,7 +414,7 @@ export default function RewardList() {
     } catch (error) {
       showAlert(error?.message || 'Failed to fetch total reward', 'danger');
     }
-  }, [effectiveCustomerCode, showAlert]);
+  }, [effectiveCustomerCode, showAlert, showDistributorFilter]);
 
   const fetchPermissionDetail = useCallback(async () => {
     if (!roleId) return;
@@ -804,8 +805,21 @@ export default function RewardList() {
                   menuPosition="fixed"
                   onChange={(options) => {
                     setSelectedDistributors(options || []);
+                    setClaims([]);
+                    setWithdraws([]);
+                    setRewardSummary({
+                      availableBalance: 0,
+                      totalClaimed: 0,
+                      totalVerified: 0
+                    });
                     setSelectedClaim(null);
+                    setSelectedWithdraw(null);
+                    setSelectedSellOutIds([]);
+                    setSellOutFilter('all');
+                    setSellOutStatusFilter('all');
                     setWithdrawAmount('');
+                    setCurrentPage(1);
+                    setWithdrawCurrentPage(1);
                   }}
                   placeholder="Select Customer"
                   isClearable
