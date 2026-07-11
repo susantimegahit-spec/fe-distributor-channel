@@ -73,6 +73,16 @@ export default function Header({ showSidebar = true }) {
     pathname === '/setting' ||
     pathname.startsWith('/setting/') ||
     pathname.startsWith('/customer-portal/setting');
+  const isSettingPage = pathname === '/setting' || pathname.startsWith('/setting/') || pathname.startsWith('/customer-portal/setting');
+
+  const handleHeaderBack = () => {
+    if (isSettingPage) {
+      navigate('/customer-portal/dashboard');
+      return;
+    }
+
+    navigate(-1);
+  };
 
   const playNotificationSound = useCallback(() => {
     try {
@@ -415,7 +425,7 @@ export default function Header({ showSidebar = true }) {
 
             {showBackButton && (
               <Nav.Item className="pc-h-item">
-                <Button className="sm-page-back-button sm-header-back-button" onClick={() => navigate(-1)}>
+                <Button className="sm-page-back-button sm-header-back-button" onClick={handleHeaderBack}>
                   <i className="ti ti-arrow-left me-1" />
                   Back
                 </Button>
@@ -524,7 +534,7 @@ export default function Header({ showSidebar = true }) {
                 <i className="ti ti-chevron-down" />
               </Dropdown.Toggle>
 
-              <Dropdown.Menu className="dropdown-user-profile sm-account-menu pc-h-dropdown p-0 overflow-hidden">
+              <Dropdown.Menu className="dropdown-user-profile sm-account-menu pc-h-dropdown p-0">
                 <Dropdown.Header className="sm-account-header">
                   <Stack direction="horizontal" gap={3} className="align-items-center">
                     <span className="sm-account-avatar sm-account-avatar-lg">{userInitial}</span>

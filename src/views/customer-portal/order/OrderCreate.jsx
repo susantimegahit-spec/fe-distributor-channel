@@ -2256,7 +2256,7 @@ export default function OrderPost() {
         </Modal.Header>
         <Modal.Body>
           <Stack gap={3}>
-            {/* <Card className="border mb-0">
+            <Card className="border mb-0">
               <Card.Body className="py-3">
                 <Row className="g-3">
                   <Col md={6}>
@@ -2332,7 +2332,7 @@ export default function OrderPost() {
                   </div>
                 )}
               </Card.Body>
-            </Card> */}
+            </Card>
 
             <Card className="border mb-0">
               <Card.Header className="py-3">

@@ -2324,6 +2324,7 @@ body {
   margin-top: 10px;
   border: 0;
   border-radius: 18px;
+  overflow-x: hidden;
   box-shadow: 0 24px 55px rgba(9, 15, 50, 0.18);
 }
 
@@ -2453,6 +2454,17 @@ body {
 .sm-account-logout.btn:focus {
   background: #c32437;
   color: #fff;
+}
+
+@media (max-width: 1024px) {
+  .pc-header .sm-account-menu.dropdown-user-profile {
+    max-height: calc(100vh - 89px);
+    max-height: calc(100dvh - 89px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 @media (max-width: 575.98px) {
