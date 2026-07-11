@@ -1,6 +1,6 @@
 {
-  "name": "sm-connect",
-  "short_name": "sm-connect",
+  "name": "SM-Connect",
+  "short_name": "SM-Connect",
   "description": "Portal terpadu PT. Susanti Megah",
   "start_url": ".",
   "scope": ".",
@@ -10,14 +10,8 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "customer-portal-icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "customer-portal-icon-512.png",
-      "sizes": "512x512",
+      "src": "customer-portal-logo.png",
+      "sizes": "1254x1254",
       "type": "image/png",
       "purpose": "any maskable"
     }
