@@ -9,7 +9,7 @@ const MasterBuyingPrice = Loadable(lazy(() => import('views/customer-portal/mast
 const MasterDistributor = Loadable(lazy(() => import('views/customer-portal/master/MasterDistributor')));
 const SettingPage = Loadable(lazy(() => import('views/setting/SettingPage')));
 const OrderList = Loadable(lazy(() => import('views/customer-portal/order/OrderList')));
-const RewardList = Loadable(lazy(() => import('views/customer-portal/reward/RewardList')));
+const BalanceLedger = Loadable(lazy(() => import('views/customer-portal/reward/BalanceLedger')));
 const RewardAdd = Loadable(lazy(() => import('views/customer-portal/reward/RewardAdd')));
 
 const MenuRoutes = {
@@ -50,7 +50,7 @@ const MenuRoutes = {
     },
     {
       path: 'customer-portal/finance/reward',
-      element: <RewardList />
+      element: <BalanceLedger />
     },
     {
       path: 'customer-portal/finance/reward/add',

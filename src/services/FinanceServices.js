@@ -124,6 +124,14 @@ class FinanceServices {
     return DataService.get(`/claims/template-excel`);
   }
 
+  postBalanceLedger(payload) {
+    return DataService.post('/claims/balance-ledger/adjustment', payload);
+  }
+
+  postBalanceLedget(payload) {
+    return this.postBalanceLedger(payload);
+  }
+
   async downloadRewardTemplate() {
     const response = await ProductServices.getAllProduct('');
 

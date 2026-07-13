@@ -49,6 +49,10 @@ class PromoServices {
     return DataService.get('/claims/reward-summary', payload);
   }
 
+  getClaimsLedger(payload = {}) {
+    return DataService.get('/claims/balance-ledger', payload);
+  }
+
   postWithdraw(payload) {
     return DataService.post('/claims/withdraws', payload);
   }

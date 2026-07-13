@@ -1749,6 +1749,11 @@ export default function OrderPost() {
       return;
     }
 
+    if (activeDiscounts.some((item) => item.section === 'tradePromo' && (item.claimBatch?.batchId ?? null) === null)) {
+      showAlert('Claim Batch is required for each Trade Promo component', 'danger');
+      return;
+    }
+
     if (tradePromoTotal > maximumTradePromo) {
       showAlert(`Total Trade Promo cannot exceed ${formatCurrency(maximumTradePromo)}`, 'warning');
       return;
@@ -1759,7 +1764,8 @@ export default function OrderPost() {
       TypeDiscount: item?.name?.value,
       Persentase: item?.valueType === 'percent' ? Number(item?.calculationValue || 0) : 0,
       TotalDiskon: item?.value,
-      Remarks: item?.remarks
+      Remarks: item?.remarks,
+      BatchId: item?.section === 'tradePromo' ? item?.claimBatch?.batchId ?? null : null
     }));
     const payload = {
       CardCode: orderInput.cardCode,
