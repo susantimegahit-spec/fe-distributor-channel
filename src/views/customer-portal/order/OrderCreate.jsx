@@ -60,6 +60,8 @@ export default function OrderPost() {
   const [listEmployee, setListEmployee] = useState([]);
   const [discId, setDiscId] = useState('');
   const [listDiscType, setListDiscType] = useState([]);
+  const [listTradePromo, setListTradePromo] = useState([]);
+  const [listClaimBatch, setListClaimBatch] = useState([]);
   // VAT disabled: const [listVats, setListVats] = useState([]);
   const [listSeries, setListSeries] = useState([]);
   const [listDistributor, setListDistributor] = useState([]);
@@ -88,6 +90,12 @@ export default function OrderPost() {
       paddingBottom: 0
     })
   };
+
+  const discountValueTypeOptions = [
+    { value: 'nominal', label: 'Nominal' },
+    { value: 'percent', label: 'Percent' },
+    { value: 'kg', label: 'Kg' }
+  ];
 
   const RequiredLabel = ({ children }) => (
     <>
@@ -137,6 +145,20 @@ export default function OrderPost() {
     };
   };
 
+  const getKgFromProductName = (productName = '') => {
+    const matches = [...String(productName).matchAll(/(\d+(?:[.,]\d+)?)\s*kg\b/gi)];
+    const matchedWeight = matches.at(-1)?.[1];
+
+    return Number(String(matchedWeight || 0).replace(',', '.')) || 0;
+  };
+
+  const calculateTotalKg = (items = []) =>
+    items.reduce((total, item) => {
+      const kgPerUnit = getKgFromProductName(item.itemCode?.label);
+
+      return total + kgPerUnit * Number(item.quantity || 0);
+    }, 0);
+
   const [itemArr, setItemArr] = useState([
     {
       itemCode: null,
@@ -175,7 +197,27 @@ export default function OrderPost() {
     {
       name: '',
       value: '',
-      remarks: ''
+      remarks: '',
+      section: 'primary',
+      valueType: 'nominal',
+      calculationValue: ''
+    },
+    {
+      name: '',
+      value: '',
+      remarks: '',
+      section: 'other',
+      valueType: 'nominal',
+      calculationValue: ''
+    },
+    {
+      name: '',
+      value: '',
+      remarks: '',
+      section: 'tradePromo',
+      valueType: 'nominal',
+      calculationValue: '',
+      claimBatch: null
     }
   ]);
 
@@ -419,11 +461,17 @@ export default function OrderPost() {
 
   const mapDiscountDetail = (detail = {}) => {
     const type = getValue(detail, ['type_discount', 'discount_type', 'discountType', 'TypeDiscount', 'Type', 'type', 'name']);
+    const normalizedType = String(type || '').toLowerCase();
+    const percentage = getValue(detail, ['percentage', 'persentase', 'Persentase'], '');
 
     return {
       name: type ? { value: type, label: type } : '',
       value: getValue(detail, ['total_discount', 'totalDiscount', 'discount_amount', 'amount'], ''),
-      remarks: getValue(detail, ['remarks', 'remark', 'description', 'keterangan'], '')
+      remarks: getValue(detail, ['remarks', 'remark', 'description', 'keterangan'], ''),
+      section: normalizedType.includes('promo') ? 'tradePromo' : 'other',
+      valueType: Number(percentage) > 0 ? 'percent' : 'nominal',
+      calculationValue: Number(percentage) > 0 ? percentage : '',
+      claimBatch: null
     };
   };
 
@@ -478,8 +526,35 @@ export default function OrderPost() {
   const cloneDiscountDetails = (details = []) =>
     details.map((item) => ({
       ...item,
-      name: item.name && typeof item.name === 'object' ? { ...item.name } : item.name
+      name: item.name && typeof item.name === 'object' ? { ...item.name } : item.name,
+      claimBatch: item.claimBatch && typeof item.claimBatch === 'object' ? { ...item.claimBatch } : item.claimBatch
     }));
+
+  const createEmptyDiscount = (section) => ({
+    name: '',
+    value: '',
+    remarks: '',
+    section,
+    valueType: 'nominal',
+    calculationValue: '',
+    claimBatch: null
+  });
+
+  const ensureDiscountSections = (details = []) => {
+    const normalizedDetails = details.map((item) => ({ ...item, section: item.section || 'other' }));
+    const nonPromoDetails = normalizedDetails.filter((item) => item.section !== 'tradePromo');
+    const promoDetails = normalizedDetails.filter((item) => item.section === 'tradePromo');
+
+    if (nonPromoDetails.length) {
+      nonPromoDetails[0] = { ...nonPromoDetails[0], section: 'primary' };
+    }
+
+    return [
+      ...(nonPromoDetails.length ? nonPromoDetails : [createEmptyDiscount('primary')]),
+      ...(nonPromoDetails.some((item) => item.section === 'other') ? [] : [createEmptyDiscount('other')]),
+      ...(promoDetails.length ? promoDetails : [createEmptyDiscount('tradePromo')])
+    ];
+  };
 
   const findOption = (options, value, label, extra = {}) => {
     if (!value && !label) return null;
@@ -575,14 +650,8 @@ export default function OrderPost() {
     setDiscId(orderDiscountId);
     setDetailDisc(
       discountDetails.length > 0
-        ? discountDetails.map(mapDiscountDetail)
-        : [
-            {
-              name: '',
-              value: '',
-              remarks: ''
-            }
-          ]
+        ? ensureDiscountSections(discountDetails.map(mapDiscountDetail))
+        : [createEmptyDiscount('primary'), createEmptyDiscount('other'), createEmptyDiscount('tradePromo')]
     );
     const docDate = formatDateInput(getValue(order, ['doc_date', 'docDate', 'DocDate']));
     const docDueDate = docDate;
@@ -835,12 +904,18 @@ export default function OrderPost() {
     const response = await OrderServices.getDiscType();
     if (response.data.success) {
       const data = response.data.data;
-      const dataArr = data.map((item) => ({
-        value: item?.fld_value,
-        label: item?.fld_value
-      }));
+      const dataArr = data
+        .filter((item) => Number(item?.status ?? 1) === 1)
+        .map((item) => ({
+          value: item?.fld_value,
+          label: item?.descr || item?.fld_value,
+          description: item?.descr || ''
+        }))
+        .filter((item) => item.value);
+      const isTradePromo = (item) => `${item.value} ${item.description}`.toLowerCase().includes('promo');
 
-      setListDiscType(dataArr);
+      setListDiscType(dataArr.filter((item) => !isTradePromo(item)));
+      setListTradePromo(dataArr.filter(isTradePromo));
       setIsLoading(false);
     } else {
       setIsLoading(false);
@@ -1098,9 +1173,57 @@ export default function OrderPost() {
     setDetailDisc([...detailDisc]);
   };
 
+  const handleSelectClaimBatch = (option, index) => {
+    if (!option) {
+      setDetailDisc((currentDetails) =>
+        currentDetails.map((item, itemIndex) =>
+          itemIndex === index ? { ...item, claimBatch: null, value: '', remarks: '' } : item
+        )
+      );
+      return;
+    }
+
+    const isBatchUsed = detailDisc.some((item, itemIndex) => itemIndex !== index && item.claimBatch?.value === option.value);
+
+    if (isBatchUsed) {
+      showAlert('This claim batch has already been selected', 'warning');
+      return;
+    }
+
+    const accumulatedTradePromo = detailDisc.reduce(
+      (total, item, itemIndex) => total + (itemIndex === index || item.section !== 'tradePromo' ? 0 : Number(item.value || 0)),
+      0
+    );
+    const remainingTradePromo = Math.max(maximumTradePromo - accumulatedTradePromo, 0);
+    const appliedAmount = Math.min(Number(option.amount || 0), remainingTradePromo);
+
+    if (!appliedAmount) {
+      showAlert('Maximum Total Trade Promo has been reached', 'warning');
+      return;
+    }
+
+    setDetailDisc((currentDetails) =>
+      currentDetails.map((item, itemIndex) =>
+        itemIndex === index
+          ? {
+              ...item,
+              claimBatch: option,
+              value: appliedAmount,
+              remarks: `${option.batchNo} · ${option.branchName}`
+            }
+          : item
+      )
+    );
+
+    if (Number(option.amount || 0) > appliedAmount) {
+      showAlert(`Trade Promo was limited to the remaining maximum of ${formatCurrency(appliedAmount)}`, 'warning');
+    }
+  };
+
   const fetchCustomerRewardDiscount = async () => {
     setRewardDiscountPreview([]);
     setRewardResultCount(0);
+    setListClaimBatch([]);
 
     if (!orderInput.cardCode) {
       showAlert('Select a customer first to fetch the total Reward', 'danger');
@@ -1141,11 +1264,19 @@ export default function OrderPost() {
             resultPayload?.data ||
             [];
         const batchNo = batch.batch_no || batch.batch_code || batch.claim_no || batch.reference_no || `BATCH-${batch.id || index + 1}`;
+        const batchId = batch.id || batch.batch_id || batch.claim_batch_id || batch.upload_batch_id || batch.upload_id || index;
         const fileName = batch.file_name || batch.original_file_name || batch.original_filename || batch.filename || '-';
 
         return results
           .filter((item) => getRewardCustomerCode(item) === String(orderInput.cardCode))
-          .map((item) => ({ ...item, batchNo, fileName }));
+          .map((item) => ({
+            ...item,
+            batchId,
+            batchNo,
+            fileName,
+            branchName:
+              item.branch_name || item.branch || item.cabang || item.depo || item.customer_name || item.distributor_name || orderInput.cardCode
+          }));
       });
 
       if (!customerResults.length) {
@@ -1155,6 +1286,30 @@ export default function OrderPost() {
 
       const totalReward = customerResults.reduce((total, item) => total + getRewardAmount(item), 0);
       const rewardReferences = Array.from(new Set(customerResults.map((item) => `${item.batchNo} · ${item.fileName}`))).filter(Boolean);
+      const batchGroups = customerResults.reduce((groups, item) => {
+        const key = `${item.batchId}-${item.branchName}`;
+        const currentGroup = groups.get(key) || {
+          value: key,
+          batchId: item.batchId,
+          batchNo: item.batchNo,
+          branchName: item.branchName,
+          amount: 0
+        };
+
+        currentGroup.amount += getRewardAmount(item);
+        groups.set(key, currentGroup);
+
+        return groups;
+      }, new Map());
+
+      setListClaimBatch(
+        Array.from(batchGroups.values())
+          .filter((item) => item.amount > 0)
+          .map((item) => ({
+            ...item,
+            label: `${item.batchNo} · ${item.branchName} · ${formatCurrency(item.amount)}`
+          }))
+      );
 
       setRewardResultCount(customerResults.length);
       setRewardDiscountPreview(
@@ -1217,7 +1372,19 @@ export default function OrderPost() {
   };
 
   const handleOpenDiscount = () => {
-    setDiscountSnapshot(cloneDiscountDetails(detailDisc));
+    const hasProductTotal = itemArr.some(
+      (item) => item.itemCode && Number(item.quantity || 0) > 0 && Number(item.unitPrice || 0) > 0
+    );
+
+    if (!hasProductTotal) {
+      showAlert('Please fill in at least one product, quantity, and unit price before setting a discount', 'warning');
+      return;
+    }
+
+    const recalculatedDetails = recalculateDiscountAmounts(detailDisc);
+
+    setDetailDisc(recalculatedDetails);
+    setDiscountSnapshot(cloneDiscountDetails(recalculatedDetails));
     setShowDisc(true);
     fetchCustomerRewardDiscount();
     fetchMaxDiscount();
@@ -1285,12 +1452,13 @@ export default function OrderPost() {
     // setItemArr(itm)
   };
 
-  const addItemDisc = () => {
-    const item = {
-      name: '',
-      value: '',
-      remarks: ''
-    };
+  const addItemDisc = (section) => {
+    if (section === 'tradePromo' && tradePromoTotal >= maximumTradePromo) {
+      showAlert('Maximum Total Trade Promo has been reached', 'warning');
+      return;
+    }
+
+    const item = createEmptyDiscount(section);
 
     let store = [...detailDisc, item];
     setDetailDisc(store);
@@ -1298,7 +1466,13 @@ export default function OrderPost() {
 
   const removeItemDisc = (i) => {
     setSelectedRewardTarget(null);
-    setDetailDisc((prevArray) => prevArray.filter((_, index) => index !== i));
+    setDetailDisc((prevArray) => {
+      const removedSection = prevArray[i]?.section;
+      const nextDetails = prevArray.filter((_, index) => index !== i);
+      return nextDetails.some((item) => item.section === removedSection)
+        ? nextDetails
+        : [...nextDetails, createEmptyDiscount(removedSection)];
+    });
   };
 
   const handleChangeInputLine = (index, key, e) => {
@@ -1319,6 +1493,64 @@ export default function OrderPost() {
   const handleInputRemarks = (index, e) => {
     detailDisc[index].remarks = e.target.value;
     setDetailDisc([...detailDisc]);
+  };
+
+  const recalculateDiscountAmounts = (details) => {
+    const totalKg = calculateTotalKg(itemArr);
+    const calculateAmount = (item, percentageBase) => {
+      const calculationValue = Number(item.calculationValue || 0);
+
+      if (item.valueType === 'percent') {
+        return Math.round(percentageBase * (calculationValue / 100));
+      }
+
+      if (item.valueType === 'kg') {
+        return Math.round(totalKg * calculationValue);
+      }
+
+      return item.value;
+    };
+    const primaryDetails = details.map((item) =>
+      item.section === 'primary' ? { ...item, value: calculateAmount(item, orderSubtotal) } : item
+    );
+    const calculatedPrimaryTotal = primaryDetails
+      .filter((item) => item.section === 'primary')
+      .reduce((total, item) => total + Number(item.value || 0), 0);
+    const otherDiscountBase = Math.max(orderSubtotal - calculatedPrimaryTotal, 0);
+
+    return primaryDetails.map((item) =>
+      item.section === 'other' ? { ...item, value: calculateAmount(item, otherDiscountBase) } : item
+    );
+  };
+
+  const handleSelectDiscountValueType = (option, index) => {
+    const valueType = option?.value || 'nominal';
+    const nextDetails = detailDisc.map((item, itemIndex) =>
+      itemIndex === index
+        ? {
+            ...item,
+            valueType,
+            calculationValue: valueType === 'nominal' ? '' : item.calculationValue,
+            value: valueType === 'nominal' ? '' : item.value
+          }
+        : item
+    );
+
+    setDetailDisc(recalculateDiscountAmounts(nextDetails));
+  };
+
+  const handleInputCalculationValue = (index, event) => {
+    const normalizedValue = String(event.target.value || '')
+      .replace(',', '.')
+      .replace(/[^\d.]/g, '')
+      .replace(/(\..*)\./g, '$1');
+    const nextValue = detailDisc[index].valueType === 'percent' && Number(normalizedValue) > 100 ? '100' : normalizedValue;
+
+    const nextDetails = detailDisc.map((item, itemIndex) =>
+      itemIndex === index ? { ...item, calculationValue: nextValue } : item
+    );
+
+    setDetailDisc(recalculateDiscountAmounts(nextDetails));
   };
 
   const parseNumberInput = (value) => String(value || '').replace(/\D/g, '');
@@ -1343,14 +1575,26 @@ export default function OrderPost() {
       maximumFractionDigits: 0
     }).format(Number(value) || 0);
 
+  const formatKg = (value) =>
+    `${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 }).format(Number(value) || 0)} Kg`;
+
   const orderSubtotal = itemArr.reduce((total, item) => {
     return total + Number(item.quantity || 0) * Number(item.unitPrice || 0);
   }, 0);
+  const orderTotalKg = calculateTotalKg(itemArr);
   // VAT disabled
   // const orderVatTotal = itemArr.reduce((total, item) => total + Number(item.vatTotal || calculateLineTotals(item).vatTotal || 0), 0);
   // const orderTotalAfterVat = orderSubtotal + orderVatTotal;
 
   const discountTotal = detailDisc.reduce((total, item) => total + (Number(item.value) || 0), 0);
+  const primaryDiscountTotal = detailDisc
+    .filter((item) => item.section === 'primary')
+    .reduce((total, item) => total + (Number(item.value) || 0), 0);
+  const primaryDiscountReference = orderSubtotal - primaryDiscountTotal;
+  const maximumTradePromo = Math.max(primaryDiscountReference, 0) * 0.2;
+  const tradePromoTotal = detailDisc
+    .filter((item) => item.section === 'tradePromo')
+    .reduce((total, item) => total + (Number(item.value) || 0), 0);
   const rewardTotal = rewardDiscountPreview.reduce((total, item) => total + (Number(item.value) || 0), 0);
   const maximumDiscount = orderSubtotal * ((maxDiscountPercentage || 0) / 100);
   const remainingDiscountLimit = Math.max(maximumDiscount - discountTotal, 0);
@@ -1500,11 +1744,21 @@ export default function OrderPost() {
       return;
     }
 
+    if (activeDiscounts.some((item) => ['percent', 'kg'].includes(item.valueType) && !Number(item.calculationValue))) {
+      showAlert('Value is required for Percent and Kg discount types', 'danger');
+      return;
+    }
+
+    if (tradePromoTotal > maximumTradePromo) {
+      showAlert(`Total Trade Promo cannot exceed ${formatCurrency(maximumTradePromo)}`, 'warning');
+      return;
+    }
+
     setLoaderDisc(true);
     const dataDisc = activeDiscounts.map((item) => ({
       TypeDiscount: item?.name?.value,
-      Persentase: 0,
-      TotalDiscount: item?.value,
+      Persentase: item?.valueType === 'percent' ? Number(item?.calculationValue || 0) : 0,
+      TotalDiskon: item?.value,
       Remarks: item?.remarks
     }));
     const payload = {
@@ -1602,6 +1856,162 @@ export default function OrderPost() {
     }
     setStatusType(type);
     setConfirmSubmit(true);
+  };
+
+  const renderDiscountSection = ({ section, title, description, options, allowCreate = false, allowAdd = false }) => {
+    const sectionRows = detailDisc
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) => item.section === section);
+    const showValueType = section === 'primary' || section === 'other';
+    const showClaimBatch = section === 'tradePromo';
+    const isTradePromoLimitReached = showClaimBatch && tradePromoTotal >= maximumTradePromo;
+
+    return (
+      <Card className="border mb-0">
+        <Card.Header className="py-3">
+          <Stack direction="horizontal" className="justify-content-between">
+            <div>
+              <h6 className="mb-1">{title}</h6>
+              <small className="text-muted">{description}</small>
+            </div>
+            {allowAdd && (
+              <Button
+                size="sm"
+                variant="light-primary"
+                onClick={() => addItemDisc(section)}
+                disabled={isTradePromoLimitReached}
+                title={isTradePromoLimitReached ? 'Maximum Total Trade Promo has been reached' : undefined}
+              >
+                <i className="ti ti-plus me-1" />
+                Add Discount
+              </Button>
+            )}
+          </Stack>
+        </Card.Header>
+        <Card.Body className="p-0">
+          <Table className="mb-0 align-middle" responsive hover>
+            <thead>
+              <tr>
+                <th style={{ minWidth: 210 }}>Category</th>
+                {showClaimBatch && <th style={{ minWidth: 320 }}>Claim Batch &amp; Branch Amount</th>}
+                {showValueType && <th style={{ minWidth: 140 }}>Value Type</th>}
+                <th style={{ minWidth: 170 }}>Remarks</th>
+                <th style={{ minWidth: 130 }}>Amount</th>
+                {allowAdd && <th className="text-center">#</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {sectionRows.map(({ item, index }) => (
+                <tr key={`${section}-${index}`}>
+                  <td>
+                    {allowCreate ? (
+                      <CreatableSelect
+                        styles={customStyles}
+                        value={item.name}
+                        options={options}
+                        menuPosition="fixed"
+                        onChange={(option) => handleSelectDiscType(option, index)}
+                        placeholder="Select or type a category"
+                        formatCreateLabel={(value) => `Use "${value}"`}
+                      />
+                    ) : (
+                      <Select
+                        styles={customStyles}
+                        value={item.name}
+                        options={options}
+                        menuPosition="fixed"
+                        onChange={(option) => handleSelectDiscType(option, index)}
+                        placeholder={section === 'tradePromo' ? 'Select trade promo' : 'Select discount category'}
+                        isClearable
+                      />
+                    )}
+                  </td>
+                  {showClaimBatch && (
+                    <td>
+                      <Select
+                        styles={customStyles}
+                        value={item.claimBatch}
+                        options={listClaimBatch}
+                        menuPosition="fixed"
+                        onChange={(option) => handleSelectClaimBatch(option, index)}
+                        isOptionDisabled={(option) =>
+                          detailDisc.some(
+                            (detail, detailIndex) => detailIndex !== index && detail.claimBatch?.value === option.value
+                          )
+                        }
+                        isLoading={loadingReward}
+                        isClearable
+                        placeholder="Select claim batch"
+                        noOptionsMessage={() => (loadingReward ? 'Loading claim batches...' : 'No claim batch for this branch')}
+                      />
+                    </td>
+                  )}
+                  {showValueType && (
+                    <td>
+                      <Select
+                        styles={customStyles}
+                        value={
+                          discountValueTypeOptions.find((option) => option.value === item.valueType) || discountValueTypeOptions[0]
+                        }
+                        options={discountValueTypeOptions}
+                        menuPosition="fixed"
+                        onChange={(option) => handleSelectDiscountValueType(option, index)}
+                        isSearchable={false}
+                      />
+                      {(item.valueType === 'percent' || item.valueType === 'kg') && (
+                        <Form.Control
+                          className="mt-2"
+                          type="text"
+                          inputMode="decimal"
+                          value={item.calculationValue || ''}
+                          onChange={(event) => handleInputCalculationValue(index, event)}
+                          size="sm"
+                          placeholder={item.valueType === 'percent' ? 'Percent value' : 'Kg value'}
+                        />
+                      )}
+                    </td>
+                  )}
+                  <td>
+                    <Form.Control
+                      value={item.remarks || ''}
+                      onChange={(event) => handleInputRemarks(index, event)}
+                      size="sm"
+                      placeholder="Remarks"
+                    />
+                  </td>
+                  <td>
+                    <Form.Control
+                      type="text"
+                      inputMode="numeric"
+                      value={formatNumberInput(item.value)}
+                      onChange={(event) => handleInputDiscValue(index, event)}
+                      readOnly={item.valueType === 'percent' || item.valueType === 'kg' || item.section === 'tradePromo'}
+                      size="sm"
+                      placeholder={
+                        item.section === 'tradePromo' ? 'Select claim batch' : item.valueType === 'nominal' ? '0' : 'Calculated amount'
+                      }
+                    />
+                  </td>
+                  {allowAdd && (
+                    <td className="text-center">
+                      <Button
+                        className="rounded-circle"
+                        size="sm"
+                        variant="outline-danger"
+                        onClick={() => removeItemDisc(index)}
+                        disabled={sectionRows.length === 1}
+                      >
+                        <i className="ti ti-trash" />
+                      </Button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </Card.Body>
+      </Card>
+    );
   };
 
   return (
@@ -2247,16 +2657,28 @@ export default function OrderPost() {
           </MainCard>
         </>
       </Stack>
-      <Modal show={showDisc} onHide={handleCancelDiscount} size="lg" centered>
+      <Modal show={showDisc} onHide={handleCancelDiscount} size="xl" centered>
         <Modal.Header closeButton>
-          <div>
-            <Modal.Title>Set Order Discount</Modal.Title>
-            <small className="text-muted">Combine manual discounts and Reward into one order discount.</small>
+          <div className="d-flex justify-content-between align-items-center w-100 pe-3 gap-3">
+            <div>
+              <Modal.Title>Set Order Discount</Modal.Title>
+              <small className="text-muted">Combine manual discounts and Reward into one order discount.</small>
+            </div>
+            <div className="d-flex align-items-center gap-4 text-end">
+              <div>
+                <small className="text-muted d-block">Total Kg</small>
+                <h5 className="mb-0">{formatKg(orderTotalKg)}</h5>
+              </div>
+              <div>
+                <small className="text-muted d-block">Total Product</small>
+                <h5 className="mb-0 text-primary">{formatCurrency(orderSubtotal)}</h5>
+              </div>
+            </div>
           </div>
         </Modal.Header>
         <Modal.Body>
           <Stack gap={3}>
-            <Card className="border mb-0">
+            {/* <Card className="border mb-0">
               <Card.Body className="py-3">
                 <Row className="g-3">
                   <Col md={6}>
@@ -2332,80 +2754,66 @@ export default function OrderPost() {
                   </div>
                 )}
               </Card.Body>
-            </Card>
+            </Card> */}
 
-            <Card className="border mb-0">
-              <Card.Header className="py-3">
-                <Stack direction="horizontal" className="justify-content-between">
-                  <div>
-                    <h6 className="mb-1">Discount Components</h6>
-                    <small className="text-muted">All rows below will be saved as one order discount.</small>
-                  </div>
-                  <Button size="sm" variant="light-primary" onClick={addItemDisc}>
-                    <i className="ti ti-plus me-1" />
-                    Add Manual
-                  </Button>
-                </Stack>
-              </Card.Header>
-              <Card.Body className="p-0">
-                <Table className="mb-0 align-middle" responsive hover>
-                  <thead>
-                    <tr>
-                      <th style={{ minWidth: 210 }}>Category</th>
-                      <th style={{ minWidth: 170 }}>Remarks</th>
-                      <th style={{ minWidth: 130 }}>Amount</th>
-                      <th className="text-center">#</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {detailDisc.map((item, index) => (
-                      <tr key={index}>
-                        <td>
-                          <CreatableSelect
-                            styles={customStyles}
-                            value={item.name}
-                            options={listDiscType}
-                            menuPosition="fixed"
-                            onChange={(e) => handleSelectDiscType(e, index)}
-                            placeholder="Select or type a category"
-                            formatCreateLabel={(value) => `Use "${value}"`}
-                          />
-                        </td>
-                        <td>
-                          <Form.Control
-                            value={item.remarks || ''}
-                            onChange={(e) => handleInputRemarks(index, e)}
-                            size="sm"
-                            placeholder="Remarks"
-                          />
-                        </td>
-                        <td>
-                          <Form.Control
-                            type="text"
-                            inputMode="numeric"
-                            value={formatNumberInput(item.value)}
-                            onChange={(e) => handleInputDiscValue(index, e)}
-                            size="sm"
-                            placeholder="0"
-                          />
-                        </td>
-                        <td className="text-center">
-                          <Button
-                            className="rounded-circle"
-                            size="sm"
-                            variant="outline-danger"
-                            onClick={() => removeItemDisc(index)}
-                            disabled={detailDisc.length === 1}
-                          >
-                            <i className="ti ti-trash" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-              </Card.Body>
-            </Card>
+            {renderDiscountSection({
+              section: 'primary',
+              title: 'Primary Discount',
+              description: 'Main discount component for this order.',
+              options: listDiscType,
+              allowCreate: true,
+              allowAdd: true
+            })}
+
+            {primaryDiscountTotal > 0 && (
+              <Stack direction="horizontal" className="justify-content-between bg-light-primary rounded px-3 py-2">
+                <div>
+                  <span className="fw-semibold d-block">Discount Reference</span>
+                  <small className="text-muted">Total Product - Primary Discount</small>
+                </div>
+                <div className="text-end">
+                  <small className="text-muted d-block">
+                    {formatCurrency(orderSubtotal)} - {formatCurrency(primaryDiscountTotal)}
+                  </small>
+                  <h5 className="mb-0 text-primary">{formatCurrency(primaryDiscountReference)}</h5>
+                </div>
+              </Stack>
+            )}
+
+            {renderDiscountSection({
+              section: 'other',
+              title: 'Other Discount',
+              description: 'Additional discount components outside the primary discount and trade promo.',
+              options: listDiscType,
+              allowCreate: true,
+              allowAdd: true
+            })}
+
+            <Stack
+              direction="horizontal"
+              className={`justify-content-between rounded px-3 py-2 ${
+                tradePromoTotal > maximumTradePromo ? 'bg-danger-subtle' : 'bg-light-primary'
+              }`}
+            >
+              <div>
+                <span className="fw-semibold d-block">Maximum Total Trade Promo</span>
+                <small className="text-muted">20% × Discount Reference ({formatCurrency(primaryDiscountReference)})</small>
+              </div>
+              <div className="text-end">
+                <small className="text-muted d-block">Current Trade Promo: {formatCurrency(tradePromoTotal)}</small>
+                <h5 className={`mb-0 ${tradePromoTotal > maximumTradePromo ? 'text-danger' : 'text-primary'}`}>
+                  {formatCurrency(maximumTradePromo)}
+                </h5>
+              </div>
+            </Stack>
+
+            {renderDiscountSection({
+              section: 'tradePromo',
+              title: 'Trade Promo',
+              description: 'Trade promo categories are taken from promo types returned by getDiscType.',
+              options: listTradePromo,
+              allowAdd: true
+            })}
 
             <Stack direction="horizontal" className="justify-content-between bg-light rounded p-3">
               <div>
