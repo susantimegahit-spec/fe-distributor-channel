@@ -579,6 +579,8 @@ export default function BalanceLedger() {
   };
 
   const handleSubmitClaim = async () => {
+    const rawClaimAmount = Number(claimAmount) || 0;
+
     if (!canCreateAdjustment) {
       showAlert('Only distributor accounts can add a claim', 'warning');
       return;
@@ -589,6 +591,11 @@ export default function BalanceLedger() {
       return;
     }
 
+    // if (!rawClaimAmount) {
+    //   showAlert('Please enter a claim amount', 'warning');
+    //   return;
+    // }
+
     if (!claimDescription.trim()) {
       showAlert('Please enter a claim description', 'warning');
       return;
@@ -597,24 +604,6 @@ export default function BalanceLedger() {
     setSubmittingClaim(true);
 
     try {
-      let batchId = null;
-
-      // Step 1: If a file is selected, upload it first to get the batch_id
-      if (claimFile) {
-        const uploadForm = new FormData();
-        uploadForm.append('file', claimFile);
-
-        const uploadResponse = await PromoServices.uploadTransactionFile(uploadForm);
-
-        if (!uploadResponse || uploadResponse.status < 200 || uploadResponse.status >= 300 || uploadResponse?.data?.success === false) {
-          showAlert(uploadResponse?.data?.message || 'Failed to upload claim file', 'danger');
-          return;
-        }
-
-        batchId = uploadResponse?.data?.data?.batch_id || uploadResponse?.data?.batch_id || null;
-      }
-
-      // Step 2: Record the ledger adjustment, linking to batch via ref_number
       const claimPayload = {
         start_date: claimStartDate,
         end_date: claimEndDate,
@@ -623,10 +612,17 @@ export default function BalanceLedger() {
         adjustment_type: 'DEBIT',
         amount: 0,
         description: claimDescription.trim(),
-        ref_number: batchId ? String(batchId) : ''
+        ref_number: ''
       };
+      let requestPayload = claimPayload;
 
-      const response = await FinanceServices.postBalanceLedger(claimPayload);
+      if (claimFile) {
+        requestPayload = new FormData();
+        Object.entries(claimPayload).forEach(([key, value]) => requestPayload.append(key, value));
+        requestPayload.append('file', claimFile);
+      }
+
+      const response = await FinanceServices.postBalanceLedger(requestPayload);
 
       if (!response || response.status < 200 || response.status >= 300 || response?.data?.success === false) {
         showAlert(response?.data?.message || 'Failed to save reward claim', 'danger');
