@@ -104,6 +104,50 @@ const getResponseList = (response) => {
   return [];
 };
 
+const getBankCode = (value = {}) => {
+  const item = value || {};
+
+  return (
+    item.bank_code ||
+    item.bankCode ||
+    item.bank?.bank_code ||
+    item.bank?.code ||
+    item.customer?.bank_code ||
+    item.customer?.bankCode ||
+    item.distributor?.bank_code ||
+    item.distributor?.bankCode ||
+    ''
+  );
+};
+
+const getAccountBankNumber = (value = {}) => {
+  const item = value || {};
+
+  return (
+    item.account_bank_number ||
+    item.accountBankNumber ||
+    item.bank_account_number ||
+    item.bankAccountNumber ||
+    item.bank?.account_bank_number ||
+    item.bank?.accountBankNumber ||
+    item.customer?.account_bank_number ||
+    item.customer?.accountBankNumber ||
+    item.distributor?.account_bank_number ||
+    item.distributor?.accountBankNumber ||
+    ''
+  );
+};
+
+const formatBankAccount = (value = {}) => {
+  const item = value || {};
+  const bankCode = getBankCode(item);
+  const accountNumber = getAccountBankNumber(item);
+  const bankAccount = item.bank_account || item.bankAccount || item.bank?.account || '';
+
+  if (bankCode && accountNumber) return `${bankCode} - ${accountNumber}`;
+  return bankAccount || bankCode || accountNumber || '-';
+};
+
 const normalizeCustomerOption = (item = {}) => {
   const code = String(item.code_customer || item.customer_code || item.distributor_code || '');
   const name = item.customer_name || item.name_customer || item.name || item.name_distributor || '';
@@ -114,7 +158,10 @@ const normalizeCustomerOption = (item = {}) => {
     label: [code, depo, name].filter(Boolean).join(' - ') || '-',
     customerCode: code,
     customerName: name,
-    depo
+    depo,
+    bankCode: getBankCode(item),
+    accountBankNumber: getAccountBankNumber(item),
+    bankAccount: formatBankAccount(item)
   };
 };
 
@@ -255,6 +302,9 @@ const transactionTypeConfig = {
   }
 };
 
+const isApprovedStatus = (status) =>
+  ['APPROVED', 'SUCCESS', 'COMPLETED', 'PAID'].includes(normalizeApprovalText(status));
+
 const normalizeLedgerRow = (item = {}, index) => {
   const type =
     item.transaction ||
@@ -269,15 +319,22 @@ const normalizeLedgerRow = (item = {}, index) => {
     item.source_type ||
     '';
   const normalizedType = String(type).toLowerCase();
+  const typeKey = normalizeTransactionType(type);
+  const status = String(item.status || item.transaction_status || item.approval_status || '').replace(/_/g, ' ');
   const amount = getNumber(item.amount, item.nominal, item.value, item.transaction_amount) || 0;
   const explicitDebit = getNumber(item.debit, item.debit_amount, item.debitAmount);
   const explicitCredit = getNumber(item.credit, item.credit_amount, item.creditAmount);
+  const explicitOutstanding = getNumber(item.outstanding, item.outstanding_amount, item.outstandingAmount);
   const isDebit = ['debit', 'withdraw', 'withdrawal', 'deduction', 'usage', 'used', 'redeem'].some((keyword) =>
     normalizedType.includes(keyword)
   );
+  const withdrawAmount = Math.abs(amount || explicitCredit || explicitDebit || explicitOutstanding || 0);
+  const approvedWithdraw = typeKey === 'WITHDRAW' && isApprovedStatus(status);
+  const pendingWithdraw = typeKey === 'WITHDRAW' && !approvedWithdraw;
 
   return {
     id: item.id || item.ledger_id || item.balance_ledger_id || item.transaction_id || index,
+    withdrawId: item.withdraw_id || item.claim_withdraw_id || item.claimWithdrawId || item.source_id || item.transaction_id || item.id,
     date: item.transaction_date || item.transactionDate || item.date || item.created_at || item.createdAt || item.updated_at,
     reference:
       item.ref_number ||
@@ -295,12 +352,16 @@ const normalizeLedgerRow = (item = {}, index) => {
       item.detail_sell_out ?? item.detailSellOut ?? item.sell_out_detail ?? item.sellOutDetail ?? item.claim_detail ?? item.claimDetail ?? null,
     customerCode: String(item.customer_code || item.customerCode || item.code_customer || item.distributor_code || ''),
     customerName: item.customer_name || item.customerName || item.name_customer || item.distributor_name || '',
+    bankCode: getBankCode(item),
+    accountBankNumber: getAccountBankNumber(item),
+    bankAccount: formatBankAccount(item),
     type: normalizeType(type),
-    typeKey: normalizeTransactionType(type),
+    typeKey,
     description: item.description || item.remarks || item.remark || item.notes || item.note || item.keterangan || '-',
-    debit: explicitDebit ?? (isDebit ? Math.abs(amount) : 0),
-    credit: explicitCredit ?? (!isDebit ? Math.abs(amount) : 0),
-    status: String(item.status || item.transaction_status || item.approval_status || '').replace(/_/g, ' ')
+    debit: typeKey === 'WITHDRAW' ? 0 : explicitDebit ?? (isDebit ? Math.abs(amount) : 0),
+    credit: approvedWithdraw ? withdrawAmount : pendingWithdraw ? 0 : explicitCredit ?? (!isDebit ? Math.abs(amount) : 0),
+    outstanding: pendingWithdraw ? withdrawAmount : typeKey === 'WITHDRAW' ? 0 : explicitOutstanding || 0,
+    status
   };
 };
 
@@ -333,11 +394,14 @@ export default function BalanceLedger() {
   const [claimAmount, setClaimAmount] = useState('');
   const [claimDescription, setClaimDescription] = useState('');
   const [submittingClaim, setSubmittingClaim] = useState(false);
-  const [withdrawStartDate, setWithdrawStartDate] = useState(getTodayDate);
-  const [withdrawEndDate, setWithdrawEndDate] = useState(getTodayDate);
+  const [withdrawDate, setWithdrawDate] = useState(getTodayDate);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawDescription, setWithdrawDescription] = useState('');
   const [submittingWithdraw, setSubmittingWithdraw] = useState(false);
+  const [selectedWithdraw, setSelectedWithdraw] = useState(null);
+  const [showApproveWithdrawModal, setShowApproveWithdrawModal] = useState(false);
+  const [withdrawTransferDate, setWithdrawTransferDate] = useState(getTodayDate);
+  const [submittingApproveWithdraw, setSubmittingApproveWithdraw] = useState(false);
   const [selectedClaimDetail, setSelectedClaimDetail] = useState(null);
   const [permissionDetail, setPermissionDetail] = useState(null);
   const [sellOutFilter, setSellOutFilter] = useState('all');
@@ -361,6 +425,15 @@ export default function BalanceLedger() {
     () => selectedCustomers.map((item) => String(item.value || '')).filter(Boolean),
     [selectedCustomers]
   );
+  const selectedWithdrawCustomer = useMemo(
+    () => customerOptions.find((item) => String(item.customerCode) === String(selectedWithdraw?.customerCode)) || null,
+    [customerOptions, selectedWithdraw]
+  );
+  const selectedWithdrawBankAccount = useMemo(() => {
+    const ledgerBankAccount = formatBankAccount(selectedWithdraw);
+
+    return ledgerBankAccount !== '-' ? ledgerBankAccount : formatBankAccount(selectedWithdrawCustomer);
+  }, [selectedWithdraw, selectedWithdrawCustomer]);
   const effectiveCustomerCode = selectedCustomerCodes.length ? selectedCustomerCodes.join(',') : customerCode;
   const adjustmentCustomerCode = isDistributor ? customerCode : '';
   const canCreateAdjustment = isDistributor;
@@ -459,10 +532,15 @@ export default function BalanceLedger() {
   const summary = useMemo(() => {
     const totalCredit = ledgerRows.reduce((total, item) => total + Number(item.credit || 0), 0);
     const totalDebit = ledgerRows.reduce((total, item) => total + Number(item.debit || 0), 0);
+    const hasWithdrawTransactions = ledgerRows.some((item) => item.typeKey === 'WITHDRAW');
     const resolvedTotalCredit =
-      getNumber(summarySource.total_credit, summarySource.totalCredit, summarySource.total_claim, summarySource.totalClaim) ?? totalCredit;
+      hasWithdrawTransactions
+        ? totalCredit
+        : getNumber(summarySource.total_credit, summarySource.totalCredit, summarySource.total_claim, summarySource.totalClaim) ?? totalCredit;
     const resolvedTotalDebit =
-      getNumber(summarySource.total_debit, summarySource.totalDebit, summarySource.total_withdraw, summarySource.totalWithdraw) ?? totalDebit;
+      hasWithdrawTransactions
+        ? totalDebit
+        : getNumber(summarySource.total_debit, summarySource.totalDebit, summarySource.total_withdraw, summarySource.totalWithdraw) ?? totalDebit;
 
     return {
       balance: resolvedTotalDebit - resolvedTotalCredit,
@@ -762,8 +840,7 @@ export default function BalanceLedger() {
 
     const today = getTodayDate();
 
-    setWithdrawStartDate(today);
-    setWithdrawEndDate(today);
+    setWithdrawDate(today);
     setWithdrawAmount(String(summary.balance || 0));
     setWithdrawDescription('');
     setShowWithdrawModal(true);
@@ -781,8 +858,8 @@ export default function BalanceLedger() {
       return;
     }
 
-    if (!withdrawStartDate || !withdrawEndDate || withdrawEndDate < withdrawStartDate) {
-      showAlert('Please enter a valid withdrawal date range', 'warning');
+    if (!withdrawDate) {
+      showAlert('Please enter a valid withdrawal date', 'warning');
       return;
     }
 
@@ -800,8 +877,8 @@ export default function BalanceLedger() {
 
     try {
       const response = await FinanceServices.postBalanceLedger({
-        start_date: withdrawStartDate,
-        end_date: withdrawEndDate,
+        start_date: withdrawDate,
+        end_date: withdrawDate,
         customer_code: adjustmentCustomerCode,
         type: 'WITHDRAW',
         adjustment_type: 'CREDIT',
@@ -824,6 +901,50 @@ export default function BalanceLedger() {
       showAlert(error?.response?.data?.message || error?.message || 'Failed to save withdrawal', 'danger');
     } finally {
       setSubmittingWithdraw(false);
+    }
+  };
+
+  const handleOpenApproveWithdrawModal = (withdraw) => {
+    if (!isFinanceUser || !withdraw?.withdrawId) return;
+
+    setSelectedWithdraw(withdraw);
+    setWithdrawTransferDate(getTodayDate());
+    setShowApproveWithdrawModal(true);
+  };
+
+  const handleCloseApproveWithdrawModal = () => {
+    if (submittingApproveWithdraw) return;
+
+    setSelectedWithdraw(null);
+    setShowApproveWithdrawModal(false);
+    setWithdrawTransferDate(getTodayDate());
+  };
+
+  const handleSubmitApproveWithdraw = async () => {
+    if (!isFinanceUser || !selectedWithdraw?.withdrawId || !withdrawTransferDate) return;
+
+    setSubmittingApproveWithdraw(true);
+
+    try {
+      const response = await PromoServices.postVerifyWithdraw(selectedWithdraw.withdrawId, {
+        status: 'APPROVED',
+        transfer_date: withdrawTransferDate
+      });
+
+      if (!response || response.status < 200 || response.status >= 300 || response?.data?.success === false) {
+        showAlert(response?.data?.message || 'Failed to approve withdrawal', 'danger');
+        return;
+      }
+
+      setSelectedWithdraw(null);
+      setShowApproveWithdrawModal(false);
+      setWithdrawTransferDate(getTodayDate());
+      await fetchClaimsLedger();
+      showAlert(response?.data?.message || 'Withdrawal approved successfully', 'success');
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to approve withdrawal', 'danger');
+    } finally {
+      setSubmittingApproveWithdraw(false);
     }
   };
 
@@ -997,13 +1118,15 @@ export default function BalanceLedger() {
               <th>Description</th>
               <th className="text-end">Credit</th>
               <th className="text-end">Debit</th>
+              <th className="text-end">Outstanding</th>
               <th>Status</th>
+              <th className="text-center">Approval</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={8} className="text-center py-5">
+                <td colSpan={10} className="text-center py-5">
                   <LoaderData />
                 </td>
               </tr>
@@ -1054,6 +1177,7 @@ export default function BalanceLedger() {
                   </td>
                   <td className="text-end text-danger fw-semibold">{item.credit ? formatCurrency(item.credit) : '-'}</td>
                   <td className="text-end text-success fw-semibold">{item.debit ? formatCurrency(item.debit) : '-'}</td>
+                  <td className="text-end text-warning fw-semibold">{item.outstanding ? formatCurrency(item.outstanding) : '-'}</td>
                   <td>
                     {item.status ? (
                       <Badge bg={`light-${getStatusVariant(item.status)}`} text={getStatusVariant(item.status)}>
@@ -1063,11 +1187,27 @@ export default function BalanceLedger() {
                       '-'
                     )}
                   </td>
+                  <td className="text-center">
+                    {item.typeKey === 'WITHDRAW' && isFinanceUser ? (
+                      <Button
+                        className="rounded-circle"
+                        variant="outline-success"
+                        size="sm"
+                        onClick={() => handleOpenApproveWithdrawModal(item)}
+                        disabled={isApprovedStatus(item.status) || submittingApproveWithdraw || !item.withdrawId}
+                        title="Approve withdrawal"
+                      >
+                        <i className="ti ti-check" />
+                      </Button>
+                    ) : (
+                      <span className="text-muted">-</span>
+                    )}
+                  </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={8} className="text-center py-5">
+                <td colSpan={10} className="text-center py-5">
                   <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                     <i className="ti ti-wallet f-24" />
                   </div>
@@ -1477,33 +1617,11 @@ export default function BalanceLedger() {
               </Card.Body>
             </Card>
 
-            <Row className="g-3">
-              <Col sm={6}>
-                <Form.Group>
-                  <Form.Label>Start Date</Form.Label>
-                  <Form.Control
-                    type="date"
-                    value={withdrawStartDate}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      setWithdrawStartDate(value);
-                      if (withdrawEndDate && withdrawEndDate < value) setWithdrawEndDate(value);
-                    }}
-                  />
-                </Form.Group>
-              </Col>
-              <Col sm={6}>
-                <Form.Group>
-                  <Form.Label>End Date</Form.Label>
-                  <Form.Control
-                    type="date"
-                    min={withdrawStartDate || undefined}
-                    value={withdrawEndDate}
-                    onChange={(event) => setWithdrawEndDate(event.target.value)}
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
+            <Form.Group>
+              <Form.Label>Withdrawal Date</Form.Label>
+              <Form.Control type="date" value={withdrawDate} onChange={(event) => setWithdrawDate(event.target.value)} />
+              <Form.Text className="text-muted">The selected date will be used as both the start date and end date.</Form.Text>
+            </Form.Group>
 
             <Form.Group>
               <Form.Label>Withdrawal Amount</Form.Label>
@@ -1539,15 +1657,71 @@ export default function BalanceLedger() {
             disabled={
               submittingWithdraw ||
               !canCreateAdjustment ||
-              !withdrawStartDate ||
-              !withdrawEndDate ||
-              withdrawEndDate < withdrawStartDate ||
+              !withdrawDate ||
               !Number(withdrawAmount) ||
               Number(withdrawAmount) > summary.balance ||
               !withdrawDescription.trim()
             }
           >
             {submittingWithdraw ? 'Saving...' : 'Save Withdrawal'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={showApproveWithdrawModal} onHide={handleCloseApproveWithdrawModal} centered>
+        <Modal.Header closeButton={!submittingApproveWithdraw}>
+          <Modal.Title>Approve Withdrawal</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Stack gap={3}>
+            <Card className="border mb-0">
+              <Card.Body className="py-3">
+                <Stack direction="horizontal" gap={3} className="justify-content-between">
+                  <div>
+                    <div className="text-muted f-12">Withdrawal Reference</div>
+                    <h6 className="mb-1">{selectedWithdraw?.reference || '-'}</h6>
+                    <div className="text-muted f-12">{formatCurrency(selectedWithdraw?.outstanding || selectedWithdraw?.credit)}</div>
+                    <div className="mt-2">
+                      <div className="text-muted f-12">Customer</div>
+                      <div className="fw-semibold">{selectedWithdraw?.customerName || selectedWithdrawCustomer?.customerName || '-'}</div>
+                      <small className="text-muted">{selectedWithdraw?.customerCode || selectedWithdrawCustomer?.customerCode || '-'}</small>
+                    </div>
+                    <div className="mt-2">
+                      <div className="text-muted f-12">Bank Account</div>
+                      <div className="fw-semibold">{selectedWithdrawBankAccount}</div>
+                    </div>
+                  </div>
+                  <span className="avtar avtar-s bg-light-success text-success">
+                    <i className="ti ti-circle-check" />
+                  </span>
+                </Stack>
+              </Card.Body>
+            </Card>
+
+            <Form.Group>
+              <Form.Label>Transfer Date</Form.Label>
+              <Form.Control
+                type="date"
+                value={withdrawTransferDate}
+                min={getTodayDate()}
+                onChange={(event) => setWithdrawTransferDate(event.target.value)}
+                disabled={submittingApproveWithdraw}
+              />
+              <Form.Text className="text-muted">Dates before today cannot be selected.</Form.Text>
+            </Form.Group>
+          </Stack>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" onClick={handleCloseApproveWithdrawModal} disabled={submittingApproveWithdraw}>
+            Close
+          </Button>
+          <Button
+            variant="success"
+            onClick={handleSubmitApproveWithdraw}
+            disabled={submittingApproveWithdraw || !withdrawTransferDate}
+          >
+            <i className={`${submittingApproveWithdraw ? 'ti ti-loader-2' : 'ti ti-check'} me-1`} />
+            {submittingApproveWithdraw ? 'Approving...' : 'Approve Withdrawal'}
           </Button>
         </Modal.Footer>
       </Modal>
