@@ -17,6 +17,7 @@ import TablePagination from 'components/TablePagination';
 import DistributorServices from '../../../services/DistributorServices';
 import FinanceServices from '../../../services/FinanceServices';
 import PromoServices from '../../../services/PromoServices';
+import RoleServices from '../../../services/RoleServices';
 import { useAlert } from '../../../utils/alertContext';
 import { getCookies } from '../../../utils/cookies';
 
@@ -222,6 +223,17 @@ const getClaimResultStatusVariant = (status) =>
     ? 'success'
     : 'danger';
 
+const normalizeApprovalText = (value) =>
+  String(value || '')
+    .trim()
+    .replace(/\s+/g, '_')
+    .replace(/-/g, '_')
+    .toUpperCase();
+
+const getSellOutStatusKey = (status) => normalizeApprovalText(status) || '__EMPTY__';
+
+const getSellOutStatusFilterKey = (status) => (getSellOutStatusKey(status) === 'VALID_PROGRAM' ? 'VALID_PROGRAM' : 'NOT_VALID');
+
 const transactionTypeConfig = {
   CLAIM: {
     label: 'Claim',
@@ -304,6 +316,7 @@ const getStatusVariant = (status) => {
 export default function BalanceLedger() {
   const { showAlert } = useAlert();
   const customerCode = getCookies('customerCode') || '';
+  const roleId = getCookies('role');
   const fileInputRef = useRef(null);
   const [ledgerRows, setLedgerRows] = useState([]);
   const [summarySource, setSummarySource] = useState({});
@@ -326,10 +339,23 @@ export default function BalanceLedger() {
   const [withdrawDescription, setWithdrawDescription] = useState('');
   const [submittingWithdraw, setSubmittingWithdraw] = useState(false);
   const [selectedClaimDetail, setSelectedClaimDetail] = useState(null);
+  const [permissionDetail, setPermissionDetail] = useState(null);
+  const [sellOutFilter, setSellOutFilter] = useState('all');
+  const [sellOutStatusFilter, setSellOutStatusFilter] = useState('all');
+  const [selectedSellOutIds, setSelectedSellOutIds] = useState([]);
+  const [submittingVerify, setSubmittingVerify] = useState(false);
   const [loadingClaimReference, setLoadingClaimReference] = useState(null);
   const [transactionFilter, setTransactionFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const isDistributor = Boolean(customerCode);
+  const permissionApprovalName = useMemo(() => normalizeApprovalText(permissionDetail?.role_menu?.approval?.name), [permissionDetail]);
+  const roleName = useMemo(
+    () => normalizeApprovalText(permissionDetail?.name || permissionDetail?.role?.name || permissionDetail?.role_name),
+    [permissionDetail]
+  );
+  const isAdministrator = Number(roleId) === 5;
+  const isFinanceUser = permissionApprovalName === 'WAITING_FINANCE' || roleName.includes('FINANCE');
+  const canVerifySellOut = isFinanceUser || isAdministrator;
 
   const selectedCustomerCodes = useMemo(
     () => selectedCustomers.map((item) => String(item.value || '')).filter(Boolean),
@@ -403,6 +429,22 @@ export default function BalanceLedger() {
     fetchClaimsLedger();
   }, [fetchClaimsLedger]);
 
+  useEffect(() => {
+    if (!roleId) return;
+
+    const fetchPermissionDetail = async () => {
+      try {
+        const response = await RoleServices.fetchRole(roleId);
+
+        if (response?.data?.success) setPermissionDetail(response.data.data);
+      } catch (error) {
+        showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch role detail', 'danger');
+      }
+    };
+
+    fetchPermissionDetail();
+  }, [roleId, showAlert]);
+
   const filteredRows = useMemo(() => {
     if (!selectedCustomerCodes.length && transactionFilter === 'all') return ledgerRows;
 
@@ -430,10 +472,79 @@ export default function BalanceLedger() {
     };
   }, [ledgerRows, summarySource]);
 
+  const filteredSellOut = useMemo(() => {
+    const sellOut = selectedClaimDetail?.sellOut || [];
+    const statusFilteredSellOut =
+      sellOutStatusFilter === 'all'
+        ? sellOut
+        : sellOut.filter((transaction) => getSellOutStatusFilterKey(transaction.status) === sellOutStatusFilter);
+
+    if (sellOutFilter === 'verified') return statusFilteredSellOut.filter((transaction) => transaction.verified);
+    if (sellOutFilter === 'not-verified') return statusFilteredSellOut.filter((transaction) => !transaction.verified);
+
+    return statusFilteredSellOut;
+  }, [selectedClaimDetail, sellOutFilter, sellOutStatusFilter]);
+
+  const handleToggleSellOut = (transactionId) => {
+    const normalizedId = String(transactionId);
+
+    setSelectedSellOutIds((currentIds) =>
+      currentIds.includes(normalizedId) ? currentIds.filter((itemId) => itemId !== normalizedId) : [...currentIds, normalizedId]
+    );
+  };
+
+  const handleBulkVerifySellOut = async () => {
+    if (!canVerifySellOut || !selectedSellOutIds.length) return;
+
+    const ids = [...selectedSellOutIds];
+    setSubmittingVerify(true);
+
+    try {
+      const response = await PromoServices.postVerify({
+        ids: ids.map((id) => (Number.isNaN(Number(id)) ? id : Number(id))),
+        is_verified: true
+      });
+
+      if (!response || response.status < 200 || response.status >= 300 || response?.data?.success === false) {
+        showAlert(response?.data?.message || 'Failed to verify sell-out transactions', 'danger');
+        return;
+      }
+
+      const verifiedIds = ids.map(String);
+      setSelectedClaimDetail((currentClaim) => {
+        if (!currentClaim) return currentClaim;
+
+        return {
+          ...currentClaim,
+          sellOut: currentClaim.sellOut.map((transaction) =>
+            verifiedIds.includes(String(transaction.id)) ? { ...transaction, verified: true } : transaction
+          )
+        };
+      });
+      setSelectedSellOutIds([]);
+      await fetchClaimsLedger();
+      showAlert(response?.data?.message || `${ids.length} sell-out transactions verified successfully`, 'success');
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to verify sell-out transactions', 'danger');
+    } finally {
+      setSubmittingVerify(false);
+    }
+  };
+
+  const handleCloseClaimDetail = () => {
+    setSelectedClaimDetail(null);
+    setSellOutFilter('all');
+    setSellOutStatusFilter('all');
+    setSelectedSellOutIds([]);
+  };
+
   const handleViewClaimDetail = async (ledgerItem) => {
     if (ledgerItem.typeKey !== 'CLAIM' || !ledgerItem.reference || ledgerItem.reference === '-') return;
 
     setLoadingClaimReference(ledgerItem.id);
+    setSellOutFilter('all');
+    setSellOutStatusFilter('all');
+    setSelectedSellOutIds([]);
 
     try {
       if (ledgerItem.detailSellOut !== null) {
@@ -983,14 +1094,28 @@ export default function BalanceLedger() {
 
       <Modal
         show={Boolean(selectedClaimDetail)}
-        onHide={() => setSelectedClaimDetail(null)}
+        onHide={handleCloseClaimDetail}
         size="xl"
         centered
         fullscreen
         scrollable
       >
         <Modal.Header closeButton>
-          <Modal.Title>Detail Claim Reward</Modal.Title>
+          <Stack direction="horizontal" gap={3} className="justify-content-between align-items-center w-100 me-3">
+            <Modal.Title>Detail Claim Reward</Modal.Title>
+            {canVerifySellOut ? (
+              <Button
+                variant="success"
+                size="sm"
+                onClick={handleBulkVerifySellOut}
+                disabled={submittingVerify || !selectedSellOutIds.length}
+              >
+                <i className="ti ti-checks me-1" />
+                {submittingVerify ? 'Verifying...' : 'Verify Selected'}
+                {!submittingVerify && selectedSellOutIds.length ? ` (${selectedSellOutIds.length})` : ''}
+              </Button>
+            ) : null}
+          </Stack>
         </Modal.Header>
         <Modal.Body>
           {selectedClaimDetail ? (
@@ -1031,9 +1156,35 @@ export default function BalanceLedger() {
                       <h6 className="mb-1">Sell-Out Transactions</h6>
                       <p className="text-muted mb-0">Sell-out transaction list from the selected parent claim.</p>
                     </div>
-                    <Badge bg={selectedClaimDetail.sellOut.length ? 'primary' : 'secondary'}>
-                      {selectedClaimDetail.sellOut.length} transactions
-                    </Badge>
+                    <Stack direction="horizontal" gap={2} className="align-items-center flex-wrap">
+                      <Form.Select
+                        size="sm"
+                        value={sellOutStatusFilter}
+                        onChange={(event) => {
+                          setSellOutStatusFilter(event.target.value);
+                          setSelectedSellOutIds([]);
+                        }}
+                        style={{ width: 180 }}
+                      >
+                        <option value="all">All Statuses</option>
+                        <option value="VALID_PROGRAM">Valid Program</option>
+                        <option value="NOT_VALID">Not Valid</option>
+                      </Form.Select>
+                      <Form.Select
+                        size="sm"
+                        value={sellOutFilter}
+                        onChange={(event) => {
+                          setSellOutFilter(event.target.value);
+                          setSelectedSellOutIds([]);
+                        }}
+                        style={{ width: 170 }}
+                      >
+                        <option value="all">All Verification</option>
+                        <option value="verified">Verified</option>
+                        <option value="not-verified">Not Verified</option>
+                      </Form.Select>
+                      <Badge bg={filteredSellOut.length ? 'primary' : 'secondary'}>{filteredSellOut.length} transactions</Badge>
+                    </Stack>
                   </Stack>
 
                   <Table className="mb-0 align-middle" responsive hover>
@@ -1049,12 +1200,13 @@ export default function BalanceLedger() {
                         <th className="text-end" style={{ minWidth: 150 }}>Sell-Out Price @Kg</th>
                         <th className="text-end" style={{ minWidth: 150 }}>Bonus</th>
                         <th className="text-center" style={{ minWidth: 150 }}>Status</th>
+                        <th className="text-center" style={{ width: 56 }} />
                         <th className="text-center" style={{ minWidth: 150 }}>Verification Status</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {selectedClaimDetail.sellOut.length ? (
-                        selectedClaimDetail.sellOut.map((transaction, index) => (
+                      {filteredSellOut.length ? (
+                        filteredSellOut.map((transaction, index) => (
                           <tr key={transaction.id || `${selectedClaimDetail.claimNo}-${index}`}>
                             <td>{transaction.customerType || index + 1}</td>
                             <td>
@@ -1072,6 +1224,19 @@ export default function BalanceLedger() {
                               <Badge bg={getClaimResultStatusVariant(transaction.status)}>{transaction.status || 'Unknown'}</Badge>
                             </td>
                             <td className="text-center">
+                              {getSellOutStatusKey(transaction.status) === 'VALID_PROGRAM' && canVerifySellOut ? (
+                                <Form.Check
+                                  type="checkbox"
+                                  className="m-0 d-inline-flex"
+                                  checked={selectedSellOutIds.includes(String(transaction.id))}
+                                  onChange={() => handleToggleSellOut(transaction.id)}
+                                  disabled={submittingVerify || transaction.verified}
+                                />
+                              ) : (
+                                <span className="text-muted">-</span>
+                              )}
+                            </td>
+                            <td className="text-center">
                               <i className={`ti ${transaction.verified ? 'ti-circle-check text-success' : 'ti-circle-x text-muted'} me-1`} />
                               {transaction.verified ? 'Verified' : 'Not Verified'}
                             </td>
@@ -1079,7 +1244,7 @@ export default function BalanceLedger() {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={11} className="text-center py-5">
+                          <td colSpan={12} className="text-center py-5">
                             <div className="avtar avtar-lg bg-light-primary text-primary mx-auto mb-2">
                               <i className="ti ti-table-import f-20" />
                             </div>
@@ -1096,7 +1261,7 @@ export default function BalanceLedger() {
           ) : null}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="light-secondary" onClick={() => setSelectedClaimDetail(null)}>
+          <Button variant="light-secondary" onClick={handleCloseClaimDetail} disabled={submittingVerify}>
             Close
           </Button>
         </Modal.Footer>
