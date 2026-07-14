@@ -417,7 +417,16 @@ export default function BalanceLedger() {
     () => normalizeApprovalText(permissionDetail?.name || permissionDetail?.role?.name || permissionDetail?.role_name),
     [permissionDetail]
   );
-  const isAdministrator = Number(roleId) === 5;
+  const roleNumber = Number(roleId);
+  const isAdministrator = roleNumber === 5;
+  const isAdminSales = permissionApprovalName === 'WAITING_ADMIN_SALES' || roleName.includes('ADMIN_SALES');
+  const isAdminDistributor = roleNumber === 1 || roleName.includes('ADMIN_DISTRIBUTOR');
+  const isOmDistributor =
+    roleNumber === 2 ||
+    roleName === 'OM' ||
+    roleName.includes('OM_DISTRIBUTOR') ||
+    roleName.includes('OPERATIONAL_MANAGER');
+  const showCustomerFilter = isAdminSales || (!isAdminDistributor && !isOmDistributor);
   const isFinanceUser = permissionApprovalName === 'WAITING_FINANCE' || roleName.includes('FINANCE');
   const canVerifySellOut = isFinanceUser || isAdministrator;
 
@@ -439,6 +448,12 @@ export default function BalanceLedger() {
   const canCreateAdjustment = isDistributor;
 
   const fetchCustomerOptions = useCallback(async () => {
+    if (!showCustomerFilter) {
+      setCustomerOptions([]);
+      setSelectedCustomers([]);
+      return;
+    }
+
     setLoadingCustomers(true);
 
     try {
@@ -462,7 +477,7 @@ export default function BalanceLedger() {
     } finally {
       setLoadingCustomers(false);
     }
-  }, [showAlert]);
+  }, [showAlert, showCustomerFilter]);
 
   const fetchClaimsLedger = useCallback(async () => {
     setLoading(true);
@@ -1086,25 +1101,27 @@ export default function BalanceLedger() {
               : `Showing ${transactionTypeConfig[transactionFilter]?.label || transactionFilter} transactions only.`}
           </span>
         </div>
-        <div style={{ width: 420, maxWidth: '100%' }}>
-          <Select
-            isMulti
-            isClearable
-            closeMenuOnSelect={false}
-            menuPosition="fixed"
-            styles={customerSelectStyles}
-            value={selectedCustomers}
-            options={customerOptions}
-            isLoading={loadingCustomers}
-            onChange={(options) => {
-              setSelectedCustomers(options || []);
-              setCurrentPage(1);
-            }}
-            placeholder="Select customer codes..."
-            noOptionsMessage={() => (loadingCustomers ? 'Loading customer codes...' : 'No customer code found')}
-            aria-label="Filter customer codes"
-          />
-        </div>
+        {showCustomerFilter ? (
+          <div style={{ width: 420, maxWidth: '100%' }}>
+            <Select
+              isMulti
+              isClearable
+              closeMenuOnSelect={false}
+              menuPosition="fixed"
+              styles={customerSelectStyles}
+              value={selectedCustomers}
+              options={customerOptions}
+              isLoading={loadingCustomers}
+              onChange={(options) => {
+                setSelectedCustomers(options || []);
+                setCurrentPage(1);
+              }}
+              placeholder="Select customer codes..."
+              noOptionsMessage={() => (loadingCustomers ? 'Loading customer codes...' : 'No customer code found')}
+              aria-label="Filter customer codes"
+            />
+          </div>
+        ) : null}
       </Stack>
 
       <div className="table-responsive">
