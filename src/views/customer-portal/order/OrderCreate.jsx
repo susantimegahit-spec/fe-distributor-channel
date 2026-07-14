@@ -497,31 +497,15 @@ export default function OrderPost() {
 
     if (Array.isArray(data)) return data;
     if (Array.isArray(data?.data)) return data.data;
+    if (Array.isArray(data?.approved_claims)) return data.approved_claims;
+    if (Array.isArray(data?.approvedClaims)) return data.approvedClaims;
+    if (Array.isArray(data?.claims)) return data.claims;
+    if (Array.isArray(data?.ledgers)) return data.ledgers;
     if (Array.isArray(data?.items)) return data.items;
     if (Array.isArray(data?.rows)) return data.rows;
 
     return [];
   };
-
-  const getRewardAmount = (item = {}) => {
-    const directTotal = Number(
-      item.total_reward ||
-        item.totalReward ||
-        item.total_discount ||
-        item.total_diskon ||
-        item.totalDiscount ||
-        item.reward_amount ||
-        item.rewardAmount ||
-        item.discount_amount ||
-        0
-    );
-    const calculatedTotal = Number(item.diskon_per_kg || item.reward_per_kg || 0) * Number(item.qty_kg || item.qty || item.quantity || 0);
-
-    return directTotal || calculatedTotal || 0;
-  };
-
-  const getRewardCustomerCode = (item = {}) =>
-    String(item.customer_code || item.customerCode || item.code_customer || item.distributor_code || item.distributorCode || '');
 
   const cloneDiscountDetails = (details = []) =>
     details.map((item) => ({
@@ -1186,7 +1170,7 @@ export default function OrderPost() {
     const isBatchUsed = detailDisc.some((item, itemIndex) => itemIndex !== index && item.claimBatch?.value === option.value);
 
     if (isBatchUsed) {
-      showAlert('This claim batch has already been selected', 'warning');
+      showAlert('This approved claim has already been selected', 'warning');
       return;
     }
 
@@ -1232,86 +1216,78 @@ export default function OrderPost() {
 
     setLoadingReward(true);
     try {
-      const response = await PromoServices.getClaimBatches();
-      const payload = response?.data?.data;
-      const normalizedBatches = normalizeList(response);
-      const batches = normalizedBatches.length
-        ? normalizedBatches
-        : Array.isArray(payload)
-          ? payload
-          : payload?.batches || payload?.items || payload?.rows || payload?.data || [];
-
-      if (!batches.length) {
-        showAlert('Reward data is not available', 'danger');
-        return;
-      }
-
-      const resultResponses = await Promise.all(
-        batches.map((batch, index) => {
-          const id = batch.id || batch.batch_id || batch.claim_batch_id || batch.upload_batch_id || batch.upload_id || index;
-          return PromoServices.getUploadResult(id).then((resultResponse) => ({ batch, index, resultResponse }));
-        })
-      );
-
-      const customerResults = resultResponses.flatMap(({ batch, index, resultResponse }) => {
-        const resultPayload = resultResponse?.data?.data;
-        const results = Array.isArray(resultPayload)
-          ? resultPayload
-          : resultPayload?.results ||
-            resultPayload?.claims ||
-            resultPayload?.transactions ||
-            resultPayload?.details ||
-            resultPayload?.data ||
-            [];
-        const batchNo = batch.batch_no || batch.batch_code || batch.claim_no || batch.reference_no || `BATCH-${batch.id || index + 1}`;
-        const batchId = batch.id || batch.batch_id || batch.claim_batch_id || batch.upload_batch_id || batch.upload_id || index;
-        const fileName = batch.file_name || batch.original_file_name || batch.original_filename || batch.filename || '-';
-
-        return results
-          .filter((item) => getRewardCustomerCode(item) === String(orderInput.cardCode))
-          .map((item) => ({
-            ...item,
-            batchId,
-            batchNo,
-            fileName,
-            branchName:
-              item.branch_name || item.branch || item.cabang || item.depo || item.customer_name || item.distributor_name || orderInput.cardCode
-          }));
+      const response = await PromoServices.getApprovedClaim({
+        customer_code: orderInput.cardCode
       });
 
-      if (!customerResults.length) {
-        showAlert(`No Reward data for customer ${orderInput.cardCode}`, 'danger');
+      if (response?.data?.success === false) {
+        showAlert(response.data.message || 'Failed to fetch approved claims', 'danger');
         return;
       }
 
-      const totalReward = customerResults.reduce((total, item) => total + getRewardAmount(item), 0);
-      const rewardReferences = Array.from(new Set(customerResults.map((item) => `${item.batchNo} · ${item.fileName}`))).filter(Boolean);
-      const batchGroups = customerResults.reduce((groups, item) => {
-        const key = `${item.batchId}-${item.branchName}`;
-        const currentGroup = groups.get(key) || {
-          value: key,
-          batchId: item.batchId,
-          batchNo: item.batchNo,
-          branchName: item.branchName,
-          amount: 0
-        };
+      const approvedClaims = normalizeList(response);
+      const claimOptions = approvedClaims
+        .map((claim, index) => {
+          const batchId =
+            claim.batch_id || claim.batchId || claim.claim_batch_id || claim.claimBatchId || claim.ledger_id || claim.id || index;
+          const batchNo =
+            claim.ref_number ||
+            claim.refNumber ||
+            claim.reference_no ||
+            claim.claim_no ||
+            claim.batch_no ||
+            claim.batch_code ||
+            `CLAIM-${batchId}`;
+          const branchName =
+            claim.branch_name ||
+            claim.branchName ||
+            claim.branch ||
+            claim.cabang ||
+            claim.depo ||
+            claim.customer_name ||
+            claim.distributor_name ||
+            orderInput.cardCode;
+          const amount = Number(
+            claim.available_amount ||
+              claim.availableAmount ||
+              claim.remaining_amount ||
+              claim.remainingAmount ||
+              claim.remaining_balance ||
+              claim.remainingBalance ||
+              claim.credit ||
+              claim.debit ||
+              claim.amount ||
+              claim.nominal ||
+              claim.balance ||
+              claim.outstanding ||
+              claim.total_diskon ||
+              claim.reward_amount ||
+              0
+          );
 
-        currentGroup.amount += getRewardAmount(item);
-        groups.set(key, currentGroup);
+          return {
+            value: String(batchId),
+            batchId,
+            batchNo,
+            branchName,
+            amount,
+            label: `${batchNo} · ${branchName} · ${formatCurrency(amount)}`,
+            raw: claim
+          };
+        })
+        .filter((claim) => claim.amount > 0);
 
-        return groups;
-      }, new Map());
+      setListClaimBatch(claimOptions);
 
-      setListClaimBatch(
-        Array.from(batchGroups.values())
-          .filter((item) => item.amount > 0)
-          .map((item) => ({
-            ...item,
-            label: `${item.batchNo} · ${item.branchName} · ${formatCurrency(item.amount)}`
-          }))
-      );
+      if (!claimOptions.length) {
+        showAlert(`No approved claim for customer ${orderInput.cardCode}`, 'danger');
+        return;
+      }
 
-      setRewardResultCount(customerResults.length);
+      const totalReward = claimOptions.reduce((total, claim) => total + claim.amount, 0);
+      const rewardReferences = claimOptions.map((claim) => claim.batchNo);
+
+      setRewardResultCount(claimOptions.length);
       setRewardDiscountPreview(
         totalReward > 0
           ? [
@@ -1750,7 +1726,7 @@ export default function OrderPost() {
     }
 
     if (activeDiscounts.some((item) => item.section === 'tradePromo' && (item.claimBatch?.batchId ?? null) === null)) {
-      showAlert('Claim Batch is required for each Trade Promo component', 'danger');
+      showAlert('Approved Claim is required for each Trade Promo component', 'danger');
       return;
     }
 
@@ -1899,7 +1875,7 @@ export default function OrderPost() {
             <thead>
               <tr>
                 <th style={{ minWidth: 210 }}>Category</th>
-                {showClaimBatch && <th style={{ minWidth: 320 }}>Claim Batch &amp; Branch Amount</th>}
+                {showClaimBatch && <th style={{ minWidth: 320 }}>Approved Claim &amp; Branch Amount</th>}
                 {showValueType && <th style={{ minWidth: 140 }}>Value Type</th>}
                 <th style={{ minWidth: 170 }}>Remarks</th>
                 <th style={{ minWidth: 130 }}>Amount</th>
@@ -1947,8 +1923,8 @@ export default function OrderPost() {
                         }
                         isLoading={loadingReward}
                         isClearable
-                        placeholder="Select claim batch"
-                        noOptionsMessage={() => (loadingReward ? 'Loading claim batches...' : 'No claim batch for this branch')}
+                        placeholder="Select approved claim"
+                        noOptionsMessage={() => (loadingReward ? 'Loading approved claims...' : 'No approved claim for this customer')}
                       />
                     </td>
                   )}
@@ -1994,7 +1970,7 @@ export default function OrderPost() {
                       readOnly={item.valueType === 'percent' || item.valueType === 'kg' || item.section === 'tradePromo'}
                       size="sm"
                       placeholder={
-                        item.section === 'tradePromo' ? 'Select claim batch' : item.valueType === 'nominal' ? '0' : 'Calculated amount'
+                        item.section === 'tradePromo' ? 'Select approved claim' : item.valueType === 'nominal' ? '0' : 'Calculated amount'
                       }
                     />
                   </td>

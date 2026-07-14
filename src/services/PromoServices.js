@@ -53,6 +53,10 @@ class PromoServices {
     return DataService.get('/claims/balance-ledger', payload);
   }
 
+  getApprovedClaim(payload = {}) {
+    return DataService.get('/claims/balance-ledger/approved-claims', payload);
+  }
+
   postWithdraw(payload) {
     return DataService.post('/claims/withdraws', payload);
   }
