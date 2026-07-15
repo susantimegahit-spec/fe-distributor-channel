@@ -99,20 +99,6 @@ const statusSummaryItems = [
     activeClassName: 'border-warning shadow-sm'
   },
   {
-    value: 'WAITING_ADMIN_SALES',
-    label: 'Waiting Admin Sales PT. Susanti Megah',
-    icon: 'ti ti-user-cog',
-    avatarClassName: 'bg-light-primary text-primary',
-    activeClassName: 'border-primary shadow-sm'
-  },
-  {
-    value: 'WAITING_FINANCE',
-    label: 'Waiting Finance PT. Susanti Megah',
-    icon: 'ti ti-cash',
-    avatarClassName: 'bg-light-success text-success',
-    activeClassName: 'border-success shadow-sm'
-  },
-  {
     value: 'WAITING_OM',
     label: 'Waiting OM Distributor',
     icon: 'ti ti-user-check',
@@ -125,6 +111,20 @@ const statusSummaryItems = [
     icon: 'ti ti-users',
     avatarClassName: 'bg-light-info text-info',
     activeClassName: 'border-info shadow-sm'
+  },
+  {
+    value: 'WAITING_ADMIN_SALES',
+    label: 'Waiting Admin Sales PT. Susanti Megah',
+    icon: 'ti ti-user-cog',
+    avatarClassName: 'bg-light-primary text-primary',
+    activeClassName: 'border-primary shadow-sm'
+  },
+  {
+    value: 'WAITING_FINANCE',
+    label: 'Waiting Finance PT. Susanti Megah',
+    icon: 'ti ti-cash',
+    avatarClassName: 'bg-light-success text-success',
+    activeClassName: 'border-success shadow-sm'
   },
   {
     value: 'ORDER_APPROVED',

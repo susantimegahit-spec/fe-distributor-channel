@@ -5,7 +5,7 @@ import { Navigate } from 'react-router-dom';
 import Loadable from 'components/Loadable';
 import DashboardLayout from 'layout/Dashboard';
 
-const BalanceLedger = Loadable(lazy(() => import('views/customer-portal/reward/BalanceLedger')));
+const RewardList = Loadable(lazy(() => import('views/customer-portal/reward/RewardList')));
 const RewardAdd = Loadable(lazy(() => import('views/customer-portal/reward/RewardAdd')));
 
 const FinanceRoutes = {
@@ -14,7 +14,7 @@ const FinanceRoutes = {
   children: [
     {
       path: 'customer-portal/finance/reward',
-      element: <BalanceLedger />
+      element: <RewardList />
     },
     {
       path: 'customer-portal/finance/reward/add',

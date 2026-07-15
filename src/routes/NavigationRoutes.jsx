@@ -9,6 +9,7 @@ import NotFound from '../views/ErrorBoundary';
 // render - dashboard pages
 const Dashboard = Loadable(lazy(() => import('views/customer-portal/dashboard/Dashboard')));
 const SystemSelector = Loadable(lazy(() => import('views/system/SystemSelector')));
+const AccessDenied = Loadable(lazy(() => import('views/system/AccessDenied')));
 
 // ==============================|| NAVIGATION ROUTING ||============================== //
 
@@ -27,6 +28,10 @@ const NavigationRoutes = {
         {
           path: 'systems',
           element: <SystemSelector />
+        },
+        {
+          path: 'access-denied',
+          element: <AccessDenied />
         },
         {
           path: 'customer-portal/dashboard',

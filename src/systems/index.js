@@ -1,11 +1,13 @@
 import customerPortalMenu from './customer-portal/menu';
 import expeditionMenu from './expedition/menu';
 import pickingListMenu from './picking-list/menu';
+import productionMenu from './production/menu';
 
 export const SYSTEM_KEYS = {
   CUSTOMER_PORTAL: 'customer-portal',
   EXPEDITION: 'expedition',
-  PICKING_LIST: 'picking-list'
+  PICKING_LIST: 'picking-list',
+  PRODUCTION: 'production'
 };
 
 export const systems = [
@@ -35,6 +37,15 @@ export const systems = [
     basePath: '/picking-list',
     defaultPath: '/picking-list/dashboard',
     menu: pickingListMenu
+  },
+  {
+    key: SYSTEM_KEYS.PRODUCTION,
+    title: 'Production',
+    description: 'Production planning, work orders, and output monitoring.',
+    icon: 'ti ti-building-factory-2',
+    basePath: '/production',
+    defaultPath: '/production/dashboard',
+    menu: productionMenu
   }
 ];
 
@@ -50,7 +61,10 @@ const systemAccessAliases = {
   pickinglist: SYSTEM_KEYS.PICKING_LIST,
   picking_list: SYSTEM_KEYS.PICKING_LIST,
   'picking-list': SYSTEM_KEYS.PICKING_LIST,
-  'picking list': SYSTEM_KEYS.PICKING_LIST
+  'picking list': SYSTEM_KEYS.PICKING_LIST,
+  production: SYSTEM_KEYS.PRODUCTION,
+  produksi: SYSTEM_KEYS.PRODUCTION,
+  manufacturing: SYSTEM_KEYS.PRODUCTION
 };
 
 const flattenMenuIds = (menuItems = []) =>

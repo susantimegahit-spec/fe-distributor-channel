@@ -29,16 +29,24 @@ export default function MainLayout() {
   const allowedSystemKeys = new Set([...systemAccess, ...permissionSystems.map((system) => system.key)]);
   const isAdministrator = isAdministratorRole(roleId);
   const isSystemSelectorPath = pathname === '/systems';
+  const isAccessDeniedPath = pathname === '/access-denied';
   const isSharedUtilityPath =
     isSystemSelectorPath ||
+    isAccessDeniedPath ||
     pathname === '/notifications' ||
     pathname === '/setting' ||
     pathname.startsWith('/setting/') ||
     pathname.startsWith('/customer-portal/setting');
   const showSidebar = !isSharedUtilityPath;
 
-  if (!isAdministrator && !isSystemSelectorPath && activeSystem && allowedSystemKeys.size && !allowedSystemKeys.has(activeSystem.key)) {
-    return <Navigate to="/systems" replace />;
+  if (!isAdministrator && activeSystem && !allowedSystemKeys.has(activeSystem.key)) {
+    return (
+      <Navigate
+        to="/access-denied"
+        replace
+        state={{ requestedPath: pathname, requestedSystem: activeSystem.title }}
+      />
+    );
   }
 
   return (

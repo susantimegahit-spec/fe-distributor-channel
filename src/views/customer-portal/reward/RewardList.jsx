@@ -25,6 +25,7 @@ import ConfirmDialog from 'components/ConfirmDialog';
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
 import LoaderData from '../../../components/LoaderData';
+import BalanceLedger from './BalanceLedger';
 
 const pageSize = 10;
 
@@ -168,7 +169,7 @@ const normalizeBatch = (batch, index) => ({
   uploadedAt: batch.created_at || batch.uploaded_at || batch.createdAt || '',
   customerName: batch.customer_name || '',
   depo: batch.depo || batch.customer_depo || '',
-  rewardAmount: batch.total_diskon,
+  rewardAmount: batch.total_diskon_verified,
   totalTransactions: Number(batch.total_rows || batch.total_records || batch.result_count || batch.total_transactions || 0),
   status: normalizeStatus(batch.status || batch.process_status || batch.processing_status),
   sellOut: []
@@ -693,7 +694,7 @@ export default function RewardList() {
       }
 
       updateVerifiedSellOut(ids);
-      await fetchTotalReward();
+      await Promise.all([fetchClaimBatches(), fetchTotalReward()]);
       showAlert(response?.data?.message || `${ids.length} sell-out transactions verified successfully`, 'success');
     } catch (error) {
       showAlert(error?.message || 'Failed to verify sell-out transactions', 'danger');
@@ -784,6 +785,10 @@ export default function RewardList() {
     setShowClaimModal(false);
   };
 
+  const handleRefreshClaims = async () => {
+    await Promise.all([fetchClaimBatches(), fetchTotalReward()]);
+  };
+
   return (
     <>
       <Stack gap={3}>
@@ -830,7 +835,7 @@ export default function RewardList() {
                 />
               </Col>
             ) : null}
-            <Col md={6} xl={3}>
+            {/* <Col md={6} xl={3}>
               <Card className="border mb-0 h-100">
                 <Card.Body className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between align-items-start">
@@ -877,71 +882,32 @@ export default function RewardList() {
                   </Stack>
                 </Card.Body>
               </Card>
-            </Col>
+            </Col> */}
           </Row>
         </MainCard>
 
         <Tab.Container activeKey={activeRewardTab} onSelect={(key) => setActiveRewardTab(key || 'claim')}>
-          <Card className="border mb-0">
-            <Card.Body className="p-2">
-              <Nav variant="pills" className="reward-tab-nav gap-2 flex-column flex-md-row">
-                <Nav.Item className="flex-fill">
-                  <Nav.Link eventKey="claim" className="reward-tab-link reward-tab-claim border rounded-3 p-3 h-100">
-                    <Stack direction="horizontal" gap={3} className="justify-content-between">
-                      <Stack direction="horizontal" gap={3}>
-                        <span
-                          className={`avtar avtar-s ${
-                            activeRewardTab === 'claim' ? 'bg-white text-primary' : 'bg-light-primary text-primary'
-                          }`}
-                        >
-                          <i className="ti ti-file-spreadsheet" />
-                        </span>
-                        <div>
-                          <div className="fw-semibold">Claim</div>
-                          <small className={activeRewardTab === 'claim' ? 'text-white-50' : 'text-muted'}>
-                            Upload and review reward claims
-                          </small>
-                        </div>
-                      </Stack>
-                      <Badge
-                        bg={activeRewardTab === 'claim' ? 'light' : 'primary'}
-                        text={activeRewardTab === 'claim' ? 'primary' : undefined}
-                      >
-                        {claims.length}
-                      </Badge>
-                    </Stack>
-                  </Nav.Link>
-                </Nav.Item>
-                <Nav.Item className="flex-fill">
-                  <Nav.Link eventKey="withdraw" className="reward-tab-link reward-tab-withdraw border rounded-3 p-3 h-100">
-                    <Stack direction="horizontal" gap={3} className="justify-content-between">
-                      <Stack direction="horizontal" gap={3}>
-                        <span
-                          className={`avtar avtar-s ${
-                            activeRewardTab === 'withdraw' ? 'bg-white text-success' : 'bg-light-success text-success'
-                          }`}
-                        >
-                          <i className="ti ti-wallet" />
-                        </span>
-                        <div>
-                          <div className="fw-semibold">Withdraw</div>
-                          <small className={activeRewardTab === 'withdraw' ? 'text-white-50' : 'text-muted'}>
-                            Submit reward withdrawals
-                          </small>
-                        </div>
-                      </Stack>
-                      <Badge
-                        bg={activeRewardTab === 'withdraw' ? 'light' : 'success'}
-                        text={activeRewardTab === 'withdraw' ? 'success' : undefined}
-                      >
-                        {withdraws.length}
-                      </Badge>
-                    </Stack>
-                  </Nav.Link>
-                </Nav.Item>
-              </Nav>
-            </Card.Body>
-          </Card>
+          <Nav variant="pills" className="d-inline-flex align-self-start gap-1 bg-light border rounded-3 p-1">
+            <Nav.Item>
+              <Nav.Link eventKey="claim" className="rounded-2 px-3 py-2">
+                <i className="ti ti-file-spreadsheet me-2" />
+                Claim
+                <Badge
+                  bg={activeRewardTab === 'claim' ? 'light' : 'primary'}
+                  text={activeRewardTab === 'claim' ? 'primary' : undefined}
+                  className="ms-2"
+                >
+                  {claims.length}
+                </Badge>
+              </Nav.Link>
+            </Nav.Item>
+            <Nav.Item>
+              <Nav.Link eventKey="history" className="rounded-2 px-3 py-2">
+                <i className="ti ti-history me-2" />
+                History
+              </Nav.Link>
+            </Nav.Item>
+          </Nav>
 
           <Tab.Content>
             <Tab.Pane eventKey="claim">
@@ -954,12 +920,18 @@ export default function RewardList() {
                   </Stack>
                 }
                 secondary={
-                  canManageReward ? (
-                    <Button variant="primary" onClick={() => setShowClaimModal(true)}>
-                      <i className="ti ti-plus me-1" />
-                      Add Claim
+                  <Stack direction="horizontal" gap={2}>
+                    <Button variant="outline-primary" onClick={handleRefreshClaims} disabled={loadingClaims || submittingVerify}>
+                      <i className={`${loadingClaims ? 'ti ti-loader-2' : 'ti ti-refresh'} me-1`} />
+                      {loadingClaims ? 'Refreshing...' : 'Refresh'}
                     </Button>
-                  ) : null
+                    {canManageReward ? (
+                      <Button variant="primary" onClick={() => setShowClaimModal(true)}>
+                        <i className="ti ti-plus me-1" />
+                        Add Claim
+                      </Button>
+                    ) : null}
+                  </Stack>
                 }
               >
                 <Table className="mb-0 align-middle" responsive hover>
@@ -1062,7 +1034,7 @@ export default function RewardList() {
               </MainCard>
             </Tab.Pane>
 
-            <Tab.Pane eventKey="withdraw">
+            <Tab.Pane eventKey="legacy-withdraw">
               <MainCard
                 className="claim-transaction-card"
                 title={
@@ -1158,6 +1130,9 @@ export default function RewardList() {
                   itemLabel="withdraw"
                 />
               </MainCard>
+            </Tab.Pane>
+            <Tab.Pane eventKey="history">
+              <BalanceLedger embedded />
             </Tab.Pane>
           </Tab.Content>
         </Tab.Container>

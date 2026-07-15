@@ -10,6 +10,7 @@ import Stack from 'react-bootstrap/Stack';
 // project-imports
 import { getCookies } from '../../utils/cookies';
 import { getAvailableSystems, isAdministratorRole, normalizeAccessibleSystems, systems } from '../../systems';
+import AccessDenied from './AccessDenied';
 
 export default function SystemSelector() {
   const navigate = useNavigate();
@@ -31,6 +32,10 @@ export default function SystemSelector() {
       ? systems.filter((system) => availableSystemKeys.has(system.key))
       : permissionSystems;
   const defaultSystem = availableSystems[0] || systems[0];
+
+  if (!availableSystems.length) {
+    return <AccessDenied showSystemSelector={false} />;
+  }
 
   if (availableSystems.length > 1) {
     return (

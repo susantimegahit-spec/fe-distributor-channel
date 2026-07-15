@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import PropTypes from 'prop-types';
 import Select from 'react-select';
 
 import Badge from 'react-bootstrap/Badge';
@@ -374,7 +375,7 @@ const getStatusVariant = (status) => {
   return 'warning';
 };
 
-export default function BalanceLedger() {
+export default function BalanceLedger({ embedded = false }) {
   const { showAlert } = useAlert();
   const customerCode = getCookies('customerCode') || '';
   const roleId = getCookies('role');
@@ -446,6 +447,7 @@ export default function BalanceLedger() {
   const effectiveCustomerCode = selectedCustomerCodes.length ? selectedCustomerCodes.join(',') : customerCode;
   const adjustmentCustomerCode = isDistributor ? customerCode : '';
   const canCreateAdjustment = isDistributor;
+  const canCreateWithdrawal = isAdminDistributor && isDistributor;
 
   const fetchCustomerOptions = useCallback(async () => {
     if (!showCustomerFilter) {
@@ -848,7 +850,7 @@ export default function BalanceLedger() {
   };
 
   const handleOpenWithdrawModal = () => {
-    if (!canCreateAdjustment) {
+    if (!canCreateWithdrawal) {
       showAlert('Only distributor accounts can add a withdrawal', 'warning');
       return;
     }
@@ -868,7 +870,7 @@ export default function BalanceLedger() {
   const handleSubmitWithdraw = async () => {
     const rawWithdrawAmount = Number(withdrawAmount) || 0;
 
-    if (!canCreateAdjustment) {
+    if (!canCreateWithdrawal) {
       showAlert('Only distributor accounts can add a withdrawal', 'warning');
       return;
     }
@@ -995,7 +997,7 @@ export default function BalanceLedger() {
         title={
           <Stack direction="horizontal" gap={3} className="flex-wrap justify-content-between w-100">
             <div>
-              <h5 className="mb-1">Reward Balance Ledger</h5>
+              <h5 className="mb-1">{embedded ? 'Reward History' : 'Reward Balance Ledger'}</h5>
               <span className="text-muted f-12">Monitor every reward credit, debit, and running balance transaction.</span>
             </div>
             <Stack direction="horizontal" gap={2} className="flex-wrap">
@@ -1004,26 +1006,30 @@ export default function BalanceLedger() {
                   Customer: {customerCode}
                 </Badge>
               ) : null}
-              {isDistributor ? (
+              {canCreateAdjustment || canCreateWithdrawal ? (
                 <>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={handleOpenClaimModal}
-                    disabled={submittingClaim}
-                  >
-                    <i className="ti ti-plus me-1" />
-                    Add Claim
-                  </Button>
-                  <Button
-                    variant="success"
-                    size="sm"
-                    onClick={handleOpenWithdrawModal}
-                    disabled={loading || submittingWithdraw}
-                  >
-                    <i className="ti ti-wallet-plus me-1" />
-                    Add Withdraw
-                  </Button>
+                  {!embedded && canCreateAdjustment ? (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={handleOpenClaimModal}
+                      disabled={submittingClaim}
+                    >
+                      <i className="ti ti-plus me-1" />
+                      Add Claim
+                    </Button>
+                  ) : null}
+                  {canCreateWithdrawal ? (
+                    <Button
+                      variant="success"
+                      size="sm"
+                      onClick={handleOpenWithdrawModal}
+                      disabled={loading || submittingWithdraw}
+                    >
+                      <i className="ti ti-wallet-plus me-1" />
+                      Add Withdraw
+                    </Button>
+                  ) : null}
                 </>
               ) : null}
               <Button variant="light-primary" size="sm" onClick={fetchClaimsLedger} disabled={loading}>
@@ -1673,7 +1679,7 @@ export default function BalanceLedger() {
             onClick={handleSubmitWithdraw}
             disabled={
               submittingWithdraw ||
-              !canCreateAdjustment ||
+              !canCreateWithdrawal ||
               !withdrawDate ||
               !Number(withdrawAmount) ||
               Number(withdrawAmount) > summary.balance ||
@@ -1745,3 +1751,7 @@ export default function BalanceLedger() {
     </>
   );
 }
+
+BalanceLedger.propTypes = {
+  embedded: PropTypes.bool
+};

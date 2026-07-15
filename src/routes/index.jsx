@@ -9,6 +9,7 @@ import OrderRoutes from './OrderRoutes';
 import FinanceRoutes from './FinanceRoutes';
 import ExpeditionRoutes from './ExpeditionRoutes';
 import PickingListRoutes from './PickingListRoutes';
+import ProductionRoutes from './ProductionRoutes';
 import { NotFoundPage } from '../views/ErrorBoundary';
 
 // ==============================|| ROUTING RENDER ||============================== //
@@ -27,6 +28,7 @@ const router = createBrowserRouter(
     FinanceRoutes,
     ExpeditionRoutes,
     PickingListRoutes,
+    ProductionRoutes,
     OtherRoutes,
     { path: '*', element: <NotFoundPage /> }
     // MenuRoutes

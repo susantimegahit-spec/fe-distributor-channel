@@ -265,7 +265,7 @@ export default function OrderPost() {
       setLoadingAvailableBalance(true);
 
       try {
-        const response = await PromoServices.getTotalReward({
+        const response = await PromoServices.getClaimBatches({
           customer_code: orderInput.cardCode
         });
 
@@ -276,7 +276,12 @@ export default function OrderPost() {
           return;
         }
 
-        setAvailableBalance(getAvailableBalance(response));
+        const verifiedBalance = normalizeList(response).reduce(
+          (total, claim) => total + (Number(claim.total_diskon_verified) || 0),
+          0
+        );
+
+        setAvailableBalance(verifiedBalance);
       } catch (error) {
         if (isActive) {
           setAvailableBalance(0);
@@ -314,13 +319,6 @@ export default function OrderPost() {
     if (typeof value === 'number') return value === 1;
 
     return ['1', 'true', 'yes', 'y'].includes(String(value || '').trim().toLowerCase());
-  };
-
-  const getAvailableBalance = (response) => {
-    const payload = response?.data?.data ?? response?.data;
-    const source = Array.isArray(payload) ? payload[0] : payload?.data && !Array.isArray(payload.data) ? payload.data : payload;
-
-    return Number(source?.available_balance ?? source?.availableBalance ?? 0) || 0;
   };
 
   const getPrimitiveValue = (data, keys, defaultValue = '') => {
@@ -380,6 +378,18 @@ export default function OrderPost() {
   const formatDateInput = (value) => {
     if (!value) return '';
     return String(value).slice(0, 10);
+  };
+
+  const formatClaimDate = (value) => {
+    const date = new Date(value);
+
+    if (!value || Number.isNaN(date.getTime())) return '';
+
+    return new Intl.DateTimeFormat('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    }).format(date);
   };
 
   const formatSeriesDate = (value) => formatDateInput(value).replace(/-/g, '');
@@ -497,6 +507,7 @@ export default function OrderPost() {
 
     if (Array.isArray(data)) return data;
     if (Array.isArray(data?.data)) return data.data;
+    if (Array.isArray(data?.batches)) return data.batches;
     if (Array.isArray(data?.approved_claims)) return data.approved_claims;
     if (Array.isArray(data?.approvedClaims)) return data.approvedClaims;
     if (Array.isArray(data?.claims)) return data.claims;
@@ -1174,6 +1185,18 @@ export default function OrderPost() {
       return;
     }
 
+    const selectedClaimValues = new Set(
+      detailDisc
+        .filter((item, itemIndex) => itemIndex !== index && item.section === 'tradePromo' && item.claimBatch?.value)
+        .map((item) => item.claimBatch.value)
+    );
+    const oldestUnusedClaim = listClaimBatch.find((claim) => !selectedClaimValues.has(claim.value));
+
+    if (oldestUnusedClaim && option.value !== oldestUnusedClaim.value) {
+      showAlert(`Use the oldest claim first: ${oldestUnusedClaim.batchNo}`, 'warning');
+      return;
+    }
+
     const accumulatedTradePromo = detailDisc.reduce(
       (total, item, itemIndex) => total + (itemIndex === index || item.section !== 'tradePromo' ? 0 : Number(item.value || 0)),
       0
@@ -1216,17 +1239,17 @@ export default function OrderPost() {
 
     setLoadingReward(true);
     try {
-      const response = await PromoServices.getApprovedClaim({
+      const response = await PromoServices.getClaimBatches({
         customer_code: orderInput.cardCode
       });
 
       if (response?.data?.success === false) {
-        showAlert(response.data.message || 'Failed to fetch approved claims', 'danger');
+        showAlert(response.data.message || 'Failed to fetch claims', 'danger');
         return;
       }
 
-      const approvedClaims = normalizeList(response);
-      const claimOptions = approvedClaims
+      const claims = normalizeList(response);
+      const claimOptions = claims
         .map((claim, index) => {
           const batchId =
             claim.batch_id || claim.batchId || claim.claim_batch_id || claim.claimBatchId || claim.ledger_id || claim.id || index;
@@ -1247,23 +1270,16 @@ export default function OrderPost() {
             claim.customer_name ||
             claim.distributor_name ||
             orderInput.cardCode;
-          const amount = Number(
-            claim.available_amount ||
-              claim.availableAmount ||
-              claim.remaining_amount ||
-              claim.remainingAmount ||
-              claim.remaining_balance ||
-              claim.remainingBalance ||
-              claim.credit ||
-              claim.debit ||
-              claim.amount ||
-              claim.nominal ||
-              claim.balance ||
-              claim.outstanding ||
-              claim.total_diskon ||
-              claim.reward_amount ||
-              0
-          );
+          const amount = Number(claim.total_diskon_verified ?? 0);
+          const claimDate =
+            claim.created_at ||
+            claim.uploaded_at ||
+            claim.createdAt ||
+            claim.claim_date ||
+            claim.claimDate ||
+            claim.transaction_date ||
+            claim.date ||
+            '';
 
           return {
             value: String(batchId),
@@ -1271,16 +1287,30 @@ export default function OrderPost() {
             batchNo,
             branchName,
             amount,
+            claimDate,
+            originalIndex: index,
             label: `${batchNo} · ${branchName} · ${formatCurrency(amount)}`,
             raw: claim
           };
         })
-        .filter((claim) => claim.amount > 0);
+        .filter((claim) => claim.amount > 0)
+        .sort((firstClaim, secondClaim) => {
+          const firstDate = Date.parse(firstClaim.claimDate);
+          const secondDate = Date.parse(secondClaim.claimDate);
+          const firstTimestamp = Number.isNaN(firstDate) ? Number.MAX_SAFE_INTEGER : firstDate;
+          const secondTimestamp = Number.isNaN(secondDate) ? Number.MAX_SAFE_INTEGER : secondDate;
+
+          return firstTimestamp - secondTimestamp || firstClaim.originalIndex - secondClaim.originalIndex;
+        })
+        .map((claim, index) => ({
+          ...claim,
+          label: `${index + 1}. ${claim.label}${formatClaimDate(claim.claimDate) ? ` · ${formatClaimDate(claim.claimDate)}` : ''}`
+        }));
 
       setListClaimBatch(claimOptions);
 
       if (!claimOptions.length) {
-        showAlert(`No approved claim for customer ${orderInput.cardCode}`, 'danger');
+        showAlert(`No claim with a remaining total for customer ${orderInput.cardCode}`, 'danger');
         return;
       }
 
@@ -1726,7 +1756,25 @@ export default function OrderPost() {
     }
 
     if (activeDiscounts.some((item) => item.section === 'tradePromo' && (item.claimBatch?.batchId ?? null) === null)) {
-      showAlert('Approved Claim is required for each Trade Promo component', 'danger');
+      showAlert('Claim is required for each Trade Promo component', 'danger');
+      return;
+    }
+
+    const selectedTradePromoClaimValues = [
+      ...new Set(
+        activeDiscounts
+          .filter((item) => item.section === 'tradePromo' && item.claimBatch?.value)
+          .map((item) => item.claimBatch.value)
+      )
+    ];
+    const requiredOldestClaimValues = listClaimBatch
+      .slice(0, selectedTradePromoClaimValues.length)
+      .map((claim) => claim.value);
+    const hasSkippedOlderClaim = requiredOldestClaimValues.some((claimValue) => !selectedTradePromoClaimValues.includes(claimValue));
+
+    if (hasSkippedOlderClaim) {
+      const oldestRequiredClaim = listClaimBatch.find((claim) => !selectedTradePromoClaimValues.includes(claim.value));
+      showAlert(`Trade Promo must use the oldest claim first: ${oldestRequiredClaim?.batchNo || '-'}`, 'danger');
       return;
     }
 
@@ -1875,7 +1923,7 @@ export default function OrderPost() {
             <thead>
               <tr>
                 <th style={{ minWidth: 210 }}>Category</th>
-                {showClaimBatch && <th style={{ minWidth: 320 }}>Approved Claim &amp; Branch Amount</th>}
+                {showClaimBatch && <th style={{ minWidth: 320 }}>Claim &amp; Branch Amount (Oldest First)</th>}
                 {showValueType && <th style={{ minWidth: 140 }}>Value Type</th>}
                 <th style={{ minWidth: 170 }}>Remarks</th>
                 <th style={{ minWidth: 130 }}>Amount</th>
@@ -1917,14 +1965,26 @@ export default function OrderPost() {
                         menuPosition="fixed"
                         onChange={(option) => handleSelectClaimBatch(option, index)}
                         isOptionDisabled={(option) =>
-                          detailDisc.some(
-                            (detail, detailIndex) => detailIndex !== index && detail.claimBatch?.value === option.value
-                          )
+                          (() => {
+                            if (item.claimBatch?.value === option.value) return false;
+
+                            const selectedValues = new Set(
+                              detailDisc
+                                .filter(
+                                  (detail, detailIndex) =>
+                                    detailIndex !== index && detail.section === 'tradePromo' && detail.claimBatch?.value
+                                )
+                                .map((detail) => detail.claimBatch.value)
+                            );
+                            const oldestUnusedClaim = listClaimBatch.find((claim) => !selectedValues.has(claim.value));
+
+                            return selectedValues.has(option.value) || option.value !== oldestUnusedClaim?.value;
+                          })()
                         }
                         isLoading={loadingReward}
                         isClearable
-                        placeholder="Select approved claim"
-                        noOptionsMessage={() => (loadingReward ? 'Loading approved claims...' : 'No approved claim for this customer')}
+                        placeholder="Select the oldest claim"
+                        noOptionsMessage={() => (loadingReward ? 'Loading claims...' : 'No claim balance for this customer')}
                       />
                     </td>
                   )}
