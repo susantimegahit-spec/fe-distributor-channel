@@ -171,6 +171,9 @@ const normalizeBatch = (batch, index) => ({
   depo: batch.depo || batch.customer_depo || '',
   rewardAmount: Number(batch.total_diskon_verified || 0),
   verifiedAmount: Number(batch.total_diskon_verified || 0),
+  totalClaim: Number(batch.total_diskon_verified || 0),
+  totalDeducted: Number(batch.total_deducted || 0),
+  balance: Number(batch.total_diskon_verified || 0) - Number(batch.total_deducted || 0),
   totalTransactions: Number(batch.total_rows || batch.total_records || batch.result_count || batch.total_transactions || 0),
   status: normalizeStatus(batch.status || batch.process_status || batch.processing_status),
   sellOut: []
@@ -969,7 +972,9 @@ export default function RewardList() {
                       <th style={{ minWidth: 170 }}>ID</th>
                       <th style={{ minWidth: 220 }}>Customer</th>
                       <th style={{ minWidth: 190 }}>Upload Date</th>
-                      <th style={{ minWidth: 190 }}>Balance</th>
+                      <th style={{ minWidth: 170 }}>Total Claim</th>
+                      <th style={{ minWidth: 170 }}>Deducted</th>
+                      <th style={{ minWidth: 170 }}>Balance</th>
                       <th className="text-center" style={{ width: 90 }}>
                         Detail
                       </th>
@@ -983,7 +988,7 @@ export default function RewardList() {
                   <tbody>
                     {loadingClaims ? (
                       <tr>
-                        <td colSpan={isAdministrator ? 6 : 5}>
+                        <td colSpan={isAdministrator ? 8 : 7}>
                           <LoaderData />
                         </td>
                       </tr>
@@ -995,7 +1000,9 @@ export default function RewardList() {
                             <div className="fw-semibold">{`${claim.customerName} - ${claim.depo}`}</div>
                           </td>
                           <td>{formatDate(claim.uploadedAt)}</td>
-                          <td>{formatCurrency(claim.rewardAmount)}</td>
+                          <td>{formatCurrency(claim.totalClaim)}</td>
+                          <td className="text-danger">{formatCurrency(claim.totalDeducted)}</td>
+                          <td className="fw-semibold text-success">{formatCurrency(claim.balance)}</td>
                           <td className="text-center">
                             <Button
                               className="rounded-circle"
@@ -1032,7 +1039,7 @@ export default function RewardList() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={isAdministrator ? 6 : 5}>
+                        <td colSpan={isAdministrator ? 8 : 7}>
                           <div className="text-center py-5">
                             <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                               <i className="ti ti-gift f-24" />

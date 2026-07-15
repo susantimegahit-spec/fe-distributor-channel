@@ -335,7 +335,7 @@ const normalizeLedgerRow = (item = {}, index) => {
 
   return {
     id: item.id || item.ledger_id || item.balance_ledger_id || item.transaction_id || index,
-    withdrawId: item.withdraw_id || item.claim_withdraw_id || item.claimWithdrawId || item.source_id || item.transaction_id || item.id,
+    withdrawId: item.id,
     date: item.transaction_date || item.transactionDate || item.date || item.created_at || item.createdAt || item.updated_at,
     reference:
       item.ref_number ||
@@ -358,7 +358,10 @@ const normalizeLedgerRow = (item = {}, index) => {
     bankAccount: formatBankAccount(item),
     type: normalizeType(type),
     typeKey,
-    description: item.description || item.remarks || item.remark || item.notes || item.note || item.keterangan || '-',
+    description:
+      typeKey === 'WITHDRAW'
+        ? `Pengajuan withdraw dari batch (${item.batch_no || item.batch?.batch_no || item.claim_batch?.batch_no || '-'})`
+        : item.description || item.remarks || item.remark || item.notes || item.note || item.keterangan || '-',
     debit: typeKey === 'WITHDRAW' ? 0 : explicitDebit ?? (isDebit ? Math.abs(amount) : 0),
     credit: approvedWithdraw ? withdrawAmount : pendingWithdraw ? 0 : explicitCredit ?? (!isDebit ? Math.abs(amount) : 0),
     outstanding: pendingWithdraw ? withdrawAmount : typeKey === 'WITHDRAW' ? 0 : explicitOutstanding || 0,
@@ -535,14 +538,18 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
         .map((batch, index) => {
           const id = batch.id || batch.batch_id || batch.claim_batch_id || batch.upload_batch_id;
           const claimNo = batch.batch_no || batch.batch_code || batch.claim_no || batch.reference_no || `BATCH-${id || index + 1}`;
-          const amount = Number(batch.total_diskon_verified || 0);
+          const totalClaim = Number(batch.total_diskon_verified || 0);
+          const totalDeducted = Number(batch.total_deducted || 0);
+          const amount = Math.max(totalClaim - totalDeducted, 0);
           const date = batch.created_at || batch.uploaded_at || batch.createdAt || '';
 
           return {
             value: id,
-            label: `${claimNo} · ${formatCurrency(amount)}${date ? ` · ${formatDate(date)}` : ''}`,
+            label: `${claimNo} · Balance: ${formatCurrency(amount)}${date ? ` · ${formatDate(date)}` : ''}`,
             claimNo,
             amount,
+            totalClaim,
+            totalDeducted,
             date
           };
         })
@@ -1851,7 +1858,9 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
                             isInvalid={Boolean(row.amount && Number(row.amount) > Number(row.claim?.amount || 0))}
                           />
                           {row.claim ? (
-                            <Form.Text className="text-muted">Max. {formatCurrency(row.claim.amount)}</Form.Text>
+                            <Form.Text className="text-muted">
+                              Remaining balance: {formatCurrency(row.claim.amount)}
+                            </Form.Text>
                           ) : null}
                         </td>
                         <td className="text-center">
