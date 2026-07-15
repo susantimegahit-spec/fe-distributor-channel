@@ -169,7 +169,8 @@ const normalizeBatch = (batch, index) => ({
   uploadedAt: batch.created_at || batch.uploaded_at || batch.createdAt || '',
   customerName: batch.customer_name || '',
   depo: batch.depo || batch.customer_depo || '',
-  rewardAmount: batch.total_diskon_verified,
+  rewardAmount: Number(batch.total_diskon_verified || 0),
+  verifiedAmount: Number(batch.total_diskon_verified || 0),
   totalTransactions: Number(batch.total_rows || batch.total_records || batch.result_count || batch.total_transactions || 0),
   status: normalizeStatus(batch.status || batch.process_status || batch.processing_status),
   sellOut: []
@@ -274,6 +275,7 @@ export default function RewardList() {
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawTransferDate, setWithdrawTransferDate] = useState(todayDate);
   const [activeRewardTab, setActiveRewardTab] = useState('claim');
+  const [withdrawRequestId, setWithdrawRequestId] = useState(0);
   const [sellOutFilter, setSellOutFilter] = useState('all');
   const [sellOutStatusFilter, setSellOutStatusFilter] = useState('all');
   const [selectedSellOutIds, setSelectedSellOutIds] = useState([]);
@@ -464,7 +466,7 @@ export default function RewardList() {
         return;
       }
 
-      const detail = batchResponse.data;
+      const detail = batchResponse.data?.data ?? batchResponse.data;
       const normalizedBatchDetail = normalizeBatch(detail, batch.id);
       const results = Array.isArray(resultResponse.data?.data) ? resultResponse.data.data.map(normalizeUploadResult) : [];
       setSellOutFilter('all');
@@ -477,7 +479,8 @@ export default function RewardList() {
         uploadedBy: normalizedBatchDetail.uploadedBy !== '-' ? normalizedBatchDetail.uploadedBy : batch.uploadedBy,
         uploadedAt: normalizedBatchDetail.uploadedAt || batch.uploadedAt,
         sellOut: results,
-        rewardAmount: normalizedBatchDetail.rewardAmount,
+        rewardAmount: normalizedBatchDetail.rewardAmount || batch.rewardAmount,
+        verifiedAmount: Number(detail?.total_diskon_verified ?? batch.verifiedAmount ?? 0),
         totalTransactions: results.length || batch.totalTransactions
       });
     } catch (error) {
@@ -694,7 +697,19 @@ export default function RewardList() {
       }
 
       updateVerifiedSellOut(ids);
-      await Promise.all([fetchClaimBatches(), fetchTotalReward()]);
+      const [, , refreshedBatchResponse] = await Promise.all([
+        fetchClaimBatches(),
+        fetchTotalReward(),
+        selectedClaim?.id ? PromoServices.getBatchDetail(selectedClaim.id) : Promise.resolve(null)
+      ]);
+      const refreshedBatch = refreshedBatchResponse?.data?.data ?? refreshedBatchResponse?.data;
+
+      if (refreshedBatch) {
+        setSelectedClaim((currentClaim) => ({
+          ...currentClaim,
+          verifiedAmount: Number(refreshedBatch.total_diskon_verified ?? currentClaim?.verifiedAmount ?? 0)
+        }));
+      }
       showAlert(response?.data?.message || `${ids.length} sell-out transactions verified successfully`, 'success');
     } catch (error) {
       showAlert(error?.message || 'Failed to verify sell-out transactions', 'danger');
@@ -798,6 +813,20 @@ export default function RewardList() {
               <h5 className="mb-0">Reward</h5>
               <span className="text-muted f-12">Monitor reward claim and sell-out transactions used as the claim basis.</span>
             </Stack>
+          }
+          secondary={
+            canManageReward ? (
+              <Button
+                variant="success"
+                onClick={() => {
+                  setActiveRewardTab('history');
+                  setWithdrawRequestId((currentId) => currentId + 1);
+                }}
+              >
+                <i className="ti ti-wallet-plus me-1" />
+                Add Withdraw
+              </Button>
+            ) : null
           }
         >
           <Row className="g-3">
@@ -940,7 +969,7 @@ export default function RewardList() {
                       <th style={{ minWidth: 170 }}>ID</th>
                       <th style={{ minWidth: 220 }}>Customer</th>
                       <th style={{ minWidth: 190 }}>Upload Date</th>
-                      <th style={{ minWidth: 190 }}>Total Discount</th>
+                      <th style={{ minWidth: 190 }}>Balance</th>
                       <th className="text-center" style={{ width: 90 }}>
                         Detail
                       </th>
@@ -1132,7 +1161,7 @@ export default function RewardList() {
               </MainCard>
             </Tab.Pane>
             <Tab.Pane eventKey="history">
-              <BalanceLedger embedded />
+              <BalanceLedger embedded openWithdrawSignal={withdrawRequestId} />
             </Tab.Pane>
           </Tab.Content>
         </Tab.Container>
@@ -1259,8 +1288,8 @@ export default function RewardList() {
                           <small className="text-muted">{selectedClaim.uploadedBy || '-'}</small>
                         </Col>
                         <Col md={6}>
-                          <Form.Label className="f-12 text-muted">Total Claim Amount</Form.Label>
-                          <h4 className="mb-0 text-primary">{formatCurrency(selectedClaim.rewardAmount)}</h4>
+                          <Form.Label className="f-12 text-muted">Total Verified Amount</Form.Label>
+                          <h4 className="mb-0 text-primary">{formatCurrency(selectedClaim.verifiedAmount)}</h4>
                         </Col>
                       </Row>
                     </div>
@@ -1405,7 +1434,7 @@ export default function RewardList() {
         loading={deletingClaimId !== null}
       />
 
-      <Modal show={showWithdrawModal} onHide={() => setShowWithdrawModal(false)} centered>
+      <Modal show={showWithdrawModal} onHide={() => setShowWithdrawModal(false)} centered size='xl'>
         <Modal.Header closeButton>
           <Modal.Title>Add Reward Withdrawal</Modal.Title>
         </Modal.Header>

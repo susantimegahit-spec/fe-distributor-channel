@@ -375,11 +375,12 @@ const getStatusVariant = (status) => {
   return 'warning';
 };
 
-export default function BalanceLedger({ embedded = false }) {
+export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0 }) {
   const { showAlert } = useAlert();
   const customerCode = getCookies('customerCode') || '';
   const roleId = getCookies('role');
   const fileInputRef = useRef(null);
+  const handledWithdrawSignalRef = useRef(0);
   const [ledgerRows, setLedgerRows] = useState([]);
   const [summarySource, setSummarySource] = useState({});
   const [loading, setLoading] = useState(false);
@@ -396,8 +397,10 @@ export default function BalanceLedger({ embedded = false }) {
   const [claimDescription, setClaimDescription] = useState('');
   const [submittingClaim, setSubmittingClaim] = useState(false);
   const [withdrawDate, setWithdrawDate] = useState(getTodayDate);
-  const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawDescription, setWithdrawDescription] = useState('');
+  const [withdrawClaimOptions, setWithdrawClaimOptions] = useState([]);
+  const [withdrawRows, setWithdrawRows] = useState([{ claim: null, amount: '' }]);
+  const [loadingWithdrawClaims, setLoadingWithdrawClaims] = useState(false);
   const [submittingWithdraw, setSubmittingWithdraw] = useState(false);
   const [selectedWithdraw, setSelectedWithdraw] = useState(null);
   const [showApproveWithdrawModal, setShowApproveWithdrawModal] = useState(false);
@@ -510,6 +513,57 @@ export default function BalanceLedger({ embedded = false }) {
       setLoading(false);
     }
   }, [effectiveCustomerCode, showAlert]);
+
+  const fetchWithdrawClaimBatches = useCallback(async () => {
+    if (!adjustmentCustomerCode) {
+      setWithdrawClaimOptions([]);
+      return;
+    }
+
+    setLoadingWithdrawClaims(true);
+
+    try {
+      const response = await PromoServices.getClaimBatches({ customer_code: adjustmentCustomerCode });
+
+      if (response?.data?.success === false) {
+        setWithdrawClaimOptions([]);
+        showAlert(response.data.message || 'Failed to fetch claim batches', 'danger');
+        return;
+      }
+
+      const options = getResponseList(response)
+        .map((batch, index) => {
+          const id = batch.id || batch.batch_id || batch.claim_batch_id || batch.upload_batch_id;
+          const claimNo = batch.batch_no || batch.batch_code || batch.claim_no || batch.reference_no || `BATCH-${id || index + 1}`;
+          const amount = Number(batch.total_diskon_verified || 0);
+          const date = batch.created_at || batch.uploaded_at || batch.createdAt || '';
+
+          return {
+            value: id,
+            label: `${claimNo} · ${formatCurrency(amount)}${date ? ` · ${formatDate(date)}` : ''}`,
+            claimNo,
+            amount,
+            date
+          };
+        })
+        .filter((batch) => batch.value && batch.amount > 0)
+        .sort((firstBatch, secondBatch) => {
+          const firstDate = Date.parse(firstBatch.date);
+          const secondDate = Date.parse(secondBatch.date);
+          const firstTimestamp = Number.isNaN(firstDate) ? Number.MAX_SAFE_INTEGER : firstDate;
+          const secondTimestamp = Number.isNaN(secondDate) ? Number.MAX_SAFE_INTEGER : secondDate;
+
+          return firstTimestamp - secondTimestamp;
+        });
+
+      setWithdrawClaimOptions(options);
+    } catch (error) {
+      setWithdrawClaimOptions([]);
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch claim batches', 'danger');
+    } finally {
+      setLoadingWithdrawClaims(false);
+    }
+  }, [adjustmentCustomerCode, showAlert]);
 
   useEffect(() => {
     fetchCustomerOptions();
@@ -858,17 +912,63 @@ export default function BalanceLedger({ embedded = false }) {
     const today = getTodayDate();
 
     setWithdrawDate(today);
-    setWithdrawAmount(String(summary.balance || 0));
     setWithdrawDescription('');
+    setWithdrawRows([{ claim: null, amount: '' }]);
     setShowWithdrawModal(true);
+    fetchWithdrawClaimBatches();
   };
 
-  const handleChangeWithdrawAmount = (event) => {
-    setWithdrawAmount(parseCurrencyInput(event.target.value));
+  useEffect(() => {
+    if (openWithdrawSignal > handledWithdrawSignalRef.current && canCreateWithdrawal) {
+      handledWithdrawSignalRef.current = openWithdrawSignal;
+      const today = getTodayDate();
+
+      setWithdrawDate(today);
+      setWithdrawDescription('');
+      setWithdrawRows([{ claim: null, amount: '' }]);
+      setShowWithdrawModal(true);
+      fetchWithdrawClaimBatches();
+    }
+  }, [canCreateWithdrawal, fetchWithdrawClaimBatches, openWithdrawSignal, summary.balance]);
+
+  const handleSelectWithdrawClaim = (rowIndex, claim) => {
+    if (claim) {
+      const selectedBatchIds = new Set(
+        withdrawRows
+          .filter((row, index) => index !== rowIndex && row.claim?.value)
+          .map((row) => String(row.claim.value))
+      );
+      const oldestUnusedBatch = withdrawClaimOptions.find((option) => !selectedBatchIds.has(String(option.value)));
+
+      if (oldestUnusedBatch && String(claim.value) !== String(oldestUnusedBatch.value)) {
+        showAlert(`Use the oldest claim batch first: ${oldestUnusedBatch.claimNo}`, 'warning');
+        return;
+      }
+    }
+
+    setWithdrawRows((currentRows) =>
+      currentRows.map((row, index) => (index === rowIndex ? { claim, amount: claim ? String(claim.amount) : '' } : row))
+    );
+  };
+
+  const handleChangeWithdrawRowAmount = (rowIndex, value) => {
+    const amount = parseCurrencyInput(value);
+
+    setWithdrawRows((currentRows) => currentRows.map((row, index) => (index === rowIndex ? { ...row, amount } : row)));
+  };
+
+  const addWithdrawRow = () => {
+    setWithdrawRows((currentRows) => [...currentRows, { claim: null, amount: '' }]);
+  };
+
+  const removeWithdrawRow = (rowIndex) => {
+    setWithdrawRows((currentRows) =>
+      currentRows.length === 1 ? [{ claim: null, amount: '' }] : currentRows.filter((_, index) => index !== rowIndex)
+    );
   };
 
   const handleSubmitWithdraw = async () => {
-    const rawWithdrawAmount = Number(withdrawAmount) || 0;
+    const totalWithdrawAmount = withdrawRows.reduce((total, row) => total + (Number(row.amount) || 0), 0);
 
     if (!canCreateWithdrawal) {
       showAlert('Only distributor accounts can add a withdrawal', 'warning');
@@ -880,8 +980,35 @@ export default function BalanceLedger({ embedded = false }) {
       return;
     }
 
-    if (!rawWithdrawAmount || rawWithdrawAmount > summary.balance) {
+    if (withdrawRows.some((row) => !row.claim?.value)) {
+      showAlert('Please select a claim batch for each row', 'warning');
+      return;
+    }
+
+    const selectedBatchIds = withdrawRows.map((row) => String(row.claim.value));
+    if (new Set(selectedBatchIds).size !== selectedBatchIds.length) {
+      showAlert('The same claim batch cannot be selected more than once', 'warning');
+      return;
+    }
+
+    const requiredOldestBatchIds = withdrawClaimOptions
+      .slice(0, selectedBatchIds.length)
+      .map((batch) => String(batch.value));
+    const skippedOldestBatch = requiredOldestBatchIds.find((batchId) => !selectedBatchIds.includes(batchId));
+
+    if (skippedOldestBatch) {
+      const oldestRequiredBatch = withdrawClaimOptions.find((batch) => String(batch.value) === skippedOldestBatch);
+      showAlert(`Withdrawal must use the oldest claim batch first: ${oldestRequiredBatch?.claimNo || '-'}`, 'warning');
+      return;
+    }
+
+    if (!totalWithdrawAmount || totalWithdrawAmount > summary.balance) {
       showAlert('Withdrawal amount must be greater than zero and cannot exceed the available balance', 'warning');
+      return;
+    }
+
+    if (withdrawRows.some((row) => !Number(row.amount) || Number(row.amount) > Number(row.claim?.amount || 0))) {
+      showAlert('Each nominal must be greater than zero and cannot exceed its claim batch balance', 'warning');
       return;
     }
 
@@ -893,25 +1020,29 @@ export default function BalanceLedger({ embedded = false }) {
     setSubmittingWithdraw(true);
 
     try {
-      const response = await FinanceServices.postBalanceLedger({
+      const response = await PromoServices.postWithdraws({
         start_date: withdrawDate,
         end_date: withdrawDate,
         customer_code: adjustmentCustomerCode,
         type: 'WITHDRAW',
         adjustment_type: 'CREDIT',
-        amount: rawWithdrawAmount,
+        amount: totalWithdrawAmount,
+        batchId: withdrawRows.map((row) => row.claim.value).join(','),
+        lines: withdrawRows.map((row) => ({
+          batch_id: row.claim.value,
+          amount: Number(row.amount)
+        })),
         description: withdrawDescription.trim(),
         ref_number: generateAdjustmentReference('WITHDRAW')
       });
 
       if (!response || response.status < 200 || response.status >= 300 || response?.data?.success === false) {
-        showAlert(response?.data?.message || 'Failed to save withdrawal', 'danger');
-        return;
+        throw new Error(response?.data?.message || 'Failed to save withdrawal');
       }
 
       setShowWithdrawModal(false);
-      setWithdrawAmount('');
       setWithdrawDescription('');
+      setWithdrawRows([{ claim: null, amount: '' }]);
       await fetchClaimsLedger();
       showAlert(response?.data?.message || 'Withdrawal request saved successfully', 'success');
     } catch (error) {
@@ -1019,7 +1150,7 @@ export default function BalanceLedger({ embedded = false }) {
                       Add Claim
                     </Button>
                   ) : null}
-                  {canCreateWithdrawal ? (
+                  {canCreateWithdrawal && !embedded ? (
                     <Button
                       variant="success"
                       size="sm"
@@ -1143,7 +1274,7 @@ export default function BalanceLedger({ embedded = false }) {
               <th className="text-end">Debit</th>
               <th className="text-end">Outstanding</th>
               <th>Status</th>
-              <th className="text-center">Approval</th>
+              {isFinanceUser ? <th className="text-center">#</th> : null}
             </tr>
           </thead>
           <tbody>
@@ -1210,22 +1341,24 @@ export default function BalanceLedger({ embedded = false }) {
                       '-'
                     )}
                   </td>
-                  <td className="text-center">
-                    {item.typeKey === 'WITHDRAW' && isFinanceUser ? (
-                      <Button
-                        className="rounded-circle"
-                        variant="outline-success"
-                        size="sm"
-                        onClick={() => handleOpenApproveWithdrawModal(item)}
-                        disabled={isApprovedStatus(item.status) || submittingApproveWithdraw || !item.withdrawId}
-                        title="Approve withdrawal"
-                      >
-                        <i className="ti ti-check" />
-                      </Button>
-                    ) : (
-                      <span className="text-muted">-</span>
-                    )}
-                  </td>
+                  {isFinanceUser ? (
+                    <td className="text-center">
+                      {item.typeKey === 'WITHDRAW' ? (
+                        <Button
+                          variant={isApprovedStatus(item.status) ? 'light-success' : 'success'}
+                          size="sm"
+                          onClick={() => handleOpenApproveWithdrawModal(item)}
+                          disabled={isApprovedStatus(item.status) || submittingApproveWithdraw || !item.withdrawId}
+                          title="Approve withdrawal"
+                        >
+                          <i className="ti ti-check me-1" />
+                          {isApprovedStatus(item.status) ? 'Approved' : 'Approve'}
+                        </Button>
+                      ) : (
+                        <span className="text-muted">-</span>
+                      )}
+                    </td>
+                  ) : null}
                 </tr>
               ))
             ) : (
@@ -1618,6 +1751,7 @@ export default function BalanceLedger({ embedded = false }) {
         }}
         centered
         scrollable
+        size="lg"
       >
         <Modal.Header closeButton={!submittingWithdraw}>
           <Modal.Title>Add Reward Withdrawal</Modal.Title>
@@ -1647,14 +1781,105 @@ export default function BalanceLedger({ embedded = false }) {
             </Form.Group>
 
             <Form.Group>
-              <Form.Label>Withdrawal Amount</Form.Label>
-              <Form.Control
-                type="text"
-                inputMode="numeric"
-                value={withdrawAmount ? formatCurrency(withdrawAmount) : ''}
-                onChange={handleChangeWithdrawAmount}
-                placeholder="Enter withdrawal amount"
-              />
+              <Stack direction="horizontal" gap={2} className="justify-content-between mb-2">
+                <div>
+                  <Form.Label className="mb-0">Claim Batches</Form.Label>
+                  <div className="text-muted f-12">Select batches from the oldest first, then edit the nominal for each row.</div>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline-primary"
+                  onClick={addWithdrawRow}
+                  disabled={submittingWithdraw || withdrawRows.length >= withdrawClaimOptions.length}
+                >
+                  <i className="ti ti-plus me-1" />
+                  Add Row
+                </Button>
+              </Stack>
+
+              <div className="border rounded overflow-hidden">
+                <Table responsive className="mb-0 align-middle">
+                  <thead>
+                    <tr>
+                      <th style={{ minWidth: 300 }}>Claim Batch</th>
+                      <th style={{ minWidth: 180 }}>Nominal</th>
+                      <th className="text-center" style={{ width: 70 }}>#</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {withdrawRows.map((row, rowIndex) => (
+                      <tr key={rowIndex}>
+                        <td>
+                          <Select
+                            value={row.claim}
+                            options={withdrawClaimOptions}
+                            onChange={(option) => handleSelectWithdrawClaim(rowIndex, option)}
+                            isOptionDisabled={(option) => {
+                              if (String(row.claim?.value) === String(option.value)) return false;
+
+                              const selectedBatchIds = new Set(
+                                withdrawRows
+                                  .filter((otherRow, otherIndex) => otherIndex !== rowIndex && otherRow.claim?.value)
+                                  .map((otherRow) => String(otherRow.claim.value))
+                              );
+                              const oldestUnusedBatch = withdrawClaimOptions.find(
+                                (batch) => !selectedBatchIds.has(String(batch.value))
+                              );
+
+                              return (
+                                selectedBatchIds.has(String(option.value)) ||
+                                String(option.value) !== String(oldestUnusedBatch?.value)
+                              );
+                            }}
+                            isLoading={loadingWithdrawClaims}
+                            isClearable
+                            menuPosition="fixed"
+                            placeholder="Select claim batch"
+                            noOptionsMessage={() =>
+                              loadingWithdrawClaims ? 'Loading claim batches...' : 'No verified claim balance available'
+                            }
+                          />
+                        </td>
+                        <td>
+                          <Form.Control
+                            type="text"
+                            inputMode="numeric"
+                            value={row.amount ? formatCurrency(row.amount) : ''}
+                            onChange={(event) => handleChangeWithdrawRowAmount(rowIndex, event.target.value)}
+                            placeholder="Enter nominal"
+                            isInvalid={Boolean(row.amount && Number(row.amount) > Number(row.claim?.amount || 0))}
+                          />
+                          {row.claim ? (
+                            <Form.Text className="text-muted">Max. {formatCurrency(row.claim.amount)}</Form.Text>
+                          ) : null}
+                        </td>
+                        <td className="text-center">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline-danger"
+                            className="rounded-circle"
+                            onClick={() => removeWithdrawRow(rowIndex)}
+                            disabled={submittingWithdraw}
+                          >
+                            <i className="ti ti-trash" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td className="fw-semibold">Total Withdrawal</td>
+                      <td className="fw-semibold text-primary">
+                        {formatCurrency(withdrawRows.reduce((total, row) => total + (Number(row.amount) || 0), 0))}
+                      </td>
+                      <td />
+                    </tr>
+                  </tfoot>
+                </Table>
+              </div>
               <Form.Text className="text-danger">Fund withdrawals are subject to tax.</Form.Text>
             </Form.Group>
 
@@ -1680,9 +1905,10 @@ export default function BalanceLedger({ embedded = false }) {
             disabled={
               submittingWithdraw ||
               !canCreateWithdrawal ||
+              withdrawRows.some((row) => !row.claim?.value || !Number(row.amount)) ||
               !withdrawDate ||
-              !Number(withdrawAmount) ||
-              Number(withdrawAmount) > summary.balance ||
+              withdrawRows.reduce((total, row) => total + (Number(row.amount) || 0), 0) > summary.balance ||
+              withdrawRows.some((row) => Number(row.amount) > Number(row.claim?.amount || 0)) ||
               !withdrawDescription.trim()
             }
           >
@@ -1753,5 +1979,6 @@ export default function BalanceLedger({ embedded = false }) {
 }
 
 BalanceLedger.propTypes = {
-  embedded: PropTypes.bool
+  embedded: PropTypes.bool,
+  openWithdrawSignal: PropTypes.number
 };
