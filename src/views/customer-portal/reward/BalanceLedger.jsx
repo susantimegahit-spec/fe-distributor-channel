@@ -378,7 +378,7 @@ const getStatusVariant = (status) => {
   return 'warning';
 };
 
-export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0 }) {
+export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0, refreshSignal = 0 }) {
   const { showAlert } = useAlert();
   const customerCode = getCookies('customerCode') || '';
   const roleId = getCookies('role');
@@ -578,7 +578,7 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
 
   useEffect(() => {
     fetchClaimsLedger();
-  }, [fetchClaimsLedger]);
+  }, [fetchClaimsLedger, refreshSignal]);
 
   useEffect(() => {
     if (!roleId) return;
@@ -1989,5 +1989,6 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
 
 BalanceLedger.propTypes = {
   embedded: PropTypes.bool,
-  openWithdrawSignal: PropTypes.number
+  openWithdrawSignal: PropTypes.number,
+  refreshSignal: PropTypes.number
 };

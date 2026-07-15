@@ -279,6 +279,7 @@ export default function RewardList() {
   const [withdrawTransferDate, setWithdrawTransferDate] = useState(todayDate);
   const [activeRewardTab, setActiveRewardTab] = useState('claim');
   const [withdrawRequestId, setWithdrawRequestId] = useState(0);
+  const [historyRefreshId, setHistoryRefreshId] = useState(0);
   const [sellOutFilter, setSellOutFilter] = useState('all');
   const [sellOutStatusFilter, setSellOutStatusFilter] = useState('all');
   const [selectedSellOutIds, setSelectedSellOutIds] = useState([]);
@@ -823,6 +824,7 @@ export default function RewardList() {
                 variant="success"
                 onClick={() => {
                   setActiveRewardTab('history');
+                  setHistoryRefreshId((currentId) => currentId + 1);
                   setWithdrawRequestId((currentId) => currentId + 1);
                 }}
               >
@@ -918,7 +920,20 @@ export default function RewardList() {
           </Row>
         </MainCard>
 
-        <Tab.Container activeKey={activeRewardTab} onSelect={(key) => setActiveRewardTab(key || 'claim')}>
+        <Tab.Container
+          activeKey={activeRewardTab}
+          onSelect={(key) => {
+            const selectedTab = key || 'claim';
+
+            setActiveRewardTab(selectedTab);
+            if (selectedTab === 'claim') {
+              fetchClaimBatches();
+              fetchTotalReward();
+            } else if (selectedTab === 'history') {
+              setHistoryRefreshId((currentId) => currentId + 1);
+            }
+          }}
+        >
           <Nav variant="pills" className="d-inline-flex align-self-start gap-1 bg-light border rounded-3 p-1">
             <Nav.Item>
               <Nav.Link eventKey="claim" className="rounded-2 px-3 py-2">
@@ -1168,7 +1183,7 @@ export default function RewardList() {
               </MainCard>
             </Tab.Pane>
             <Tab.Pane eventKey="history">
-              <BalanceLedger embedded openWithdrawSignal={withdrawRequestId} />
+              <BalanceLedger embedded openWithdrawSignal={withdrawRequestId} refreshSignal={historyRefreshId} />
             </Tab.Pane>
           </Tab.Content>
         </Tab.Container>
