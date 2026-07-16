@@ -75,13 +75,19 @@ const normalizeStatus = (value) =>
     .trim()
     .toUpperCase();
 
+const normalizeSummaryStatus = (value) => {
+  const normalizedStatus = normalizeStatus(value);
+
+  if (normalizedStatus === 'WAITING_APPROVAL') return 'WAITING_OM';
+  if (normalizedStatus === 'APPROVED') return 'ORDER_APPROVED';
+
+  return normalizedStatus;
+};
+
 const getStatusLabel = (value) => {
   const normalizedStatus = normalizeStatus(value);
   return statusOptions.find((item) => item.value === normalizedStatus)?.label || normalizedStatus.replace(/_/g, ' ');
 };
-
-const WAITING_STATUS_FILTER = 'WAITING_APPROVAL';
-const isWaitingStatus = (value) => normalizeStatus(value).startsWith('WAITING_');
 
 const statusSummaryItems = [
   {
@@ -90,13 +96,6 @@ const statusSummaryItems = [
     icon: 'ti ti-clipboard-list',
     avatarClassName: 'bg-light-secondary text-secondary',
     activeClassName: 'border-secondary shadow-sm'
-  },
-  {
-    value: WAITING_STATUS_FILTER,
-    label: 'Waiting',
-    icon: 'ti ti-clock-hour-4',
-    avatarClassName: 'bg-light-warning text-warning',
-    activeClassName: 'border-warning shadow-sm'
   },
   {
     value: 'WAITING_OM',
@@ -227,9 +226,7 @@ export default function OrderList() {
       const matchesKeyword = !normalizedKeyword || order.order_no?.toLowerCase().includes(normalizedKeyword);
       // ||order.distributor?.toLowerCase().includes(normalizedKeyword);
       const matchesDistributor = !distributor || order.distributorId === distributor;
-      const matchesStatus =
-        !status ||
-        (status === WAITING_STATUS_FILTER ? isWaitingStatus(order.status) : normalizeStatus(order.status) === normalizeStatus(status));
+      const matchesStatus = !status || normalizeSummaryStatus(order.status) === normalizeSummaryStatus(status);
       const matchesDate = !date || order.date === date;
 
       return matchesKeyword && matchesDistributor && matchesStatus && matchesDate;
@@ -248,20 +245,20 @@ export default function OrderList() {
     });
   }, [date, distributor, keywords, orders]);
 
-  const summary = useMemo(
-    () =>
-      statusSummaryItems.reduce(
-        (currentSummary, item) => ({
-          ...currentSummary,
-          [item.value]:
-            item.value === WAITING_STATUS_FILTER
-              ? summaryOrders.filter((order) => isWaitingStatus(order.status)).length
-              : summaryOrders.filter((order) => normalizeStatus(order.status) === item.value).length
-        }),
-        { total: summaryOrders.length }
-      ),
-    [summaryOrders]
-  );
+  const summary = useMemo(() => {
+    const statusCounts = statusSummaryItems.reduce(
+      (currentSummary, item) => ({
+        ...currentSummary,
+        [item.value]: summaryOrders.filter((order) => normalizeSummaryStatus(order.status) === item.value).length
+      }),
+      {}
+    );
+
+    return {
+      ...statusCounts,
+      total: Object.values(statusCounts).reduce((total, count) => total + count, 0)
+    };
+  }, [summaryOrders]);
 
   const handleStatusSummaryClick = (nextStatus) => {
     setStatus((currentStatus) => (currentStatus === nextStatus ? '' : nextStatus));
