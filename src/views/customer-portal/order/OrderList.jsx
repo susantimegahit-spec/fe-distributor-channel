@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import moment from 'moment';
 import { Link } from 'react-router-dom';
+import Select from 'react-select';
 
 // react-bootstrap
 import Badge from 'react-bootstrap/Badge';
@@ -24,6 +25,7 @@ import { getCookies } from '../../../utils/cookies';
 import { useAlert } from '../../../utils/alertContext';
 import { downloadSalesOrderPdf } from '../../../utils/orderPdf';
 import RoleServices from '../../../services/RoleServices';
+import DistributorServices from '../../../services/DistributorServices';
 
 const statusOptions = [
   { value: '', label: 'All Statuses' },
@@ -54,6 +56,7 @@ const statusVariant = {
 };
 
 const pageSize = 10;
+const commitmentPageSize = 5;
 
 const actionAliases = {
   view: ['view', 'read', 'show', 'detail', 'lihat'],
@@ -192,6 +195,18 @@ export default function OrderList() {
   const roleId = getCookies('role');
   const { showAlert } = useAlert();
   const [orders, setOrders] = useState([]);
+  const [commitmentMonthlyOrders, setCommitmentMonthlyOrders] = useState([]);
+  const [commitmentOrderToSend, setCommitmentOrderToSend] = useState(null);
+  const [commitmentDeliveryDate, setCommitmentDeliveryDate] = useState('');
+  const [isSendingCommitment, setIsSendingCommitment] = useState(false);
+  const [expandedCommitmentOrderId, setExpandedCommitmentOrderId] = useState(null);
+  const [commitmentStartDate, setCommitmentStartDate] = useState('');
+  const [commitmentEndDate, setCommitmentEndDate] = useState('');
+  const [commitmentCustomerCode, setCommitmentCustomerCode] = useState('');
+  const [isLoadingCommitment, setIsLoadingCommitment] = useState(false);
+  const [commitmentCurrentPage, setCommitmentCurrentPage] = useState(1);
+  const [commitmentCustomerOptions, setCommitmentCustomerOptions] = useState([]);
+  const [isLoadingCommitmentCustomers, setIsLoadingCommitmentCustomers] = useState(false);
   const [keywords, setKeywords] = useState('');
   const [distributor, setDistributor] = useState('');
   const [status, setStatus] = useState('');
@@ -213,6 +228,7 @@ export default function OrderList() {
   useEffect(() => {
     fetchData();
     getPermissionDetail();
+    fetchCommitmentCustomers();
   }, []);
 
   useEffect(() => {
@@ -232,6 +248,13 @@ export default function OrderList() {
       return matchesKeyword && matchesDistributor && matchesStatus && matchesDate;
     });
   }, [date, distributor, keywords, orders, status]);
+
+  const commitmentPageCount = Math.max(Math.ceil(commitmentMonthlyOrders.length / commitmentPageSize), 1);
+  const paginatedCommitmentOrders = useMemo(() => {
+    const startIndex = (commitmentCurrentPage - 1) * commitmentPageSize;
+
+    return commitmentMonthlyOrders.slice(startIndex, startIndex + commitmentPageSize);
+  }, [commitmentCurrentPage, commitmentMonthlyOrders]);
 
   const summaryOrders = useMemo(() => {
     const normalizedKeyword = keywords.trim().toLowerCase();
@@ -346,17 +369,102 @@ export default function OrderList() {
     return null;
   };
 
+  const fetchCommitmentCustomers = async () => {
+    setIsLoadingCommitmentCustomers(true);
+
+    try {
+      const response = await DistributorServices.getAllDistributor('');
+
+      if (response?.data?.success) {
+        const distributors = Array.isArray(response.data.data) ? response.data.data : [];
+        const options = distributors
+          .map((item) => {
+            const code = String(item?.code_customer || item?.customer_code || item?.card_code || '');
+            const name = item?.name || item?.customer_name || '';
+            const depo = item?.depo || '';
+
+            return {
+              value: code,
+              label: [code, name, depo].filter(Boolean).join(' - ')
+            };
+          })
+          .filter((item) => item.value)
+          .sort((first, second) => first.value.localeCompare(second.value));
+
+        setCommitmentCustomerOptions(options);
+      } else {
+        showAlert(response?.data?.message || 'Failed to fetch distributor master', 'danger');
+      }
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch distributor master', 'danger');
+    } finally {
+      setIsLoadingCommitmentCustomers(false);
+    }
+  };
+
+  const fetchCommitmentOrders = async (filters = {}) => {
+    const startDate = filters.start_date ?? commitmentStartDate;
+    const endDate = filters.end_date ?? commitmentEndDate;
+    const customerCode = filters.customer_code ?? commitmentCustomerCode;
+
+    if (startDate && endDate && endDate < startDate) {
+      showAlert('End date cannot be earlier than start date', 'warning');
+      return;
+    }
+
+    setIsLoadingCommitment(true);
+
+    try {
+      const response = await OrderServices.getListOrders({
+        status: 'DRAFT',
+        start_date: startDate,
+        end_date: endDate,
+        customer_code: customerCode.trim()
+      });
+      const draftOrders = extractOrderList(response);
+
+      if (response?.data?.success && draftOrders) {
+        setCommitmentMonthlyOrders(
+          draftOrders.filter((order) => normalizeSummaryStatus(order.status) === 'DRAFT')
+        );
+        setCommitmentCurrentPage(1);
+        setExpandedCommitmentOrderId(null);
+      } else {
+        showAlert(response?.data?.message || 'Failed to fetch commitment order data', 'danger');
+      }
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch commitment order data', 'danger');
+    } finally {
+      setIsLoadingCommitment(false);
+    }
+  };
+
+  const resetCommitmentFilters = () => {
+    setCommitmentStartDate('');
+    setCommitmentEndDate('');
+    setCommitmentCustomerCode('');
+    fetchCommitmentOrders({ start_date: '', end_date: '', customer_code: '' });
+  };
+
   const fetchData = async () => {
     setIsLoading(true);
 
     try {
-      const resp = await OrderServices.getListOrder();
+      const [resp, draftResp] = await Promise.all([
+        OrderServices.getListOrders(),
+        OrderServices.getListOrders({ status: 'DRAFT' })
+      ]);
       const nextOrders = extractOrderList(resp);
+      const nextDraftOrders = extractOrderList(draftResp);
 
-      if (resp.data.success && nextOrders) {
+      if (resp.data.success && draftResp.data.success && nextOrders && nextDraftOrders) {
         setOrders(nextOrders);
+        setCommitmentMonthlyOrders(
+          nextDraftOrders.filter((order) => normalizeSummaryStatus(order.status) === 'DRAFT')
+        );
+        setCommitmentCurrentPage(1);
       } else {
-        showAlert(resp?.data?.message || 'Failed to fetch order data', 'danger');
+        showAlert(resp?.data?.message || draftResp?.data?.message || 'Failed to fetch order data', 'danger');
       }
     } catch (error) {
       showAlert(error?.message || 'Failed to fetch order data', 'danger');
@@ -375,9 +483,11 @@ export default function OrderList() {
       if (response?.data?.success) {
         if (syncedOrders) {
           setOrders(syncedOrders);
+          await fetchCommitmentOrders();
           setCurrentPage(1);
         } else {
           await fetchData();
+          await fetchCommitmentOrders();
         }
 
         showAlert(response.data.message || 'Order data synced successfully', 'success');
@@ -434,6 +544,36 @@ export default function OrderList() {
     return Array.isArray(lines) ? lines : [];
   };
 
+  const getKgFromProductName = (productName = '') => {
+    const matches = [...String(productName).matchAll(/(\d+(?:[.,]\d+)?)\s*(kg|kilogram|g|gr|gram)\b/gi)];
+    const weightMatch = matches.at(-1);
+
+    if (!weightMatch) return 0;
+
+    const weight = Number(String(weightMatch[1]).replace(',', '.')) || 0;
+    const unit = String(weightMatch[2]).toLowerCase();
+
+    return ['g', 'gr', 'gram'].includes(unit) ? weight / 1000 : weight;
+  };
+
+  const getProductName = (line = {}) =>
+    getOrderValue(
+      line,
+      ['item_name', 'itemName', 'ItemName', 'Dscription', 'description', 'item_description', 'item.item_name', 'item.name'],
+      '-'
+    );
+
+  const getOrderTotalKg = (order = {}) =>
+    getOrderLines(order).reduce((total, line) => {
+      const productName = getProductName(line);
+      const quantity = Number(getOrderValue(line, ['quantity', 'qty', 'Quantity'], 0)) || 0;
+
+      return total + getKgFromProductName(productName) * quantity;
+    }, 0);
+
+  const formatKg = (value) =>
+    `${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 }).format(Number(value) || 0)} Kg`;
+
   const getSapDiscounts = (order = {}) => {
     let discounts = order.sap_dicount ?? order.sap_discount ?? [];
 
@@ -489,6 +629,7 @@ export default function OrderList() {
     po_number: getOrderValue(order, ['po_number', 'num_at_card', 'numAtCard', 'NumAtCard'], ''),
     doc_date: getOrderValue(order, ['doc_date', 'docDate', 'DocDate'], ''),
     doc_due_date: getOrderValue(order, ['doc_due_date', 'docDueDate', 'DocDueDate'], ''),
+    eta_date: getOrderValue(order, ['eta_date', 'etaDate', 'ETA', 'u_eta', 'U_ETA'], ''),
     slp_code: getOrderValue(order, ['slp_code', 'slpCode', 'SlpCode'], ''),
     cntct: getOrderValue(order, ['cntct', 'cnctCode', 'contact_name', 'customer_name', 'CardName'], ''),
     pay_to_code: getOrderValue(order, ['pay_to_code', 'payToCode', 'address_code', 'PayToCode'], ''),
@@ -496,6 +637,8 @@ export default function OrderList() {
     ship_to_code: getOrderValue(order, ['ship_to_code', 'shipToCode', 'address2_code', 'ShipToCode'], ''),
     address2: getOrderValue(order, ['address2', 'ship_to_address', 'Address2'], ''),
     comments: getOrderValue(order, ['comments', 'Comments'], ''),
+    use_balance: getOrderValue(order, ['use_balance', 'useBalance'], false),
+    Series: getOrderValue(order, seriesValueKeys, ''),
     series: getOrderValue(order, seriesValueKeys, ''),
     series_name: getOrderValue(order, seriesDisplayKeys, ''),
     status: nextStatus,
@@ -503,7 +646,8 @@ export default function OrderList() {
     notes: approvalNotes,
     id_discount: getOrderValue(order, ['id_discount', 'idDiscount'], ''),
     approval_id: permissionDetail?.role_menu?.approval_id,
-    DocTotal: getOrderValue(order, ['DocTotal'], ''),
+    doc_total: getOrderValue(order, ['doc_total', 'docTotal', 'DocTotal'], ''),
+    DocTotal: getOrderValue(order, ['DocTotal', 'doc_total', 'docTotal'], ''),
     lines: getOrderLines(order).map((line) => ({
       item_code: getOrderValue(line, ['item_code', 'itemCode', 'ItemCode'], ''),
       quantity: getOrderValue(line, ['quantity', 'qty', 'Quantity'], ''),
@@ -521,6 +665,70 @@ export default function OrderList() {
       ocr_code3: getOrderValue(line, ['ocr_code3', 'ocrCode3', 'OcrCode3'], '')
     }))
   });
+
+  const openCommitmentSendModal = async (order) => {
+    setLoadingDetailId(order.id);
+
+    try {
+      const response = await OrderServices.getDetailOrder(order.id);
+
+      if (response?.data?.success) {
+        const orderDetail = response.data.data;
+        const initialDeliveryDate = getOrderValue(
+          orderDetail,
+          ['eta_date', 'etaDate', 'doc_due_date', 'docDueDate'],
+          moment().format('YYYY-MM-DD')
+        );
+
+        setCommitmentOrderToSend(orderDetail);
+        setCommitmentDeliveryDate(moment(initialDeliveryDate).format('YYYY-MM-DD'));
+      } else {
+        showAlert(response?.data?.message || 'Failed to fetch order detail', 'danger');
+      }
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch order detail', 'danger');
+    } finally {
+      setLoadingDetailId(null);
+    }
+  };
+
+  const closeCommitmentSendModal = () => {
+    if (isSendingCommitment) return;
+
+    setCommitmentOrderToSend(null);
+    setCommitmentDeliveryDate('');
+  };
+
+  const handleSendCommitmentOrder = async () => {
+    if (!commitmentOrderToSend?.id || !commitmentDeliveryDate) {
+      showAlert('Delivery date is required', 'danger');
+      return;
+    }
+
+    setIsSendingCommitment(true);
+
+    try {
+      const payload = {
+        ...buildOrderStatusPayload(commitmentOrderToSend, 'WAITING_OM', 'submit'),
+        eta_date: commitmentDeliveryDate
+      };
+      const response = await OrderServices.putOrder(commitmentOrderToSend.id, payload);
+
+      if (response?.data?.success) {
+        showAlert(response.data.message || 'Order sent successfully', 'success');
+        setCommitmentOrderToSend(null);
+        setCommitmentDeliveryDate('');
+        await fetchData();
+        await fetchCommitmentOrders();
+      } else {
+        showAlert(response?.data?.message || 'Failed to send order', 'danger');
+      }
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to send order', 'danger');
+    } finally {
+      setIsSendingCommitment(false);
+    }
+  };
 
   const formatOrderDate = (value) => {
     if (!value) return '-';
@@ -930,7 +1138,6 @@ export default function OrderList() {
   const canShowCreditLimitInfo =
     selectedOrderDetail && normalizeStatus(selectedOrderDetail.status) === 'WAITING_FINANCE' && (isAdministrator || isFinanceUser);
   const formatCreditAmount = (value) => (value !== undefined && value !== null && value !== '' ? currency(parseAmount(value)) : '-');
-
   return (
     <>
       <Stack gap={3}>
@@ -958,7 +1165,219 @@ export default function OrderList() {
           }
         />
 
-        <MainCard>
+        <MainCard
+          title={
+            <Stack gap={1}>
+              <h5 className="mb-0">Commitment Monthly Order</h5>
+              <span className="text-muted f-12">Order commitments that are still in draft status.</span>
+            </Stack>
+          }
+        >
+          <Row className="g-2 align-items-end mb-3">
+            <Col md={3} sm={6}>
+              <Form.Label className="f-12 text-muted">Customer Code</Form.Label>
+              <Select
+                classNamePrefix="react-select"
+                value={commitmentCustomerOptions.find((option) => option.value === commitmentCustomerCode) || null}
+                options={commitmentCustomerOptions}
+                isLoading={isLoadingCommitmentCustomers}
+                isDisabled={isLoadingCommitmentCustomers}
+                isClearable
+                isSearchable
+                placeholder="Search customer code..."
+                noOptionsMessage={() => 'Distributor not found'}
+                onChange={(option) => setCommitmentCustomerCode(option?.value || '')}
+              />
+            </Col>
+            <Col md={3} sm={6}>
+              <Form.Label className="f-12 text-muted">Start Date</Form.Label>
+              <Form.Control
+                type="date"
+                value={commitmentStartDate}
+                onChange={(event) => setCommitmentStartDate(event.target.value)}
+              />
+            </Col>
+            <Col md={3} sm={6}>
+              <Form.Label className="f-12 text-muted">End Date</Form.Label>
+              <Form.Control
+                type="date"
+                value={commitmentEndDate}
+                min={commitmentStartDate || undefined}
+                onChange={(event) => setCommitmentEndDate(event.target.value)}
+              />
+            </Col>
+            <Col md={3} sm={6}>
+              <Stack direction="horizontal" gap={2}>
+                <Button className="flex-grow-1" variant="primary" disabled={isLoadingCommitment} onClick={() => fetchCommitmentOrders()}>
+                  <i className="ti ti-filter me-1" />
+                  Filter
+                </Button>
+                <Button variant="light-primary" disabled={isLoadingCommitment} onClick={resetCommitmentFilters}>
+                  <i className="ti ti-refresh" />
+                </Button>
+              </Stack>
+            </Col>
+          </Row>
+          <Table className="mb-0 align-middle" responsive hover>
+            <thead>
+              <tr>
+                <th aria-label="Expand product details" style={{ width: 48 }} />
+                <th>Depo</th>
+                <th>Date</th>
+                <th>Total Item</th>
+                <th>Kg</th>
+                <th>Total Order</th>
+                {/* <th>Status</th> */}
+                <th className="text-center">Action</th>
+              </tr>
+            </thead>
+            {isLoading || isLoadingCommitment ? (
+              <tbody>
+                <tr>
+                  <td colSpan={8}>
+                    <LoaderData />
+                  </td>
+                </tr>
+              </tbody>
+            ) : (
+              <tbody>
+                {paginatedCommitmentOrders.length > 0 ? (
+                  paginatedCommitmentOrders.map((order) => {
+                    const isExpanded = String(expandedCommitmentOrderId) === String(order.id);
+                    const productLines = getOrderLines(order);
+                    const buttonVisibility = getButtonVisibility(order);
+
+                    return (
+                      <Fragment key={order.id}>
+                        <tr>
+                          <td className="text-center">
+                            <Button
+                              className="rounded-circle p-0"
+                              size="sm"
+                              variant="light-primary"
+                              aria-label={isExpanded ? 'Hide product details' : 'Show product details'}
+                              aria-expanded={isExpanded}
+                              style={{ width: 32, height: 32 }}
+                              onClick={() => setExpandedCommitmentOrderId(isExpanded ? null : order.id)}
+                            >
+                              <i className={`ti ${isExpanded ? 'ti-chevron-up' : 'ti-chevron-down'}`} />
+                            </Button>
+                          </td>
+                          <td>
+                            {order.depo} - {order.customer_name}
+                          </td>
+                          <td>{moment(order.doc_date).format('DD MMM YYYY')}</td>
+                          <td>{productLines.length}</td>
+                          <td className="fw-semibold">{formatKg(getOrderTotalKg(order))}</td>
+                          <td>{currency(order?.doc_total)}</td>
+                          {/* <td>
+                            <Badge bg={statusVariant[order.status] || 'secondary'}>{getStatusLabel(order.status)}</Badge>
+                          </td> */}
+                          <td className="text-center">
+                            <Stack direction="horizontal" gap={2} className="justify-content-center">
+                              {buttonVisibility.edit ? (
+                                <Button
+                                  as={Link}
+                                  to={`/customer-portal/order/order-create/${order.id}`}
+                                  size="sm"
+                                  variant="outline-success"
+                                >
+                                  <i className="ti ti-pencil me-1" />
+                                  Edit
+                                </Button>
+                              ) : null}
+                              <Button
+                                size="sm"
+                                variant="success"
+                                disabled={String(loadingDetailId) === String(order.id)}
+                                onClick={() => openCommitmentSendModal(order)}
+                              >
+                                <i
+                                  className={
+                                    String(loadingDetailId) === String(order.id) ? 'ti ti-loader-2 me-1' : 'ti ti-send me-1'
+                                  }
+                                />
+                                Process
+                              </Button>
+                            </Stack>
+                          </td>
+                        </tr>
+                        {isExpanded ? (
+                          <tr key={`${order.id}-products`} className="bg-light">
+                            <td colSpan={8} className="p-3">
+                              <div className="border rounded bg-white overflow-hidden">
+                                <Table className="mb-0 align-middle" responsive size="sm">
+                                  <thead>
+                                    <tr>
+                                      <th>Product</th>
+                                      <th className="text-end">Qty</th>
+                                      <th className="text-end">Kg / Item</th>
+                                      <th className="text-end">Total Kg</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {productLines.length ? (
+                                      productLines.map((line, index) => {
+                                        const productName = getProductName(line);
+                                        const quantity = Number(getOrderValue(line, ['quantity', 'qty', 'Quantity'], 0)) || 0;
+                                        const kgPerItem = getKgFromProductName(productName);
+
+                                        return (
+                                          <tr key={line.id || getOrderValue(line, ['item_code', 'itemCode'], index)}>
+                                            <td>{productName}</td>
+                                            <td className="text-end">{quantity}</td>
+                                            <td className="text-end">{formatKg(kgPerItem)}</td>
+                                            <td className="text-end fw-semibold">{formatKg(kgPerItem * quantity)}</td>
+                                          </tr>
+                                        );
+                                      })
+                                    ) : (
+                                      <tr>
+                                        <td colSpan={4} className="text-center text-muted py-3">
+                                          Product details are not available.
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </tbody>
+                                </Table>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : null}
+                      </Fragment>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={8}>
+                      <div className="text-center text-muted py-4">No draft orders found.</div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            )}
+          </Table>
+          <TablePagination
+            currentPage={commitmentCurrentPage}
+            onPageChange={(page) => {
+              setCommitmentCurrentPage(page);
+              setExpandedCommitmentOrderId(null);
+            }}
+            pageCount={commitmentPageCount}
+            pageSize={commitmentPageSize}
+            total={commitmentMonthlyOrders.length}
+            itemLabel="commitment order"
+          />
+        </MainCard>
+
+        <MainCard
+          title={
+            <Stack gap={1}>
+              <h5 className="mb-0">Order List</h5>
+              <span className="text-muted f-12">View and manage all orders based on their current status.</span>
+            </Stack>
+          }
+        >
           {renderStatusFilterBoxes()}
           <Row className="g-2 align-items-end mb-3">
             <Col lg={4} md={6}>
@@ -1084,6 +1503,36 @@ export default function OrderList() {
           />
         </MainCard>
       </Stack>
+      <Modal show={Boolean(commitmentOrderToSend)} onHide={closeCommitmentSendModal} centered>
+        <Modal.Header closeButton={!isSendingCommitment}>
+          <Modal.Title>Process Commitment Monthly Order</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form.Group>
+            <Form.Label>Delivery Date</Form.Label>
+            <Form.Control
+              type="date"
+              value={commitmentDeliveryDate}
+              min={moment().format('YYYY-MM-DD')}
+              disabled={isSendingCommitment}
+              onChange={(event) => setCommitmentDeliveryDate(event.target.value)}
+            />
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light" disabled={isSendingCommitment} onClick={closeCommitmentSendModal}>
+            Cancel
+          </Button>
+          <Button
+            variant="success"
+            disabled={isSendingCommitment || !commitmentDeliveryDate}
+            onClick={handleSendCommitmentOrder}
+          >
+            <i className={isSendingCommitment ? 'ti ti-loader-2 me-1' : 'ti ti-send me-1'} />
+            {isSendingCommitment ? 'Processing...' : 'Process'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
       <Modal show={Boolean(selectedOrderDetail)} onHide={closeDetailModal} centered size="xl">
         <Modal.Header closeButton>
           <Modal.Title>Order Detail</Modal.Title>

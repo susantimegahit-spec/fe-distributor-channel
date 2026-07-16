@@ -154,7 +154,7 @@ export default function OrderPost() {
 
   const calculateTotalKg = (items = []) =>
     items.reduce((total, item) => {
-      const kgPerUnit = getKgFromProductName(item.itemCode?.label);
+      const kgPerUnit = Number(item.kgPerUnit || getKgFromProductName(item.itemCode?.label));
 
       return total + kgPerUnit * Number(item.quantity || 0);
     }, 0);
@@ -163,6 +163,8 @@ export default function OrderPost() {
     {
       itemCode: null,
       quantity: '',
+      kgPerUnit: 0,
+      totalKg: 0,
       unitMsr: '',
       unitPrice: '',
       whs_code: null,
@@ -609,9 +611,12 @@ export default function OrderPost() {
     return {
       itemCode: findOption(listItem, itemCode, itemName, {
         unitMsr,
-        uomEntry: getValue(line, ['uom_entry', 'uomEntry', 'UomEntry'])
+        uomEntry: getValue(line, ['uom_entry', 'uomEntry', 'UomEntry']),
+        kgPerUnit: getKgFromProductName(itemName)
       }),
       quantity: getValue(line, ['quantity', 'qty', 'Quantity'], ''),
+      kgPerUnit: getKgFromProductName(itemName),
+      totalKg: getKgFromProductName(itemName) * Number(getValue(line, ['quantity', 'qty', 'Quantity'], 0)),
       unitMsr,
       unitPrice: getValue(line, ['unit_price', 'unitPrice', 'price', 'Price'], ''),
       whs_code: findOption(listWarehouse, whs_code, whsName),
@@ -737,7 +742,8 @@ export default function OrderPost() {
           value: items.item_code,
           label: items?.item_name,
           unitMsr: items?.sal_unit_msr,
-          uomEntry: items?.suom_entry
+          uomEntry: items?.suom_entry,
+          kgPerUnit: getKgFromProductName(items?.item_name)
         };
         dataArr.push(arr);
       });
@@ -1028,6 +1034,8 @@ export default function OrderPost() {
     if (!e) {
       itemArr[index].itemCode = null;
       itemArr[index].unitMsr = '';
+      itemArr[index].kgPerUnit = 0;
+      itemArr[index].totalKg = 0;
       itemArr[index].unitPrice = '';
       itemArr[index].lineTotal = '';
       itemArr[index].vatTotal = '';
@@ -1037,6 +1045,8 @@ export default function OrderPost() {
 
     itemArr[index].itemCode = e;
     itemArr[index].unitMsr = e.unitMsr;
+    itemArr[index].kgPerUnit = Number(e.kgPerUnit || getKgFromProductName(e.label));
+    itemArr[index].totalKg = itemArr[index].kgPerUnit * Number(itemArr[index].quantity || 0);
     itemArr[index].unitPrice = '';
     itemArr[index].lineTotal = '';
     itemArr[index].vatTotal = '';
@@ -1434,6 +1444,8 @@ export default function OrderPost() {
     const item = {
       itemCode: null,
       quantity: '',
+      kgPerUnit: 0,
+      totalKg: 0,
       unitMsr: '',
       uomEntry: '',
       whs_code: null,
@@ -1487,6 +1499,7 @@ export default function OrderPost() {
       const calculatedTotals = calculateLineTotals(itemArr[index]);
       itemArr[index].lineTotal = calculatedTotals.lineTotal;
       itemArr[index].vatTotal = calculatedTotals.vatTotal;
+      itemArr[index].totalKg = Number(itemArr[index].kgPerUnit || 0) * Number(itemArr[index].quantity || 0);
     }
     setItemArr([...itemArr]);
   };
@@ -2546,6 +2559,7 @@ export default function OrderPost() {
                   <th style={{ minWidth: 90 }}>
                     <RequiredLabel>Qty</RequiredLabel>
                   </th>
+                  <th style={{ minWidth: 120 }}>Kg</th>
                   <th style={{ minWidth: 90 }}>Unit</th>
                   <th style={{ minWidth: 160 }}>Price</th>
                   <th style={{ minWidth: 160 }}>Total</th>
@@ -2590,6 +2604,15 @@ export default function OrderPost() {
                         onChange={(e) => handleChangeInputLine(index, 'quantity', e)}
                         value={Math.round(item.quantity)}
                         size="sm"
+                      />
+                    </td>
+                    <td>
+                      <Form.Control
+                        readOnly
+                        type="text"
+                        value={formatKg(item.totalKg || 0)}
+                        size="sm"
+                        title={`${formatKg(item.kgPerUnit || 0)} per item`}
                       />
                     </td>
                     <td>

@@ -12,8 +12,26 @@ class OrderServices {
     return DataService.get('/discounts/types');
   }
 
-  getListOrder() {
-    return DataService.get('/sales-orders');
+  getListOrders(params = {}, startDate = '', endDate = '', customerCode = '') {
+    const filters =
+      typeof params === 'string'
+        ? { status: params, start_date: startDate, end_date: endDate, customer_code: customerCode }
+        : params || {};
+    const query = new URLSearchParams();
+
+    ['status', 'start_date', 'end_date', 'customer_code'].forEach((key) => {
+      if (filters[key] !== undefined && filters[key] !== null && filters[key] !== '') {
+        query.set(key, filters[key]);
+      }
+    });
+
+    const queryString = query.toString();
+
+    return DataService.get(`/sales-orders${queryString ? `?${queryString}` : ''}`);
+  }
+
+  getListOrder(params = {}, startDate = '', endDate = '', customerCode = '') {
+    return this.getListOrders(params, startDate, endDate, customerCode);
   }
 
   syncAllOrders() {
