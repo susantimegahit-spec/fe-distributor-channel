@@ -945,8 +945,9 @@ export default function Dashboard() {
               <Card.Body>
                 <Stack direction="horizontal" className="justify-content-between" gap={3}>
                   <div>
-                    <div className="text-muted f-12">Total Sales Order</div>
+                    <div className="text-muted f-12">Sales Order Value This Month</div>
                     <h4 className="mb-0">{isLoadingOrders ? '-' : currency(orderSummary.totalOrder)}</h4>
+                    <small className="text-muted">Total value of all sales orders recorded during the current month.</small>
                   </div>
                   <span className="avtar avtar-s bg-light-primary text-primary">
                     <i className="ti ti-shopping-cart" />
@@ -960,8 +961,9 @@ export default function Dashboard() {
               <Card.Body>
                 <Stack direction="horizontal" className="justify-content-between" gap={3}>
                   <div>
-                    <div className="text-muted f-12">Total Order</div>
+                    <div className="text-muted f-12">Order Count This Month</div>
                     <h4 className="mb-0">{isLoadingOrders ? '-' : orderSummary.totalAmount}</h4>
+                    <small className="text-muted">Number of sales order transactions recorded during the current month.</small>
                   </div>
                   <span className="avtar avtar-s bg-light-success text-success">
                     <i className="ti ti-cash" />
@@ -975,8 +977,9 @@ export default function Dashboard() {
               <Card.Body>
                 <Stack direction="horizontal" className="justify-content-between" gap={3}>
                   <div>
-                    <div className="text-muted f-12">Total Quantity (Kg)</div>
+                    <div className="text-muted f-12">Total Quantity This Month (Kg)</div>
                     <h4 className="mb-0">{isLoadingOrders ? '-' : orderSummary.totalItem}</h4>
+                    <small className="text-muted">Total product weight from sales orders recorded during the current month.</small>
                   </div>
                   <span className="avtar avtar-s bg-light-info text-info">
                     <i className="ti ti-package" />
