@@ -17,9 +17,9 @@ import Select from 'react-select';
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
 import LoaderData from '../../../components/LoaderData';
-import DistributorServices from '../../../services/DistributorServices';
-import PriceServices from '../../../services/PriceServices';
-import ProductServices from '../../../services/ProductServices';
+import DistributorServices from '../../../services/customer-portal/DistributorServices';
+import PriceServices from '../../../services/customer-portal/PriceServices';
+import ProductServices from '../../../services/customer-portal/ProductServices';
 import { useAlert } from '../../../utils/alertContext';
 import { useConfirm } from '../../../utils/confirmContext';
 

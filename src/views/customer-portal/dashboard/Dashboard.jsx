@@ -17,8 +17,8 @@ import Table from 'react-bootstrap/Table';
 // project-imports
 import ConfirmDialog from 'components/ConfirmDialog';
 import MainCard from 'components/MainCard';
-import DashboardServices from '../../../services/DashboardServices';
-import OrderServices from '../../../services/OrderServices';
+import DashboardServices from '../../../services/customer-portal/DashboardServices';
+import OrderServices from '../../../services/customer-portal/OrderServices';
 import { currency } from '../../../utils/global';
 import { useAlert } from '../../../utils/alertContext';
 import { getCookies } from '../../../utils/cookies';

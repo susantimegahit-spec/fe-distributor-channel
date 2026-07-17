@@ -17,9 +17,9 @@ import MainCard from 'components/MainCard';
 import ConfirmDialog from 'components/ConfirmDialog';
 import TablePagination from 'components/TablePagination';
 import LoaderData from '../../../components/LoaderData';
-import DistributorServices from '../../../services/DistributorServices';
-import ProductServices from '../../../services/ProductServices';
-import PromoServices from '../../../services/PromoServices';
+import DistributorServices from '../../../services/customer-portal/DistributorServices';
+import ProductServices from '../../../services/customer-portal/ProductServices';
+import PromoServices from '../../../services/customer-portal/PromoServices';
 import { useAlert } from '../../../utils/alertContext';
 
 const pageSize = 10;

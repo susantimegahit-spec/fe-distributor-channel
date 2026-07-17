@@ -17,8 +17,8 @@ import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
 
 import { getCookies } from '../../utils/cookies';
 import { Modal } from 'react-bootstrap';
-import UserServices from '../../services/UserServices';
-import NotificationServices from '../../services/NotificationServices';
+import UserServices from '../../services/setting/UserServices';
+import NotificationServices from '../../services/shared/NotificationServices';
 import LoaderButton from '../../components/LoaderButton';
 import { useAlert } from '../../utils/alertContext';
 import { createEchoClient, getNotificationChannelName } from '../../config/echo';

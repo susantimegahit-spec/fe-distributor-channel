@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import SingleCharacter from 'assets/images/single-character.png';
-import LocalAIService from '../services/LocalAIService';
+import LocalAIService from '../services/shared/LocalAIService';
 
 const faqItems = [
   {

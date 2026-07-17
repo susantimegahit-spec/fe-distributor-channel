@@ -15,7 +15,7 @@ import InputGroup from 'react-bootstrap/InputGroup';
 // project-imports
 import MainCard from 'components/MainCard';
 import { useAlert } from '../../../utils/alertContext';
-import CronJobServices from '../../../services/CronJobServices';
+import CronJobServices from '../../../services/setting/CronJobServices';
 
 export default function CronJobList() {
   const { showAlert } = useAlert();

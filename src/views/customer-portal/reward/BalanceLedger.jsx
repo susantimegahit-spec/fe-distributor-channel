@@ -15,10 +15,10 @@ import Table from 'react-bootstrap/Table';
 import LoaderData from '../../../components/LoaderData';
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
-import DistributorServices from '../../../services/DistributorServices';
-import FinanceServices from '../../../services/FinanceServices';
-import PromoServices from '../../../services/PromoServices';
-import RoleServices from '../../../services/RoleServices';
+import DistributorServices from '../../../services/customer-portal/DistributorServices';
+import FinanceServices from '../../../services/customer-portal/FinanceServices';
+import PromoServices from '../../../services/customer-portal/PromoServices';
+import RoleServices from '../../../services/setting/RoleServices';
 import { useAlert } from '../../../utils/alertContext';
 import { getCookies } from '../../../utils/cookies';
 
@@ -49,6 +49,21 @@ const getTodayDate = () => {
   const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
 
   return localDate.toISOString().slice(0, 10);
+};
+
+const getDateKey = (value) => {
+  if (!value) return '';
+
+  const stringValue = String(value);
+  const datePrefix = stringValue.match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+
+  if (datePrefix) return datePrefix;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const timezoneOffset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 10);
 };
 
 let adjustmentReferenceSequence = 0;
@@ -293,13 +308,25 @@ const transactionTypeConfig = {
     label: 'Transaction',
     description: 'Reward usage recorded from an order.',
     icon: 'ti ti-arrows-exchange',
-    variant: 'danger'
+    variant: 'warning'
   },
   WITHDRAW: {
     label: 'Withdraw',
     description: 'Reward balance withdrawn by customer.',
     icon: 'ti ti-wallet-minus',
     variant: 'danger'
+  },
+  BONUS: {
+    label: 'Bonus',
+    description: 'Additional reward balance granted to a customer.',
+    icon: 'ti ti-gift-card',
+    variant: 'success'
+  },
+  CORRECTION: {
+    label: 'Correction',
+    description: 'Manual reward balance correction.',
+    icon: 'ti ti-adjustments',
+    variant: 'orange'
   }
 };
 
@@ -390,6 +417,13 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
   const [customerOptions, setCustomerOptions] = useState([]);
   const [selectedCustomers, setSelectedCustomers] = useState([]);
   const [loadingCustomers, setLoadingCustomers] = useState(false);
+  const [showAdjustmentModal, setShowAdjustmentModal] = useState(false);
+  const [adjustmentTransactionType, setAdjustmentTransactionType] = useState('BONUS');
+  const [adjustmentEntryType, setAdjustmentEntryType] = useState('CREDIT');
+  const [adjustmentCustomer, setAdjustmentCustomer] = useState(null);
+  const [adjustmentAmount, setAdjustmentAmount] = useState('');
+  const [adjustmentDescription, setAdjustmentDescription] = useState('');
+  const [submittingAdjustment, setSubmittingAdjustment] = useState(false);
   const [showClaimModal, setShowClaimModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [downloadingTemplate, setDownloadingTemplate] = useState(false);
@@ -417,6 +451,8 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
   const [submittingVerify, setSubmittingVerify] = useState(false);
   const [loadingClaimReference, setLoadingClaimReference] = useState(null);
   const [transactionFilter, setTransactionFilter] = useState('all');
+  const [ledgerStartDate, setLedgerStartDate] = useState('');
+  const [ledgerEndDate, setLedgerEndDate] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const isDistributor = Boolean(customerCode);
   const permissionApprovalName = useMemo(() => normalizeApprovalText(permissionDetail?.role_menu?.approval?.name), [permissionDetail]);
@@ -456,7 +492,7 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
   const canCreateWithdrawal = isAdminDistributor && isDistributor;
 
   const fetchCustomerOptions = useCallback(async () => {
-    if (!showCustomerFilter) {
+    if (!showCustomerFilter && !embedded) {
       setCustomerOptions([]);
       setSelectedCustomers([]);
       return;
@@ -485,14 +521,16 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
     } finally {
       setLoadingCustomers(false);
     }
-  }, [showAlert, showCustomerFilter]);
+  }, [embedded, showAlert, showCustomerFilter]);
 
   const fetchClaimsLedger = useCallback(async () => {
     setLoading(true);
 
     try {
       const response = await PromoServices.getClaimsLedger({
-        customer_code: effectiveCustomerCode
+        customer_code: effectiveCustomerCode,
+        ...(ledgerStartDate ? { start_date: ledgerStartDate } : {}),
+        ...(ledgerEndDate ? { end_date: ledgerEndDate } : {})
       });
 
       if (response?.data?.success === false) {
@@ -515,7 +553,7 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
     } finally {
       setLoading(false);
     }
-  }, [effectiveCustomerCode, showAlert]);
+  }, [effectiveCustomerCode, ledgerEndDate, ledgerStartDate, showAlert]);
 
   const fetchWithdrawClaimBatches = useCallback(async () => {
     if (!adjustmentCustomerCode) {
@@ -597,15 +635,18 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
   }, [roleId, showAlert]);
 
   const filteredRows = useMemo(() => {
-    if (!selectedCustomerCodes.length && transactionFilter === 'all') return ledgerRows;
+    if (!selectedCustomerCodes.length && transactionFilter === 'all' && !ledgerStartDate && !ledgerEndDate) return ledgerRows;
 
     return ledgerRows.filter((item) => {
       const matchesType = transactionFilter === 'all' || item.typeKey === transactionFilter;
       const matchesCustomer = !selectedCustomerCodes.length || selectedCustomerCodes.includes(item.customerCode);
+      const transactionDate = getDateKey(item.date);
+      const matchesStartDate = !ledgerStartDate || (transactionDate && transactionDate >= ledgerStartDate);
+      const matchesEndDate = !ledgerEndDate || (transactionDate && transactionDate <= ledgerEndDate);
 
-      return matchesType && matchesCustomer;
+      return matchesType && matchesCustomer && matchesStartDate && matchesEndDate;
     });
-  }, [ledgerRows, selectedCustomerCodes, transactionFilter]);
+  }, [ledgerEndDate, ledgerRows, ledgerStartDate, selectedCustomerCodes, transactionFilter]);
 
   const summary = useMemo(() => {
     const totalCredit = ledgerRows.reduce((total, item) => total + Number(item.credit || 0), 0);
@@ -826,6 +867,60 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
     }
 
     setClaimFile(file);
+  };
+
+  const handleOpenAdjustmentModal = () => {
+    setAdjustmentTransactionType('BONUS');
+    setAdjustmentEntryType('CREDIT');
+    setAdjustmentCustomer(null);
+    setAdjustmentAmount('');
+    setAdjustmentDescription('');
+    setShowAdjustmentModal(true);
+  };
+
+  const handleSubmitAdjustment = async () => {
+    if (!adjustmentCustomer?.value) {
+      showAlert('Please select a customer', 'warning');
+      return;
+    }
+
+    if (!(Number(adjustmentAmount) > 0)) {
+      showAlert('Please enter a valid amount', 'warning');
+      return;
+    }
+
+    if (!adjustmentDescription.trim()) {
+      showAlert('Please enter a description', 'warning');
+      return;
+    }
+
+    setSubmittingAdjustment(true);
+
+    try {
+      const response = await FinanceServices.postBalanceLedger({
+        customer_code: adjustmentCustomer.value,
+        type: adjustmentTransactionType,
+        adjustment_type: adjustmentEntryType,
+        amount: Number(adjustmentAmount),
+        description: adjustmentDescription.trim()
+      });
+
+      if (!response || response.status < 200 || response.status >= 300 || response?.data?.success === false) {
+        showAlert(response?.data?.message || 'Failed to save reward adjustment', 'danger');
+        return;
+      }
+
+      setShowAdjustmentModal(false);
+      setAdjustmentCustomer(null);
+      setAdjustmentAmount('');
+      setAdjustmentDescription('');
+      await fetchClaimsLedger();
+      showAlert(response?.data?.message || 'Reward adjustment saved successfully', 'success');
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to save reward adjustment', 'danger');
+    } finally {
+      setSubmittingAdjustment(false);
+    }
   };
 
   const handleOpenClaimModal = () => {
@@ -1144,6 +1239,12 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
                   Customer: {customerCode}
                 </Badge>
               ) : null}
+              {embedded ? (
+                <Button variant="primary" size="sm" onClick={handleOpenAdjustmentModal} disabled={submittingAdjustment}>
+                  <i className="ti ti-plus me-1" />
+                  Add
+                </Button>
+              ) : null}
               {canCreateAdjustment || canCreateWithdrawal ? (
                 <>
                   {!embedded && canCreateAdjustment ? (
@@ -1236,7 +1337,7 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
         })}
       </Row>
 
-      <Stack direction="horizontal" gap={3} className="flex-wrap justify-content-between mb-3">
+      <div className="mb-3">
         <div>
           <h6 className="mb-1">Ledger Transactions</h6>
           <span className="text-muted f-12">
@@ -1245,28 +1346,71 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
               : `Showing ${transactionTypeConfig[transactionFilter]?.label || transactionFilter} transactions only.`}
           </span>
         </div>
-        {showCustomerFilter ? (
-          <div style={{ width: 420, maxWidth: '100%' }}>
-            <Select
-              isMulti
-              isClearable
-              closeMenuOnSelect={false}
-              menuPosition="fixed"
-              styles={customerSelectStyles}
-              value={selectedCustomers}
-              options={customerOptions}
-              isLoading={loadingCustomers}
-              onChange={(options) => {
-                setSelectedCustomers(options || []);
-                setCurrentPage(1);
-              }}
-              placeholder="Select customer codes..."
-              noOptionsMessage={() => (loadingCustomers ? 'Loading customer codes...' : 'No customer code found')}
-              aria-label="Filter customer codes"
-            />
-          </div>
-        ) : null}
-      </Stack>
+        <Stack direction="horizontal" gap={3} className="flex-wrap justify-content-between align-items-end mt-3">
+          <Stack direction="horizontal" gap={2} className="flex-wrap align-items-end">
+            <Form.Group style={{ width: 160 }}>
+              <Form.Label className="f-12 text-muted mb-1">Start Date</Form.Label>
+              <Form.Control
+                type="date"
+                value={ledgerStartDate}
+                max={ledgerEndDate || undefined}
+                onChange={(event) => {
+                  setLedgerStartDate(event.target.value);
+                  setCurrentPage(1);
+                }}
+              />
+            </Form.Group>
+            <Form.Group style={{ width: 160 }}>
+              <Form.Label className="f-12 text-muted mb-1">End Date</Form.Label>
+              <Form.Control
+                type="date"
+                value={ledgerEndDate}
+                min={ledgerStartDate || undefined}
+                onChange={(event) => {
+                  setLedgerEndDate(event.target.value);
+                  setCurrentPage(1);
+                }}
+              />
+            </Form.Group>
+            {ledgerStartDate || ledgerEndDate ? (
+              <Button
+                variant="light-secondary"
+                onClick={() => {
+                  setLedgerStartDate('');
+                  setLedgerEndDate('');
+                  setCurrentPage(1);
+                }}
+                title="Reset date range"
+              >
+                <i className="ti ti-x me-1" />
+                Reset
+              </Button>
+            ) : null}
+          </Stack>
+          {showCustomerFilter ? (
+            <Form.Group style={{ width: 420, maxWidth: '100%' }}>
+              <Form.Label className="f-12 text-muted mb-1">Customer Code</Form.Label>
+              <Select
+                isMulti
+                isClearable
+                closeMenuOnSelect={false}
+                menuPosition="fixed"
+                styles={customerSelectStyles}
+                value={selectedCustomers}
+                options={customerOptions}
+                isLoading={loadingCustomers}
+                onChange={(options) => {
+                  setSelectedCustomers(options || []);
+                  setCurrentPage(1);
+                }}
+                placeholder="Select customer codes..."
+                noOptionsMessage={() => (loadingCustomers ? 'Loading customer codes...' : 'No customer code found')}
+                aria-label="Filter customer codes"
+              />
+            </Form.Group>
+          ) : null}
+        </Stack>
+      </div>
 
       <div className="table-responsive">
         <Table hover className="mb-0 align-middle">
@@ -1566,6 +1710,95 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
         <Modal.Footer>
           <Button variant="light-secondary" onClick={handleCloseClaimDetail} disabled={submittingVerify}>
             Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal
+        show={showAdjustmentModal}
+        onHide={() => {
+          if (!submittingAdjustment) setShowAdjustmentModal(false);
+        }}
+        centered
+      >
+        <Modal.Header closeButton={!submittingAdjustment}>
+          <Modal.Title>Add Reward History</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Stack gap={3}>
+            <Form.Group>
+              <Form.Label>Transaction Type</Form.Label>
+              <Form.Select
+                value={adjustmentTransactionType}
+                onChange={(event) => setAdjustmentTransactionType(event.target.value)}
+                disabled={submittingAdjustment}
+              >
+                <option value="BONUS">Bonus</option>
+                <option value="CORRECTION">Correction</option>
+              </Form.Select>
+            </Form.Group>
+
+            <Form.Group>
+              <Form.Label>Debit / Credit</Form.Label>
+              <Form.Select
+                value={adjustmentEntryType}
+                onChange={(event) => setAdjustmentEntryType(event.target.value)}
+                disabled={submittingAdjustment}
+              >
+                <option value="DEBIT">Debit</option>
+                <option value="CREDIT">Credit</option>
+              </Form.Select>
+            </Form.Group>
+
+            <Form.Group>
+              <Form.Label>Customer</Form.Label>
+              <Select
+                value={adjustmentCustomer}
+                options={customerOptions}
+                onChange={setAdjustmentCustomer}
+                styles={customerSelectStyles}
+                menuPosition="fixed"
+                placeholder="Search customer"
+                isClearable
+                isSearchable
+                isLoading={loadingCustomers}
+                isDisabled={submittingAdjustment}
+                noOptionsMessage={() => 'Customer not found'}
+              />
+            </Form.Group>
+
+            <Form.Group>
+              <Form.Label>Amount</Form.Label>
+              <Form.Control
+                type="text"
+                inputMode="numeric"
+                value={adjustmentAmount ? formatCurrency(adjustmentAmount) : ''}
+                onChange={(event) => setAdjustmentAmount(parseCurrencyInput(event.target.value))}
+                placeholder="Rp 0"
+                disabled={submittingAdjustment}
+              />
+            </Form.Group>
+
+            <Form.Group>
+              <Form.Label>Description</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                value={adjustmentDescription}
+                onChange={(event) => setAdjustmentDescription(event.target.value)}
+                placeholder="Enter description"
+                disabled={submittingAdjustment}
+              />
+            </Form.Group>
+          </Stack>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" onClick={() => setShowAdjustmentModal(false)} disabled={submittingAdjustment}>
+            Close
+          </Button>
+          <Button variant="primary" onClick={handleSubmitAdjustment} disabled={submittingAdjustment}>
+            <i className={`${submittingAdjustment ? 'ti ti-loader-2' : 'ti ti-device-floppy'} me-1`} />
+            {submittingAdjustment ? 'Saving...' : 'Save'}
           </Button>
         </Modal.Footer>
       </Modal>

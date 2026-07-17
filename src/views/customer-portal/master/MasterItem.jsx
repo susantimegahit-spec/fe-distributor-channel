@@ -6,7 +6,7 @@ import MainCard from 'components/MainCard';
 import { useAlert } from '../../../utils/alertContext';
 import { Badge, Button, Form, Table } from 'react-bootstrap';
 import LoaderData from '../../../components/LoaderData';
-import DistributorServices from '../../../services/DistributorServices';
+import DistributorServices from '../../../services/customer-portal/DistributorServices';
 
 export default function MasterItem() {
   const { showAlert } = useAlert();

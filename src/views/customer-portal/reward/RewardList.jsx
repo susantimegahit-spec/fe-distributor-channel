@@ -15,10 +15,10 @@ import Table from 'react-bootstrap/Table';
 import Select from 'react-select';
 
 // project-imports
-import DistributorServices from '../../../services/DistributorServices';
-import FinanceServices from '../../../services/FinanceServices';
-import PromoServices from '../../../services/PromoServices';
-import RoleServices from '../../../services/RoleServices';
+import DistributorServices from '../../../services/customer-portal/DistributorServices';
+import FinanceServices from '../../../services/customer-portal/FinanceServices';
+import PromoServices from '../../../services/customer-portal/PromoServices';
+import RoleServices from '../../../services/setting/RoleServices';
 import { useAlert } from '../../../utils/alertContext';
 import { getCookies } from '../../../utils/cookies';
 import ConfirmDialog from 'components/ConfirmDialog';
@@ -835,40 +835,6 @@ export default function RewardList() {
           }
         >
           <Row className="g-3">
-            {showDistributorFilter ? (
-              <Col xs={12}>
-                <Form.Label className="f-12 text-muted">Customer Code</Form.Label>
-                <Select
-                  value={selectedDistributors}
-                  options={listDistributor}
-                  menuPosition="fixed"
-                  onChange={(options) => {
-                    setSelectedDistributors(options || []);
-                    setClaims([]);
-                    setWithdraws([]);
-                    setRewardSummary({
-                      availableBalance: 0,
-                      totalClaimed: 0,
-                      totalVerified: 0
-                    });
-                    setSelectedClaim(null);
-                    setSelectedWithdraw(null);
-                    setSelectedSellOutIds([]);
-                    setSellOutFilter('all');
-                    setSellOutStatusFilter('all');
-                    setWithdrawAmount('');
-                    setCurrentPage(1);
-                    setWithdrawCurrentPage(1);
-                  }}
-                  placeholder="Select Customer"
-                  isClearable
-                  isMulti
-                  closeMenuOnSelect={false}
-                  isLoading={loadingDistributors}
-                  noOptionsMessage={() => 'Customer not found'}
-                />
-              </Col>
-            ) : null}
             {/* <Col md={6} xl={3}>
               <Card className="border mb-0 h-100">
                 <Card.Body className="py-3">
@@ -967,7 +933,41 @@ export default function RewardList() {
                   </Stack>
                 }
                 secondary={
-                  <Stack direction="horizontal" gap={2}>
+                  <Stack direction="horizontal" gap={2} className="flex-wrap justify-content-end">
+                    {showDistributorFilter ? (
+                      <div style={{ width: 320, maxWidth: '100%' }}>
+                        <Select
+                          value={selectedDistributors}
+                          options={listDistributor}
+                          menuPosition="fixed"
+                          onChange={(options) => {
+                            setSelectedDistributors(options || []);
+                            setClaims([]);
+                            setWithdraws([]);
+                            setRewardSummary({
+                              availableBalance: 0,
+                              totalClaimed: 0,
+                              totalVerified: 0
+                            });
+                            setSelectedClaim(null);
+                            setSelectedWithdraw(null);
+                            setSelectedSellOutIds([]);
+                            setSellOutFilter('all');
+                            setSellOutStatusFilter('all');
+                            setWithdrawAmount('');
+                            setCurrentPage(1);
+                            setWithdrawCurrentPage(1);
+                          }}
+                          placeholder="Select Customer Code"
+                          isClearable
+                          isMulti
+                          closeMenuOnSelect={false}
+                          isLoading={loadingDistributors}
+                          noOptionsMessage={() => 'Customer not found'}
+                          aria-label="Filter customer code"
+                        />
+                      </div>
+                    ) : null}
                     <Button variant="outline-primary" onClick={handleRefreshClaims} disabled={loadingClaims || submittingVerify}>
                       <i className={`${loadingClaims ? 'ti ti-loader-2' : 'ti ti-refresh'} me-1`} />
                       {loadingClaims ? 'Refreshing...' : 'Refresh'}
@@ -1385,7 +1385,10 @@ export default function RewardList() {
                     <tbody>
                       {filteredSellOut.length ? (
                         filteredSellOut.map((transaction, index) => (
-                          <tr key={transaction.id || `${selectedClaim.claimNo}-${index}`}>
+                          <tr
+                            key={transaction.id || `${selectedClaim.claimNo}-${index}`}
+                            className={transaction.verified ? 'table-success' : undefined}
+                          >
                             <td>{transaction.customerType}</td>
                             <td>
                               <div className="fw-semibold">{transaction.customerName || '-'}</div>
@@ -1402,13 +1405,15 @@ export default function RewardList() {
                               <Badge bg={getSellOutStatusVariant(transaction.status)}>{getSellOutStatusLabel(transaction.status)}</Badge>
                             </td>
                             <td className="text-center">
-                              {getSellOutStatusKey(transaction.status) === 'VALID_PROGRAM' && canVerifySellOut ? (
+                              {getSellOutStatusKey(transaction.status) === 'VALID_PROGRAM' &&
+                              canVerifySellOut &&
+                              !transaction.verified ? (
                                 <Form.Check
                                   type="checkbox"
                                   className="m-0 d-inline-flex"
                                   checked={selectedSellOutIds.includes(String(transaction.id))}
                                   onChange={() => handleToggleSellOut(transaction.id)}
-                                  disabled={submittingVerify || transaction.verified}
+                                  disabled={submittingVerify}
                                 />
                               ) : (
                                 <span className="text-muted">-</span>

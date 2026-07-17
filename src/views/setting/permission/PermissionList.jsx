@@ -22,7 +22,7 @@ import TablePagination from 'components/TablePagination';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import LoaderButton from '../../../components/LoaderButton';
 import LoaderData from '../../../components/LoaderData';
-import RoleServices from '../../../services/RoleServices';
+import RoleServices from '../../../services/setting/RoleServices';
 import { SYSTEM_KEYS, getSystemByKey, normalizeAccessibleSystems, normalizePermissionMenu } from '../../../systems';
 import { useAlert } from '../../../utils/alertContext';
 

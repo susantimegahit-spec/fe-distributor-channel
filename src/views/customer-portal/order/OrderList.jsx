@@ -18,14 +18,14 @@ import Table from 'react-bootstrap/Table';
 // project-imports
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
-import OrderServices from '../../../services/OrderServices';
+import OrderServices from '../../../services/customer-portal/OrderServices';
 import LoaderData from '../../../components/LoaderData';
 import { currency } from '../../../utils/global';
 import { getCookies } from '../../../utils/cookies';
 import { useAlert } from '../../../utils/alertContext';
 import { downloadSalesOrderPdf } from '../../../utils/orderPdf';
-import RoleServices from '../../../services/RoleServices';
-import DistributorServices from '../../../services/DistributorServices';
+import RoleServices from '../../../services/setting/RoleServices';
+import DistributorServices from '../../../services/customer-portal/DistributorServices';
 
 const statusOptions = [
   { value: '', label: 'All Statuses' },

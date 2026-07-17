@@ -19,9 +19,9 @@ import TablePagination from 'components/TablePagination';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import LoaderButton from '../../../components/LoaderButton';
 import LoaderData from '../../../components/LoaderData';
-import DistributorServices from '../../../services/DistributorServices';
-import RoleServices from '../../../services/RoleServices';
-import UserServices from '../../../services/UserServices';
+import DistributorServices from '../../../services/customer-portal/DistributorServices';
+import RoleServices from '../../../services/setting/RoleServices';
+import UserServices from '../../../services/setting/UserServices';
 import { SYSTEM_KEYS } from '../../../systems';
 import { useAlert } from '../../../utils/alertContext';
 

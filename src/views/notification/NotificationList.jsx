@@ -12,7 +12,7 @@ import Table from 'react-bootstrap/Table';
 import MainCard from 'components/MainCard';
 import LoaderData from '../../components/LoaderData';
 import TablePagination from '../../components/TablePagination';
-import NotificationServices from '../../services/NotificationServices';
+import NotificationServices from '../../services/shared/NotificationServices';
 import { useAlert } from '../../utils/alertContext';
 import {
   getNotificationItems,

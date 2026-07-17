@@ -16,7 +16,7 @@ import Table from 'react-bootstrap/Table';
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
 import LoaderData from '../../../components/LoaderData';
-import ProductServices from '../../../services/ProductServices';
+import ProductServices from '../../../services/customer-portal/ProductServices';
 import { useAlert } from '../../../utils/alertContext';
 
 export default function MasterProduct() {

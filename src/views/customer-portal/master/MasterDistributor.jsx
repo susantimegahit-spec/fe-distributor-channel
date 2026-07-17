@@ -16,7 +16,7 @@ import Table from 'react-bootstrap/Table';
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
 import LoaderData from '../../../components/LoaderData';
-import DistributorServices from '../../../services/DistributorServices';
+import DistributorServices from '../../../services/customer-portal/DistributorServices';
 import { useAlert } from '../../../utils/alertContext';
 
 export default function MasterDistributor() {

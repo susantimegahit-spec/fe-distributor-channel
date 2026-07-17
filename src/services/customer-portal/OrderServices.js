@@ -1,4 +1,4 @@
-import { DataService } from '../config/dataService';
+import { DataService } from '../../config/dataService';
 
 class OrderServices {
   // getAllUser() {

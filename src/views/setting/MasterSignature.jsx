@@ -13,8 +13,8 @@ import Stack from 'react-bootstrap/Stack';
 import MainCard from 'components/MainCard';
 import LoaderData from '../../components/LoaderData';
 import { useAlert } from '../../utils/alertContext';
-import PiSettingServices from '../../services/PiSettingServices';
-import UserServices from '../../services/UserServices';
+import PiSettingServices from '../../services/setting/PiSettingServices';
+import UserServices from '../../services/setting/UserServices';
 import { getCookies } from '../../utils/cookies';
 
 const adminRoleId = 5;
