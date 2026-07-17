@@ -25,8 +25,6 @@ const normalizeResource = (item = {}, index = 0) => ({
   id: item.id || item.resource_id || item.res_code || item.resource_code || item.code || index,
   code: item.res_code || item.resource_code || item.code || item.ResCode || '',
   name: item.res_name || item.resource_name || item.name || item.ResName || '',
-  type: item.res_type || item.resource_type || item.type || item.ResType || '',
-  uom: item.uom || item.unit || item.unit_msr || item.unit_of_measure || '',
   status: item.status ?? item.is_active ?? item.active
 });
 
@@ -152,15 +150,13 @@ export default function Resource() {
             <th style={{ width: 70 }}>#</th>
             <th style={{ minWidth: 160 }}>Resource Code</th>
             <th style={{ minWidth: 260 }}>Resource Name</th>
-            <th style={{ minWidth: 140 }}>Type</th>
-            <th style={{ minWidth: 100 }}>UOM</th>
             <th style={{ minWidth: 110 }}>Status</th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
             <tr>
-              <td colSpan={6}>
+              <td colSpan={4}>
                 <LoaderData />
               </td>
             </tr>
@@ -173,15 +169,13 @@ export default function Resource() {
                   <td>{(Math.min(currentPage, pageCount) - 1) * pageSize + index + 1}</td>
                   <td className="fw-semibold">{resource.code || '-'}</td>
                   <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{resource.name || '-'}</td>
-                  <td>{resource.type || '-'}</td>
-                  <td>{resource.uom || '-'}</td>
                   <td>{status ? <Badge bg={status.variant}>{status.label}</Badge> : '-'}</td>
                 </tr>
               );
             })
           ) : (
             <tr>
-              <td colSpan={6}>
+              <td colSpan={4}>
                 <div className="text-center py-5">
                   <span className="avtar avtar-xl bg-light-primary text-primary mb-3">
                     <i className="ti ti-settings-automation f-24" />
