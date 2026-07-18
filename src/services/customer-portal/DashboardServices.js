@@ -16,6 +16,10 @@ class DashboardServices {
   getDistributorChart() {
     return DataService.get('/dashboard/distributor/charts');
   }
+
+  postDataTarget(payload) {
+    return DataService.post('/sales-dashboard/upload', payload);
+  }
 }
 
 export default new DashboardServices();

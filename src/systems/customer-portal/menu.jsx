@@ -88,6 +88,16 @@ const customerPortalMenu = [
         selected: true,
         icon: 'ti ti-discount-2',
         url: withBasePath('/master/promo')
+      },
+      {
+        id: 'master-target',
+        title: 'Master Target',
+        type: 'item',
+        value: 'master-target',
+        label: 'Master Target',
+        selected: true,
+        icon: 'ti ti-target-arrow',
+        url: withBasePath('/master/target')
       }
     ]
   },

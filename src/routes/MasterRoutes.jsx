@@ -12,6 +12,7 @@ const MasterDistributor = Loadable(lazy(() => import('views/customer-portal/mast
 const MasterEmployee = Loadable(lazy(() => import('views/customer-portal/master/MasterEmployee')));
 const MasterWarehouse = Loadable(lazy(() => import('views/customer-portal/master/MasterWarehouse')));
 const MasterPromo = Loadable(lazy(() => import('views/customer-portal/master/MasterPromo')));
+const MasterTarget = Loadable(lazy(() => import('views/customer-portal/master/MasterTarget')));
 const MasterSignature = Loadable(lazy(() => import('views/setting/MasterSignature')));
 
 const MasterRoutes = {
@@ -47,6 +48,10 @@ const MasterRoutes = {
       element: <MasterPromo />
     },
     {
+      path: 'customer-portal/master/target',
+      element: <MasterTarget />
+    },
+    {
       path: 'customer-portal/master/signature',
       element: <MasterSignature />
     },
@@ -77,6 +82,10 @@ const MasterRoutes = {
     {
       path: 'master/promo',
       element: <Navigate to="/customer-portal/master/promo" replace />
+    },
+    {
+      path: 'master/target',
+      element: <Navigate to="/customer-portal/master/target" replace />
     },
     {
       path: 'master/signature',

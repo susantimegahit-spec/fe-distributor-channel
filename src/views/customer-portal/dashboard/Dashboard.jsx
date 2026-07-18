@@ -794,9 +794,11 @@ export default function Dashboard() {
           }
         />
 
-        <MainCard
-          className="claim-transaction-card eta-warning-card border border-danger"
-          title={
+        <Row className="g-3 align-items-stretch">
+          <Col lg={6} className="d-flex">
+            <MainCard
+              className="claim-transaction-card eta-warning-card border border-danger h-100 w-100"
+              title={
             <Stack direction="horizontal" className="justify-content-between align-items-start" gap={3}>
               <Stack gap={1}>
                 <Stack direction="horizontal" gap={2} className="align-items-center">
@@ -865,11 +867,13 @@ export default function Dashboard() {
           ) : (
             <div className="text-center text-muted py-4">No ETA warning for today.</div>
           )}
-        </MainCard>
+            </MainCard>
+          </Col>
 
-        <MainCard
-          className="claim-transaction-card"
-          title={
+          <Col lg={6} className="d-flex">
+            <MainCard
+              className="claim-transaction-card h-100 w-100"
+              title={
             <Stack gap={1}>
               <h5 className="mb-0">Complete Order</h5>
               <span className="text-muted f-12">Sales orders with delivery status that need to be completed.</span>
@@ -937,7 +941,9 @@ export default function Dashboard() {
               )}
             </tbody>
           </Table>
-        </MainCard>
+            </MainCard>
+          </Col>
+        </Row>
 
         <Row className="g-3">
           <Col sm={6} xl={4}>
