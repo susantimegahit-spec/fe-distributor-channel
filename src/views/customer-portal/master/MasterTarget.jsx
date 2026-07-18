@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
+import Select from 'react-select';
 
 // react-bootstrap
 import Badge from 'react-bootstrap/Badge';
@@ -42,6 +43,11 @@ const productGroups = [
   { code: 'TOP', name: 'TANGAN', aliases: ['TOP', 'TANGAN'] }
 ];
 
+const customerSelectStyles = {
+  control: (provided) => ({ ...provided, minHeight: 43 }),
+  menu: (provided) => ({ ...provided, zIndex: 1060 })
+};
+
 const normalizeHeader = (value) =>
   String(value || '')
     .trim()
@@ -66,35 +72,168 @@ const toNumber = (value) => {
 
 const getResponseRows = (response) => {
   const payload = response?.data?.data;
+  if (Array.isArray(response?.data)) return response.data;
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.targets)) return payload.targets;
+  if (Array.isArray(payload?.rows)) return payload.rows;
   return [];
 };
 
 const getProductGroup = (item) => {
-  const itemName = String(item?.item_name || item?.itemName || '').toUpperCase();
-  return productGroups.find((group) => group.aliases.some((alias) => itemName.includes(alias)));
+  const brand = String(item?.brand || '').trim();
+  const normalizedBrand = brand.toUpperCase();
+  const group = productGroups.find((productGroup) => productGroup.aliases.some((alias) => normalizedBrand.includes(alias)));
+
+  return group ? { ...group, name: brand } : null;
 };
 
 const groupProducts = (items) => {
-  const availableCodes = new Set(
-    items
-      .map(getProductGroup)
-      .filter(Boolean)
-      .map((group) => group.code)
+  const groupedProducts = new Map();
+
+  items
+    .map(getProductGroup)
+    .filter(Boolean)
+    .forEach((group) => {
+      if (!groupedProducts.has(group.code)) groupedProducts.set(group.code, group);
+    });
+
+  return [...groupedProducts.values()];
+};
+
+const normalizeTargetData = (rows) =>
+  rows.map((row, index) => ({
+    id: row.id || index + 1,
+    customerCode: getRowValue(row, ['customer_code', 'code_customer', 'customerCode', 'distributor_code']),
+    customerName: getRowValue(row, ['customer_name', 'name', 'customerName', 'distributor_name']),
+    depot: getRowValue(row, ['depo', 'depot']),
+    productCode: getRowValue(row, ['product_code', 'item_code', 'productCode', 'itemCode']),
+    productName: getRowValue(row, ['product_name', 'item_name', 'productName', 'itemName']),
+    year: getRowValue(row, ['year', 'tahun']),
+    month: getRowValue(row, ['month', 'bulan']),
+    target: toNumber(getRowValue(row, ['target_amount', 'target', 'amount', 'target_kg', 'total']))
+  }));
+
+const getMonthIndex = (value) => {
+  const numericMonth = Number(value);
+  if (Number.isInteger(numericMonth) && numericMonth >= 1 && numericMonth <= 12) return numericMonth - 1;
+
+  const normalizedMonth = normalizeHeader(value);
+  if (!normalizedMonth) return -1;
+  return monthNames.findIndex(
+    (month) => normalizeHeader(month).startsWith(normalizedMonth) || normalizedMonth.startsWith(normalizeHeader(month))
   );
-  return productGroups.filter((group) => availableCodes.has(group.code));
+};
+
+const pivotTargetData = (rows) => {
+  const itemMap = new Map();
+
+  rows.forEach((row) => {
+    const itemCode = String(row.productCode || '').trim();
+    const itemName = String(row.productName || '').trim();
+    const itemKey = itemCode || itemName;
+    const monthIndex = getMonthIndex(row.month);
+
+    if (!itemKey || monthIndex < 0) return;
+
+    if (!itemMap.has(itemKey)) {
+      itemMap.set(itemKey, {
+        itemCode,
+        itemName: itemName || itemCode,
+        monthlyTargets: Array(12).fill(0)
+      });
+    }
+
+    itemMap.get(itemKey).monthlyTargets[monthIndex] += row.target;
+  });
+
+  return [...itemMap.values()];
 };
 
 export default function MasterTarget() {
   const { showAlert } = useAlert();
   const uploadInputRef = useRef(null);
-  const [fileName, setFileName] = useState('');
-  const [targetRows, setTargetRows] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [customerCodeFilter, setCustomerCodeFilter] = useState('');
+  const [depotFilter, setDepotFilter] = useState('');
+  const [yearFilter, setYearFilter] = useState(new Date().getFullYear());
+  const [distributors, setDistributors] = useState([]);
+  const [dataTarget, setDataTarget] = useState([]);
+  const [loadingTarget, setLoadingTarget] = useState(false);
+  const customerOptions = distributors.map((distributor) => {
+    const code = distributor.code_customer || distributor.codeCustomer || '';
+    const name = distributor.name || distributor.customer_name || distributor.customerName || '';
+    const depot = distributor.depo || distributor.depot || '';
+    return { value: code, label: [code, name, depot].filter(Boolean).join(' - ') };
+  });
+  const depotOptions = [...new Set(distributors.map((distributor) => distributor.depo || distributor.depot).filter(Boolean))]
+    .sort((first, second) => first.localeCompare(second))
+    .map((depot) => ({ value: depot, label: depot }));
+  const targetItems = pivotTargetData(dataTarget);
+  const monthlyGrandTotals = targetItems.reduce(
+    (totals, item) => totals.map((total, monthIndex) => total + item.monthlyTargets[monthIndex]),
+    Array(12).fill(0)
+  );
+
+  const fetchTargetData = useCallback(
+    async (customerCode, year, depot) => {
+      setLoadingTarget(true);
+
+      try {
+        const response = await DashboardServices.getDataTarget(customerCode, year, depot);
+        if (!response || response.status < 200 || response.status >= 300 || response?.data?.success === false) {
+          showAlert(response?.data?.message || 'Failed to fetch target data', 'danger');
+          setDataTarget([]);
+          return;
+        }
+
+        setDataTarget(normalizeTargetData(getResponseRows(response)));
+      } catch (error) {
+        setDataTarget([]);
+        showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch target data', 'danger');
+      } finally {
+        setLoadingTarget(false);
+      }
+    },
+    [showAlert]
+  );
+
+  useEffect(() => {
+    const initializePage = async () => {
+      try {
+        const distributorResponse = await DistributorServices.getAllDistributor('');
+        setDistributors(getResponseRows(distributorResponse));
+      } catch (error) {
+        showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch distributor data', 'danger');
+      }
+
+      await fetchTargetData('', new Date().getFullYear(), '');
+    };
+
+    initializePage();
+  }, [fetchTargetData, showAlert]);
+
+  const handleApplyFilter = () => {
+    const year = Number(yearFilter);
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+      showAlert('Please select a valid year', 'danger');
+      return;
+    }
+
+    fetchTargetData(customerCodeFilter, year, depotFilter);
+  };
+
+  const resetFilters = () => {
+    const currentYear = new Date().getFullYear();
+    setCustomerCodeFilter('');
+    setDepotFilter('');
+    setYearFilter(currentYear);
+    fetchTargetData('', currentYear, '');
+  };
 
   const handleDownloadTemplate = async () => {
     const year = Number(selectedYear);
@@ -129,7 +268,6 @@ export default function MasterTarget() {
             'Kode Distributor': distributor.code_customer || distributor.codeCustomer || '',
             'Nama Distributor': distributor.name || distributor.customer_name || distributor.customerName || '',
             Depo: distributor.depo || distributor.depot || '',
-            'Kode Produk': product.code,
             'Nama Produk': product.name
           };
 
@@ -142,7 +280,7 @@ export default function MasterTarget() {
       );
 
       const worksheet = XLSX.utils.json_to_sheet(templateRows);
-      worksheet['!cols'] = [{ wch: 20 }, { wch: 32 }, { wch: 18 }, { wch: 15 }, { wch: 40 }, ...monthNames.map(() => ({ wch: 16 }))];
+      worksheet['!cols'] = [{ wch: 20 }, { wch: 32 }, { wch: 18 }, { wch: 40 }, ...monthNames.map(() => ({ wch: 16 }))];
 
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, `Target ${year}`);
@@ -228,8 +366,7 @@ export default function MasterTarget() {
         showAlert(response?.data?.message || `${parsedRows.length} target row(s) uploaded successfully`, 'success');
       }
 
-      setFileName(file.name);
-      setTargetRows(parsedRows);
+      await fetchTargetData(customerCodeFilter, yearFilter, depotFilter);
     } catch (error) {
       showAlert(error?.response?.data?.message || error?.message || 'Failed to upload target data', 'danger');
     } finally {
@@ -257,11 +394,11 @@ export default function MasterTarget() {
                     <i className="ti ti-file-download" />
                   </span>
                   <div className="flex-grow-1">
-                    <h6>Download Excel Template</h6>
+                    <h6>Download Template</h6>
                     <p className="text-muted f-12 mb-3">Use the provided column format before uploading target data.</p>
                     <Button variant="success" onClick={() => setShowDownloadModal(true)}>
                       <i className="ti ti-download me-1" />
-                      Download Excel
+                      Download Template
                     </Button>
                   </div>
                 </Stack>
@@ -292,49 +429,110 @@ export default function MasterTarget() {
         </Row>
       </MainCard>
 
-      {targetRows.length > 0 && (
-        <MainCard
-          title="Uploaded Target Preview"
-          secondary={
-            <Badge bg="light-primary" text="primary">
-              {targetRows.length} rows
-            </Badge>
-          }
-        >
-          <div className="text-muted f-12 mb-3">File: {fileName}</div>
-          <Table responsive hover className="mb-0 align-middle">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Distributor Code</th>
-                <th>Distributor Name</th>
-                <th>Depo</th>
-                <th>Product Code</th>
-                <th>Product Name</th>
-                <th>Year</th>
-                <th>Month</th>
-                <th className="text-end">Target</th>
-              </tr>
-            </thead>
-            <tbody>
-              {targetRows.slice(0, 10).map((row) => (
-                <tr key={row.id}>
-                  <td>{row.id}</td>
-                  <td className="fw-semibold">{row.distributorCode || '-'}</td>
-                  <td>{row.distributorName || '-'}</td>
-                  <td>{row.depot || '-'}</td>
-                  <td>{row.productCode || '-'}</td>
-                  <td>{row.productName || '-'}</td>
-                  <td>{row.year || '-'}</td>
-                  <td>{row.month || '-'}</td>
-                  <td className="text-end">{row.target.toLocaleString('id-ID')}</td>
-                </tr>
+      <MainCard
+        title="Target Data"
+        secondary={
+          <Badge bg="light-primary" text="primary">
+            {targetItems.length} items
+          </Badge>
+        }
+      >
+        <Row className="g-3 align-items-end mb-3">
+          <Col lg={4} md={6}>
+            <Form.Label className="f-12 text-muted">Customer Code</Form.Label>
+            <Select
+              styles={customerSelectStyles}
+              options={customerOptions}
+              value={customerOptions.find((option) => option.value === customerCodeFilter) || null}
+              onChange={(option) => setCustomerCodeFilter(option?.value || '')}
+              isClearable
+              isSearchable
+              isDisabled={loadingTarget}
+              placeholder="Search customer code or name..."
+              noOptionsMessage={() => 'Customer not found'}
+            />
+          </Col>
+          <Col lg={2} md={6}>
+            <Form.Label className="f-12 text-muted">Year</Form.Label>
+            <Form.Control
+              type="number"
+              min="2000"
+              max="2100"
+              step="1"
+              value={yearFilter}
+              disabled={loadingTarget}
+              onChange={(event) => setYearFilter(event.target.value)}
+            />
+          </Col>
+          <Col lg={2} md={6}>
+            <Button variant="primary" className="w-100" disabled={loadingTarget} onClick={handleApplyFilter}>
+              <i className={`${loadingTarget ? 'ti ti-loader-2' : 'ti ti-filter'} me-1`} />
+              {loadingTarget ? 'Loading...' : 'Apply Filter'}
+            </Button>
+          </Col>
+          <Col lg={2} md={6}>
+            <Button variant="light-secondary" className="w-100" disabled={loadingTarget} onClick={resetFilters}>
+              <i className="ti ti-refresh me-1" />
+              Reset Filter
+            </Button>
+          </Col>
+        </Row>
+
+        <Table responsive hover className="mb-0 align-middle">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th style={{ minWidth: 180 }}>Item</th>
+              {monthNames.map((month) => (
+                <th key={month} className="text-end" style={{ minWidth: 120 }}>
+                  {month}
+                </th>
               ))}
-            </tbody>
-          </Table>
-          {targetRows.length > 10 && <div className="text-muted f-12 mt-3">Showing the first 10 rows.</div>}
-        </MainCard>
-      )}
+            </tr>
+          </thead>
+          <tbody>
+            {loadingTarget ? (
+              <tr>
+                <td colSpan={14} className="text-center text-muted py-4">
+                  Loading target data...
+                </td>
+              </tr>
+            ) : targetItems.length > 0 ? (
+              targetItems.map((item, index) => (
+                <tr key={item.itemCode || item.itemName}>
+                  <td>{index + 1}</td>
+                  <td>
+                    <div className="fw-semibold">{item.itemName}</div>
+                    {item.itemCode && <div className="text-muted f-12">{item.itemCode}</div>}
+                  </td>
+                  {item.monthlyTargets.map((target, monthIndex) => (
+                    <td key={`${item.itemCode || item.itemName}-${monthIndex}`} className="text-end">
+                      {target.toLocaleString('id-ID')}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={14} className="text-center text-muted py-4">
+                  No target data found for the selected filters.
+                </td>
+              </tr>
+            )}
+          </tbody>
+          <tfoot>
+            <tr className="table-light fw-bold">
+              <td />
+              <td>TOTAL</td>
+              {monthlyGrandTotals.map((total, monthIndex) => (
+                <td key={`total-${monthIndex}`} className="text-end">
+                  {total.toLocaleString('id-ID')}
+                </td>
+              ))}
+            </tr>
+          </tfoot>
+        </Table>
+      </MainCard>
 
       <Modal show={showDownloadModal} onHide={() => !downloading && setShowDownloadModal(false)} centered>
         <Modal.Header closeButton={!downloading}>

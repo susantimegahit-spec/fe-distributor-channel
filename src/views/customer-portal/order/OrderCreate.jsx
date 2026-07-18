@@ -26,7 +26,7 @@ import CreatableSelect from 'react-select/creatable';
 // #DAA919 -> dark yellow
 const maxDocumentUploadSizeBytes = 1024 * 1024;
 
-export default function OrderPost() {
+export default function OrderPost({ cmoMode = false }) {
   const roleId = getCookies('role');
   const roleNumber = Number(roleId);
   const isCustomerRole = roleNumber === 1;
@@ -687,7 +687,7 @@ export default function OrderPost() {
   const fetchOrderDetail = async (orderId) => {
     setIsLoading(true);
     try {
-      const response = await OrderServices.getDetailOrder(orderId);
+      const response = cmoMode ? await OrderServices.getCmoById(orderId) : await OrderServices.getDetailOrder(orderId);
 
       if (response?.data?.success) {
         fillOrderForm(response.data.data);
@@ -695,7 +695,7 @@ export default function OrderPost() {
         return;
       }
 
-      const listResponse = await OrderServices.getListOrder();
+      const listResponse = cmoMode ? await OrderServices.getCmo() : await OrderServices.getListOrder();
       const selectedOrder = listResponse?.data?.data?.find((order) => String(order.id) === String(orderId));
 
       if (selectedOrder) {
@@ -1712,10 +1712,10 @@ export default function OrderPost() {
     const payload = buildOrderRequestPayload(createOrderPayload(statusType));
 
     if (id) {
-      const resp = await OrderServices.putOrder(id, payload);
+      const resp = cmoMode ? await OrderServices.putCmo(id, payload) : await OrderServices.putOrder(id, payload);
       handleOrderResponse(resp);
     } else {
-      const resp = await OrderServices.postOrder(payload);
+      const resp = cmoMode ? await OrderServices.postCmo(payload) : await OrderServices.postOrder(payload);
       handleOrderResponse(resp);
     }
   };
@@ -1877,7 +1877,7 @@ export default function OrderPost() {
       if (!item.quantity || Number(item.quantity) <= 0) {
         return `Qty in row ${rowNum} must be greater than 0.`;
       }
-      if (!isCustomerRole) {
+      if (!isCustomerRole && !cmoMode) {
         if (!item.whs_code) {
           return `Warehouse in row ${rowNum} is required.`;
         }
@@ -2076,7 +2076,7 @@ export default function OrderPost() {
           <MainCard
             title={
               <Stack gap={1}>
-                <h5 className="mb-0">{isDetailMode ? 'Detail Order' : 'Create Order'}</h5>
+                <h5 className="mb-0">{isDetailMode ? `Detail ${cmoMode ? 'CMO' : 'Order'}` : `Create ${cmoMode ? 'CMO' : 'Order'}`}</h5>
                 <span className="text-muted f-12">
                   {isDetailMode
                     ? `Showing detail ${orderDetail?.order_no || orderDetail?.doc_num || 'order'} selected.`
@@ -2098,12 +2098,14 @@ export default function OrderPost() {
                   <>
                     <Button onClick={() => handleShowConfirm('DRAFT')} variant="warning">
                       <i className="ti ti-device-floppy me-1" />
-                      Save Draft
+                      {cmoMode ? 'Save CMO' : 'Save Draft'}
                     </Button>
-                    <Button onClick={() => handleShowConfirm('WAITING_OM')} variant="primary">
-                      <i className="ti ti-send" />
-                      Send
-                    </Button>
+                    {!cmoMode && (
+                      <Button onClick={() => handleShowConfirm('WAITING_OM')} variant="primary">
+                        <i className="ti ti-send" />
+                        Send
+                      </Button>
+                    )}
                   </>
                 ) : null}
                 {roleId === 2 && (
@@ -2233,7 +2235,7 @@ export default function OrderPost() {
                             />
                           </Form.Group>
                         </Col>
-                        {shouldShowSeriesSalesOrder ? (
+                        {shouldShowSeriesSalesOrder && !cmoMode ? (
                           <Col md={6} xl={4}>
                             <Form.Group>
                               <Form.Label className="small text-muted">Series Sales Order</Form.Label>
@@ -2320,22 +2322,26 @@ export default function OrderPost() {
                             <span className="text-muted">Total After VAT</span>
                             <strong>{formatCurrency(orderTotalAfterVat)}</strong>
                           </Stack> */}
-                          <Stack direction="horizontal" className="justify-content-between">
-                            <span className="text-muted">Discount {discId ? `- ${discId}` : ''}</span>
-                            <Button variant="link" className="p-0 text-decoration-none" onClick={handleOpenDiscount}>
-                              {formatCurrency(discountTotal)}
-                            </Button>
-                          </Stack>
+                          {!cmoMode && (
+                            <Stack direction="horizontal" className="justify-content-between">
+                              <span className="text-muted">Discount {discId ? `- ${discId}` : ''}</span>
+                              <Button variant="link" className="p-0 text-decoration-none" onClick={handleOpenDiscount}>
+                                {formatCurrency(discountTotal)}
+                              </Button>
+                            </Stack>
+                          )}
                           <div className="border-top pt-3">
                             <Stack direction="horizontal" className="justify-content-between">
                               <span className="fw-semibold">Grand Total</span>
                               <h5 className="mb-0 text-primary">{formatCurrency(grandTotal)}</h5>
                             </Stack>
                           </div>
-                          <Button variant="light-primary" onClick={handleOpenDiscount}>
-                            <i className="ti ti-discount-2 me-1" />
-                            Set Discount
-                          </Button>
+                          {!cmoMode && (
+                            <Button variant="light-primary" onClick={handleOpenDiscount}>
+                              <i className="ti ti-discount-2 me-1" />
+                              Set Discount
+                            </Button>
+                          )}
                         </Stack>
                       </Card.Body>
                     </Card>
@@ -2565,17 +2571,23 @@ export default function OrderPost() {
                   <th style={{ minWidth: 160 }}>Total</th>
                   {!isCustomerRole && (
                     <>
-                      <th style={{ minWidth: 220 }}>
-                        <RequiredLabel>Warehouse</RequiredLabel>
-                      </th>
+                      {!cmoMode && (
+                        <th style={{ minWidth: 220 }}>
+                          <RequiredLabel>Warehouse</RequiredLabel>
+                        </th>
+                      )}
                       {/* <th style={{ minWidth: 160 }}>
                         <RequiredLabel>Vat</RequiredLabel>
                       </th> */}
                       {/* <th style={{ minWidth: 160 }}>Total VAT</th> */}
                       <th style={{ minWidth: 220 }}>Notes</th>
-                      <th style={{ minWidth: 220 }}>Branch</th>
-                      <th style={{ minWidth: 220 }}>Business Unit</th>
-                      <th style={{ minWidth: 220 }}>Department</th>
+                      {!cmoMode && (
+                        <>
+                          <th style={{ minWidth: 220 }}>Branch</th>
+                          <th style={{ minWidth: 220 }}>Business Unit</th>
+                          <th style={{ minWidth: 220 }}>Department</th>
+                        </>
+                      )}
                     </>
                   )}
                   <th className="text-center" style={{ width: 72 }}>
@@ -2641,16 +2653,18 @@ export default function OrderPost() {
                     </td>
                     {!isCustomerRole && (
                       <>
-                        <td>
-                          <Select
-                            styles={customStyles}
-                            value={item.whs_code}
-                            options={listWarehouse}
-                            menuPosition="fixed"
-                            onChange={(e) => handleSelectWarehouse(e, index)}
-                            placeholder="Select warehouse"
-                          />
-                        </td>
+                        {!cmoMode && (
+                          <td>
+                            <Select
+                              styles={customStyles}
+                              value={item.whs_code}
+                              options={listWarehouse}
+                              menuPosition="fixed"
+                              onChange={(e) => handleSelectWarehouse(e, index)}
+                              placeholder="Select warehouse"
+                            />
+                          </td>
+                        )}
                         {/* <td>
                           <Select
                             styles={customStyles}
@@ -2672,36 +2686,40 @@ export default function OrderPost() {
                             placeholder="Line notes"
                           />
                         </td>
-                        <td>
-                          <Select
-                            styles={customStyles}
-                            value={item.ocrCode}
-                            options={listOcr1}
-                            menuPosition="fixed"
-                            onChange={(e) => handleSelectOcr1(e, index)}
-                            placeholder="Select branch"
-                          />
-                        </td>
-                        <td>
-                          <Select
-                            styles={customStyles}
-                            value={item.ocrCode2}
-                            options={listOcr2}
-                            menuPosition="fixed"
-                            onChange={(e) => handleSelectOcr2(e, index)}
-                            placeholder="Select unit"
-                          />
-                        </td>
-                        <td>
-                          <Select
-                            styles={customStyles}
-                            value={item.ocrCode3}
-                            options={listOcr3}
-                            menuPosition="fixed"
-                            onChange={(e) => handleSelectOcr3(e, index)}
-                            placeholder="Select department"
-                          />
-                        </td>
+                        {!cmoMode && (
+                          <>
+                            <td>
+                              <Select
+                                styles={customStyles}
+                                value={item.ocrCode}
+                                options={listOcr1}
+                                menuPosition="fixed"
+                                onChange={(e) => handleSelectOcr1(e, index)}
+                                placeholder="Select branch"
+                              />
+                            </td>
+                            <td>
+                              <Select
+                                styles={customStyles}
+                                value={item.ocrCode2}
+                                options={listOcr2}
+                                menuPosition="fixed"
+                                onChange={(e) => handleSelectOcr2(e, index)}
+                                placeholder="Select unit"
+                              />
+                            </td>
+                            <td>
+                              <Select
+                                styles={customStyles}
+                                value={item.ocrCode3}
+                                options={listOcr3}
+                                menuPosition="fixed"
+                                onChange={(e) => handleSelectOcr3(e, index)}
+                                placeholder="Select department"
+                              />
+                            </td>
+                          </>
+                        )}
                       </>
                     )}
                     <td className="text-center">

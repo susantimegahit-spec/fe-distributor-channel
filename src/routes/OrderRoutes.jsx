@@ -19,9 +19,17 @@ const OrderRoutes = {
       element: <OrderList />
     },
     {
+      path: 'customer-portal/order/cmo',
+      element: <OrderList showOnlyCommitment />
+    },
+    {
+      path: 'order/cmo',
+      element: <Navigate to="/customer-portal/order/cmo" replace />
+    },
+    {
       path: 'order/order-list',
       element: <Navigate to="/customer-portal/order/order-list" replace />
-    }
+    },
   ]
 };
 

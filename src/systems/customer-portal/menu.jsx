@@ -110,6 +110,17 @@ const customerPortalMenu = [
     selected: true,
     children: [
       {
+        id: 'order-cmo',
+        title: 'CMO',
+        value: 'order-cmo',
+        label: 'CMO',
+        type: 'item',
+        selected: true,
+        icon: 'ti ti-calendar-stats',
+        url: withBasePath('/order/cmo'),
+        activeUrls: [withBasePath('/order/cmo'), withBasePath('/order/cmo-create'), withBasePath('/order/cmo-create/:id')]
+      },
+      {
         id: 'order-list',
         title: 'Orders',
         value: 'order-list',
@@ -119,7 +130,7 @@ const customerPortalMenu = [
         icon: 'ph ph-list-bullets',
         url: withBasePath('/order/order-list'),
         activeUrls: [withBasePath('/order/order-list'), withBasePath('/order/order-create'), withBasePath('/order/order-create/:id')]
-      }
+      },
     ]
   },
   {

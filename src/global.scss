@@ -1300,6 +1300,38 @@ body {
   animation: eta-warning-icon-pulse 1.2s ease-in-out infinite;
 }
 
+.pc-content .complete-order-card.card {
+  overflow: hidden;
+  border-color: rgba(25, 135, 84, 0.58) !important;
+  background: linear-gradient(135deg, #f3fff8 0%, #fff 56%, #e5f8ed 100%) !important;
+  box-shadow:
+    0 18px 38px rgba(25, 135, 84, 0.14),
+    0 0 0 1px rgba(25, 135, 84, 0.08);
+  animation: complete-order-pulse 1.8s ease-in-out infinite;
+}
+
+.pc-content .complete-order-card > .card-header {
+  border-bottom-color: rgba(25, 135, 84, 0.2);
+  background: linear-gradient(135deg, #198754 0%, #146c43 100%) !important;
+  color: #fff;
+}
+
+.pc-content .complete-order-card > .card-header h5,
+.pc-content .complete-order-card > .card-header .text-muted {
+  color: #fff !important;
+}
+
+.pc-content .complete-order-card > .card-header .text-muted {
+  opacity: 0.86;
+}
+
+.pc-content .complete-order-card .complete-order-icon {
+  box-shadow:
+    0 0 0 6px rgba(255, 255, 255, 0.16),
+    0 0 0 12px rgba(25, 135, 84, 0.2);
+  animation: eta-warning-icon-pulse 1.2s ease-in-out infinite;
+}
+
 .pc-content .order-status-filter-box .order-status-filter-label {
   font-size: 0.78rem !important;
   font-weight: 600;
@@ -1325,6 +1357,23 @@ body {
     box-shadow:
       0 22px 46px rgba(220, 53, 69, 0.24),
       0 0 0 4px rgba(220, 53, 69, 0.12);
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes complete-order-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 18px 38px rgba(25, 135, 84, 0.14),
+      0 0 0 1px rgba(25, 135, 84, 0.08);
+    transform: translateY(0);
+  }
+
+  50% {
+    box-shadow:
+      0 22px 46px rgba(25, 135, 84, 0.24),
+      0 0 0 4px rgba(25, 135, 84, 0.12);
     transform: translateY(-1px);
   }
 }

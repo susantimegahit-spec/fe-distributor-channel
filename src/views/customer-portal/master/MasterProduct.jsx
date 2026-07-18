@@ -208,7 +208,7 @@ export default function MasterProduct() {
             {loadingData ? (
               <tbody>
                 <tr>
-                  <td colSpan={4}>
+                  <td colSpan={5}>
                     <LoaderData />
                   </td>
                 </tr>
@@ -219,6 +219,7 @@ export default function MasterProduct() {
                   <tr>
                     <th style={{ minWidth: 160 }}>Item Code</th>
                     <th style={{ minWidth: 300 }}>Item Name</th>
+                    <th style={{ minWidth: 160 }}>Brand</th>
                     <th style={{ minWidth: 120 }}>Status</th>
                     <th className="text-center" style={{ width: 80 }}>
                       #
@@ -231,6 +232,7 @@ export default function MasterProduct() {
                       <tr key={item.id || item.item_code || index}>
                         <td className="fw-semibold">{item.item_code || '-'}</td>
                         <td style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>{item.item_name || '-'}</td>
+                        <td>{item.brand || '-'}</td>
                         <td>{item.status === 1 ? <Badge bg="success">Active</Badge> : <Badge bg="secondary">Inactive</Badge>}</td>
                         <td className="text-center">
                           <Button className="rounded-circle" variant="outline-primary" size="sm" onClick={() => setSelectedProduct(item)}>
@@ -241,7 +243,7 @@ export default function MasterProduct() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={4}>
+                      <td colSpan={5}>
                         <div className="text-center py-5">
                           <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                             <i className="ti ti-clipboard-list f-24" />

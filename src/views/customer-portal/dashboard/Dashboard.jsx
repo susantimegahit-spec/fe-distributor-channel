@@ -872,12 +872,20 @@ export default function Dashboard() {
 
           <Col lg={6} className="d-flex">
             <MainCard
-              className="claim-transaction-card h-100 w-100"
+              className="claim-transaction-card complete-order-card border border-success h-100 w-100"
               title={
-            <Stack gap={1}>
-              <h5 className="mb-0">Complete Order</h5>
-              <span className="text-muted f-12">Sales orders with delivery status that need to be completed.</span>
-            </Stack>
+                <Stack direction="horizontal" className="justify-content-between align-items-start" gap={3}>
+                  <Stack gap={1}>
+                    <Stack direction="horizontal" gap={2} className="align-items-center">
+                      <h5 className="mb-0">Complete Order</h5>
+                      <Badge bg="success">Ready</Badge>
+                    </Stack>
+                    <span className="text-muted f-12">Sales orders with delivery status that need to be completed.</span>
+                  </Stack>
+                  <span className="avtar avtar-s bg-success text-white complete-order-icon">
+                    <i className="ti ti-circle-check" />
+                  </span>
+                </Stack>
           }
         >
           <Table className="mb-0 align-middle" responsive hover>

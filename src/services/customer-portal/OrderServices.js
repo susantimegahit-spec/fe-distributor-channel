@@ -14,9 +14,7 @@ class OrderServices {
 
   getListOrders(params = {}, startDate = '', endDate = '', customerCode = '') {
     const filters =
-      typeof params === 'string'
-        ? { status: params, start_date: startDate, end_date: endDate, customer_code: customerCode }
-        : params || {};
+      typeof params === 'string' ? { status: params, start_date: startDate, end_date: endDate, customer_code: customerCode } : params || {};
     const query = new URLSearchParams();
 
     ['status', 'start_date', 'end_date', 'customer_code'].forEach((key) => {
@@ -32,6 +30,30 @@ class OrderServices {
 
   getListOrder(params = {}, startDate = '', endDate = '', customerCode = '') {
     return this.getListOrders(params, startDate, endDate, customerCode);
+  }
+
+  getCmo(params = {}) {
+    return DataService.get('/customer-monthly-orders', params);
+  }
+
+  postCmo(payload) {
+    return DataService.post('/customer-monthly-orders', payload);
+  }
+
+  getCmoById(id) {
+    return DataService.get(`/customer-monthly-orders/${id}`);
+  }
+
+  putCmo(id, payload) {
+    return DataService.put(`/customer-monthly-orders/${id}`, payload);
+  }
+
+  deleteCmo(id) {
+    return DataService.delete(`/customer-monthly-orders/${id}`);
+  }
+
+  postCmoToSales(id, payload = {}) {
+    return DataService.post(`/customer-monthly-orders/${id}/post-to-so`, payload);
   }
 
   syncAllOrders() {

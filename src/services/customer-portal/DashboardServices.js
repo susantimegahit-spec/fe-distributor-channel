@@ -20,6 +20,10 @@ class DashboardServices {
   postDataTarget(payload) {
     return DataService.post('/sales-dashboard/upload', payload);
   }
+
+  getDataTarget(customer_code, year, depo) {
+    return DataService.get('/sales-dashboard/raw-data', { customer_code, year, depo });
+  }
 }
 
 export default new DashboardServices();

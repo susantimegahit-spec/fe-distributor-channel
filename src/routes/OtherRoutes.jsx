@@ -32,6 +32,14 @@ const OtherRoutes = {
       element: <OrderCreate />
     },
     {
+      path: 'customer-portal/order/cmo-create/:id',
+      element: <OrderCreate cmoMode />
+    },
+    {
+      path: 'customer-portal/order/cmo-create',
+      element: <OrderCreate cmoMode />
+    },
+    {
       path: 'order/order-create/:id',
       element: <LegacyOrderCreateRedirect />
     },
