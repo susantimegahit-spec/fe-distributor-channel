@@ -21,8 +21,16 @@ class DashboardServices {
     return DataService.post('/sales-dashboard/upload', payload);
   }
 
-  getDataTarget(customer_code, year, depo) {
+  getTarget(customer_code, year, depo = '') {
     return DataService.get('/sales-dashboard/raw-data', { customer_code, year, depo });
+  }
+
+  getDataTarget(customer_code, year, depo) {
+    return this.getTarget(customer_code, year, depo);
+  }
+
+  getCompareOrder(month, year, customer_code, item_code) {
+    return DataService.get('/sales-dashboard/comparison', { month, year, customer_code, item_code });
   }
 }
 

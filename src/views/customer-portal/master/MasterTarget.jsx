@@ -81,6 +81,15 @@ const getResponseRows = (response) => {
   return [];
 };
 
+const getTargetResponseRows = (response) => {
+  const data = response?.data?.data;
+
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.data)) return data.data;
+
+  return [];
+};
+
 const getProductGroup = (item) => {
   const brand = String(item?.brand || '').trim();
   const normalizedBrand = brand.toUpperCase();
@@ -109,7 +118,7 @@ const normalizeTargetData = (rows) =>
     customerName: getRowValue(row, ['customer_name', 'name', 'customerName', 'distributor_name']),
     depot: getRowValue(row, ['depo', 'depot']),
     productCode: getRowValue(row, ['product_code', 'item_code', 'productCode', 'itemCode']),
-    productName: getRowValue(row, ['product_name', 'item_name', 'productName', 'itemName']),
+    productName: getRowValue(row, ['brand', 'product_name', 'item_name', 'productName', 'itemName']),
     year: getRowValue(row, ['year', 'tahun']),
     month: getRowValue(row, ['month', 'bulan']),
     target: toNumber(getRowValue(row, ['target_amount', 'target', 'amount', 'target_kg', 'total']))
@@ -191,7 +200,7 @@ export default function MasterTarget() {
           return;
         }
 
-        setDataTarget(normalizeTargetData(getResponseRows(response)));
+        setDataTarget(normalizeTargetData(getTargetResponseRows(response)));
       } catch (error) {
         setDataTarget([]);
         showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch target data', 'danger');
@@ -268,7 +277,7 @@ export default function MasterTarget() {
             'Kode Distributor': distributor.code_customer || distributor.codeCustomer || '',
             'Nama Distributor': distributor.name || distributor.customer_name || distributor.customerName || '',
             Depo: distributor.depo || distributor.depot || '',
-            'Nama Produk': product.name
+            Brand: product.name
           };
 
           monthNames.forEach((month) => {
@@ -318,7 +327,7 @@ export default function MasterTarget() {
         const distributorName = String(getRowValue(row, ['Nama Distributor', 'distributor_name', 'nama_distributor'])).trim();
         const depot = String(getRowValue(row, ['Depo', 'depot'])).trim();
         const productCode = String(getRowValue(row, ['Kode Produk', 'product_code', 'kode_produk'])).trim();
-        const productName = String(getRowValue(row, ['Nama Produk', 'product_name', 'nama_produk'])).trim();
+        const productName = String(getRowValue(row, ['Brand', 'Nama Produk', 'product_name', 'nama_produk'])).trim();
 
         return Object.entries(row)
           .filter(([header]) => monthNames.some((month) => normalizeHeader(header).startsWith(normalizeHeader(month))))

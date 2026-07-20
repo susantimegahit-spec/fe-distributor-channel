@@ -4,12 +4,14 @@ import { Link } from 'react-router-dom';
 
 // third-party
 import ReactApexChart from 'react-apexcharts';
+import ReactSelect from 'react-select';
 
 // react-bootstrap
 import Badge from 'react-bootstrap/Badge';
 import Button from 'react-bootstrap/Button';
 import Card from 'react-bootstrap/Card';
 import Col from 'react-bootstrap/Col';
+import Form from 'react-bootstrap/Form';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
@@ -18,6 +20,7 @@ import Table from 'react-bootstrap/Table';
 import ConfirmDialog from 'components/ConfirmDialog';
 import MainCard from 'components/MainCard';
 import DashboardServices from '../../../services/customer-portal/DashboardServices';
+import DistributorServices from '../../../services/customer-portal/DistributorServices';
 import OrderServices from '../../../services/customer-portal/OrderServices';
 import { currency } from '../../../utils/global';
 import { useAlert } from '../../../utils/alertContext';
@@ -35,6 +38,10 @@ const statusConfig = {
   REJECTED: { label: 'Rejected', color: 'orange', icon: 'ti ti-circle-x' },
   FAILED: { label: 'Failed', color: 'danger', icon: 'ti ti-alert-triangle' }
 };
+
+const comparisonMonthOptions = moment.months().map((label, index) => ({ value: index + 1, label }));
+const currentComparisonYear = moment().year();
+const comparisonYearOptions = Array.from({ length: 7 }, (_, index) => currentComparisonYear + 1 - index);
 
 const salesOrderChartOptions = {
   chart: {
@@ -177,6 +184,17 @@ const getEtaListPayload = (payload) => {
   return [];
 };
 
+const getComparisonListPayload = (payload) => {
+  if (Array.isArray(payload)) return payload;
+
+  const list = getFirstValue(payload, ['lines', 'data', 'items', 'results', 'comparison', 'comparisons', 'products']);
+  if (Array.isArray(list)) return list;
+  if (list?.lines && Array.isArray(list.lines)) return list.lines;
+  if (list && typeof list === 'object') return [list];
+
+  return [];
+};
+
 const parseNumber = (value) => {
   if (typeof value === 'number') return value;
   if (typeof value === 'string') {
@@ -201,6 +219,26 @@ const parseNumber = (value) => {
 };
 
 const getNumberValue = (source, keys = []) => parseNumber(getFirstValue(source, keys));
+
+const normalizeComparisonData = (payload = {}) =>
+  getComparisonListPayload(payload).map((item, index) => {
+    return {
+      id: getFirstValue(item, ['id', 'item_code', 'brand']) || index,
+      brand: getFirstValue(item, ['brand']) || '-',
+      target: getNumberValue(item, ['target_amount']),
+      cmo: getNumberValue(item, ['cmo_amount']),
+      salesOrder: getNumberValue(item, ['so_amount']),
+      completedOrder: getNumberValue(item, ['do_amount'])
+    };
+  });
+
+const formatComparisonValue = (value) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(Number(value) || 0);
+
+const formatComparisonPercentage = (value, target) => {
+  const percentage = Number(target) > 0 ? (Number(value || 0) / Number(target)) * 100 : 0;
+
+  return `${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 1 }).format(percentage)}%`;
+};
 
 const findValueByKeys = (source, keys = []) => {
   if (!source || typeof source !== 'object') return undefined;
@@ -590,9 +628,98 @@ export default function Dashboard() {
   const [etaWarnings, setEtaWarnings] = useState([]);
   const [isLoadingEta, setIsLoadingEta] = useState(false);
   const [etaError, setEtaError] = useState('');
+  const [orderComparison, setOrderComparison] = useState([]);
+  const [isLoadingComparison, setIsLoadingComparison] = useState(false);
+  const [comparisonError, setComparisonError] = useState('');
+  const [comparisonCustomers, setComparisonCustomers] = useState([]);
+  const [isLoadingComparisonCustomers, setIsLoadingComparisonCustomers] = useState(false);
   const chartContainerRef = useRef(null);
   const customerCode = getCookies('customerCode');
   const isDistributor = Boolean(customerCode);
+  const [comparisonFilters, setComparisonFilters] = useState({
+    month: moment().month() + 1,
+    year: currentComparisonYear,
+    customerCode: customerCode || ''
+  });
+
+  const comparisonCustomerOptions = useMemo(() => {
+    const options = comparisonCustomers
+      .map((customer) => {
+        const code = getFirstValue(customer, ['code_customer', 'customer_code', 'customerCode', 'code']);
+        const name = getFirstValue(customer, ['name', 'customer_name', 'customerName', 'name_distributor']);
+
+        return code ? { value: String(code), label: [code, name].filter(Boolean).join(' - ') } : null;
+      })
+      .filter(Boolean);
+
+    if (customerCode && !options.some((option) => option.value === String(customerCode))) {
+      options.unshift({ value: String(customerCode), label: String(customerCode) });
+    }
+
+    return [{ value: '', label: 'All Customer' }, ...options];
+  }, [comparisonCustomers, customerCode]);
+
+  const comparisonTotals = useMemo(
+    () =>
+      orderComparison.reduce(
+        (totals, item) => ({
+          target: totals.target + item.target,
+          cmo: totals.cmo + item.cmo,
+          salesOrder: totals.salesOrder + item.salesOrder,
+          completedOrder: totals.completedOrder + item.completedOrder
+        }),
+        { target: 0, cmo: 0, salesOrder: 0, completedOrder: 0 }
+      ),
+    [orderComparison]
+  );
+
+  const comparisonChart = useMemo(
+    () => ({
+      series: [
+        { name: 'Target', data: orderComparison.map((item) => item.target) },
+        { name: 'CMO', data: orderComparison.map((item) => item.cmo) },
+        { name: 'PO/SO', data: orderComparison.map((item) => item.salesOrder) },
+        { name: 'Completed Orders', data: orderComparison.map((item) => item.completedOrder) }
+      ],
+      options: {
+        chart: {
+          toolbar: { show: false },
+          zoom: { enabled: false }
+        },
+        colors: ['#315fb4', '#f59e0b', '#06b6d4', '#16a34a'],
+        dataLabels: { enabled: false },
+        grid: {
+          borderColor: 'var(--bs-border-color)',
+          strokeDashArray: 4
+        },
+        legend: {
+          position: 'top',
+          horizontalAlign: 'left'
+        },
+        plotOptions: {
+          bar: {
+            borderRadius: 3,
+            barHeight: '72%',
+            horizontal: true
+          }
+        },
+        xaxis: {
+          categories: orderComparison.map((item) => item.brand),
+          labels: {
+            formatter: (value) => formatComparisonValue(value)
+          }
+        },
+        tooltip: {
+          shared: true,
+          intersect: false,
+          y: {
+            formatter: (value) => formatComparisonValue(value)
+          }
+        }
+      }
+    }),
+    [orderComparison]
+  );
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -669,6 +796,54 @@ export default function Dashboard() {
 
     fetchEtaWarning();
   }, [customerCode, isDistributor]);
+
+  useEffect(() => {
+    const fetchOrderComparison = async () => {
+      setIsLoadingComparison(true);
+      setComparisonError('');
+
+      try {
+        const response = await DashboardServices.getCompareOrder(
+          comparisonFilters.month,
+          comparisonFilters.year,
+          comparisonFilters.customerCode,
+          ''
+        );
+
+        if (response?.data?.success === false) {
+          setOrderComparison([]);
+          setComparisonError(response.data.message || 'Failed to fetch order comparison data');
+          return;
+        }
+
+        setOrderComparison(normalizeComparisonData(getResponsePayload(response)));
+      } catch (error) {
+        setOrderComparison([]);
+        setComparisonError(error?.response?.data?.message || error?.message || 'Failed to fetch order comparison data');
+      } finally {
+        setIsLoadingComparison(false);
+      }
+    };
+
+    fetchOrderComparison();
+  }, [comparisonFilters]);
+
+  useEffect(() => {
+    const fetchComparisonCustomers = async () => {
+      setIsLoadingComparisonCustomers(true);
+
+      try {
+        const response = await DistributorServices.getAllDistributor('');
+        setComparisonCustomers(getComparisonListPayload(getResponsePayload(response)));
+      } catch {
+        setComparisonCustomers([]);
+      } finally {
+        setIsLoadingComparisonCustomers(false);
+      }
+    };
+
+    fetchComparisonCustomers();
+  }, []);
 
   const deliveryOrders = useMemo(() => orders.filter((order) => normalizeStatus(order.status) === 'DELIVERY'), [orders]);
 
@@ -776,7 +951,7 @@ export default function Dashboard() {
 
   return (
     <>
-      <Stack gap={3}>
+      <Stack gap={3} className="dashboard-content-stack">
         <MainCard
           className="dashboard-title-card"
           content={false}
@@ -794,7 +969,155 @@ export default function Dashboard() {
           }
         />
 
-        <Row className="g-3 align-items-stretch">
+        <MainCard
+          className="claim-transaction-card dashboard-comparison-card"
+          title={
+            <Stack direction="horizontal" className="justify-content-between align-items-start" gap={3}>
+              <Stack gap={1}>
+                <h5 className="mb-0">Order Comparison</h5>
+                <span className="text-muted f-12">
+                  Target, CMO, dan Sales Order berdasarkan customer dan periode terpilih.
+                </span>
+              </Stack>
+              <span className="avtar avtar-s bg-light-primary text-primary">
+                <i className="ti ti-chart-bar" />
+              </span>
+            </Stack>
+          }
+        >
+          <Stack gap={3}>
+            <Row className="g-3 dashboard-comparison-filters">
+              <Col lg={6} md={12}>
+                <Form.Label className="f-12 fw-semibold">Customer Code</Form.Label>
+                <ReactSelect
+                  value={
+                    comparisonCustomerOptions.find((option) => option.value === String(comparisonFilters.customerCode || '')) ||
+                    comparisonCustomerOptions[0]
+                  }
+                  options={comparisonCustomerOptions}
+                  isLoading={isLoadingComparisonCustomers}
+                  isSearchable
+                  placeholder="Search customer code..."
+                  noOptionsMessage={() => 'Customer not found'}
+                  onChange={(option) =>
+                    setComparisonFilters((current) => ({ ...current, customerCode: option?.value || '' }))
+                  }
+                />
+              </Col>
+              <Col lg={3} sm={6}>
+                <Form.Label className="f-12 fw-semibold">Month</Form.Label>
+                <Form.Select
+                  value={comparisonFilters.month}
+                  onChange={(event) =>
+                    setComparisonFilters((current) => ({ ...current, month: Number(event.target.value) }))
+                  }
+                >
+                  {comparisonMonthOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Form.Select>
+              </Col>
+              <Col lg={3} sm={6}>
+                <Form.Label className="f-12 fw-semibold">Year</Form.Label>
+                <Form.Select
+                  value={comparisonFilters.year}
+                  onChange={(event) => setComparisonFilters((current) => ({ ...current, year: Number(event.target.value) }))}
+                >
+                  {comparisonYearOptions.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </Form.Select>
+              </Col>
+            </Row>
+
+            {isLoadingComparison ? (
+              <div className="text-center text-muted py-4">Loading order comparison...</div>
+            ) : comparisonError ? (
+              <div className="text-center text-danger py-4">{comparisonError}</div>
+            ) : orderComparison.length > 0 ? (
+              <>
+              <Table className="mb-0 align-middle dashboard-comparison-table" responsive hover>
+              <thead>
+                <tr>
+                  <th>Brand</th>
+                  <th className="text-end">Target</th>
+                  <th className="text-end">CMO</th>
+                  <th className="text-end">PO/SO</th>
+                  <th className="text-end">Completed Orders</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orderComparison.map((item) => (
+                    <tr key={item.id}>
+                      <td className="fw-semibold">{item.brand}</td>
+                      <td className="text-end fw-semibold">{formatComparisonValue(item.target)}</td>
+                      <td className="text-end">
+                        <div>{formatComparisonValue(item.cmo)}</div>
+                        <div className="dashboard-comparison-percentage">{formatComparisonPercentage(item.cmo, item.target)}</div>
+                      </td>
+                      <td className="text-end">
+                        <div>{formatComparisonValue(item.salesOrder)}</div>
+                        <div className="dashboard-comparison-percentage">
+                          {formatComparisonPercentage(item.salesOrder, item.target)}
+                        </div>
+                      </td>
+                      <td className="text-end">
+                        <div>{formatComparisonValue(item.completedOrder)}</div>
+                        <div className="dashboard-comparison-percentage">
+                          {formatComparisonPercentage(item.completedOrder, item.target)}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+              <tfoot>
+                <tr className="dashboard-comparison-total">
+                  <td>Total</td>
+                  <td className="text-end">{formatComparisonValue(comparisonTotals.target)}</td>
+                  <td className="text-end">
+                    <div>{formatComparisonValue(comparisonTotals.cmo)}</div>
+                    <div className="dashboard-comparison-percentage">
+                      {formatComparisonPercentage(comparisonTotals.cmo, comparisonTotals.target)}
+                    </div>
+                  </td>
+                  <td className="text-end">
+                    <div>{formatComparisonValue(comparisonTotals.salesOrder)}</div>
+                    <div className="dashboard-comparison-percentage">
+                      {formatComparisonPercentage(comparisonTotals.salesOrder, comparisonTotals.target)}
+                    </div>
+                  </td>
+                  <td className="text-end">
+                    <div>{formatComparisonValue(comparisonTotals.completedOrder)}</div>
+                    <div className="dashboard-comparison-percentage">
+                      {formatComparisonPercentage(comparisonTotals.completedOrder, comparisonTotals.target)}
+                    </div>
+                  </td>
+                </tr>
+              </tfoot>
+              </Table>
+              <div className="dashboard-comparison-chart">
+                <h6 className="mb-1">Comparison by Brand</h6>
+                <p className="text-muted f-12 mb-2">Target, CMO, PO/SO, and completed order amounts.</p>
+                <ReactApexChart
+                  options={comparisonChart.options}
+                  series={comparisonChart.series}
+                  type="bar"
+                  height={Math.max(320, orderComparison.length * 70)}
+                  width="100%"
+                />
+              </div>
+              </>
+            ) : (
+              <div className="text-center text-muted py-4">No order comparison data for this period.</div>
+            )}
+          </Stack>
+        </MainCard>
+
+        <Row className="g-3 align-items-stretch dashboard-action-cards">
           <Col lg={6} className="d-flex">
             <MainCard
               className="claim-transaction-card eta-warning-card border border-danger h-100 w-100"

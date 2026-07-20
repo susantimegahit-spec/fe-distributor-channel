@@ -32,6 +32,10 @@ class OrderServices {
     return this.getListOrders(params, startDate, endDate, customerCode);
   }
 
+  getSalesOrder(params = {}, startDate = '', endDate = '', customerCode = '') {
+    return this.getListOrders(params, startDate, endDate, customerCode);
+  }
+
   getCmo(params = {}) {
     return DataService.get('/customer-monthly-orders', params);
   }
