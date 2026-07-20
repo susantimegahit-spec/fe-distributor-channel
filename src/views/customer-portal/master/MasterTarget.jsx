@@ -494,7 +494,7 @@ export default function MasterTarget() {
               <th style={{ minWidth: 180 }}>Item</th>
               {monthNames.map((month) => (
                 <th key={month} className="text-end" style={{ minWidth: 120 }}>
-                  {month}
+                  {month} (Kg)
                 </th>
               ))}
             </tr>

@@ -678,7 +678,7 @@ export default function Dashboard() {
       series: [
         { name: 'Target', data: orderComparison.map((item) => item.target) },
         { name: 'CMO', data: orderComparison.map((item) => item.cmo) },
-        { name: 'PO/SO', data: orderComparison.map((item) => item.salesOrder) },
+        { name: 'Process', data: orderComparison.map((item) => item.salesOrder) },
         { name: 'Completed Orders', data: orderComparison.map((item) => item.completedOrder) }
       ],
       options: {
@@ -713,7 +713,7 @@ export default function Dashboard() {
           shared: true,
           intersect: false,
           y: {
-            formatter: (value) => formatComparisonValue(value)
+            formatter: (value) => `${formatComparisonValue(value)} Kg`
           }
         }
       }
@@ -1044,10 +1044,10 @@ export default function Dashboard() {
               <thead>
                 <tr>
                   <th>Brand</th>
-                  <th className="text-end">Target</th>
-                  <th className="text-end">CMO</th>
-                  <th className="text-end">PO/SO</th>
-                  <th className="text-end">Completed Orders</th>
+                  <th className="text-end">Target (Kg)</th>
+                  <th className="text-end">CMO (Kg)</th>
+                  <th className="text-end">Process (Kg)</th>
+                  <th className="text-end">Completed Orders (Kg)</th>
                 </tr>
               </thead>
               <tbody>
@@ -1101,7 +1101,7 @@ export default function Dashboard() {
               </Table>
               <div className="dashboard-comparison-chart">
                 <h6 className="mb-1">Comparison by Brand</h6>
-                <p className="text-muted f-12 mb-2">Target, CMO, PO/SO, and completed order amounts.</p>
+                <p className="text-muted f-12 mb-2">Target, CMO, process, and completed order amounts.</p>
                 <ReactApexChart
                   options={comparisonChart.options}
                   series={comparisonChart.series}
