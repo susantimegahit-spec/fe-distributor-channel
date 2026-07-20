@@ -10,6 +10,10 @@ class UserServices {
     return DataService.get('/users');
   }
 
+  getUserDetail(id) {
+    return DataService.get(`/users/${id}`);
+  }
+
   postCreateUser(payload) {
     return DataService.post('/users', payload);
   }

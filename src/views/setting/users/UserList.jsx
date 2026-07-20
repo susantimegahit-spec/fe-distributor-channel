@@ -46,9 +46,9 @@ const allDistributorOption = {
   isAll: true
 };
 const accessibleSystemOptions = [
-  { value: SYSTEM_KEYS.CUSTOMER_PORTAL, label: 'Distributor' },
+  { value: SYSTEM_KEYS.CUSTOMER_PORTAL, label: 'Customer Portal' },
   { value: SYSTEM_KEYS.EXPEDITION, label: 'Expedition' },
-  { value: SYSTEM_KEYS.PICKING_LIST, label: 'PickingList' }
+  { value: SYSTEM_KEYS.PICKING_LIST, label: 'Picking List' }
 ];
 const accessibleSystemAliases = {
   distributor: SYSTEM_KEYS.CUSTOMER_PORTAL,
@@ -206,6 +206,7 @@ export default function UserList() {
   const [formMode, setFormMode] = useState('create');
   const [loadingSubmit, setLoadingSubmit] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState(null);
@@ -353,7 +354,7 @@ export default function UserList() {
     setShowMenu(true);
   };
 
-  const openEditModal = (item) => {
+  const showEditModal = (item) => {
     const distributors = getUserDistributors(item);
     const distributorCodes = distributors.map((distributor) => distributor.code).filter(Boolean);
     const distributorIds = distributors.map((distributor) => distributor.id).filter(Boolean);
@@ -379,9 +380,36 @@ export default function UserList() {
     setShowMenu(true);
   };
 
-  const openViewModal = (item) => {
-    setSelectedUser(item);
-    setShowView(true);
+  const getUserDetail = async (id) => {
+    setLoadingDetail(true);
+    try {
+      const response = await UserServices.getUserDetail(id);
+
+      if (!response.data.success) {
+        showAlert(response.data.message || 'Failed to fetch user detail', 'danger');
+        return null;
+      }
+
+      return response.data.data;
+    } catch (error) {
+      showAlert(error.response?.data?.message || 'Failed to fetch user detail', 'danger');
+      return null;
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
+  const openEditModal = async (item) => {
+    const userDetail = await getUserDetail(item.id);
+    if (userDetail) showEditModal(userDetail);
+  };
+
+  const openViewModal = async (item) => {
+    const userDetail = await getUserDetail(item.id);
+    if (userDetail) {
+      setSelectedUser(userDetail);
+      setShowView(true);
+    }
   };
 
   const handleCreate = async () => {
@@ -459,7 +487,6 @@ export default function UserList() {
       input.email &&
       input.roleId &&
       input.accessibleSystems.length &&
-      // input.distributorCodes.length &&
       (formMode === 'edit' || input.password)
   );
 
@@ -642,10 +669,22 @@ export default function UserList() {
                         <td>{item.is_active ? <Badge bg="success">Active</Badge> : <Badge bg="secondary">Inactive</Badge>}</td>
                         <td className="text-center">
                           <Stack direction="horizontal" gap={2} className="justify-content-center">
-                            <Button className="rounded-circle" variant="outline-primary" size="sm" onClick={() => openViewModal(item)}>
+                            <Button
+                              className="rounded-circle"
+                              variant="outline-primary"
+                              size="sm"
+                              disabled={loadingDetail}
+                              onClick={() => openViewModal(item)}
+                            >
                               <i className="ti ti-eye" />
                             </Button>
-                            <Button className="rounded-circle" variant="outline-secondary" size="sm" onClick={() => openEditModal(item)}>
+                            <Button
+                              className="rounded-circle"
+                              variant="outline-secondary"
+                              size="sm"
+                              disabled={loadingDetail}
+                              onClick={() => openEditModal(item)}
+                            >
                               <i className="ti ti-pencil" />
                             </Button>
                             <Button
