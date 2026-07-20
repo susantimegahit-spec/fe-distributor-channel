@@ -38,6 +38,7 @@ const statusOptions = [
   { value: 'ORDER_APPROVED', label: 'Order Approved' },
   { value: 'DELIVERY', label: 'Delivery' },
   { value: 'ARRIVED', label: 'Arrived' },
+  { value: 'CANCELLED', label: 'Cancelled' },
   { value: 'REJECTED', label: 'Rejected' },
   { value: 'FAILED', label: 'Failed' }
 ];
@@ -51,6 +52,8 @@ const statusVariant = {
   DELIVERY: 'info',
   ORDER_APPROVED: 'success',
   ARRIVED: 'success',
+  CANCELLED: 'danger',
+  CANCELED: 'danger',
   REJECTED: 'orange',
   FAILED: 'danger'
 };
@@ -216,6 +219,8 @@ export default function OrderList({ showOnlyCommitment = false }) {
   const [downloadingPdfId, setDownloadingPdfId] = useState(null);
   const [downloadingAttachmentId, setDownloadingAttachmentId] = useState(null);
   const [loadingDetailId, setLoadingDetailId] = useState(null);
+  const [orderToCancel, setOrderToCancel] = useState(null);
+  const [cancellingOrderId, setCancellingOrderId] = useState(null);
   const [approvalLoadingAction, setApprovalLoadingAction] = useState('');
   const [approvalNotes, setApprovalNotes] = useState('');
   const [selectedOrderDetail, setSelectedOrderDetail] = useState(null);
@@ -923,6 +928,33 @@ export default function OrderList({ showOnlyCommitment = false }) {
     updateSelectedOrderStatus('DRAFT', 'reject');
   };
 
+  const handleCancelOrder = async () => {
+    if (!orderToCancel?.id) return;
+
+    setCancellingOrderId(orderToCancel.id);
+
+    try {
+      const response = await OrderServices.postCancelOrder(orderToCancel.id);
+
+      if (response?.data?.success === false) {
+        showAlert(response.data.message || 'Failed to cancel sales order', 'danger');
+        return;
+      }
+
+      const updatedOrder = response?.data?.data || { ...orderToCancel, status: 'CANCELLED' };
+      setOrders((currentOrders) =>
+        currentOrders.map((order) => (String(order.id) === String(orderToCancel.id) ? { ...order, ...updatedOrder } : order))
+      );
+      setOrderToCancel(null);
+      showAlert(response?.data?.message || 'Sales order cancelled successfully', 'success');
+      fetchData();
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to cancel sales order', 'danger');
+    } finally {
+      setCancellingOrderId(null);
+    }
+  };
+
   const getPermissionDetail = async () => {
     const resp = await RoleServices.fetchRole(getCookies('role'));
 
@@ -1025,8 +1057,9 @@ export default function OrderList({ showOnlyCommitment = false }) {
 
   const getAccessAction = (order) => {
     const button = getButtonVisibility(order);
+    const canCancel = ['ORDER_APPROVED', 'APPROVED'].includes(normalizeStatus(order.status));
 
-    const hasVisibleButton = button.view || button.download || button.edit || button.delete;
+    const hasVisibleButton = button.view || button.download || button.edit || button.delete || canCancel;
 
     if (!hasVisibleButton) {
       return <span className="text-muted">-</span>;
@@ -1075,6 +1108,19 @@ export default function OrderList({ showOnlyCommitment = false }) {
             </Button>
             &nbsp;
           </>
+        ) : null}
+        {canCancel ? (
+          <Button
+            className="rounded-circle"
+            variant="outline-danger"
+            size="sm"
+            title="Cancel sales order"
+            aria-label="Cancel sales order"
+            disabled={String(cancellingOrderId) === String(order.id)}
+            onClick={() => setOrderToCancel(order)}
+          >
+            <i className={String(cancellingOrderId) === String(order.id) ? 'ti ti-loader-2' : 'ti ti-x'} />
+          </Button>
         ) : null}
         {/* {button.delete ? (
           <Button className="rounded-circle" variant="outline-danger" size="sm">
@@ -1520,6 +1566,26 @@ export default function OrderList({ showOnlyCommitment = false }) {
           </Modal.Footer>
         </Modal>
       )}
+      <Modal show={Boolean(orderToCancel)} onHide={() => !cancellingOrderId && setOrderToCancel(null)} centered>
+        <Modal.Header closeButton={!cancellingOrderId}>
+          <Modal.Title>Cancel Sales Order</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="mb-0">
+            Are you sure you want to cancel sales order <strong>{orderToCancel?.sap_doc_num || orderToCancel?.order_no || '-'}</strong>?
+            This action cannot be undone.
+          </p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light" disabled={Boolean(cancellingOrderId)} onClick={() => setOrderToCancel(null)}>
+            Back
+          </Button>
+          <Button variant="danger" disabled={Boolean(cancellingOrderId)} onClick={handleCancelOrder}>
+            <i className={cancellingOrderId ? 'ti ti-loader-2 me-1' : 'ti ti-x me-1'} />
+            {cancellingOrderId ? 'Cancelling...' : 'Cancel Order'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
       <Modal show={Boolean(selectedOrderDetail)} onHide={closeDetailModal} centered size="xl">
         <Modal.Header closeButton>
           <Modal.Title>Order Detail</Modal.Title>

@@ -116,6 +116,10 @@ class OrderServices {
     return this.postArrived(id);
   }
 
+  postCancelOrder(id) {
+    return DataService.post(`/sales-orders/${id}/cancel`);
+  }
+
   downloadPdf(id) {
     return DataService.getBlob(`/sales-orders/${id}/pdf`);
   }

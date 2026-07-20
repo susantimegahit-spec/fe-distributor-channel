@@ -30,8 +30,14 @@ export default function OrderPost({ cmoMode = false }) {
   const roleId = getCookies('role');
   const roleNumber = Number(roleId);
   const isCustomerRole = roleNumber === 1;
+  const customerCodeCookie = getCookies('customerCode');
+  const assignedCustomerCode = ['undefined', 'null', ''].includes(String(customerCodeCookie ?? '').trim().toLowerCase())
+    ? ''
+    : String(customerCodeCookie).trim();
+  const shouldLockCustomerCode = isCustomerRole || (cmoMode && Boolean(assignedCustomerCode));
   const isAdminSalesRole = roleNumber === 2;
   const canSelectSales = roleNumber === 2 || roleNumber === 5;
+  const canSaveDraft = cmoMode || roleNumber === 1 || roleNumber === 5;
   const shouldShowSeriesSalesOrder = !isCustomerRole;
   const navigate = useNavigate();
   const { id } = useParams();
@@ -235,7 +241,7 @@ export default function OrderPost({ cmoMode = false }) {
     fetchWarehouse();
     fetchDiscType();
     // VAT disabled: fetchVats();
-    if (!isCustomerRole) {
+    if (!shouldLockCustomerCode) {
       fetchListDistributor();
     }
   }, [isDetailMode]);
@@ -711,6 +717,14 @@ export default function OrderPost({ cmoMode = false }) {
   };
 
   const fetchDistributor = async () => {
+    if (!distributorId && assignedCustomerCode) {
+      setOrderInput((currentInput) => ({ ...currentInput, cardCode: assignedCustomerCode }));
+      fetchAddress(assignedCustomerCode);
+      fetchItem(assignedCustomerCode);
+      fetchEmployee(assignedCustomerCode);
+      return;
+    }
+
     setIsLoading(true);
     const response = await DistributorServices.getDetailDistributor(distributorId);
     if (response.data.success) {
@@ -1653,6 +1667,7 @@ export default function OrderPost({ cmoMode = false }) {
 
     return {
       card_code: orderInput.cardCode,
+      ...(cmoMode ? { customer_code: orderInput.cardCode } : {}),
       po_number: orderInput.poNumber,
       doc_date: orderInput.docDate,
       doc_due_date: orderInput.docDate,
@@ -2094,7 +2109,7 @@ export default function OrderPost({ cmoMode = false }) {
                   Cancel
                 </Button>
 
-                {roleId === 1 || roleId === 5 ? (
+                {canSaveDraft ? (
                   <>
                     <Button onClick={() => handleShowConfirm('DRAFT')} variant="warning">
                       <i className="ti ti-device-floppy me-1" />
@@ -2108,7 +2123,7 @@ export default function OrderPost({ cmoMode = false }) {
                     )}
                   </>
                 ) : null}
-                {roleId === 2 && (
+                {roleNumber === 2 && !cmoMode && (
                   <Button onClick={() => handleShowConfirm('WAITING_FINANCE')} variant="primary">
                     <i className="ti ti-send" />
                     Submit
@@ -2127,7 +2142,7 @@ export default function OrderPost({ cmoMode = false }) {
               <LoaderData />
             ) : (
               <Row className="g-3 align-items-stretch">
-                <Col lg={isCustomerRole ? 12 : 9}>
+                <Col lg={cmoMode || isCustomerRole || !canSelectSales ? 12 : 9}>
                   <Card className="border mb-0 h-100 claim-transaction-card">
                       <Card.Header className="py-3">
                         <Stack direction="horizontal" gap={2} className="justify-content-between">
@@ -2147,7 +2162,7 @@ export default function OrderPost({ cmoMode = false }) {
                               <Form.Label className="small text-muted">
                                 <RequiredLabel>Customer Code</RequiredLabel>
                               </Form.Label>
-                              {isCustomerRole ? (
+                              {shouldLockCustomerCode ? (
                                 <Form.Control
                                   readOnly
                                   onChange={(e) => handleSetInput(e, 'cardCode')}
@@ -2297,7 +2312,7 @@ export default function OrderPost({ cmoMode = false }) {
                     </Card.Body>
                   </Card>
                 </Col>
-                {canSelectSales ? (
+                {canSelectSales && !cmoMode ? (
                   <Col lg={3} className="d-flex">
                     <Card className="border mb-0 h-100 claim-transaction-card">
                       <Card.Header className="py-3">
