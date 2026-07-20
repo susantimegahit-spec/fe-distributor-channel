@@ -1250,22 +1250,40 @@ export default function OrderList({ showOnlyCommitment = false }) {
                           </td> */}
                             <td className="text-center">
                               <Stack direction="horizontal" gap={2} className="justify-content-center">
-                                <Button size="sm" variant="outline-primary" onClick={() => handleViewOrder(order)}>
-                                  <i className="ti ti-eye me-1" />
-                                  Detail
-                                </Button>
-                                <Button as={Link} to={`/customer-portal/order/cmo-create/${order.id}`} size="sm" variant="outline-success">
-                                  <i className="ti ti-pencil me-1" />
-                                  Edit
+                                <Button
+                                  className="rounded-circle p-0"
+                                  size="sm"
+                                  variant="outline-primary"
+                                  title="Detail"
+                                  aria-label="View CMO detail"
+                                  style={{ width: 32, height: 32 }}
+                                  onClick={() => handleViewOrder(order)}
+                                >
+                                  <i className="ti ti-eye" />
                                 </Button>
                                 <Button
+                                  as={Link}
+                                  to={`/customer-portal/order/cmo-create/${order.id}`}
+                                  className="rounded-circle p-0"
+                                  size="sm"
+                                  variant="outline-success"
+                                  title="Edit"
+                                  aria-label="Edit CMO"
+                                  style={{ width: 32, height: 32 }}
+                                >
+                                  <i className="ti ti-pencil" />
+                                </Button>
+                                <Button
+                                  className="rounded-circle p-0"
                                   size="sm"
                                   variant="success"
+                                  title="Process"
+                                  aria-label="Process CMO"
+                                  style={{ width: 32, height: 32 }}
                                   disabled={String(processingCmoId) === String(order.id)}
                                   onClick={() => openProcessCmoModal(order)}
                                 >
-                                  <i className={String(processingCmoId) === String(order.id) ? 'ti ti-loader-2 me-1' : 'ti ti-send me-1'} />
-                                  {String(processingCmoId) === String(order.id) ? 'Processing...' : 'Process'}
+                                  <i className={String(processingCmoId) === String(order.id) ? 'ti ti-loader-2' : 'ti ti-send'} />
                                 </Button>
                               </Stack>
                             </td>

@@ -23,6 +23,11 @@ export default function LoginPage() {
     <div className="sm-auth-main">
       <div className="sm-auth-shell">
         <section className="sm-auth-brand">
+          <div className="sm-auth-floating-balls" aria-hidden="true">
+            {Array.from({ length: 16 }, (_, index) => (
+              <span key={index} />
+            ))}
+          </div>
           <div className="sm-auth-brand-inner">
             <span className="sm-auth-module">
               <i className="ti ti-activity-heartbeat" />

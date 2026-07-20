@@ -144,6 +144,189 @@ body {
   border: 42px solid rgba(98, 170, 240, 0.14);
 }
 
+.sm-auth-floating-balls {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.sm-auth-floating-balls span {
+  position: absolute;
+  display: block;
+  width: var(--ball-size);
+  height: var(--ball-size);
+  left: var(--ball-left);
+  top: var(--ball-top);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.74), rgba(115, 229, 245, 0.25) 38%, rgba(49, 95, 180, 0.08) 72%);
+  box-shadow: 0 16px 38px rgba(2, 10, 30, 0.2), inset 0 0 18px rgba(255, 255, 255, 0.14);
+  opacity: var(--ball-opacity);
+  animation: sm-auth-ball-float var(--ball-duration) ease-in-out var(--ball-delay) infinite alternate;
+}
+
+.sm-auth-floating-balls span:nth-child(1) {
+  --ball-size: 76px;
+  --ball-left: 7%;
+  --ball-top: 12%;
+  --ball-opacity: 0.62;
+  --ball-duration: 7s;
+  --ball-delay: -2s;
+}
+
+.sm-auth-floating-balls span:nth-child(2) {
+  --ball-size: 34px;
+  --ball-left: 38%;
+  --ball-top: 8%;
+  --ball-opacity: 0.48;
+  --ball-duration: 5.5s;
+  --ball-delay: -4s;
+}
+
+.sm-auth-floating-balls span:nth-child(3) {
+  --ball-size: 112px;
+  --ball-left: 78%;
+  --ball-top: 18%;
+  --ball-opacity: 0.42;
+  --ball-duration: 9s;
+  --ball-delay: -1s;
+}
+
+.sm-auth-floating-balls span:nth-child(4) {
+  --ball-size: 48px;
+  --ball-left: 68%;
+  --ball-top: 52%;
+  --ball-opacity: 0.55;
+  --ball-duration: 6.5s;
+  --ball-delay: -3s;
+}
+
+.sm-auth-floating-balls span:nth-child(5) {
+  --ball-size: 90px;
+  --ball-left: 14%;
+  --ball-top: 68%;
+  --ball-opacity: 0.38;
+  --ball-duration: 8.5s;
+  --ball-delay: -5s;
+}
+
+.sm-auth-floating-balls span:nth-child(6) {
+  --ball-size: 26px;
+  --ball-left: 48%;
+  --ball-top: 82%;
+  --ball-opacity: 0.68;
+  --ball-duration: 5s;
+  --ball-delay: -1.5s;
+}
+
+.sm-auth-floating-balls span:nth-child(7) {
+  --ball-size: 58px;
+  --ball-left: 88%;
+  --ball-top: 76%;
+  --ball-opacity: 0.46;
+  --ball-duration: 7.5s;
+  --ball-delay: -3.5s;
+}
+
+.sm-auth-floating-balls span:nth-child(8) {
+  --ball-size: 20px;
+  --ball-left: 25%;
+  --ball-top: 30%;
+  --ball-opacity: 0.58;
+  --ball-duration: 4.8s;
+  --ball-delay: -2.5s;
+}
+
+.sm-auth-floating-balls span:nth-child(9) {
+  --ball-size: 42px;
+  --ball-left: 55%;
+  --ball-top: 24%;
+  --ball-opacity: 0.36;
+  --ball-duration: 7.2s;
+  --ball-delay: -4.2s;
+}
+
+.sm-auth-floating-balls span:nth-child(10) {
+  --ball-size: 68px;
+  --ball-left: 3%;
+  --ball-top: 46%;
+  --ball-opacity: 0.4;
+  --ball-duration: 8s;
+  --ball-delay: -6s;
+}
+
+.sm-auth-floating-balls span:nth-child(11) {
+  --ball-size: 30px;
+  --ball-left: 91%;
+  --ball-top: 42%;
+  --ball-opacity: 0.64;
+  --ball-duration: 5.8s;
+  --ball-delay: -1.8s;
+}
+
+.sm-auth-floating-balls span:nth-child(12) {
+  --ball-size: 54px;
+  --ball-left: 35%;
+  --ball-top: 58%;
+  --ball-opacity: 0.34;
+  --ball-duration: 7.8s;
+  --ball-delay: -3.8s;
+}
+
+.sm-auth-floating-balls span:nth-child(13) {
+  --ball-size: 24px;
+  --ball-left: 74%;
+  --ball-top: 88%;
+  --ball-opacity: 0.62;
+  --ball-duration: 5.2s;
+  --ball-delay: -4.8s;
+}
+
+.sm-auth-floating-balls span:nth-child(14) {
+  --ball-size: 82px;
+  --ball-left: 52%;
+  --ball-top: 72%;
+  --ball-opacity: 0.3;
+  --ball-duration: 9.2s;
+  --ball-delay: -7s;
+}
+
+.sm-auth-floating-balls span:nth-child(15) {
+  --ball-size: 38px;
+  --ball-left: 18%;
+  --ball-top: 92%;
+  --ball-opacity: 0.5;
+  --ball-duration: 6.2s;
+  --ball-delay: -2.2s;
+}
+
+.sm-auth-floating-balls span:nth-child(16) {
+  --ball-size: 18px;
+  --ball-left: 63%;
+  --ball-top: 40%;
+  --ball-opacity: 0.7;
+  --ball-duration: 4.5s;
+  --ball-delay: -3.2s;
+}
+
+@keyframes sm-auth-ball-float {
+  from {
+    transform: translate3d(-8px, 12px, 0) rotate(0deg) scale(0.96);
+  }
+
+  to {
+    transform: translate3d(24px, -30px, 0) rotate(18deg) scale(1.06);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sm-auth-floating-balls span {
+    animation: none;
+  }
+}
+
 .sm-auth-brand-inner {
   position: relative;
   z-index: 1;
