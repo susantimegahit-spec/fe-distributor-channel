@@ -37,6 +37,7 @@ export default function FloatingFaq() {
   const draggedRef = useRef(false);
   const positionRef = useRef(null);
   const throwFrameRef = useRef(null);
+  const audioContextRef = useRef(null);
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('faq');
   const [question, setQuestion] = useState('');
@@ -80,8 +81,43 @@ export default function FloatingFaq() {
     return () => {
       window.removeEventListener('resize', handleResize);
       if (throwFrameRef.current) cancelAnimationFrame(throwFrameRef.current);
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
     };
   }, []);
+
+  const enableBounceSound = () => {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+
+    if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+      audioContextRef.current = new AudioContext();
+    }
+    if (audioContextRef.current.state === 'suspended') audioContextRef.current.resume();
+  };
+
+  const playBounceSound = (impactSpeed) => {
+    const audioContext = audioContextRef.current;
+    if (!audioContext || audioContext.state !== 'running') return;
+
+    const startedAt = audioContext.currentTime;
+    const duration = 0.11;
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    const volume = Math.min(0.12, Math.max(0.035, impactSpeed * 0.045));
+
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(360 + Math.min(impactSpeed * 90, 240), startedAt);
+    oscillator.frequency.exponentialRampToValueAtTime(150, startedAt + duration);
+    gain.gain.setValueAtTime(volume, startedAt);
+    gain.gain.exponentialRampToValueAtTime(0.001, startedAt + duration);
+    oscillator.connect(gain);
+    gain.connect(audioContext.destination);
+    oscillator.start(startedAt);
+    oscillator.stop(startedAt + duration);
+  };
 
   const savePosition = (nextPosition) => {
     if (!nextPosition) return;
@@ -110,15 +146,19 @@ export default function FloatingFaq() {
       const maxY = Math.max(minY, window.innerHeight - element.offsetHeight - VIEWPORT_GAP);
       let x = positionRef.current.x + vx * delta;
       let y = positionRef.current.y + vy * delta;
+      let bounceSpeed = 0;
 
       if (x <= minX || x >= maxX) {
         x = Math.min(Math.max(x, minX), maxX);
+        bounceSpeed = Math.max(bounceSpeed, Math.abs(vx));
         vx *= -0.65;
       }
       if (y <= minY || y >= maxY) {
         y = Math.min(Math.max(y, minY), maxY);
+        bounceSpeed = Math.max(bounceSpeed, Math.abs(vy));
         vy *= -0.65;
       }
+      if (bounceSpeed > 0.08) playBounceSound(bounceSpeed);
 
       const friction = Math.pow(0.94, delta / 16);
       vx *= friction;
@@ -144,6 +184,8 @@ export default function FloatingFaq() {
 
     const element = wrapperRef.current;
     if (!element) return;
+
+    enableBounceSound();
 
     if (throwFrameRef.current) {
       cancelAnimationFrame(throwFrameRef.current);
