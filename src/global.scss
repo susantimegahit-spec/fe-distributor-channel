@@ -1260,6 +1260,129 @@ body {
   }
 }
 
+.sm-network-status {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 15% 18%, rgba(115, 229, 245, 0.24), transparent 28%),
+    radial-gradient(circle at 85% 82%, rgba(49, 95, 180, 0.2), transparent 30%),
+    linear-gradient(145deg, #f4fbff 0%, #eef3ff 100%);
+}
+
+.sm-network-status-card {
+  width: min(470px, 100%);
+  padding: 38px 34px 34px;
+  border: 1px solid rgba(49, 95, 180, 0.12);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 28px 75px rgba(16, 38, 86, 0.16);
+  text-align: center;
+  backdrop-filter: blur(16px);
+}
+
+.sm-network-status-visual {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  margin: 0 auto 20px;
+}
+
+.sm-network-status-visual img {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  filter: drop-shadow(0 14px 20px rgba(49, 95, 180, 0.2));
+}
+
+.sm-network-status-signal {
+  position: absolute;
+  inset: 50%;
+  border: 2px solid rgba(18, 191, 215, 0.34);
+  border-radius: 50%;
+  animation: sm-network-pulse 2.1s ease-out infinite;
+}
+
+.sm-network-status-signal.signal-two {
+  animation-delay: 0.7s;
+}
+
+.sm-network-status-signal.signal-three {
+  animation-delay: 1.4s;
+}
+
+.sm-network-status-label {
+  display: inline-flex;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(220, 53, 69, 0.1);
+  color: #d02f40;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sm-network-status-card h1 {
+  margin: 14px 0 10px;
+  color: #111e3f;
+  font-size: clamp(1.45rem, 4vw, 2rem);
+}
+
+.sm-network-status-card p {
+  max-width: 380px;
+  margin: 0 auto 24px;
+  color: #63708a;
+  line-height: 1.65;
+}
+
+.sm-network-status-card button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-width: 170px;
+  padding: 12px 22px;
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #315fb4, #12bfd7);
+  box-shadow: 0 12px 24px rgba(49, 95, 180, 0.24);
+  color: #fff;
+  font-weight: 700;
+}
+
+.sm-network-status-card button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.sm-network-status-spin {
+  animation: sm-network-spin 0.8s linear infinite;
+}
+
+@keyframes sm-network-pulse {
+  0% {
+    inset: 50%;
+    opacity: 0.9;
+  }
+  100% {
+    inset: -18px;
+    opacity: 0;
+  }
+}
+
+@keyframes sm-network-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (max-height: 760px) and (min-width: 992px) {
   .sm-auth-form {
     padding: 18px 28px;

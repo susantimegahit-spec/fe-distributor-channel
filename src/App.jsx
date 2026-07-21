@@ -9,6 +9,7 @@ import { AlertProvider } from './utils/alertContext';
 import { ConfirmProvider } from './utils/confirmContext';
 import ErrorBoundary from './views/ErrorBoundary';
 import { AUTH_STATE_CHANGED_EVENT } from './utils/authEvents';
+import NetworkStatusGuard from './components/NetworkStatusGuard';
 
 // ==============================|| APP - THEME, ROUTER, LOCAL ||============================== //
 
@@ -33,7 +34,9 @@ function App() {
     <ErrorBoundary>
       <AlertProvider>
         <ConfirmProvider>
-          <ProviderConfig />
+          <NetworkStatusGuard>
+            <ProviderConfig />
+          </NetworkStatusGuard>
         </ConfirmProvider>
       </AlertProvider>
     </ErrorBoundary>

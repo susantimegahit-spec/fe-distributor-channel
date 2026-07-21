@@ -5,6 +5,7 @@ import Cookies from 'js-cookie';
 import { useAlert } from '../utils/alertContext';
 import store from '../redux/store';
 import { destroyAuthState } from '../redux/authReducer';
+import { notifyNetworkUnavailable } from '../utils/networkEvents';
 
 const API_ENDPOINT = import.meta.env.VITE_APP_API_ENDPOINT_DEVELOPMENT;
 
@@ -115,6 +116,9 @@ client.interceptors.response.use(
      */
     const { response } = error;
     const originalRequest = error.config;
+    if (!response || [502, 503, 504].includes(response.status)) {
+      notifyNetworkUnavailable({ status: response?.status, code: error.code });
+    }
     if (response) {
       // console.log('response error => ', response);
       if (response.status === 500) {
