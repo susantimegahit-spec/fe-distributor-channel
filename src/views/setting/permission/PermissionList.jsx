@@ -666,7 +666,7 @@ export default function PermissionList() {
           </Row>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="light-secondary" onClick={resetForm}>
+          <Button variant="danger" onClick={resetForm}>
             Cancel
           </Button>
           <Button

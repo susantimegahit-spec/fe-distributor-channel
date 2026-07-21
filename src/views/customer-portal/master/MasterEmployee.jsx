@@ -781,7 +781,7 @@ export default function MasterEmployee() {
             </Row>
           </Modal.Body>
           <Modal.Footer>
-            <Button variant="light-secondary" onClick={closeAddModal} disabled={submittingSales}>
+            <Button variant="danger" onClick={closeAddModal} disabled={submittingSales}>
               Cancel
             </Button>
             <Button type="submit" variant="primary" disabled={!canSubmitSales}>

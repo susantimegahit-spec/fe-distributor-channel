@@ -575,7 +575,7 @@ export default function MasterTarget() {
           </Form.Group>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="light-secondary" disabled={downloading} onClick={() => setShowDownloadModal(false)}>
+          <Button variant="danger" disabled={downloading} onClick={() => setShowDownloadModal(false)}>
             Cancel
           </Button>
           <Button variant="success" disabled={downloading} onClick={handleDownloadTemplate}>

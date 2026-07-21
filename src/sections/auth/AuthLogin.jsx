@@ -221,7 +221,7 @@ export default function AuthLoginForm({ className }) {
           </p>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowConfirmModal(false)}>
+          <Button variant="danger" onClick={() => setShowConfirmModal(false)}>
             Cancel
           </Button>
           <Button variant="danger" onClick={handleForceLogin}>

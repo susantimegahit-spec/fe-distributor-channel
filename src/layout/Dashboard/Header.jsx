@@ -15,7 +15,7 @@ import Stack from 'react-bootstrap/Stack';
 import SimpleBarScroll from 'components/third-party/SimpleBar';
 import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
 
-import { getAssignedCustomerCode, getCookies } from '../../utils/cookies';
+import { getAssignedCustomerCodes, getCookies } from '../../utils/cookies';
 import { Modal } from 'react-bootstrap';
 import UserServices from '../../services/setting/UserServices';
 import NotificationServices from '../../services/shared/NotificationServices';
@@ -45,8 +45,8 @@ export default function Header({ showSidebar = true }) {
   const userId = getCookies('id');
   const userName = getCookies('name');
   const userEmail = getCookies('email');
-  const customerCode = getAssignedCustomerCode();
-  const distributorName = getCookies('distributorName');
+  const customerCodes = getAssignedCustomerCodes();
+  const isMultiCustomer = customerCodes.length > 1;
   const userInitial = userName?.charAt(0)?.toUpperCase() || 'U';
 
   const [oldPass, setOldPass] = useState('');
@@ -529,7 +529,7 @@ export default function Header({ showSidebar = true }) {
                 <span className="sm-account-avatar">{userInitial}</span>
                 <span className="sm-account-toggle-text">
                   <span>{userName || 'User'}</span>
-                  <small>Account</small>
+                  <small>{isMultiCustomer ? `${customerCodes.length} Customers` : customerCodes[0] || 'Account'}</small>
                 </span>
                 <i className="ti ti-chevron-down" />
               </Dropdown.Toggle>
@@ -546,17 +546,6 @@ export default function Header({ showSidebar = true }) {
                 </Dropdown.Header>
 
                 <div className="dropdown-body sm-account-body">
-                  <div className="sm-account-meta">
-                    <div>
-                      <span>Customer Code</span>
-                      <strong>{customerCode || '-'}</strong>
-                    </div>
-                    <div>
-                      <span>Distributor</span>
-                      <strong>{distributorName || '-'}</strong>
-                    </div>
-                  </div>
-
                   <div className="profile-notification-scroll position-relative">
                     <Dropdown.Item as={Link} to="/systems" className="sm-account-item">
                       <span className="sm-account-item-icon">
@@ -685,7 +674,7 @@ export default function Header({ showSidebar = true }) {
           </Stack>
         </Modal.Body>
         <Modal.Footer className="sm-change-password-footer">
-          <Button variant="light-secondary" className="sm-change-password-cancel" onClick={closeChangePassword}>
+          <Button variant="danger" onClick={closeChangePassword}>
             Cancel
           </Button>
           <Button

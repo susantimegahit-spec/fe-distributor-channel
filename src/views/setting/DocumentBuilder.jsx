@@ -338,7 +338,7 @@ export default function DocumentBuilder() {
           </Card>
 
           <Stack direction="horizontal" className="justify-content-end mt-4" gap={2}>
-            <Button variant="light-secondary" type="button" onClick={resetForm}>
+            <Button variant="danger" type="button" onClick={resetForm}>
               Cancel
             </Button>
             <Button type="submit">

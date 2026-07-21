@@ -2083,7 +2083,7 @@ export default function OrderPost({ cmoMode = false }) {
             }
             secondary={
               <Stack direction="horizontal" gap={2} className="flex-wrap">
-                <Button variant="light-secondary" onClick={() => navigate(-1)}>
+                <Button variant="danger" onClick={() => navigate(-1)}>
                   <i className="ti ti-arrow-left me-1" />
                   Cancel
                 </Button>
@@ -2902,7 +2902,7 @@ export default function OrderPost({ cmoMode = false }) {
           </Stack>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="light-secondary" onClick={handleCancelDiscount}>
+          <Button variant="danger" onClick={handleCancelDiscount}>
             Cancel
           </Button>
           <Button onClick={() => handleSubmitDisc()} variant="primary" disabled={loaderDisc || loadingReward || !discountTotal}>

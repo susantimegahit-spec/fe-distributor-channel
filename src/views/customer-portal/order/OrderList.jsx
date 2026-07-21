@@ -1017,6 +1017,17 @@ export default function OrderList({ showOnlyCommitment = false }) {
   );
   const isAdministrator = Number(roleId) === 5;
   const isFinanceUser = permissionApprovalName === 'WAITING_FINANCE' || roleName.includes('FINANCE');
+  const isOmDistributor =
+    Number(roleId) === 2 ||
+    permissionApprovalName === 'WAITING_OM' ||
+    roleName === 'OM' ||
+    roleName.includes('OM_DISTRIBUTOR') ||
+    roleName.includes('OPERATIONAL_MANAGER');
+  const isAsm =
+    permissionApprovalName === 'WAITING_ASM' ||
+    roleName === 'ASM' ||
+    roleName.includes('AREA_SALES_MANAGER');
+  const isAdminSales = permissionApprovalName === 'WAITING_ADMIN_SALES' || roleName.includes('ADMIN_SALES');
 
   const defaultStatusByAccess = useMemo(() => {
     if (!permissionApprovalName || permissionApprovalName === 'ALL') return '';
@@ -1049,9 +1060,16 @@ export default function OrderList({ showOnlyCommitment = false }) {
   };
 
   const getButtonVisibility = (order) => {
-    const view = hasAction('view');
+    const view = hasAction('view') || isOmDistributor || isAsm || isFinanceUser;
+    const normalizedOrderStatus = normalizeStatus(order.status);
     const isApprovedByFinance =
-      order.status === 'ORDER_APPROVED' || order.status === 'APPROVED' || order.status === 'DELIVERY' || order.status === 'ARRIVED';
+      normalizedOrderStatus === 'ORDER_APPROVED' ||
+      normalizedOrderStatus === 'APPROVED' ||
+      normalizedOrderStatus === 'DELIVERY' ||
+      normalizedOrderStatus === 'ARRIVED';
+    const canEditOrder =
+      (hasAction('edit') || isAdminSales) &&
+      !['APPROVED', 'ARRIVED', 'ORDER_APPROVED'].includes(normalizedOrderStatus);
 
     if (!isOrderStatusAllowed(order)) {
       return {
@@ -1067,14 +1085,14 @@ export default function OrderList({ showOnlyCommitment = false }) {
       view,
       attachment: hasAction('attachment') || hasAction('download'),
       download: hasAction('download') || isApprovedByFinance,
-      edit: hasAction('edit') && order.status !== 'APPROVED' && order.status !== 'ARRIVED' && order.status !== 'ORDER_APPROVED',
+      edit: canEditOrder,
       delete: hasAction('delete')
     };
   };
 
   const getAccessAction = (order) => {
     const button = getButtonVisibility(order);
-    const canCancel = ['ORDER_APPROVED', 'APPROVED'].includes(normalizeStatus(order.status));
+    const canCancel = isAdminSales && ['ORDER_APPROVED', 'APPROVED'].includes(normalizeStatus(order.status));
 
     const hasVisibleButton = button.view || button.download || button.edit || button.delete || canCancel;
 
@@ -1090,6 +1108,8 @@ export default function OrderList({ showOnlyCommitment = false }) {
               className="rounded-circle"
               variant="outline-primary"
               size="sm"
+              title="View order"
+              aria-label="View order"
               disabled={loadingDetailId === order.id}
               onClick={() => handleViewOrder(order)}
             >
@@ -1129,7 +1149,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
         {canCancel ? (
           <Button
             className="rounded-circle"
-            variant="outline-danger"
+            variant="danger"
             size="sm"
             title="Cancel sales order"
             aria-label="Cancel sales order"
@@ -1589,7 +1609,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
             </Form.Group>
           </Modal.Body>
           <Modal.Footer>
-            <Button variant="light" disabled={processingCmoId !== null} onClick={closeProcessCmoModal}>
+            <Button variant="danger" disabled={processingCmoId !== null} onClick={closeProcessCmoModal}>
               Cancel
             </Button>
             <Button variant="success" disabled={processingCmoId !== null || !commitmentDeliveryDate} onClick={handleProcessCmo}>

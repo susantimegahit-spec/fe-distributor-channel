@@ -615,7 +615,7 @@ export default function MasterPrice() {
             </Row>
           </Modal.Body>
           <Modal.Footer>
-            <Button variant="light-secondary" onClick={closeAddModal} disabled={submittingPrice}>
+            <Button variant="danger" onClick={closeAddModal} disabled={submittingPrice}>
               Cancel
             </Button>
             <Button type="submit" variant="primary" disabled={!canSubmitPrice}>

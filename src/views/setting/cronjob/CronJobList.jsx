@@ -330,7 +330,7 @@ export default function CronJobList() {
             </Form.Group>
           </Modal.Body>
           <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowEditModal(false)} disabled={editLoading}>
+            <Button variant="danger" onClick={() => setShowEditModal(false)} disabled={editLoading}>
               Cancel
             </Button>
             <Button variant="primary" type="submit" disabled={editLoading}>

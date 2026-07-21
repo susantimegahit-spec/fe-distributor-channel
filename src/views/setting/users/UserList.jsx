@@ -880,7 +880,7 @@ export default function UserList() {
           </Row>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="light-secondary" onClick={resetForm}>
+          <Button variant="danger" onClick={resetForm}>
             Cancel
           </Button>
           <Button variant="primary" onClick={formMode === 'edit' ? handleEdit : handleCreate} disabled={loadingSubmit || !formIsValid}>

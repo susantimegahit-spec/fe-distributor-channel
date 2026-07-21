@@ -702,7 +702,7 @@ export default function MasterExpedition() {
             </Row>
           </Modal.Body>
           <Modal.Footer>
-            <Button variant="light-secondary" onClick={handleCloseForm}>
+            <Button variant="danger" onClick={handleCloseForm}>
               Cancel
             </Button>
             <Button variant="primary" type="submit" disabled={!isLocationComplete}>
