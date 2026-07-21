@@ -2085,9 +2085,8 @@ body {
   right: 24px;
   bottom: 24px;
   z-index: 1040;
-  display: grid;
-  justify-items: end;
-  gap: 14px;
+  width: 82px;
+  height: 82px;
   pointer-events: none;
 }
 
@@ -2100,11 +2099,17 @@ body {
   border-radius: 999px;
   background: #fff;
   box-shadow: 0 18px 38px rgba(9, 15, 50, 0.22), 0 0 0 5px rgba(115, 229, 245, 0.16);
-  cursor: pointer;
+  cursor: grab;
   pointer-events: auto;
+  touch-action: none;
+  user-select: none;
   transition:
     transform 0.18s ease,
     box-shadow 0.18s ease;
+}
+
+.sm-floating-faq-button:active {
+  cursor: grabbing;
 }
 
 .sm-floating-faq-button:hover,
@@ -2124,9 +2129,15 @@ body {
   height: 100%;
   object-fit: cover;
   object-position: center;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .sm-floating-faq-panel {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 14px);
   width: min(360px, calc(100vw - 32px));
   overflow: hidden;
   border: 1px solid rgba(15, 23, 42, 0.08);
@@ -2134,6 +2145,16 @@ body {
   background: rgba(255, 255, 255, 0.98);
   box-shadow: 0 22px 58px rgba(9, 15, 50, 0.2);
   pointer-events: auto;
+}
+
+.sm-floating-faq.open-right .sm-floating-faq-panel {
+  right: auto;
+  left: 0;
+}
+
+.sm-floating-faq.open-bottom .sm-floating-faq-panel {
+  top: calc(100% + 14px);
+  bottom: auto;
 }
 
 .sm-floating-faq-header {
@@ -2326,6 +2347,8 @@ body {
   .sm-floating-faq {
     right: 16px;
     bottom: 16px;
+    width: 68px;
+    height: 68px;
   }
 
   .sm-floating-faq-button {
