@@ -131,6 +131,17 @@ const customerPortalMenu = [
         url: withBasePath('/order/order-list'),
         activeUrls: [withBasePath('/order/order-list'), withBasePath('/order/order-create'), withBasePath('/order/order-create/:id')]
       },
+      {
+        id: 'order-retur',
+        title: 'Retur',
+        value: 'order-retur',
+        label: 'Retur',
+        type: 'item',
+        selected: true,
+        icon: 'ti ti-package-export',
+        url: withBasePath('/order/retur'),
+        activeUrls: [withBasePath('/order/retur')]
+      }
     ]
   },
   {

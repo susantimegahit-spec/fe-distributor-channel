@@ -31,6 +31,7 @@ import {
 } from '../../utils/notification';
 import { DataService } from '../../config/dataService';
 import { destroyAuthState } from '../../redux/authReducer';
+import { normalizeAccessibleSystems } from '../../systems';
 
 // =============================|| MAIN LAYOUT - HEADER ||============================== //
 
@@ -46,6 +47,7 @@ export default function Header({ showSidebar = true }) {
   const userName = getCookies('name');
   const userEmail = getCookies('email');
   const customerCodes = getAssignedCustomerCodes();
+  const accessibleSystemCount = normalizeAccessibleSystems(getCookies('system')).length;
   const isMultiCustomer = customerCodes.length > 1;
   const userInitial = userName?.charAt(0)?.toUpperCase() || 'U';
 
@@ -547,15 +549,17 @@ export default function Header({ showSidebar = true }) {
 
                 <div className="dropdown-body sm-account-body">
                   <div className="profile-notification-scroll position-relative">
-                    <Dropdown.Item as={Link} to="/systems" className="sm-account-item">
-                      <span className="sm-account-item-icon">
-                        <i className="ti ti-arrows-exchange" />
-                      </span>
-                      <span>
-                        <strong>Switch System</strong>
-                        <small>Choose another workspace</small>
-                      </span>
-                    </Dropdown.Item>
+                    {accessibleSystemCount > 1 && (
+                      <Dropdown.Item as={Link} to="/systems" className="sm-account-item">
+                        <span className="sm-account-item-icon">
+                          <i className="ti ti-arrows-exchange" />
+                        </span>
+                        <span>
+                          <strong>Switch System</strong>
+                          <small>Choose another workspace</small>
+                        </span>
+                      </Dropdown.Item>
+                    )}
                     {/* {roleId === 5 && ( */}
                     <Dropdown.Item as={Link} to="/setting" className="sm-account-item">
                       <span className="sm-account-item-icon">

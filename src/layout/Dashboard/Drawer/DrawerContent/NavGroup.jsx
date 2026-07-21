@@ -1,20 +1,28 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { matchPath, useLocation } from 'react-router-dom';
+import Collapse from 'react-bootstrap/Collapse';
 
 // project-imports
 import NavItem from './NavItem';
 import NavCollapse from './NavCollapse';
 import { getCookies } from '../../../../utils/cookies';
-import { isAdministratorRole, normalizePermissionMenu } from '../../../../systems';
+import { normalizePermissionMenu } from '../../../../systems';
+
+const hasActivePath = (menuItem, pathname) => {
+  if (menuItem.children?.length) return menuItem.children.some((child) => hasActivePath(child, pathname));
+
+  const paths = menuItem.activeUrls || [menuItem.link || menuItem.url];
+  return paths.some((path) => path && matchPath({ path, end: true }, pathname));
+};
 
 // ==============================|| NAVIGATION - GROUP ||============================== //
 
 export default function NavGroup(props) {
   const { item, lastItem, remItems, lastItemId, setSelectedID, setSelectedItems, selectedItems, setSelectedLevel, selectedLevel } = props;
   const masterMenu = normalizePermissionMenu(getCookies('menu') || []);
-  const isAdministrator = isAdministratorRole(getCookies('role'));
   const { pathname } = useLocation();
   const [currentItem, setCurrentItem] = useState(item);
+  const [groupOpen, setGroupOpen] = useState(() => hasActivePath(item, pathname));
 
   //  Combine items if this is the last grouped item
   useEffect(() => {
@@ -52,13 +60,17 @@ export default function NavGroup(props) {
     });
   }, [pathname, currentItem, findMatchingChild, setSelectedID]);
 
+  useEffect(() => {
+    if (hasActivePath(currentItem, pathname)) setGroupOpen(true);
+  }, [currentItem, pathname]);
+
   //  Memoized children render
   const navCollapse = useMemo(() => {
     if (!currentItem.children) return null;
 
     return currentItem.children.map((menuItem, index) => {
       const key = menuItem.id || `${menuItem.type}-${index}`;
-      const findMenu = isAdministrator || masterMenu.includes(menuItem.id);
+      const findMenu = masterMenu.includes(menuItem.id);
 
       switch (menuItem.type) {
         case 'collapse':
@@ -88,10 +100,9 @@ export default function NavGroup(props) {
           );
       }
     });
-  }, [currentItem, isAdministrator, masterMenu, selectedItems, selectedLevel, setSelectedItems, setSelectedLevel]);
+  }, [currentItem, masterMenu, selectedItems, selectedLevel, setSelectedItems, setSelectedLevel]);
 
   const hasAllowedChild = (item) => {
-    if (isAdministrator) return true;
     if (!item.children?.length) return masterMenu.includes(item.id);
 
     return item.children.some((child) => hasAllowedChild(child));
@@ -107,15 +118,28 @@ export default function NavGroup(props) {
   };
 
   const groupLabel = findGroupLabel(item);
+  const isDashboardGroup = item.id === 'dashboard';
 
   return (
     <Fragment>
-      {groupLabel && (
-        <li className="pc-item pc-caption" key={item.id}>
-          <label>{groupLabel}</label>
+      {groupLabel && !isDashboardGroup && (
+        <li className={`pc-item pc-caption sm-sidebar-group-toggle ${groupOpen ? 'is-open' : ''}`} key={item.id}>
+          <button
+            type="button"
+            onClick={() => setGroupOpen((open) => !open)}
+            aria-expanded={groupOpen}
+            aria-controls={`sidebar-group-${item.id}`}
+          >
+            <span className="sm-sidebar-group-arrow" aria-hidden="true" />
+            <span>{groupLabel}</span>
+          </button>
         </li>
       )}
-      {navCollapse}
+      <Collapse in={Boolean(groupLabel && (isDashboardGroup || groupOpen))}>
+        <div className={`sm-sidebar-group-items ${isDashboardGroup ? '' : 'is-indented'}`} id={`sidebar-group-${item.id}`}>
+          {navCollapse}
+        </div>
+      </Collapse>
     </Fragment>
   );
 }

@@ -149,17 +149,18 @@ const listMenu = [
         icon: 'ph ph-list-bullets',
         url: '/order/order-list',
         activeUrls: ['/order/order-list', '/order/order-create', '/order/order-create/:id']
+      },
+      {
+        id: 'order-retur',
+        title: 'Retur',
+        value: 'order-retur',
+        label: 'Retur',
+        type: 'item',
+        selected: true,
+        icon: 'ti ti-package-export',
+        url: '/order/retur',
+        activeUrls: ['/order/retur', '/customer-portal/order/retur']
       }
-      // {
-      //   id: 'order-retur',
-      //   title: 'Return List',
-      //   value: 'order-retur',
-      //   label: 'Return List',
-      //   type: 'item',
-      //   selected: true,
-      //   icon: 'ph ph-list-bullets',
-      //   url: '/order/list-retur'
-      // }
     ]
   },
   {

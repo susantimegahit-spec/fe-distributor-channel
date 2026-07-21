@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import moment from 'moment';
+import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 
 // third-party
@@ -12,6 +13,7 @@ import Button from 'react-bootstrap/Button';
 import Card from 'react-bootstrap/Card';
 import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
+import Modal from 'react-bootstrap/Modal';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
@@ -42,6 +44,78 @@ const statusConfig = {
 const comparisonMonthOptions = moment.months().map((label, index) => ({ value: index + 1, label }));
 const currentComparisonYear = moment().year();
 const comparisonYearOptions = Array.from({ length: 7 }, (_, index) => currentComparisonYear + 1 - index);
+const MAX_RETURN_ATTACHMENTS = 5;
+const MAX_RETURN_ATTACHMENT_SIZE = 1024 * 1024;
+
+const compressReturnImage = (file) =>
+  new Promise((resolve, reject) => {
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    image.onload = async () => {
+      URL.revokeObjectURL(objectUrl);
+      let width = image.naturalWidth;
+      let height = image.naturalHeight;
+      const initialScale = Math.min(1, Math.sqrt(MAX_RETURN_ATTACHMENT_SIZE / file.size) * 0.95);
+      width = Math.max(1, Math.round(width * initialScale));
+      height = Math.max(1, Math.round(height * initialScale));
+      let quality = 0.86;
+      let compressedBlob = null;
+
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(image, 0, 0, width, height);
+        compressedBlob = await new Promise((done) => canvas.toBlob(done, 'image/jpeg', quality));
+
+        if (compressedBlob?.size <= MAX_RETURN_ATTACHMENT_SIZE) break;
+        quality = Math.max(0.45, quality - 0.08);
+        width = Math.max(1, Math.round(width * 0.85));
+        height = Math.max(1, Math.round(height * 0.85));
+      }
+
+      if (!compressedBlob || compressedBlob.size > MAX_RETURN_ATTACHMENT_SIZE) {
+        reject(new Error(`Could not compress ${file.name} below 1 MB`));
+        return;
+      }
+
+      const compressedName = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+      resolve(new File([compressedBlob], compressedName, { type: 'image/jpeg', lastModified: Date.now() }));
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error(`Failed to read ${file.name}`));
+    };
+    image.src = objectUrl;
+  });
+
+function ReturnAttachmentPreview({ file }) {
+  const [previewUrl, setPreviewUrl] = useState('');
+  const isImage = file?.type?.startsWith('image/');
+
+  useEffect(() => {
+    if (!isImage) return undefined;
+
+    const objectUrl = URL.createObjectURL(file);
+    setPreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file, isImage]);
+
+  if (!isImage || !previewUrl) {
+    return (
+      <span className="return-attachment-file-icon">
+        <i className="ti ti-file" />
+      </span>
+    );
+  }
+
+  return <img className="return-attachment-preview" src={previewUrl} alt={`Preview ${file.name}`} />;
+}
+
+ReturnAttachmentPreview.propTypes = {
+  file: PropTypes.object.isRequired
+};
 
 const salesOrderChartOptions = {
   chart: {
@@ -165,6 +239,11 @@ const getOrderValue = (order = {}, keys = [], fallback = '-') => {
 };
 
 const getEtaValue = (item = {}, keys = [], fallback = '-') => getOrderValue(item, keys, fallback);
+
+const getOrderLines = (order = {}) => {
+  const lines = getFirstValue(order, ['details', 'lines', 'document_lines', 'documentLines', 'DocumentLines', 'items', 'products']);
+  return Array.isArray(lines) ? lines : [];
+};
 
 const getOrderListPayload = (payload) => {
   if (Array.isArray(payload)) return payload;
@@ -619,6 +698,16 @@ export default function Dashboard() {
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [receivingOrderId, setReceivingOrderId] = useState(null);
   const [orderToComplete, setOrderToComplete] = useState(null);
+  const [viewOrder, setViewOrder] = useState(null);
+  const [loadingViewOrderId, setLoadingViewOrderId] = useState(null);
+  const [returnOrder, setReturnOrder] = useState(null);
+  const [returnRequests, setReturnRequests] = useState([]);
+  const [returnQuantities, setReturnQuantities] = useState({});
+  const [returnReason, setReturnReason] = useState('');
+  const [returnAttachments, setReturnAttachments] = useState([]);
+  const [loadingReturnOrderId, setLoadingReturnOrderId] = useState(null);
+  const [submittingReturn, setSubmittingReturn] = useState(false);
+  const [compressingAttachments, setCompressingAttachments] = useState(false);
   const [orders, setOrders] = useState([]);
   const [isChartReady, setIsChartReady] = useState(false);
   const [orderSummary, setOrderSummary] = useState({ totalOrder: 0, totalAmount: 0, totalItem: 0 });
@@ -848,6 +937,41 @@ export default function Dashboard() {
   }, []);
 
   const deliveryOrders = useMemo(() => orders.filter((order) => normalizeStatus(order.status) === 'DELIVERY'), [orders]);
+  const returnRequestByOrderId = useMemo(() => {
+    const requestsByOrderId = new Map();
+
+    returnRequests.forEach((request) => {
+      const salesOrderId =
+        getFirstValue(request, ['sales_order_id', 'salesOrderId', 'order_id', 'orderId']) ||
+        request?.sales_order?.id ||
+        request?.salesOrder?.id;
+
+      if (salesOrderId !== undefined && salesOrderId !== null && salesOrderId !== '') {
+        requestsByOrderId.set(String(salesOrderId), request);
+      }
+    });
+
+    return requestsByOrderId;
+  }, [returnRequests]);
+  const showReturnStatusColumn = deliveryOrders.some((order) => returnRequestByOrderId.has(String(order.id)));
+
+  useEffect(() => {
+    const fetchReturnRequests = async () => {
+      try {
+        const response = await OrderServices.getRetur();
+        if (response?.data?.success === false) {
+          setReturnRequests([]);
+          return;
+        }
+
+        setReturnRequests(getOrderListPayload(getResponsePayload(response)));
+      } catch {
+        setReturnRequests([]);
+      }
+    };
+
+    fetchReturnRequests();
+  }, []);
 
   const handleCompleteOrder = async (order) => {
     if (!order?.id) {
@@ -875,6 +999,169 @@ export default function Dashboard() {
     } finally {
       setReceivingOrderId(null);
       setOrderToComplete(null);
+    }
+  };
+
+  const closeReturnModal = () => {
+    if (submittingReturn || compressingAttachments) return;
+    setReturnOrder(null);
+    setReturnQuantities({});
+    setReturnReason('');
+    setReturnAttachments([]);
+  };
+
+  const openReturnOrder = async (order) => {
+    if (!order?.id) {
+      showAlert('Order ID not found', 'danger');
+      return;
+    }
+
+    setReturnOrder(order);
+    setReturnQuantities({});
+    setReturnReason('');
+    setReturnAttachments([]);
+    setLoadingReturnOrderId(order.id);
+
+    try {
+      const response = await OrderServices.getDetailOrder(order.id);
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch sales order detail');
+
+      const payload = getResponsePayload(response);
+      const detail = Array.isArray(payload) ? payload[0] : payload;
+      setReturnOrder({ ...order, ...(detail || {}) });
+    } catch (error) {
+      showAlert(error?.message || 'Failed to fetch sales order detail', 'danger');
+    } finally {
+      setLoadingReturnOrderId(null);
+    }
+  };
+
+  const openOrderDetail = async (order) => {
+    if (!order?.id) {
+      showAlert('Order ID not found', 'danger');
+      return;
+    }
+
+    setViewOrder(order);
+    setLoadingViewOrderId(order.id);
+    try {
+      const response = await OrderServices.getDetailOrder(order.id);
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch sales order detail');
+
+      const payload = getResponsePayload(response);
+      const detail = Array.isArray(payload) ? payload[0] : payload;
+      setViewOrder({ ...order, ...(detail || {}) });
+    } catch (error) {
+      showAlert(error?.message || 'Failed to fetch sales order detail', 'danger');
+    } finally {
+      setLoadingViewOrderId(null);
+    }
+  };
+
+  const updateReturnQuantity = (lineKey, value, maximumQuantity) => {
+    if (value === '') {
+      setReturnQuantities((current) => ({ ...current, [lineKey]: '' }));
+      return;
+    }
+
+    const quantity = Math.min(Math.max(Number(value) || 0, 0), maximumQuantity);
+    setReturnQuantities((current) => ({ ...current, [lineKey]: quantity }));
+  };
+
+  const handleReturnAttachments = async (event) => {
+    const selectedFiles = Array.from(event.target.files || []);
+    event.target.value = '';
+    const availableSlots = MAX_RETURN_ATTACHMENTS - returnAttachments.length;
+
+    if (availableSlots <= 0) {
+      showAlert(`Maximum ${MAX_RETURN_ATTACHMENTS} attachment files`, 'danger');
+      return;
+    }
+    if (selectedFiles.length > availableSlots) {
+      showAlert(`Only ${availableSlots} more attachment file(s) can be added`, 'warning');
+    }
+
+    setCompressingAttachments(true);
+    const acceptedFiles = [];
+    const rejectedMessages = [];
+
+    for (const file of selectedFiles.slice(0, availableSlots)) {
+      try {
+        if (file.size <= MAX_RETURN_ATTACHMENT_SIZE) {
+          acceptedFiles.push(file);
+        } else if (file.type.startsWith('image/')) {
+          acceptedFiles.push(await compressReturnImage(file));
+        } else {
+          rejectedMessages.push(`${file.name} exceeds 1 MB`);
+        }
+      } catch (error) {
+        rejectedMessages.push(error.message);
+      }
+    }
+
+    setReturnAttachments((currentFiles) => {
+      const filesByIdentity = new Map(
+        [...currentFiles, ...acceptedFiles].map((file) => [`${file.name}-${file.size}-${file.lastModified}`, file])
+      );
+      return [...filesByIdentity.values()].slice(0, MAX_RETURN_ATTACHMENTS);
+    });
+    setCompressingAttachments(false);
+
+    if (rejectedMessages.length) showAlert(rejectedMessages.join(', '), 'danger');
+  };
+
+  const submitReturnRequest = async () => {
+    const items = getOrderLines(returnOrder)
+      .map((line, index) => {
+        const identity = getOrderValue(line, ['id', 'sales_order_detail_id', 'line_num', 'lineNum', 'item_code', 'itemCode', 'ItemCode'], index);
+        const lineKey = `${identity}-${index}`;
+
+        return {
+          sales_order_detail_id: getOrderValue(line, ['id', 'sales_order_detail_id'], ''),
+          item_code: getOrderValue(line, ['item_code', 'itemCode', 'ItemCode'], ''),
+          quantity: Number(returnQuantities[lineKey]) || 0
+        };
+      })
+      .filter((item) => item.quantity > 0);
+
+    if (!returnReason.trim()) {
+      showAlert('Reason is required', 'danger');
+      return;
+    }
+    if (!items.length) {
+      showAlert('Enter return quantity for at least one product', 'danger');
+      return;
+    }
+
+    setSubmittingReturn(true);
+    try {
+      const response = await OrderServices.postRequestRetur({
+        sales_order_id: returnOrder.id,
+        reason: returnReason.trim(),
+        items,
+        attachment: returnAttachments
+      });
+
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to submit return request');
+      const createdReturn = getResponsePayload(response);
+      setReturnRequests((currentRequests) => [
+        ...currentRequests,
+        {
+          ...(createdReturn && typeof createdReturn === 'object' && !Array.isArray(createdReturn) ? createdReturn : {}),
+          sales_order_id:
+            getFirstValue(createdReturn, ['sales_order_id', 'salesOrderId', 'order_id', 'orderId']) || returnOrder.id,
+          status: getFirstValue(createdReturn, ['status', 'return_status', 'returnStatus']) || 'PENDING'
+        }
+      ]);
+      showAlert(response?.data?.message || 'Return request submitted successfully', 'success');
+      setReturnOrder(null);
+      setReturnQuantities({});
+      setReturnReason('');
+      setReturnAttachments([]);
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to submit return request', 'danger');
+    } finally {
+      setSubmittingReturn(false);
     }
   };
 
@@ -1118,8 +1405,9 @@ export default function Dashboard() {
           </Stack>
         </MainCard>
 
-        <Row className="g-3 align-items-stretch dashboard-action-cards">
-          <Col lg={6} className="d-flex">
+        {(isLoadingEta || etaWarnings.length > 0) && (
+          <Row className="g-3 align-items-stretch dashboard-action-cards">
+            <Col xs={12} className="d-flex">
             <MainCard
               className="claim-transaction-card eta-warning-card border border-danger h-100 w-100"
               title={
@@ -1191,10 +1479,13 @@ export default function Dashboard() {
           ) : (
             <div className="text-center text-muted py-4">No ETA warning for today.</div>
           )}
-            </MainCard>
-          </Col>
+              </MainCard>
+            </Col>
+          </Row>
+        )}
 
-          <Col lg={6} className="d-flex">
+        <Row className="g-3 align-items-stretch dashboard-action-cards">
+          <Col xs={12} className="d-flex">
             <MainCard
               className="claim-transaction-card complete-order-card border border-success h-100 w-100"
               title={
@@ -1220,19 +1511,28 @@ export default function Dashboard() {
                 <th>Date</th>
                 <th>Total Order</th>
                 <th>Status</th>
+                {showReturnStatusColumn && <th>Status Retur</th>}
                 <th className="text-center">#</th>
               </tr>
             </thead>
             <tbody>
               {isLoadingOrders ? (
                 <tr>
-                  <td colSpan={6}>
+                  <td colSpan={showReturnStatusColumn ? 7 : 6}>
                     <div className="text-center text-muted py-4">Loading delivery sales orders...</div>
                   </td>
                 </tr>
               ) : deliveryOrders.length > 0 ? (
                 deliveryOrders.map((order) => {
                   const orderDate = moment(getOrderValue(order, ['doc_date', 'docDate', 'created_at', 'createdAt'], null));
+                  const returnRequest = returnRequestByOrderId.get(String(order.id));
+                  const returnStatus = getOrderValue(returnRequest, ['status', 'return_status', 'returnStatus'], '-');
+                  const normalizedReturnStatus = normalizeStatus(returnStatus);
+                  const returnStatusColor = ['APPROVED', 'COMPLETED', 'SUCCESS'].includes(normalizedReturnStatus)
+                    ? 'success'
+                    : ['REJECTED', 'FAILED', 'CANCELLED', 'CANCELED'].includes(normalizedReturnStatus)
+                      ? 'danger'
+                      : 'warning';
 
                   return (
                     <tr key={order.id}>
@@ -1248,25 +1548,58 @@ export default function Dashboard() {
                       <td>
                         <Badge bg="info">Delivery</Badge>
                       </td>
+                      {showReturnStatusColumn && (
+                        <td>{returnRequest ? <Badge bg={returnStatusColor}>{String(returnStatus).replace(/_/g, ' ')}</Badge> : '-'}</td>
+                      )}
                       <td className="text-center">
-                        <Button
-                          variant="success"
-                          size="sm"
-                          disabled={String(receivingOrderId) === String(order.id)}
-                          onClick={() => setOrderToComplete(order)}
-                        >
-                          <i
-                            className={String(receivingOrderId) === String(order.id) ? 'ti ti-loader-2 me-1' : 'ti ti-circle-check me-1'}
-                          />
-                          Complete
-                        </Button>
+                        <div className="d-inline-flex flex-wrap justify-content-center gap-2">
+                          <Button
+                            className="rounded-circle"
+                            variant="outline-primary"
+                            size="sm"
+                            disabled={String(loadingViewOrderId) === String(order.id)}
+                            onClick={() => openOrderDetail(order)}
+                            title="View order"
+                            aria-label="View order"
+                          >
+                            <i className={String(loadingViewOrderId) === String(order.id) ? 'ti ti-loader-2' : 'ti ti-eye'} />
+                          </Button>
+                          {!returnRequest && (
+                            <>
+                            <Button
+                              variant="warning"
+                              size="sm"
+                              disabled={String(loadingReturnOrderId) === String(order.id)}
+                              onClick={() => openReturnOrder(order)}
+                            >
+                              <i className="ti ti-package-export me-1" />
+                              {String(loadingReturnOrderId) === String(order.id) ? 'Loading...' : 'Request Retur'}
+                            </Button>
+                            <Button
+                              variant="success"
+                              size="sm"
+                              disabled={String(receivingOrderId) === String(order.id)}
+                              onClick={() => setOrderToComplete(order)}
+                            >
+                              <i
+                                className={
+                                  String(receivingOrderId) === String(order.id)
+                                    ? 'ti ti-loader-2 me-1'
+                                    : 'ti ti-circle-check me-1'
+                                }
+                              />
+                              Complete
+                            </Button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
                 })
               ) : (
                 <tr>
-                  <td colSpan={6}>
+                  <td colSpan={showReturnStatusColumn ? 7 : 6}>
                     <div className="text-center text-muted py-4">No delivery sales orders.</div>
                   </td>
                 </tr>
@@ -1416,6 +1749,258 @@ export default function Dashboard() {
           </div>
         </MainCard>
       </Stack>
+
+      <Modal
+        show={Boolean(viewOrder)}
+        onHide={() => loadingViewOrderId === null && setViewOrder(null)}
+        size="xl"
+        centered
+        scrollable
+      >
+        <Modal.Header closeButton={loadingViewOrderId === null}>
+          <Modal.Title>Sales Order Detail</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Row className="g-3 mb-4">
+            <Col sm={6} lg={3}>
+              <small className="text-muted">No. Sales Order</small>
+              <div className="fw-semibold">
+                {getOrderValue(viewOrder, ['sap_doc_num', 'sapDocNum', 'doc_num', 'docNum', 'order_no', 'orderNo'])}
+              </div>
+            </Col>
+            <Col sm={6} lg={3}>
+              <small className="text-muted">Customer</small>
+              <div className="fw-semibold">
+                {getOrderValue(viewOrder, ['customer_name', 'customerName', 'card_name', 'cardName'])}
+              </div>
+            </Col>
+            <Col sm={6} lg={2}>
+              <small className="text-muted">Depo</small>
+              <div className="fw-semibold">{getOrderValue(viewOrder, ['depo', 'depot', 'warehouse_name', 'warehouseName'])}</div>
+            </Col>
+            <Col sm={6} lg={2}>
+              <small className="text-muted">Order Date</small>
+              <div className="fw-semibold">
+                {formatOrderDate(getOrderValue(viewOrder, ['doc_date', 'docDate', 'created_at', 'createdAt'], ''))}
+              </div>
+            </Col>
+            <Col sm={6} lg={2}>
+              <small className="text-muted">Status</small>
+              <div><Badge bg="info">{getOrderValue(viewOrder, ['status'], 'Delivery')}</Badge></div>
+            </Col>
+          </Row>
+
+          {loadingViewOrderId !== null ? (
+            <div className="text-center text-muted py-5">Loading sales order detail...</div>
+          ) : getOrderLines(viewOrder).length ? (
+            <Table responsive bordered hover className="mb-0 align-middle">
+              <thead>
+                <tr>
+                  <th>No.</th>
+                  <th>Product Code</th>
+                  <th>Product Name</th>
+                  <th className="text-end">Quantity</th>
+                  <th className="text-end">Unit Price</th>
+                  <th className="text-end">Line Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {getOrderLines(viewOrder).map((line, index) => {
+                  const quantity = getNumberValue(line, ['quantity', 'qty', 'Quantity']);
+                  const unitPrice = getNumberValue(line, ['unit_price', 'unitPrice', 'price', 'Price']);
+                  const lineTotal = getNumberValue(line, ['line_total', 'lineTotal', 'LineTotal']) || quantity * unitPrice;
+
+                  return (
+                    <tr key={`${getOrderValue(line, ['id', 'item_code', 'itemCode', 'ItemCode'], index)}-${index}`}>
+                      <td>{index + 1}</td>
+                      <td className="fw-semibold">{getOrderValue(line, ['item_code', 'itemCode', 'ItemCode'])}</td>
+                      <td>
+                        {getOrderValue(line, ['item_name', 'itemName', 'ItemName', 'description', 'Dscription', 'item_description'])}
+                      </td>
+                      <td className="text-end">{quantity}</td>
+                      <td className="text-end">{currency(unitPrice)}</td>
+                      <td className="text-end fw-semibold">{currency(lineTotal)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+          ) : (
+            <div className="text-center text-muted py-5">No product detail found for this sales order.</div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setViewOrder(null)} disabled={loadingViewOrderId !== null}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={Boolean(returnOrder)} onHide={closeReturnModal} size="xl" centered scrollable>
+        <Modal.Header closeButton={!submittingReturn && !compressingAttachments}>
+          <Modal.Title>Request Retur</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Row className="g-3 mb-4">
+            <Col sm={6} lg={3}>
+              <small className="text-muted">No. Sales Order</small>
+              <div className="fw-semibold">
+                {getOrderValue(returnOrder, ['sap_doc_num', 'sapDocNum', 'doc_num', 'docNum', 'order_no', 'orderNo'])}
+              </div>
+            </Col>
+            <Col sm={6} lg={3}>
+              <small className="text-muted">Customer</small>
+              <div className="fw-semibold">
+                {getOrderValue(returnOrder, ['customer_name', 'customerName', 'card_name', 'cardName'])}
+              </div>
+            </Col>
+            <Col sm={6} lg={3}>
+              <small className="text-muted">Depo</small>
+              <div className="fw-semibold">{getOrderValue(returnOrder, ['depo', 'depot', 'warehouse_name', 'warehouseName'])}</div>
+            </Col>
+            <Col sm={6} lg={3}>
+              <small className="text-muted">Order Date</small>
+              <div className="fw-semibold">
+                {formatOrderDate(getOrderValue(returnOrder, ['doc_date', 'docDate', 'created_at', 'createdAt'], ''))}
+              </div>
+            </Col>
+          </Row>
+
+          {loadingReturnOrderId !== null ? (
+            <div className="text-center text-muted py-5">Loading sales order detail...</div>
+          ) : getOrderLines(returnOrder).length ? (
+            <Table responsive bordered hover className="mb-4 align-middle">
+              <thead>
+                <tr>
+                  <th>No.</th>
+                  <th>Product Code</th>
+                  <th>Product Name</th>
+                  <th className="text-end">Order Qty</th>
+                  <th style={{ minWidth: 160 }}>Qty Retur</th>
+                </tr>
+              </thead>
+              <tbody>
+                {getOrderLines(returnOrder).map((line, index) => {
+                  const identity = getOrderValue(
+                    line,
+                    ['id', 'sales_order_detail_id', 'line_num', 'lineNum', 'item_code', 'itemCode', 'ItemCode'],
+                    index
+                  );
+                  const lineKey = `${identity}-${index}`;
+                  const orderedQuantity = getNumberValue(line, ['quantity', 'qty', 'Quantity']);
+
+                  return (
+                    <tr key={lineKey}>
+                      <td>{index + 1}</td>
+                      <td className="fw-semibold">{getOrderValue(line, ['item_code', 'itemCode', 'ItemCode'])}</td>
+                      <td>
+                        {getOrderValue(line, ['item_name', 'itemName', 'ItemName', 'description', 'Dscription', 'item_description'])}
+                      </td>
+                      <td className="text-end">{orderedQuantity}</td>
+                      <td>
+                        <Form.Control
+                          type="number"
+                          min={0}
+                          max={orderedQuantity}
+                          step={1}
+                          value={returnQuantities[lineKey] ?? ''}
+                          onChange={(event) => updateReturnQuantity(lineKey, event.target.value, orderedQuantity)}
+                        />
+                        <small className="text-muted">Maximum {orderedQuantity}</small>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+          ) : (
+            <div className="text-center text-muted py-4">No product detail found for this sales order.</div>
+          )}
+
+          <Row className="g-3">
+            <Col xs={12}>
+              <Form.Group>
+                <Form.Label>Reason</Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={3}
+                  value={returnReason}
+                  onChange={(event) => setReturnReason(event.target.value)}
+                  placeholder="Enter return reason"
+                  disabled={submittingReturn}
+                  required
+                />
+              </Form.Group>
+            </Col>
+            <Col xs={12}>
+              <Form.Group className="return-attachment-group">
+                <Form.Label>Attachment</Form.Label>
+                <Form.Control
+                  id="return-attachments"
+                  type="file"
+                  name="attachment[]"
+                  multiple
+                  className="visually-hidden"
+                  onChange={handleReturnAttachments}
+                  disabled={submittingReturn || compressingAttachments || returnAttachments.length >= MAX_RETURN_ATTACHMENTS}
+                />
+                <label
+                  className={`return-attachment-dropzone ${
+                    submittingReturn || compressingAttachments || returnAttachments.length >= MAX_RETURN_ATTACHMENTS ? 'is-disabled' : ''
+                  }`}
+                  htmlFor="return-attachments"
+                >
+                  <span className="return-attachment-icon">
+                    <i className="ti ti-cloud-upload" />
+                  </span>
+                  <span>
+                    <strong>{compressingAttachments ? 'Compressing files...' : 'Choose attachment files'}</strong>
+                    <small>Maximum 5 files, 1 MB per file. Large images are compressed automatically.</small>
+                  </span>
+                  <Badge bg={returnAttachments.length ? 'primary' : 'light'} text={returnAttachments.length ? undefined : 'dark'}>
+                    {returnAttachments.length} file
+                  </Badge>
+                </label>
+                {returnAttachments.length > 0 && (
+                  <div className="return-attachment-list">
+                    {returnAttachments.map((file, index) => (
+                      <div className="return-attachment-item" key={`${file.name}-${file.size}-${file.lastModified}`}>
+                        <ReturnAttachmentPreview file={file} />
+                        <span className="return-attachment-file-info">
+                          <strong title={file.name}>{file.name}</strong>
+                          <small>{file.size < 1024 * 1024 ? `${Math.ceil(file.size / 1024)} KB` : `${(file.size / 1024 / 1024).toFixed(1)} MB`}</small>
+                        </span>
+                        <Button
+                          type="button"
+                          variant="link"
+                          className="return-attachment-remove"
+                          onClick={() => setReturnAttachments((files) => files.filter((_, fileIndex) => fileIndex !== index))}
+                          disabled={submittingReturn}
+                          aria-label={`Remove ${file.name}`}
+                        >
+                          <i className="ti ti-x" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Form.Group>
+            </Col>
+          </Row>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={closeReturnModal} disabled={submittingReturn || compressingAttachments}>
+            Cancel
+          </Button>
+          <Button
+            variant="warning"
+            onClick={submitReturnRequest}
+            disabled={submittingReturn || compressingAttachments || loadingReturnOrderId !== null}
+          >
+            {submittingReturn ? 'Submitting...' : 'Submit Request Retur'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       <ConfirmDialog
         show={Boolean(orderToComplete)}

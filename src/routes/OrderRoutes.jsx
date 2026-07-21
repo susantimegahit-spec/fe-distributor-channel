@@ -7,7 +7,7 @@ import DashboardLayout from 'layout/Dashboard';
 import { RouteErrorBoundary } from 'views/ErrorBoundary';
 
 const OrderList = Loadable(lazy(() => import('views/customer-portal/order/OrderList')));
-// const OrderRetur = Loadable(lazy(() => import('views/customer-portal/order/OrderRetur')));
+const OrderRetur = Loadable(lazy(() => import('views/customer-portal/order/OrderRetur')));
 
 const OrderRoutes = {
   path: '/',
@@ -23,6 +23,10 @@ const OrderRoutes = {
       element: <OrderList showOnlyCommitment />
     },
     {
+      path: 'customer-portal/order/retur',
+      element: <OrderRetur />
+    },
+    {
       path: 'order/cmo',
       element: <Navigate to="/customer-portal/order/cmo" replace />
     },
@@ -30,6 +34,10 @@ const OrderRoutes = {
       path: 'order/order-list',
       element: <Navigate to="/customer-portal/order/order-list" replace />
     },
+    {
+      path: 'order/retur',
+      element: <Navigate to="/customer-portal/order/retur" replace />
+    }
   ]
 };
 

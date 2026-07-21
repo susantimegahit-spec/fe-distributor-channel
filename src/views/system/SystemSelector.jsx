@@ -1,5 +1,4 @@
 import { Navigate, useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
 
 // react-bootstrap
 import Button from 'react-bootstrap/Button';
@@ -9,29 +8,14 @@ import Stack from 'react-bootstrap/Stack';
 
 // project-imports
 import { getCookies } from '../../utils/cookies';
-import { getAvailableSystems, isAdministratorRole, normalizeAccessibleSystems, systems } from '../../systems';
+import { normalizeAccessibleSystems, systems } from '../../systems';
 import AccessDenied from './AccessDenied';
 
 export default function SystemSelector() {
   const navigate = useNavigate();
-  const roleId = getCookies('role');
-  const menuPermission = getCookies('menu');
-  const systemPermission = getCookies('systems');
-  const reduxSystemAccess = useSelector((state) => state.auth?.accessible_system || []);
-  const systemAccess = reduxSystemAccess.length ? reduxSystemAccess : normalizeAccessibleSystems(getCookies('system'));
-  const permissionMenu = [
-    ...(Array.isArray(menuPermission) ? menuPermission : []),
-    ...(Array.isArray(systemPermission) ? systemPermission : [])
-  ];
-  const permissionSystems = getAvailableSystems(permissionMenu, roleId);
-  const isAdministrator = isAdministratorRole(roleId);
-  const availableSystemKeys = new Set([...systemAccess, ...permissionSystems.map((system) => system.key)]);
-  const availableSystems = isAdministrator
-    ? systems
-    : availableSystemKeys.size
-      ? systems.filter((system) => availableSystemKeys.has(system.key))
-      : permissionSystems;
-  const defaultSystem = availableSystems[0] || systems[0];
+  const availableSystemKeys = new Set(normalizeAccessibleSystems(getCookies('system')));
+  const availableSystems = systems.filter((system) => availableSystemKeys.has(system.key));
+  const defaultSystem = availableSystems[0];
 
   if (!availableSystems.length) {
     return <AccessDenied showSystemSelector={false} />;

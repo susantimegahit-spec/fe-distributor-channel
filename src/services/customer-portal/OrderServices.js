@@ -116,6 +116,23 @@ class OrderServices {
     return this.postArrived(id);
   }
 
+  postRequestRetur(payload = {}) {
+    const formData = new FormData();
+
+    formData.append('sales_order_id', payload.sales_order_id ?? '');
+    formData.append('reason', payload.reason ?? '');
+    (payload.items || []).forEach((item, index) => {
+      Object.entries(item).forEach(([key, value]) => formData.append(`items[${index}][${key}]`, value ?? ''));
+    });
+    (payload.attachment || []).forEach((file) => formData.append('attachment[]', file));
+
+    return DataService.post('/sales-returns', formData);
+  }
+
+  getRetur() {
+    return DataService.get('/sales-returns');
+  }
+
   postCancelOrder(id) {
     return DataService.post(`/sales-orders/${id}/cancel`);
   }

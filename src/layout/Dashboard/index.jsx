@@ -1,5 +1,4 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { useSelector } from 'react-redux';
 
 // project-imports
 import Drawer from './Drawer';
@@ -8,7 +7,7 @@ import Header from './Header';
 import Breadcrumbs from 'components/Breadcrumbs';
 import FloatingFaq from 'components/FloatingFaq';
 import NavigationScroll from 'components/NavigationScroll';
-import { getAvailableSystems, getSystemByPathname, isAdministratorRole, normalizeAccessibleSystems } from '../../systems';
+import { getSystemByPathname, normalizeAccessibleSystems } from '../../systems';
 import { getCookies } from '../../utils/cookies';
 
 // ==============================|| MAIN LAYOUT ||============================== //
@@ -16,18 +15,7 @@ import { getCookies } from '../../utils/cookies';
 export default function MainLayout() {
   const { pathname } = useLocation();
   const activeSystem = getSystemByPathname(pathname);
-  const roleId = getCookies('role');
-  const menuPermission = getCookies('menu');
-  const systemPermission = getCookies('systems');
-  const reduxSystemAccess = useSelector((state) => state.auth?.accessible_system || []);
-  const systemAccess = reduxSystemAccess.length ? reduxSystemAccess : normalizeAccessibleSystems(getCookies('system'));
-  const permissionMenu = [
-    ...(Array.isArray(menuPermission) ? menuPermission : []),
-    ...(Array.isArray(systemPermission) ? systemPermission : [])
-  ];
-  const permissionSystems = getAvailableSystems(permissionMenu, roleId);
-  const allowedSystemKeys = new Set([...systemAccess, ...permissionSystems.map((system) => system.key)]);
-  const isAdministrator = isAdministratorRole(roleId);
+  const allowedSystemKeys = new Set(normalizeAccessibleSystems(getCookies('system')));
   const isSystemSelectorPath = pathname === '/systems';
   const isAccessDeniedPath = pathname === '/access-denied';
   const isSharedUtilityPath =
@@ -39,7 +27,7 @@ export default function MainLayout() {
     pathname.startsWith('/customer-portal/setting');
   const showSidebar = !isSharedUtilityPath;
 
-  if (!isAdministrator && activeSystem && !allowedSystemKeys.has(activeSystem.key)) {
+  if (activeSystem && !allowedSystemKeys.has(activeSystem.key)) {
     return (
       <Navigate
         to="/access-denied"
