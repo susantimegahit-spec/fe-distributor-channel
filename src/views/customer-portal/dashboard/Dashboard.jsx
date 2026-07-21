@@ -42,6 +42,8 @@ const statusConfig = {
 };
 
 const comparisonMonthOptions = moment.months().map((label, index) => ({ value: index + 1, label }));
+const allComparisonMonthOption = { value: 'all', label: 'All Month' };
+const comparisonMultiMonthOptions = [allComparisonMonthOption, ...comparisonMonthOptions];
 const currentComparisonYear = moment().year();
 const comparisonYearOptions = Array.from({ length: 7 }, (_, index) => currentComparisonYear + 1 - index);
 const MAX_RETURN_ATTACHMENTS = 5;
@@ -727,10 +729,25 @@ export default function Dashboard() {
   const customerCode = getAssignedCustomerCode();
   const isDistributor = Boolean(customerCode);
   const [comparisonFilters, setComparisonFilters] = useState({
-    month: moment().month() + 1,
+    months: [moment().month() + 1],
     year: currentComparisonYear,
     customerCode: ''
   });
+
+  const handleComparisonMonthChange = (options) => {
+    const selectedOptions = options || [];
+    const currentMonths = comparisonFilters.months;
+    const previouslySelectedAll = currentMonths.length === 0;
+    const hasAll = selectedOptions.some((option) => option.value === 'all');
+
+    if (!selectedOptions.length || (hasAll && !previouslySelectedAll)) {
+      setComparisonFilters((current) => ({ ...current, months: [] }));
+      return;
+    }
+
+    const selectedMonths = selectedOptions.filter((option) => option.value !== 'all').map((option) => Number(option.value));
+    setComparisonFilters((current) => ({ ...current, months: selectedMonths }));
+  };
 
   const comparisonCustomerOptions = useMemo(() => {
     const options = comparisonCustomers
@@ -894,8 +911,12 @@ export default function Dashboard() {
       setComparisonError('');
 
       try {
+        const monthParameter =
+          comparisonFilters.months.length > 1
+            ? comparisonFilters.months.join(',')
+            : comparisonFilters.months[0] || '';
         const response = await DashboardServices.getCompareOrder(
-          comparisonFilters.month,
+          monthParameter,
           comparisonFilters.year,
           comparisonFilters.customerCode,
           ''
@@ -1294,18 +1315,19 @@ export default function Dashboard() {
               </Col>
               <Col lg={3} sm={6}>
                 <Form.Label className="f-12 fw-semibold">Month</Form.Label>
-                <Form.Select
-                  value={comparisonFilters.month}
-                  onChange={(event) =>
-                    setComparisonFilters((current) => ({ ...current, month: Number(event.target.value) }))
+                <ReactSelect
+                  isMulti
+                  options={comparisonMultiMonthOptions}
+                  value={
+                    comparisonFilters.months.length
+                      ? comparisonMonthOptions.filter((option) => comparisonFilters.months.includes(option.value))
+                      : [allComparisonMonthOption]
                   }
-                >
-                  {comparisonMonthOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </Form.Select>
+                  onChange={handleComparisonMonthChange}
+                  closeMenuOnSelect={false}
+                  isClearable={false}
+                  placeholder="Select month"
+                />
               </Col>
               <Col lg={3} sm={6}>
                 <Form.Label className="f-12 fw-semibold">Year</Form.Label>
@@ -1405,7 +1427,7 @@ export default function Dashboard() {
           </Stack>
         </MainCard>
 
-        {(isLoadingEta || etaWarnings.length > 0) && (
+        {!isLoadingEta && etaWarnings.length > 0 && (
           <Row className="g-3 align-items-stretch dashboard-action-cards">
             <Col xs={12} className="d-flex">
             <MainCard
