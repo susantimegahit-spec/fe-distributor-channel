@@ -4,7 +4,7 @@ import Row from 'react-bootstrap/Row';
 
 import MainCard from 'components/MainCard';
 import { Badge, Button, Card, Form, Modal, Stack, Table } from 'react-bootstrap';
-import { getCookies } from '../../../utils/cookies';
+import { getAssignedCustomerCodes, getCookies } from '../../../utils/cookies';
 import DistributorServices from '../../../services/customer-portal/DistributorServices';
 import { useAlert } from '../../../utils/alertContext';
 import LoaderData from '../../../components/LoaderData';
@@ -30,11 +30,9 @@ export default function OrderPost({ cmoMode = false }) {
   const roleId = getCookies('role');
   const roleNumber = Number(roleId);
   const isCustomerRole = roleNumber === 1;
-  const customerCodeCookie = getCookies('customerCode');
-  const assignedCustomerCode = ['undefined', 'null', ''].includes(String(customerCodeCookie ?? '').trim().toLowerCase())
-    ? ''
-    : String(customerCodeCookie).trim();
-  const shouldLockCustomerCode = isCustomerRole || (cmoMode && Boolean(assignedCustomerCode));
+  const assignedCustomerCodes = getAssignedCustomerCodes();
+  const assignedCustomerCode = assignedCustomerCodes.length === 1 ? assignedCustomerCodes[0] : '';
+  const shouldLockCustomerCode = assignedCustomerCodes.length === 1;
   const isAdminSalesRole = roleNumber === 2;
   const canSelectSales = roleNumber === 2 || roleNumber === 5;
   const canSaveDraft = cmoMode || roleNumber === 1 || roleNumber === 5;
@@ -43,7 +41,6 @@ export default function OrderPost({ cmoMode = false }) {
   const { id } = useParams();
   const isDetailMode = Boolean(id);
   const { showAlert } = useAlert();
-  const distributorId = getCookies('distributorId');
   const [showDisc, setShowDisc] = useState(false);
   const [selectedRewardTarget, setSelectedRewardTarget] = useState(null);
   const [rewardDiscountPreview, setRewardDiscountPreview] = useState([]);
@@ -717,32 +714,12 @@ export default function OrderPost({ cmoMode = false }) {
   };
 
   const fetchDistributor = async () => {
-    if (!distributorId && assignedCustomerCode) {
-      setOrderInput((currentInput) => ({ ...currentInput, cardCode: assignedCustomerCode }));
-      fetchAddress(assignedCustomerCode);
-      fetchItem(assignedCustomerCode);
-      fetchEmployee(assignedCustomerCode);
-      return;
-    }
+    if (!assignedCustomerCode) return;
 
-    setIsLoading(true);
-    const response = await DistributorServices.getDetailDistributor(distributorId);
-    if (response.data.success) {
-      setIsLoading(false);
-      setOrderInput({
-        ...orderInput,
-        cardCode: response.data?.data.code_customer,
-        cnctCode: response.data?.data.name
-        // address: createOption(response.data?.data.address, response.data?.data.address),
-        // address2: createOption(response.data?.data.mail_address, response.data?.data.mail_address)
-      });
-      fetchAddress(response.data?.data.code_customer);
-      fetchItem(response.data?.data.code_customer);
-      fetchEmployee(response.data?.data.code_customer);
-    } else {
-      setIsLoading(false);
-      // showAlert('Failed to fetch data', 'danger');
-    }
+    setOrderInput((currentInput) => ({ ...currentInput, cardCode: assignedCustomerCode }));
+    fetchAddress(assignedCustomerCode);
+    fetchItem(assignedCustomerCode);
+    fetchEmployee(assignedCustomerCode);
   };
 
   const fetchItem = async (code) => {
@@ -901,7 +878,9 @@ export default function OrderPost({ cmoMode = false }) {
       const data = response.data.data;
       const dataArr = data.map((item) => ({
         value: item?.code_customer,
-        label: `${item?.code_customer || ''} - ${item?.name || ''} - ${item?.depo || ''}`,
+        label: `${item?.code_customer || item?.customer_code || '-'} - ${item?.name || item?.customer_name || '-'} - ${
+          item?.depo || item?.customer_depo || '-'
+        }`,
         name: item?.name,
         depo: item?.depo
       }));

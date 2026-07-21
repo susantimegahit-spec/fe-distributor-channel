@@ -24,7 +24,7 @@ import DistributorServices from '../../../services/customer-portal/DistributorSe
 import OrderServices from '../../../services/customer-portal/OrderServices';
 import { currency } from '../../../utils/global';
 import { useAlert } from '../../../utils/alertContext';
-import { getCookies } from '../../../utils/cookies';
+import { getAssignedCustomerCode, getAssignedCustomerCodes } from '../../../utils/cookies';
 
 const statusConfig = {
   DRAFT: { label: 'Draft', color: 'secondary', icon: 'ti ti-clipboard-list' },
@@ -634,12 +634,13 @@ export default function Dashboard() {
   const [comparisonCustomers, setComparisonCustomers] = useState([]);
   const [isLoadingComparisonCustomers, setIsLoadingComparisonCustomers] = useState(false);
   const chartContainerRef = useRef(null);
-  const customerCode = getCookies('customerCode');
+  const assignedCustomerCodes = useMemo(() => getAssignedCustomerCodes(), []);
+  const customerCode = getAssignedCustomerCode();
   const isDistributor = Boolean(customerCode);
   const [comparisonFilters, setComparisonFilters] = useState({
     month: moment().month() + 1,
     year: currentComparisonYear,
-    customerCode: customerCode || ''
+    customerCode: ''
   });
 
   const comparisonCustomerOptions = useMemo(() => {
@@ -647,17 +648,18 @@ export default function Dashboard() {
       .map((customer) => {
         const code = getFirstValue(customer, ['code_customer', 'customer_code', 'customerCode', 'code']);
         const name = getFirstValue(customer, ['name', 'customer_name', 'customerName', 'name_distributor']);
+        const depo = getFirstValue(customer, ['depo', 'depot', 'customer_depo', 'customerDepot']);
 
-        return code ? { value: String(code), label: [code, name].filter(Boolean).join(' - ') } : null;
+        return code ? { value: String(code), label: `${code} - ${name || '-'} - ${depo || '-'}` } : null;
       })
       .filter(Boolean);
 
-    if (customerCode && !options.some((option) => option.value === String(customerCode))) {
-      options.unshift({ value: String(customerCode), label: String(customerCode) });
+    if (assignedCustomerCodes.length === 1 && !options.some((option) => option.value === assignedCustomerCodes[0])) {
+      options.unshift({ value: assignedCustomerCodes[0], label: `${assignedCustomerCodes[0]} - - -` });
     }
 
-    return [{ value: '', label: 'All Customer' }, ...options];
-  }, [comparisonCustomers, customerCode]);
+    return assignedCustomerCodes.length ? options : [{ value: '', label: 'All Customer' }, ...options];
+  }, [assignedCustomerCodes, comparisonCustomers]);
 
   const comparisonTotals = useMemo(
     () =>
@@ -991,8 +993,7 @@ export default function Dashboard() {
                 <Form.Label className="f-12 fw-semibold">Customer Code</Form.Label>
                 <ReactSelect
                   value={
-                    comparisonCustomerOptions.find((option) => option.value === String(comparisonFilters.customerCode || '')) ||
-                    comparisonCustomerOptions[0]
+                    comparisonCustomerOptions.find((option) => option.value === String(comparisonFilters.customerCode || '')) || null
                   }
                   options={comparisonCustomerOptions}
                   isLoading={isLoadingComparisonCustomers}

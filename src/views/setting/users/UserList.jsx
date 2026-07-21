@@ -24,6 +24,7 @@ import RoleServices from '../../../services/setting/RoleServices';
 import UserServices from '../../../services/setting/UserServices';
 import { SYSTEM_KEYS } from '../../../systems';
 import { useAlert } from '../../../utils/alertContext';
+import { getAssignedCustomerCode } from '../../../utils/cookies';
 
 const initialInput = {
   name: '',
@@ -74,8 +75,24 @@ const getUserDistributorName = (item) =>
   item?.name_distributor || item?.distributor_name || item?.distributor?.name || item?.distributor?.name_distributor || '';
 
 const normalizeArray = (value) => {
-  if (Array.isArray(value)) return value.filter((item) => item !== undefined && item !== null && item !== '');
+  if (Array.isArray(value)) return value.flatMap((item) => normalizeArray(item));
   if (value === undefined || value === null || value === '') return [];
+
+  if (typeof value === 'string') {
+    const normalizedValue = value.trim();
+    if (!normalizedValue) return [];
+
+    try {
+      const parsedValue = JSON.parse(normalizedValue);
+
+      if (parsedValue !== normalizedValue) return normalizeArray(parsedValue);
+    } catch {
+      // Use comma-separated values from the user detail response.
+    }
+
+    return normalizedValue.split(',').map((item) => item.trim()).filter(Boolean);
+  }
+
   return [value];
 };
 
@@ -109,7 +126,15 @@ const getUserDistributors = (item) => {
     });
   }
 
-  const codes = normalizeArray(item?.code_customers || item?.code_customer || item?.customer_code || item?.distributor_code);
+  const codes = normalizeArray(
+    item?.code_customers ||
+      item?.customer_codes ||
+      item?.code_customer ||
+      item?.customer_code ||
+      item?.codeCustomer ||
+      item?.customerCode ||
+      item?.distributor_code
+  );
   const ids = normalizeArray(item?.id_distributors || item?.id_distributor || item?.distributor_id);
   const names = normalizeArray(item?.name_distributors || item?.name_distributor || item?.distributor_name);
 
@@ -197,6 +222,7 @@ const formatAccessibleSystems = (item) => {
 };
 
 export default function UserList() {
+  const assignedCustomerCode = getAssignedCustomerCode();
   const { showAlert } = useAlert();
   const [dataSource, setDataSource] = useState([]);
   const [listRole, setListRole] = useState([]);
@@ -248,12 +274,18 @@ export default function UserList() {
   const getListDistributor = async () => {
     const response = await DistributorServices.getAllDistributor('');
     if (response.data.success) {
-      const options = response.data.data.map((item) => ({
-        value: item.code_customer,
-        label: `${item.code_customer || '-'} - ${item.name || '-'} - ${item?.depo}`,
-        id: item.id,
-        name: item.name
-      }));
+      const options = response.data.data
+        .map((item) => {
+          const customerCode = String(item.code_customer || item.customer_code || '').trim();
+
+          return {
+            value: customerCode,
+            label: `${customerCode || '-'} - ${item.name || item.customer_name || '-'} - ${item.depo || item.customer_depo || '-'}`,
+            id: String(item.id || '').trim(),
+            name: item.name
+          };
+        })
+        .filter((item) => item.value);
 
       setListDistributor(options);
     }
@@ -336,7 +368,7 @@ export default function UserList() {
     });
   };
 
-  const distributorOptions = [allDistributorOption, ...listDistributor];
+  const distributorOptions = assignedCustomerCode ? listDistributor : [allDistributorOption, ...listDistributor];
   const isAllDistributorSelected = input.distributorCodes.includes(ALL_DISTRIBUTORS_VALUE);
   const selectedDistributor = isAllDistributorSelected
     ? [allDistributorOption]
@@ -356,8 +388,8 @@ export default function UserList() {
 
   const showEditModal = (item) => {
     const distributors = getUserDistributors(item);
-    const distributorCodes = distributors.map((distributor) => distributor.code).filter(Boolean);
-    const distributorIds = distributors.map((distributor) => distributor.id).filter(Boolean);
+    const distributorCodes = distributors.flatMap((distributor) => normalizeArray(distributor.code)).map(String);
+    const distributorIds = distributors.flatMap((distributor) => normalizeArray(distributor.id)).map(String);
     const hasAllDistributors =
       listDistributor.length > 0 &&
       distributorCodes.length === listDistributor.length &&

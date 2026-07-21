@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import SingleCharacter from 'assets/images/single-character.png';
+import SaltyImage from 'assets/images/salty2.png';
 import LocalAIService from '../services/shared/LocalAIService';
 
 const faqItems = [
@@ -132,7 +132,7 @@ export default function FloatingFaq() {
         aria-expanded={isOpen}
         aria-label={isOpen ? 'Tutup FAQ' : 'Buka FAQ'}
       >
-        <img src={SingleCharacter} alt="" aria-hidden="true" />
+        <img src={SaltyImage} alt="" aria-hidden="true" />
       </button>
     </div>
   );

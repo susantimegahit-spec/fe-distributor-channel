@@ -163,7 +163,7 @@ const getProgramCustomers = (program) => {
     if (typeof customer === 'string') {
       const customerName = customerNames[index] || '';
       const depo = customerDepos[index] || '';
-      const labelParts = [customer, depo, customerName].filter(Boolean);
+      const labelParts = [customer, customerName || '-', depo || '-'];
 
       return {
         value: customer,
@@ -180,12 +180,12 @@ const getProgramCustomers = (program) => {
     const customerCode = customer.customer_code || customer.code_customer || customer.distributor_code || customer.value || '';
     const customerName = customer.customer_name || customer.name_customer || customer.name || customer.label || '';
     const depo = customer.depo || customer.customer_depo || '';
-    const labelParts = [customerCode, depo, customerName].filter(Boolean);
+    const labelParts = [customerCode || '-', customerName || '-', depo || '-'];
 
     return {
       value: customerCode || customerName,
       customer_code: customerCode,
-      label: customer.label || labelParts.join(' - ') || '-',
+      label: labelParts.join(' - '),
       customer
     };
   });
@@ -300,7 +300,7 @@ export default function MasterPromo() {
           return {
             value: customerCode,
             customer_code: customerCode,
-            label: [customerCode, depo, customerName].filter(Boolean).join(' - ') || '-',
+            label: `${customerCode || '-'} - ${customerName || '-'} - ${depo || '-'}`,
             id: customer.id,
             customer
           };

@@ -11,6 +11,21 @@ const getCookies = key => {
     }
 };
 
+const normalizeCustomerCode = value => {
+    const normalizedValue = String(value ?? '').trim();
+
+    return ['undefined', 'null'].includes(normalizedValue.toLowerCase()) ? '' : normalizedValue;
+};
+
+const getAssignedCustomerCodes = () => {
+    const cookieValue = getCookies('customerCode');
+    const values = Array.isArray(cookieValue) ? cookieValue : String(cookieValue ?? '').split(',');
+
+    return [...new Set(values.map(normalizeCustomerCode).filter(Boolean))];
+};
+
+const getAssignedCustomerCode = () => getAssignedCustomerCodes().join(',');
+
 const setCookies = (key, value) => {
     Cookies.set(key, value);
 };
@@ -20,4 +35,4 @@ const removeCookies = key => {
 };
 
 
-export { getCookies, setCookies, removeCookies };
+export { getCookies, setCookies, removeCookies, normalizeCustomerCode, getAssignedCustomerCode, getAssignedCustomerCodes };

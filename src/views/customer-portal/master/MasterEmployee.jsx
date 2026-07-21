@@ -28,6 +28,7 @@ const initialSalesInput = {
   salesId: [],
   distributorCode: '',
   distributorName: '',
+  distributorDepo: '',
   distributorId: '',
   status: '1'
 };
@@ -62,6 +63,8 @@ const getDistributorName = (item) =>
   item?.distributor?.name ||
   item?.distributor?.name_distributor ||
   '';
+const getDistributorDepo = (item) =>
+  getValue(item, ['depo', 'depot', 'customer_depo']) || item?.distributor?.depo || item?.distributor?.depot || '';
 
 export default function MasterEmployee() {
   const { showAlert } = useAlert();
@@ -166,10 +169,13 @@ export default function MasterEmployee() {
       if (distributorResponse.data.success) {
         setListDistributor(
           normalizeList(distributorResponse).map((item) => ({
-            value: item.code_customer,
-            label: `${item.code_customer} - ${item.depo} - ${item.name}`,
+            value: item.code_customer || item.customer_code,
+            label: `${item.code_customer || item.customer_code || '-'} - ${item.name || item.customer_name || '-'} - ${
+              item.depo || item.customer_depo || '-'
+            }`,
             id: item.id,
-            name: item.name
+            name: item.name || item.customer_name,
+            depo: item.depo || item.customer_depo
           }))
         );
       } else {
@@ -246,6 +252,7 @@ export default function MasterEmployee() {
     const salesName = getSalesName(item);
     const distributorCode = getDistributorCode(item);
     const distributorName = getDistributorName(item);
+    const distributorDepo = getDistributorDepo(item);
 
     if (!salesDistributorId) {
       showAlert('Sales relation ID not found', 'danger');
@@ -259,6 +266,7 @@ export default function MasterEmployee() {
       salesId: [item?.sales_employee_id || item?.employee_id || item?.sales_employee?.id || ''],
       distributorCode,
       distributorName,
+      distributorDepo,
       distributorId: item?.distributor_id || item?.distributor?.id || '',
       status: String(getValue(item, ['status'], '1'))
     });
@@ -281,6 +289,7 @@ export default function MasterEmployee() {
       ...prevState,
       distributorCode: option?.value || '',
       distributorName: option?.name || '',
+      distributorDepo: option?.depo || '',
       distributorId: option?.id || ''
     }));
   };
@@ -420,7 +429,7 @@ export default function MasterEmployee() {
     (salesInput.distributorCode
       ? {
           value: salesInput.distributorCode,
-          label: [salesInput.distributorCode, salesInput.distributorName].filter(Boolean).join(' - '),
+          label: `${salesInput.distributorCode || '-'} - ${salesInput.distributorName || '-'} - ${salesInput.distributorDepo || '-'}`,
           id: salesInput.distributorId,
           name: salesInput.distributorName
         }

@@ -20,7 +20,7 @@ import FinanceServices from '../../../services/customer-portal/FinanceServices';
 import PromoServices from '../../../services/customer-portal/PromoServices';
 import RoleServices from '../../../services/setting/RoleServices';
 import { useAlert } from '../../../utils/alertContext';
-import { getCookies } from '../../../utils/cookies';
+import { getAssignedCustomerCode, getCookies } from '../../../utils/cookies';
 import ConfirmDialog from 'components/ConfirmDialog';
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
@@ -238,9 +238,9 @@ const normalizeTotalReward = (response) => {
 
 const normalizeDistributorOption = (item) => ({
   value: item.code_customer || item.customer_code || item.distributor_code || '',
-  label: `${item.code_customer || item.customer_code || item.distributor_code || '-'} - ${item.depo || '-'} - ${
+  label: `${item.code_customer || item.customer_code || item.distributor_code || '-'} - ${
     item.customer_name || item.name_customer || item.name || item.name_distributor || '-'
-  }`,
+  } - ${item.depo || item.customer_depo || '-'}`,
   id: item.id,
   depo: item.depo || '',
   name: item.customer_name || item.name_customer || item.name || item.name_distributor || '',
@@ -251,7 +251,7 @@ const normalizeDistributorOption = (item) => ({
 
 export default function RewardList() {
   const { showAlert } = useAlert();
-  const customerCode = getCookies('customerCode');
+  const customerCode = getAssignedCustomerCode();
   const roleId = getCookies('role');
   const todayDate = getTodayDate();
   const fileInputRef = useRef(null);

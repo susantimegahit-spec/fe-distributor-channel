@@ -20,7 +20,7 @@ import FinanceServices from '../../../services/customer-portal/FinanceServices';
 import PromoServices from '../../../services/customer-portal/PromoServices';
 import RoleServices from '../../../services/setting/RoleServices';
 import { useAlert } from '../../../utils/alertContext';
-import { getCookies } from '../../../utils/cookies';
+import { getAssignedCustomerCode, getCookies } from '../../../utils/cookies';
 
 const pageSize = 10;
 
@@ -171,7 +171,7 @@ const normalizeCustomerOption = (item = {}) => {
 
   return {
     value: code,
-    label: [code, depo, name].filter(Boolean).join(' - ') || '-',
+    label: `${code || '-'} - ${name || '-'} - ${depo || '-'}`,
     customerCode: code,
     customerName: name,
     depo,
@@ -407,7 +407,7 @@ const getStatusVariant = (status) => {
 
 export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0, refreshSignal = 0 }) {
   const { showAlert } = useAlert();
-  const customerCode = getCookies('customerCode') || '';
+  const customerCode = getAssignedCustomerCode();
   const roleId = getCookies('role');
   const fileInputRef = useRef(null);
   const handledWithdrawSignalRef = useRef(0);

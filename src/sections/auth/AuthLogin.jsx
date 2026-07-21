@@ -85,6 +85,7 @@ export default function AuthLoginForm({ className }) {
           userData.accessible_systems ||
           [];
         const accessibleSystems = normalizeAccessibleSystems(accessibleSystemSource);
+        const customerCode = userData.customer_code || userData.code_customer || loginData.customer_code || loginData.code_customer || '';
 
         Cookies.set('isLoggedIn', true);
         Cookies.set('accessToken', loginData.access_token);
@@ -96,7 +97,11 @@ export default function AuthLoginForm({ className }) {
         Cookies.set('systems', JSON.stringify(loginData?.systems || loginData?.system_permissions || []));
         Cookies.set('system', JSON.stringify(accessibleSystems));
         dispatch(setAccessibleSystem(accessibleSystems));
-        Cookies.set('customerCode', userData?.code_customer);
+        if (String(customerCode).trim()) {
+          Cookies.set('customerCode', String(customerCode).trim());
+        } else {
+          Cookies.remove('customerCode');
+        }
         Cookies.set('distributorName', userData?.name_distributor);
         Cookies.set('distributorId', userData?.id_distributor);
         window.dispatchEvent(new Event(AUTH_STATE_CHANGED_EVENT));

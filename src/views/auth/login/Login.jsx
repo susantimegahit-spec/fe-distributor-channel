@@ -6,6 +6,7 @@ import GaramCapTanganLogo from 'assets/images/garam-cap-tangan.png';
 import GaramiLogo from 'assets/images/garami.png';
 import GaramJempolLogo from 'assets/images/garam-jempol.png';
 import GaramkuLogo from 'assets/images/garamku.png';
+import SaltyImage from 'assets/images/salty2.png';
 
 // ===========================|| AUTH - LOGIN PAGE ||=========================== //
 
@@ -23,9 +24,11 @@ export default function LoginPage() {
     <div className="sm-auth-main">
       <div className="sm-auth-shell">
         <section className="sm-auth-brand">
-          <div className="sm-auth-floating-balls" aria-hidden="true">
+          <div className="sm-auth-floating-balls sm-auth-floating-salty" aria-hidden="true">
             {Array.from({ length: 16 }, (_, index) => (
-              <span key={index} />
+              <span key={index}>
+                <img src={SaltyImage} alt="" />
+              </span>
             ))}
           </div>
           <div className="sm-auth-brand-inner">

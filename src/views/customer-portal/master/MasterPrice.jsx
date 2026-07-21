@@ -194,8 +194,10 @@ export default function MasterPrice() {
       if (distributorResponse.data.success) {
         setListDistributor(
           normalizeList(distributorResponse).map((item) => ({
-            value: item.code_customer,
-            label: `${item.code_customer || '-'} - ${item?.depo} - ${item.name || '-'}`,
+            value: item.code_customer || item.customer_code,
+            label: `${item.code_customer || item.customer_code || '-'} - ${item.name || item.customer_name || '-'} - ${
+              item.depo || item.customer_depo || '-'
+            }`,
             name: item.name
           }))
         );

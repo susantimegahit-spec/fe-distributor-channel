@@ -15,7 +15,7 @@ import Stack from 'react-bootstrap/Stack';
 import SimpleBarScroll from 'components/third-party/SimpleBar';
 import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
 
-import { getCookies } from '../../utils/cookies';
+import { getAssignedCustomerCode, getCookies } from '../../utils/cookies';
 import { Modal } from 'react-bootstrap';
 import UserServices from '../../services/setting/UserServices';
 import NotificationServices from '../../services/shared/NotificationServices';
@@ -45,7 +45,7 @@ export default function Header({ showSidebar = true }) {
   const userId = getCookies('id');
   const userName = getCookies('name');
   const userEmail = getCookies('email');
-  const customerCode = getCookies('customerCode');
+  const customerCode = getAssignedCustomerCode();
   const distributorName = getCookies('distributorName');
   const userInitial = userName?.charAt(0)?.toUpperCase() || 'U';
 

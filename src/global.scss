@@ -167,6 +167,23 @@ body {
   animation: sm-auth-ball-float var(--ball-duration) ease-in-out var(--ball-delay) infinite alternate;
 }
 
+.sm-auth-floating-salty span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.sm-auth-floating-salty span img {
+  display: block;
+  width: 145%;
+  max-width: none;
+  height: auto;
+  filter: drop-shadow(0 12px 20px rgba(2, 10, 30, 0.28));
+}
+
 .sm-auth-floating-balls span:nth-child(1) {
   --ball-size: 76px;
   --ball-left: 7%;
@@ -1765,12 +1782,23 @@ body {
   pointer-events: none;
 }
 
+.pc-sidebar .sm-sidebar-floating-balls {
+  z-index: 1;
+  opacity: 0.9;
+}
+
+.pc-sidebar .sm-sidebar-floating-balls span {
+  border-color: rgba(255, 255, 255, 0.38);
+  box-shadow: 0 12px 28px rgba(2, 10, 30, 0.2), inset 0 0 16px rgba(255, 255, 255, 0.2);
+}
+
 .pc-sidebar .navbar-wrapper {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   display: flex;
   min-height: 100dvh;
   flex-direction: column;
+  background: transparent;
 }
 
 .pc-sidebar .m-header {
@@ -2001,7 +2029,7 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center 18%;
+  object-position: center;
 }
 
 .sm-floating-faq-panel {

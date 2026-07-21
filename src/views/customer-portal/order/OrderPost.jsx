@@ -4,7 +4,7 @@ import Row from 'react-bootstrap/Row';
 
 import MainCard from 'components/MainCard';
 import { Badge, Button, Card, Form, Modal, Stack, Table } from 'react-bootstrap';
-import { getCookies } from '../../../utils/cookies';
+import { getAssignedCustomerCode, getCookies } from '../../../utils/cookies';
 import DistributorServices from '../../../services/customer-portal/DistributorServices';
 import { useAlert } from '../../../utils/alertContext';
 import LoaderData from '../../../components/LoaderData';
@@ -688,7 +688,7 @@ export default function OrderCreate() {
       dataDisc.push(data);
     });
     const payload = {
-      CardCode: getCookies('customerCode'),
+      CardCode: getAssignedCustomerCode(),
       CardName: getCookies('distributorName'),
       Lines: dataDisc
     };

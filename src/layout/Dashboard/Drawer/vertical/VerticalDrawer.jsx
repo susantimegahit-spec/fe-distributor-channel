@@ -10,6 +10,11 @@ export const VerticalDrawer = () => {
 
   return (
     <nav id="pc-sidebar" className={`pc-sidebar ${drawerOpen && 'pc-sidebar-hide mob-sidebar-active'}`}>
+      <div className="sm-auth-floating-balls sm-sidebar-floating-balls" aria-hidden="true">
+        {Array.from({ length: 16 }, (_, index) => (
+          <span key={index} />
+        ))}
+      </div>
       <div className="navbar-wrapper">
         <DrawerHeader />
         <div className="navbar-content">

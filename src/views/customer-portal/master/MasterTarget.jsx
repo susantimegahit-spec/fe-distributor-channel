@@ -177,7 +177,7 @@ export default function MasterTarget() {
     const code = distributor.code_customer || distributor.codeCustomer || '';
     const name = distributor.name || distributor.customer_name || distributor.customerName || '';
     const depot = distributor.depo || distributor.depot || '';
-    return { value: code, label: [code, name, depot].filter(Boolean).join(' - ') };
+    return { value: code, label: `${code || '-'} - ${name || '-'} - ${depot || '-'}` };
   });
   const depotOptions = [...new Set(distributors.map((distributor) => distributor.depo || distributor.depot).filter(Boolean))]
     .sort((first, second) => first.localeCompare(second))
@@ -187,6 +187,7 @@ export default function MasterTarget() {
     (totals, item) => totals.map((total, monthIndex) => total + item.monthlyTargets[monthIndex]),
     Array(12).fill(0)
   );
+  const totalTarget = monthlyGrandTotals.reduce((total, monthlyTarget) => total + monthlyTarget, 0);
 
   const fetchTargetData = useCallback(
     async (customerCode, year, depot) => {
@@ -441,9 +442,12 @@ export default function MasterTarget() {
       <MainCard
         title="Target Data"
         secondary={
-          <Badge bg="light-primary" text="primary">
-            {targetItems.length} items
-          </Badge>
+          <Stack direction="horizontal" gap={2}>
+            <Badge bg="light-primary" text="primary">
+              {targetItems.length} items
+            </Badge>
+            <Badge bg="primary">Total Target: {totalTarget.toLocaleString('id-ID')} Kg</Badge>
+          </Stack>
         }
       >
         <Row className="g-3 align-items-end mb-3">
@@ -497,12 +501,15 @@ export default function MasterTarget() {
                   {month} (Kg)
                 </th>
               ))}
+              <th className="text-end" style={{ minWidth: 140 }}>
+                Total Target (Kg)
+              </th>
             </tr>
           </thead>
           <tbody>
             {loadingTarget ? (
               <tr>
-                <td colSpan={14} className="text-center text-muted py-4">
+                <td colSpan={15} className="text-center text-muted py-4">
                   Loading target data...
                 </td>
               </tr>
@@ -519,11 +526,14 @@ export default function MasterTarget() {
                       {target.toLocaleString('id-ID')}
                     </td>
                   ))}
+                  <td className="text-end fw-semibold">
+                    {item.monthlyTargets.reduce((total, target) => total + target, 0).toLocaleString('id-ID')}
+                  </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={14} className="text-center text-muted py-4">
+                <td colSpan={15} className="text-center text-muted py-4">
                   No target data found for the selected filters.
                 </td>
               </tr>
@@ -538,6 +548,7 @@ export default function MasterTarget() {
                   {total.toLocaleString('id-ID')}
                 </td>
               ))}
+              <td className="text-end text-primary">{totalTarget.toLocaleString('id-ID')}</td>
             </tr>
           </tfoot>
         </Table>

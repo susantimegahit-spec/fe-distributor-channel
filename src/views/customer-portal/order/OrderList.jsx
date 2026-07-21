@@ -250,7 +250,10 @@ export default function OrderList({ showOnlyCommitment = false }) {
     return orders.filter((order) => {
       const matchesKeyword = !normalizedKeyword || order.order_no?.toLowerCase().includes(normalizedKeyword);
       // ||order.distributor?.toLowerCase().includes(normalizedKeyword);
-      const matchesDistributor = !distributor || order.distributorId === distributor;
+      const orderCustomerCode = String(
+        order.card_code || order.cardCode || order.customer_code || order.customerCode || order.code_customer || order.CardCode || ''
+      );
+      const matchesDistributor = !distributor || orderCustomerCode === distributor;
       const matchesStatus = !status || normalizeSummaryStatus(order.status) === normalizeSummaryStatus(status);
       const matchesDate = !date || order.date === date;
 
@@ -270,7 +273,10 @@ export default function OrderList({ showOnlyCommitment = false }) {
 
     return orders.filter((order) => {
       const matchesKeyword = !normalizedKeyword || order.order_no?.toLowerCase().includes(normalizedKeyword);
-      const matchesDistributor = !distributor || order.distributorId === distributor;
+      const orderCustomerCode = String(
+        order.card_code || order.cardCode || order.customer_code || order.customerCode || order.code_customer || order.CardCode || ''
+      );
+      const matchesDistributor = !distributor || orderCustomerCode === distributor;
       const matchesDate = !date || order.date === date;
 
       return matchesKeyword && matchesDistributor && matchesDate;
@@ -362,7 +368,14 @@ export default function OrderList({ showOnlyCommitment = false }) {
     setDistributor('');
     setStatus('');
     setDate('');
-    fetchData();
+    fetchData('');
+  };
+
+  const handleCustomerCodeChange = (option) => {
+    const customerCode = option?.value || '';
+
+    setDistributor(customerCode);
+    fetchData(customerCode);
   };
 
   const extractOrderList = (response) => {
@@ -394,7 +407,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
 
             return {
               value: code,
-              label: [code, name, depo].filter(Boolean).join(' - ')
+              label: `${code || '-'} - ${name || '-'} - ${depo || '-'}`
             };
           })
           .filter((item) => item.value)
@@ -452,11 +465,15 @@ export default function OrderList({ showOnlyCommitment = false }) {
     fetchCommitmentOrders({ start_date: '', end_date: '', customer_code: '' });
   };
 
-  const fetchData = async () => {
+  const fetchData = async (customerCode = distributor) => {
     setIsLoading(true);
 
     try {
-      const [resp, draftResp] = await Promise.all([OrderServices.getListOrders(), OrderServices.getListOrders({ status: 'DRAFT' })]);
+      const customerFilter = customerCode ? { customer_code: customerCode } : {};
+      const [resp, draftResp] = await Promise.all([
+        OrderServices.getSalesOrder(customerFilter),
+        OrderServices.getSalesOrder({ ...customerFilter, status: 'DRAFT' })
+      ]);
       const nextOrders = extractOrderList(resp);
       const nextDraftOrders = extractOrderList(draftResp);
 
@@ -1408,7 +1425,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
             <MainCard>
               {renderStatusFilterBoxes()}
               <Row className="g-2 align-items-end mb-3">
-                <Col lg={4} md={6}>
+                <Col lg={3} md={6}>
                   <Form.Label className="f-12 text-muted">Search Order</Form.Label>
                   <InputGroup>
                     <InputGroup.Text>
@@ -1417,7 +1434,23 @@ export default function OrderList({ showOnlyCommitment = false }) {
                     <Form.Control value={keywords} onChange={(event) => setKeywords(event.target.value)} type="text" placeholder="No. PO" />
                   </InputGroup>
                 </Col>
-                <Col lg={4} md={6}>
+                <Col lg={3} md={6}>
+                  <Form.Label className="f-12 text-muted">Customer Code</Form.Label>
+                  <Select
+                    classNamePrefix="react-select"
+                    value={commitmentCustomerOptions.find((option) => option.value === distributor) || null}
+                    options={commitmentCustomerOptions}
+                    menuPosition="fixed"
+                    isLoading={isLoadingCommitmentCustomers}
+                    isDisabled={isLoadingCommitmentCustomers}
+                    isClearable
+                    isSearchable
+                    placeholder="Select customer code..."
+                    noOptionsMessage={() => 'Distributor not found'}
+                    onChange={handleCustomerCodeChange}
+                  />
+                </Col>
+                <Col lg={3} md={6}>
                   <Form.Label className="f-12 text-muted">Date</Form.Label>
                   <Form.Control value={date} onChange={(event) => setDate(event.target.value)} type="date" />
                 </Col>

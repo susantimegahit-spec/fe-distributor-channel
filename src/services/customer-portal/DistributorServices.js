@@ -1,9 +1,29 @@
 import { DataService } from '../../config/dataService';
+import { getAssignedCustomerCodes } from '../../utils/cookies';
+
+const getDistributorCustomerCode = (distributor) =>
+  distributor?.code_customer || distributor?.customer_code || distributor?.distributor_code || distributor?.card_code || '';
 
 
 class DistributorServices {
-  getAllDistributor(payload) {
-    return DataService.get(`/distributors?search=${payload ?? ''}`);
+  async getAllDistributor(payload) {
+    const response = await DataService.get(`/distributors?search=${payload ?? ''}`);
+    const assignedCustomerCodes = getAssignedCustomerCodes();
+    const distributors = response?.data?.data;
+
+    if (!assignedCustomerCodes.length || !Array.isArray(distributors)) {
+      return response;
+    }
+
+    const assignedCustomerCodeSet = new Set(assignedCustomerCodes);
+
+    return {
+      ...response,
+      data: {
+        ...response.data,
+        data: distributors.filter((distributor) => assignedCustomerCodeSet.has(String(getDistributorCustomerCode(distributor)).trim()))
+      }
+    };
   }
 
   syncDistributor() {
