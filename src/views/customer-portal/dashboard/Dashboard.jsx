@@ -709,7 +709,6 @@ export default function Dashboard() {
   const [returnQuantities, setReturnQuantities] = useState({});
   const [returnReason, setReturnReason] = useState('');
   const [returnAttachments, setReturnAttachments] = useState([]);
-  const [loadingReturnOrderId, setLoadingReturnOrderId] = useState(null);
   const [submittingReturn, setSubmittingReturn] = useState(false);
   const [compressingAttachments, setCompressingAttachments] = useState(false);
   const [orders, setOrders] = useState([]);
@@ -950,23 +949,44 @@ export default function Dashboard() {
   }, []);
 
   const deliveryOrders = useMemo(() => orders.filter((order) => normalizeStatus(order.status) === 'DELIVERY'), [orders]);
-  const returnRequestByOrderId = useMemo(() => {
-    const requestsByOrderId = new Map();
+  const returnRequestByDoItem = useMemo(() => {
+    const requestsByDoItem = new Map();
 
     returnRequests.forEach((request) => {
-      const salesOrderId =
-        getFirstValue(request, ['sales_order_id', 'salesOrderId', 'order_id', 'orderId']) ||
-        request?.sales_order?.id ||
-        request?.salesOrder?.id;
+      const requestDoNumber =
+        getFirstValue(request, [
+          'do_number',
+          'do_num',
+          'do_no',
+          'doNumber',
+          'doNum',
+          'delivery_order_number',
+          'delivery_order_no',
+          'deliveryOrderNumber',
+          'doc_num',
+          'docNum',
+          'DocNum'
+        ]) ||
+        getFirstValue(request?.delivery_order, ['do_number', 'do_num', 'doc_num', 'docNum', 'DocNum']) ||
+        getFirstValue(request?.deliveryOrder, ['doNumber', 'doNum', 'docNum', 'DocNum']) ||
+        getFirstValue(getOrderLines(request)[0], ['do_number', 'do_num', 'doNumber', 'doNum', 'doc_num', 'docNum', 'DocNum']);
+      const requestItems = getOrderLines(request);
+      const comparableItems = requestItems.length ? requestItems : [request];
 
-      if (salesOrderId !== undefined && salesOrderId !== null && salesOrderId !== '') {
-        requestsByOrderId.set(String(salesOrderId), request);
-      }
+      comparableItems.forEach((item) => {
+        const doNumber =
+          getFirstValue(item, ['do_number', 'do_num', 'doNumber', 'doNum', 'doc_num', 'docNum', 'DocNum']) ||
+          requestDoNumber;
+        const itemCode = getFirstValue(item, ['item_code', 'itemCode', 'ItemCode', 'code_item', 'codeItem']);
+
+        if (doNumber !== undefined && doNumber !== null && doNumber !== '' && itemCode) {
+          requestsByDoItem.set(`${String(doNumber).trim()}::${String(itemCode).trim().toUpperCase()}`, request);
+        }
+      });
     });
 
-    return requestsByOrderId;
+    return requestsByDoItem;
   }, [returnRequests]);
-  const showReturnStatusColumn = deliveryOrders.some((order) => returnRequestByOrderId.has(String(order.id)));
 
   useEffect(() => {
     const fetchReturnRequests = async () => {
@@ -1074,48 +1094,39 @@ export default function Dashboard() {
     setReturnAttachments([]);
   };
 
-  const filterOrderByDoDetail = (order, doDetail) => {
-    if (!doDetail) return order;
-
-    const itemCode = String(doDetail.ItemCode || '');
-    const lines = getOrderLines(order);
-    const matchingLines = lines.filter(
-      (line) => String(getOrderValue(line, ['item_code', 'itemCode', 'ItemCode'], '')) === itemCode
-    );
-    const selectedLines = matchingLines.length ? matchingLines : lines;
-
-    return {
-      ...order,
-      details: selectedLines,
-      lines: selectedLines,
-      selected_do_detail: doDetail
-    };
-  };
-
-  const openReturnOrder = async (order, doDetail = null) => {
+  const openReturnOrder = (order, doIndex) => {
     if (!order?.id) {
       showAlert('Order ID not found', 'danger');
       return;
     }
 
-    setReturnOrder(filterOrderByDoDetail(order, doDetail));
+    const orderId = String(order.id);
+    const doDetail = (doDetailsByOrderId[orderId] || [])[doIndex];
+
+    if (!doDetail) {
+      showAlert('Delivery Order detail not found', 'danger');
+      return;
+    }
+
+    const returnLine = {
+      ...doDetail,
+      id: getOrderValue(doDetail, ['id', 'sales_order_detail_id', 'salesOrderDetailId'], ''),
+      sales_order_detail_id: getOrderValue(doDetail, ['sales_order_detail_id', 'salesOrderDetailId', 'id'], ''),
+      item_code: getOrderValue(doDetail, ['ItemCode', 'item_code', 'itemCode'], ''),
+      item_name: getOrderValue(doDetail, ['ItemDescription', 'ItemName', 'item_name', 'itemName'], ''),
+      quantity: getNumberValue(doDetail, ['Delivered_Qty', 'delivered_qty', 'deliveredQty', 'quantity', 'qty'])
+    };
+
+    setReturnOrder({
+      ...order,
+      details: [returnLine],
+      lines: [returnLine],
+      selected_do_index: doIndex,
+      selected_do_detail: doDetail
+    });
     setReturnQuantities({});
     setReturnReason('');
     setReturnAttachments([]);
-    setLoadingReturnOrderId(order.id);
-
-    try {
-      const response = await OrderServices.getDetailOrder(order.id);
-      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch sales order detail');
-
-      const payload = getResponsePayload(response);
-      const detail = Array.isArray(payload) ? payload[0] : payload;
-      setReturnOrder(filterOrderByDoDetail({ ...order, ...(detail || {}) }, doDetail));
-    } catch (error) {
-      showAlert(error?.message || 'Failed to fetch sales order detail', 'danger');
-    } finally {
-      setLoadingReturnOrderId(null);
-    }
   };
 
   const openOrderDetail = async (order) => {
@@ -1193,18 +1204,36 @@ export default function Dashboard() {
   };
 
   const submitReturnRequest = async () => {
-    const items = getOrderLines(returnOrder)
-      .map((line, index) => {
-        const identity = getOrderValue(line, ['id', 'sales_order_detail_id', 'line_num', 'lineNum', 'item_code', 'itemCode', 'ItemCode'], index);
-        const lineKey = `${identity}-${index}`;
-
-        return {
-          sales_order_detail_id: getOrderValue(line, ['id', 'sales_order_detail_id'], ''),
-          item_code: getOrderValue(line, ['item_code', 'itemCode', 'ItemCode'], ''),
-          quantity: Number(returnQuantities[lineKey]) || 0
-        };
-      })
-      .filter((item) => item.quantity > 0);
+    const doDetail = returnOrder?.selected_do_detail || {};
+    const returnLine = getOrderLines(returnOrder)[0] || {};
+    const identity = getOrderValue(
+      returnLine,
+      ['id', 'sales_order_detail_id', 'line_num', 'lineNum', 'item_code', 'itemCode', 'ItemCode'],
+      0
+    );
+    const lineKey = `${identity}-0`;
+    const returnQuantity = Number(returnQuantities[lineKey]) || 0;
+    const doNumber = getOrderValue(doDetail, ['DocNum', 'doc_num', 'docNum', 'do_num', 'doNumber'], '');
+    const docDate = getOrderValue(doDetail, ['docDate', 'DocDate', 'doc_date', 'do_date', 'doDate'], '');
+    const baseLine = getOrderValue(doDetail, ['BaseLine', 'base_line', 'baseLine'], '');
+    const doQuantity = getNumberValue(doDetail, ['Delivered_Qty', 'delivered_qty', 'deliveredQty']);
+    const items =
+      returnQuantity > 0
+        ? [
+            {
+              sales_order_detail_id: returnOrder.id,
+              do_num: doNumber,
+              do_date: docDate,
+              baseline: baseLine,
+              do_quantity: doQuantity,
+              item_code: getOrderValue(doDetail, ['ItemCode', 'item_code', 'itemCode'], ''),
+              item_description: getOrderValue(doDetail, ['ItemDescription', 'item_description', 'itemDescription'], ''),
+              delivered_quantity: doQuantity,
+              quantity: returnQuantity,
+              reason: returnReason.trim()
+            }
+          ]
+        : [];
 
     if (!returnReason.trim()) {
       showAlert('Reason is required', 'danger');
@@ -1219,7 +1248,11 @@ export default function Dashboard() {
     try {
       const response = await OrderServices.postRequestRetur({
         sales_order_id: returnOrder.id,
-        reason: returnReason.trim(),
+        do_num: doNumber,
+        do_date: docDate,
+        baseline: baseLine,
+        do_quantity: doQuantity,
+        do_status: getOrderValue(doDetail, ['Status', 'status'], ''),
         items,
         attachment: returnAttachments
       });
@@ -1232,6 +1265,9 @@ export default function Dashboard() {
           ...(createdReturn && typeof createdReturn === 'object' && !Array.isArray(createdReturn) ? createdReturn : {}),
           sales_order_id:
             getFirstValue(createdReturn, ['sales_order_id', 'salesOrderId', 'order_id', 'orderId']) || returnOrder.id,
+          do_num:
+            getFirstValue(createdReturn, ['do_number', 'do_num', 'doNumber', 'doNum', 'doc_num', 'docNum']) || doNumber,
+          items: getOrderLines(createdReturn).length ? getOrderLines(createdReturn) : items,
           status: getFirstValue(createdReturn, ['status', 'return_status', 'returnStatus']) || 'PENDING'
         }
       ]);
@@ -1588,28 +1624,19 @@ export default function Dashboard() {
                 <th>Date</th>
                 <th>Total Order</th>
                 <th>Status</th>
-                {showReturnStatusColumn && <th>Status Retur</th>}
-                <th className="text-center">#</th>
+                <th className="text-center complete-order-actions-column">Action</th>
               </tr>
             </thead>
             <tbody>
               {isLoadingOrders ? (
                 <tr>
-                  <td colSpan={showReturnStatusColumn ? 7 : 6}>
+                  <td colSpan={6}>
                     <div className="text-center text-muted py-4">Loading delivery sales orders...</div>
                   </td>
                 </tr>
               ) : deliveryOrders.length > 0 ? (
                 deliveryOrders.map((order) => {
                   const orderDate = moment(getOrderValue(order, ['doc_date', 'docDate', 'created_at', 'createdAt'], null));
-                  const returnRequest = returnRequestByOrderId.get(String(order.id));
-                  const returnStatus = getOrderValue(returnRequest, ['status', 'return_status', 'returnStatus'], '-');
-                  const normalizedReturnStatus = normalizeStatus(returnStatus);
-                  const returnStatusColor = ['APPROVED', 'COMPLETED', 'SUCCESS'].includes(normalizedReturnStatus)
-                    ? 'success'
-                    : ['REJECTED', 'FAILED', 'CANCELLED', 'CANCELED'].includes(normalizedReturnStatus)
-                      ? 'danger'
-                      : 'warning';
                   const orderId = String(order.id);
                   const isDoExpanded = String(expandedDoOrderId) === orderId;
                   const isLoadingDo = String(loadingDoOrderId) === orderId;
@@ -1631,13 +1658,10 @@ export default function Dashboard() {
                         <td>
                           <Badge bg="info">Delivery</Badge>
                         </td>
-                        {showReturnStatusColumn && (
-                          <td>{returnRequest ? <Badge bg={returnStatusColor}>{String(returnStatus).replace(/_/g, ' ')}</Badge> : '-'}</td>
-                        )}
-                        <td className="text-center">
-                          <div className="d-inline-flex flex-wrap justify-content-center gap-2">
+                        <td className="text-center complete-order-actions-column">
+                          <div className="complete-order-actions">
                             <Button
-                              className="rounded-circle"
+                              className="complete-order-action-btn"
                               variant="outline-primary"
                               size="sm"
                               disabled={String(loadingViewOrderId) === String(order.id)}
@@ -1647,45 +1671,43 @@ export default function Dashboard() {
                             >
                               <i className={String(loadingViewOrderId) === String(order.id) ? 'ti ti-loader-2' : 'ti ti-eye'} />
                             </Button>
-                            {!returnRequest && (
-                              <>
-                                <Button
-                                  variant="warning"
-                                  size="sm"
-                                  disabled={isLoadingDo}
-                                  onClick={() => toggleDoDetails(order)}
-                                  aria-expanded={isDoExpanded}
-                                >
-                                  <i
-                                    className={`ti ${
-                                      isLoadingDo ? 'ti-loader-2' : isDoExpanded ? 'ti-chevron-up' : 'ti-chevron-down'
-                                    } me-1`}
-                                  />
-                                  {isLoadingDo ? 'Loading...' : 'Return'}
-                                </Button>
-                                <Button
-                                  variant="success"
-                                  size="sm"
-                                  disabled={String(receivingOrderId) === String(order.id)}
-                                  onClick={() => setOrderToComplete(order)}
-                                >
-                                  <i
-                                    className={
-                                      String(receivingOrderId) === String(order.id)
-                                        ? 'ti ti-loader-2 me-1'
-                                        : 'ti ti-circle-check me-1'
-                                    }
-                                  />
-                                  Complete
-                                </Button>
-                              </>
-                            )}
+                            <Button
+                              className="complete-order-action-btn"
+                              variant="warning"
+                              size="sm"
+                              disabled={isLoadingDo}
+                              onClick={() => toggleDoDetails(order)}
+                              aria-expanded={isDoExpanded}
+                              title={isDoExpanded ? 'Hide return options' : 'Return order'}
+                              aria-label={isDoExpanded ? 'Hide return options' : 'Return order'}
+                            >
+                              <i
+                                className={`ti ${
+                                  isLoadingDo ? 'ti-loader-2' : isDoExpanded ? 'ti-chevron-up' : 'ti-chevron-down'
+                                }`}
+                              />
+                            </Button>
+                            <Button
+                              className="complete-order-action-btn"
+                              variant="success"
+                              size="sm"
+                              disabled={String(receivingOrderId) === String(order.id)}
+                              onClick={() => setOrderToComplete(order)}
+                              title="Complete order"
+                              aria-label="Complete order"
+                            >
+                              <i
+                                className={
+                                  String(receivingOrderId) === String(order.id) ? 'ti ti-loader-2' : 'ti ti-circle-check'
+                                }
+                              />
+                            </Button>
                           </div>
                         </td>
                       </tr>
                       {isDoExpanded ? (
                         <tr className="bg-light">
-                          <td colSpan={showReturnStatusColumn ? 7 : 6} className="p-3">
+                          <td colSpan={6} className="p-3">
                             <div className="border rounded bg-white overflow-hidden">
                               {isLoadingDo ? (
                                 <div className="text-center text-muted py-4">Loading Delivery Order details...</div>
@@ -1702,39 +1724,69 @@ export default function Dashboard() {
                                       <th>Item Code</th>
                                       <th>Item Description</th>
                                       <th className="text-end">Delivered Qty</th>
+                                      <th>Status Retur</th>
                                       <th className="text-center">Action</th>
                                     </tr>
                                   </thead>
                                   <tbody>
                                     {doDetails.length ? (
-                                      doDetails.map((detail, index) => (
-                                        <tr key={`${detail.DocNum || 'do'}-${detail.BaseLine || index}-${detail.ItemCode || index}`}>
-                                          <td>{detail.Status || '-'}</td>
-                                          <td className="fw-semibold">{detail.DocNum || '-'}</td>
-                                          <td>{formatSapDate(detail.DocDate)}</td>
-                                          <td>{detail.BaseLine ?? '-'}</td>
-                                          <td>{detail.ItemCode || '-'}</td>
-                                          <td>{detail.ItemDescription || '-'}</td>
-                                          <td className="text-end">
-                                            {new Intl.NumberFormat('id-ID', { maximumFractionDigits: 6 }).format(
-                                              Number(detail.Delivered_Qty) || 0
-                                            )}
-                                          </td>
-                                          <td className="text-center">
-                                            <Button
-                                              variant="warning"
-                                              size="sm"
-                                              onClick={() => openReturnOrder(order, detail)}
-                                            >
-                                              <i className="ti ti-package-export me-1" />
-                                              Request Return
-                                            </Button>
-                                          </td>
-                                        </tr>
-                                      ))
+                                      doDetails.map((detail, index) => {
+                                        const doReturnRequest = returnRequestByDoItem.get(
+                                          `${String(detail.DocNum || '').trim()}::${String(detail.ItemCode || '')
+                                            .trim()
+                                            .toUpperCase()}`
+                                        );
+                                        const doReturnStatus = getOrderValue(
+                                          doReturnRequest,
+                                          ['status', 'return_status', 'returnStatus'],
+                                          '-'
+                                        );
+                                        const normalizedDoReturnStatus = normalizeStatus(doReturnStatus);
+                                        const doReturnStatusColor = ['APPROVED', 'COMPLETED', 'SUCCESS'].includes(
+                                          normalizedDoReturnStatus
+                                        )
+                                          ? 'success'
+                                          : ['REJECTED', 'FAILED', 'CANCELLED', 'CANCELED'].includes(normalizedDoReturnStatus)
+                                            ? 'danger'
+                                            : 'warning';
+
+                                        return (
+                                          <tr key={`${detail.DocNum || 'do'}-${detail.BaseLine || index}-${detail.ItemCode || index}`}>
+                                            <td>{detail.Status || '-'}</td>
+                                            <td className="fw-semibold">{detail.DocNum || '-'}</td>
+                                            <td>{formatSapDate(detail.DocDate)}</td>
+                                            <td>{detail.BaseLine ?? '-'}</td>
+                                            <td>{detail.ItemCode || '-'}</td>
+                                            <td>{detail.ItemDescription || '-'}</td>
+                                            <td className="text-end">
+                                              {new Intl.NumberFormat('id-ID', { maximumFractionDigits: 6 }).format(
+                                                Number(detail.Delivered_Qty) || 0
+                                              )}
+                                            </td>
+                                            <td>
+                                              {doReturnRequest ? (
+                                                <Badge bg={doReturnStatusColor}>{String(doReturnStatus).replace(/_/g, ' ')}</Badge>
+                                              ) : (
+                                                '-'
+                                              )}
+                                            </td>
+                                            <td className="text-center">
+                                              <Button
+                                                variant="warning"
+                                                size="sm"
+                                                disabled={Boolean(doReturnRequest)}
+                                                onClick={() => openReturnOrder(order, index)}
+                                              >
+                                                <i className="ti ti-package-export me-1" />
+                                                {doReturnRequest ? 'Return Requested' : 'Request Return'}
+                                              </Button>
+                                            </td>
+                                          </tr>
+                                        );
+                                      })
                                     ) : (
                                       <tr>
-                                        <td colSpan={8} className="text-center text-muted py-4">
+                                        <td colSpan={9} className="text-center text-muted py-4">
                                           Delivery Order details are not available.
                                         </td>
                                       </tr>
@@ -1751,7 +1803,7 @@ export default function Dashboard() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={showReturnStatusColumn ? 7 : 6}>
+                  <td colSpan={6}>
                     <div className="text-center text-muted py-4">No delivery sales orders.</div>
                   </td>
                 </tr>
@@ -1994,40 +2046,44 @@ export default function Dashboard() {
         </Modal.Header>
         <Modal.Body>
           <Row className="g-3 mb-4">
-            <Col sm={6} lg={3}>
+            <Col sm={6} lg>
               <small className="text-muted">No. Sales Order</small>
               <div className="fw-semibold">
                 {getOrderValue(returnOrder, ['sap_doc_num', 'sapDocNum', 'doc_num', 'docNum', 'order_no', 'orderNo'])}
               </div>
             </Col>
-            <Col sm={6} lg={3}>
+            <Col sm={6} lg>
+              <small className="text-muted">No. Delivery Order</small>
+              <div className="fw-semibold">
+                {getOrderValue(returnOrder?.selected_do_detail, ['DocNum', 'doc_num', 'docNum', 'do_num', 'doNum'])}
+              </div>
+            </Col>
+            <Col sm={6} lg>
               <small className="text-muted">Customer</small>
               <div className="fw-semibold">
                 {getOrderValue(returnOrder, ['customer_name', 'customerName', 'card_name', 'cardName'])}
               </div>
             </Col>
-            <Col sm={6} lg={3}>
+            <Col sm={6} lg>
               <small className="text-muted">Depo</small>
               <div className="fw-semibold">{getOrderValue(returnOrder, ['depo', 'depot', 'warehouse_name', 'warehouseName'])}</div>
             </Col>
-            <Col sm={6} lg={3}>
-              <small className="text-muted">Order Date</small>
+            <Col sm={6} lg>
+              <small className="text-muted">DO Date</small>
               <div className="fw-semibold">
-                {formatOrderDate(getOrderValue(returnOrder, ['doc_date', 'docDate', 'created_at', 'createdAt'], ''))}
+                {formatSapDate(getOrderValue(returnOrder?.selected_do_detail, ['DocDate', 'doc_date', 'docDate'], ''))}
               </div>
             </Col>
           </Row>
 
-          {loadingReturnOrderId !== null ? (
-            <div className="text-center text-muted py-5">Loading sales order detail...</div>
-          ) : getOrderLines(returnOrder).length ? (
+          {getOrderLines(returnOrder).length ? (
             <Table responsive bordered hover className="mb-4 align-middle">
               <thead>
                 <tr>
                   <th>No.</th>
                   <th>Product Code</th>
                   <th>Product Name</th>
-                  <th className="text-end">Order Qty</th>
+                  <th className="text-end">Delivered Qty</th>
                   <th style={{ minWidth: 160 }}>Qty Retur</th>
                 </tr>
               </thead>
@@ -2147,7 +2203,7 @@ export default function Dashboard() {
           <Button
             variant="warning"
             onClick={submitReturnRequest}
-            disabled={submittingReturn || compressingAttachments || loadingReturnOrderId !== null}
+            disabled={submittingReturn || compressingAttachments}
           >
             {submittingReturn ? 'Submitting...' : 'Submit Request Return'}
           </Button>

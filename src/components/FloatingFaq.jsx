@@ -23,6 +23,7 @@ const faqItems = [
 ];
 
 const FAQ_POSITION_KEY = 'sm-floating-faq-position';
+const FAQ_HIDDEN_KEY = 'sm-floating-faq-hidden';
 const VIEWPORT_GAP = 16;
 const DRAG_THRESHOLD = 5;
 
@@ -45,6 +46,13 @@ export default function FloatingFaq() {
   const [isAsking, setIsAsking] = useState(false);
   const [aiError, setAiError] = useState('');
   const [position, setPosition] = useState(null);
+  const [isHidden, setIsHidden] = useState(() => {
+    try {
+      return localStorage.getItem(FAQ_HIDDEN_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   useEffect(() => {
     const element = wrapperRef.current;
@@ -86,7 +94,7 @@ export default function FloatingFaq() {
         audioContextRef.current = null;
       }
     };
-  }, []);
+  }, [isHidden]);
 
   const enableBounceSound = () => {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -261,6 +269,29 @@ export default function FloatingFaq() {
     setIsOpen((current) => !current);
   };
 
+  const handleHide = () => {
+    if (throwFrameRef.current) {
+      cancelAnimationFrame(throwFrameRef.current);
+      throwFrameRef.current = null;
+    }
+    setIsOpen(false);
+    setIsHidden(true);
+    try {
+      localStorage.setItem(FAQ_HIDDEN_KEY, 'true');
+    } catch {
+      // Kontrol hide tetap berfungsi saat penyimpanan browser tidak tersedia.
+    }
+  };
+
+  const handleRestore = () => {
+    setIsHidden(false);
+    try {
+      localStorage.removeItem(FAQ_HIDDEN_KEY);
+    } catch {
+      // Kontrol restore tetap berfungsi saat penyimpanan browser tidak tersedia.
+    }
+  };
+
   const handleAskAi = async (event) => {
     event.preventDefault();
 
@@ -282,6 +313,14 @@ export default function FloatingFaq() {
       setIsAsking(false);
     }
   };
+
+  if (isHidden) {
+    return (
+      <button type="button" className="sm-floating-faq-restore" onClick={handleRestore} title="Tampilkan FAQ" aria-label="Tampilkan FAQ">
+        <i className="ti ti-help" />
+      </button>
+    );
+  }
 
   return (
     <div
@@ -362,6 +401,16 @@ export default function FloatingFaq() {
         </section>
       )}
 
+      <button
+        type="button"
+        className="sm-floating-faq-hide"
+        onClick={handleHide}
+        onPointerDown={(event) => event.stopPropagation()}
+        title="Sembunyikan FAQ"
+        aria-label="Sembunyikan FAQ"
+      >
+        <i className="ti ti-x" />
+      </button>
       <button
         type="button"
         className="sm-floating-faq-button"

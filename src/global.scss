@@ -1655,6 +1655,48 @@ body {
   animation: eta-warning-icon-pulse 1.2s ease-in-out infinite;
 }
 
+.pc-content .complete-order-card .complete-order-actions-column {
+  width: 152px;
+  min-width: 152px;
+}
+
+.pc-content .complete-order-card .complete-order-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.pc-content .complete-order-card .complete-order-action-btn {
+  display: inline-flex;
+  flex: 0 0 38px;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 9px;
+  box-shadow: none;
+}
+
+.pc-content .complete-order-card .complete-order-action-btn i {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.pc-content .complete-order-card .complete-order-action-btn:hover,
+.pc-content .complete-order-card .complete-order-action-btn:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 12px rgba(16, 24, 40, 0.14);
+}
+
+.pc-content .complete-order-card .complete-order-action-btn:disabled {
+  transform: none;
+  box-shadow: none;
+}
+
 .pc-content .order-status-filter-box .order-status-filter-label {
   font-size: 0.78rem !important;
   font-weight: 600;
@@ -2255,6 +2297,63 @@ body {
   pointer-events: none;
   user-select: none;
   -webkit-user-drag: none;
+}
+
+.sm-floating-faq-hide {
+  position: absolute;
+  z-index: 2;
+  top: -7px;
+  right: -7px;
+  display: inline-grid;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  place-items: center;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #0b1531;
+  color: #fff;
+  box-shadow: 0 5px 14px rgba(9, 15, 50, 0.24);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.sm-floating-faq-hide:hover,
+.sm-floating-faq-hide:focus-visible {
+  background: #dc3545;
+}
+
+.sm-floating-faq-hide:focus-visible,
+.sm-floating-faq-restore:focus-visible {
+  outline: 3px solid rgba(50, 215, 239, 0.6);
+  outline-offset: 3px;
+}
+
+.sm-floating-faq-restore {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 1040;
+  display: inline-grid;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: #0b1531;
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(9, 15, 50, 0.24);
+  cursor: pointer;
+}
+
+.sm-floating-faq-restore:hover {
+  background: #1b4e91;
+  transform: translateY(-2px);
+}
+
+.sm-floating-faq-restore i {
+  font-size: 1.15rem;
 }
 
 .sm-floating-faq-panel {

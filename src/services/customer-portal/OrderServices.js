@@ -120,7 +120,11 @@ class OrderServices {
     const formData = new FormData();
 
     formData.append('sales_order_id', payload.sales_order_id ?? '');
-    formData.append('reason', payload.reason ?? '');
+    formData.append('do_num', payload.do_num ?? '');
+    formData.append('do_date', payload.do_date ?? '');
+    formData.append('baseline', payload.baseline ?? '');
+    formData.append('do_quantity', payload.do_quantity ?? '');
+    formData.append('do_status', payload.do_status ?? '');
     (payload.items || []).forEach((item, index) => {
       Object.entries(item).forEach(([key, value]) => formData.append(`items[${index}][${key}]`, value ?? ''));
     });
@@ -131,6 +135,14 @@ class OrderServices {
 
   getRetur() {
     return DataService.get('/sales-returns');
+  }
+
+  postApprove(id) {
+    return DataService.post(`/sales-returns/${id}/approve`);
+  }
+
+  postReject(id) {
+    return DataService.post(`/sales-returns/${id}/reject`);
   }
 
   getDoBySo(soNum) {
