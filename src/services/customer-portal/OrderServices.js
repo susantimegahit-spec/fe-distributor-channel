@@ -133,6 +133,10 @@ class OrderServices {
     return DataService.get('/sales-returns');
   }
 
+  getDoBySo(soNum) {
+    return DataService.get('/sales-returns/do-by-so', { so_num: soNum });
+  }
+
   postCancelOrder(id) {
     return DataService.post(`/sales-orders/${id}/cancel`);
   }

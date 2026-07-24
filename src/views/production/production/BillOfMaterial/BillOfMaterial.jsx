@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import Select from 'react-select';
 
@@ -6,6 +6,7 @@ import Select from 'react-select';
 import Button from 'react-bootstrap/Button';
 import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
+import InputGroup from 'react-bootstrap/InputGroup';
 import Modal from 'react-bootstrap/Modal';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
@@ -13,12 +14,15 @@ import Table from 'react-bootstrap/Table';
 
 // project-imports
 import MainCard from 'components/MainCard';
+import LoaderData from 'components/LoaderData';
 import { getItem } from '../../../../redux/production/materialReducer';
 import { getResource } from '../../../../redux/production/resourceReducer';
 import DistributorServices from '../../../../services/customer-portal/DistributorServices';
 import ProductServices from '../../../../services/customer-portal/ProductServices';
 import WarehouseServices from '../../../../services/customer-portal/WarehouseServices';
+import ProductionServices from '../../../../services/production/ProductionServices';
 import { useAlert } from '../../../../utils/alertContext';
+import { useConfirm } from '../../../../utils/confirmContext';
 
 const createDetailRow = () => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -35,6 +39,7 @@ const createInitialForm = () => ({
   warehouse: null,
   distributionRule: null,
   alternate: '',
+  comments: '',
   details: [createDetailRow()]
 });
 
@@ -45,6 +50,7 @@ const selectStyles = {
 
 const COMPONENT_TYPE_ITEM = '4';
 const COMPONENT_TYPE_RESOURCE = '290';
+const numberFormatter = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 });
 
 const getResponseList = (response) => {
   const payload = response?.data?.data;
@@ -83,12 +89,29 @@ const normalizeComponentOption = (item = {}, type) => {
   };
 };
 
+const normalizeBom = (item = {}, index = 0) => ({
+  id: item.id || item.bom_id || item.code || index,
+  productNo: item.code || item.product_code || item.item_code || '',
+  productName: item.product_name || item.item_name || item.name || '',
+  quantity: item.qty ?? item.quantity ?? 0,
+  uom: item.uom || item.unit || item.invntry_uom || '',
+  warehouse: item.to_whs_name || item.warehouse_name || item.to_whs || '',
+  distributionRule: item.distribution_rule_name || item.distribution_rule || item.ocr_code || '',
+  alternate: item.alternate || '',
+  comments: item.comments || '',
+  details: Array.isArray(item.details) ? item.details : []
+});
+
 export default function BillOfMaterial() {
   const { showAlert } = useAlert();
+  const { showConfirm } = useConfirm();
   const dispatch = useDispatch();
   const { items: materialItems, loading: loadingMaterials } = useSelector((state) => state.productionMaterial);
   const { items: resourceItems, loading: loadingResources } = useSelector((state) => state.productionResource);
   const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [productOptions, setProductOptions] = useState([]);
@@ -97,6 +120,29 @@ export default function BillOfMaterial() {
   const [form, setForm] = useState(createInitialForm);
 
   const uomOptions = useMemo(() => form.product?.uoms || [], [form.product]);
+
+  const fetchBoms = useCallback(async (keyword = '') => {
+    setLoading(true);
+
+    try {
+      const response = await ProductionServices.getBoms({ code: '', search: keyword });
+
+      if (response?.data?.success === false) {
+        throw new Error(response.data.message || 'Failed to fetch Bill of Material data');
+      }
+
+      setRows(getResponseList(response).map(normalizeBom));
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch Bill of Material data', 'danger');
+    } finally {
+      setLoading(false);
+    }
+  }, [showAlert]);
+
+  useEffect(() => {
+    const delayTimer = window.setTimeout(() => fetchBoms(search.trim()), search ? 500 : 0);
+    return () => window.clearTimeout(delayTimer);
+  }, [fetchBoms, search]);
 
   const fetchFormOptions = async () => {
     setLoadingOptions(true);
@@ -211,7 +257,7 @@ export default function BillOfMaterial() {
     }));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!form.product || !(Number(form.quantity) > 0) || !form.uom || !form.warehouse || !form.distributionRule) {
       showAlert('Please complete all required Bill of Material fields', 'warning');
       return;
@@ -219,30 +265,60 @@ export default function BillOfMaterial() {
 
     const hasInvalidDetail =
       !form.details.length ||
-      form.details.some((detail) => !detail.type || !detail.item || !detail.quantity.trim() || !detail.issueMethod);
+      form.details.some((detail) => !detail.type || !detail.item || !(Number(detail.quantity) > 0) || !detail.issueMethod);
 
     if (hasInvalidDetail) {
       showAlert('Please complete all Bill of Material component rows', 'warning');
       return;
     }
 
-    setRows((currentRows) => [
-      ...currentRows,
-      {
-        id: `${form.product.value}-${Date.now()}`,
-        productNo: form.product.value,
-        productName: form.product.productName,
-        quantity: Number(form.quantity),
-        uom: form.uom.value,
-        warehouse: form.warehouse.label,
-        distributionRule: form.distributionRule.label,
-        alternate: form.alternate.trim(),
-        details: form.details
+    const payload = {
+      code: form.product.value,
+      qty: Number(form.quantity),
+      to_whs: form.warehouse.value,
+      alternate: form.alternate.trim(),
+      comments: form.comments.trim(),
+      details: form.details.map((detail) => ({
+        type: Number(detail.type),
+        code: detail.item.value,
+        qty: Number(detail.quantity),
+        issue_method: detail.issueMethod,
+        distribution_rule: form.distributionRule.value
+      }))
+    };
+
+    setSaving(true);
+    try {
+      const response = await ProductionServices.postBoms(payload);
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to create Bill of Material');
+
+      setShowCreateModal(false);
+      setForm(createInitialForm());
+      await fetchBoms(search.trim());
+      showAlert(response?.data?.message || 'Bill of Material created successfully', 'success');
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to create Bill of Material', 'danger');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = (item) => {
+    showConfirm({
+      title: 'Delete Bill of Material',
+      subTitle: `Are you sure you want to delete BOM ${item.productNo || ''}?`,
+      onConfirm: async () => {
+        try {
+          const response = await ProductionServices.deleteBoms(item.id);
+          if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to delete Bill of Material');
+          await fetchBoms(search.trim());
+          showAlert(response?.data?.message || 'Bill of Material deleted successfully', 'success');
+        } catch (error) {
+          showAlert(error?.response?.data?.message || error?.message || 'Failed to delete Bill of Material', 'danger');
+          throw error;
+        }
       }
-    ]);
-    setShowCreateModal(false);
-    setForm(createInitialForm());
-    showAlert('Bill of Material added to the table', 'success');
+    });
   };
 
   return (
@@ -261,6 +337,15 @@ export default function BillOfMaterial() {
           </Button>
         }
       >
+        <Row className="g-2 mb-3">
+          <Col lg={6} md={8}>
+            <InputGroup>
+              <InputGroup.Text><i className="ti ti-search" /></InputGroup.Text>
+              <Form.Control value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search BOM code or product" />
+              {search && <Button variant="outline-secondary" onClick={() => setSearch('')}><i className="ti ti-x" /></Button>}
+            </InputGroup>
+          </Col>
+        </Row>
         <Table className="mb-0 align-middle" responsive hover>
           <thead>
             <tr>
@@ -273,26 +358,34 @@ export default function BillOfMaterial() {
               <th style={{ minWidth: 220 }}>Distribution Rule</th>
               <th style={{ minWidth: 180 }}>Alternate</th>
               <th className="text-center" style={{ minWidth: 110 }}>Components</th>
+              <th className="text-center" style={{ width: 90 }}>Action</th>
             </tr>
           </thead>
           <tbody>
-            {rows.length ? (
+            {loading ? (
+              <tr><td colSpan={10}><LoaderData /></td></tr>
+            ) : rows.length ? (
               rows.map((item, index) => (
                 <tr key={item.id}>
                   <td>{index + 1}</td>
                   <td className="fw-semibold">{item.productNo}</td>
                   <td>{item.productName || '-'}</td>
-                  <td className="text-end">{item.quantity}</td>
+                  <td className="text-end">{numberFormatter.format(Number(item.quantity) || 0)}</td>
                   <td>{item.uom}</td>
                   <td>{item.warehouse}</td>
                   <td>{item.distributionRule}</td>
                   <td>{item.alternate || '-'}</td>
                   <td className="text-center">{item.details.length}</td>
+                  <td className="text-center">
+                    <Button variant="outline-danger" size="sm" onClick={() => handleDelete(item)} aria-label="Delete Bill of Material">
+                      <i className="ti ti-trash" />
+                    </Button>
+                  </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={9}>
+                <td colSpan={10}>
                   <div className="text-center py-5">
                     <span className="avtar avtar-xl bg-light-primary text-primary mb-3">
                       <i className="ti ti-list-tree f-24" />
@@ -314,7 +407,7 @@ export default function BillOfMaterial() {
       <Modal
         show={showCreateModal}
         onHide={() => {
-          if (!loadingOptions) setShowCreateModal(false);
+          if (!loadingOptions && !saving) setShowCreateModal(false);
         }}
         size="xl"
         centered
@@ -429,6 +522,17 @@ export default function BillOfMaterial() {
                 />
               </Form.Group>
             </Col>
+            <Col md={6}>
+              <Form.Group>
+                <Form.Label>Comments</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={form.comments}
+                  onChange={(event) => setForm((current) => ({ ...current, comments: event.target.value }))}
+                  placeholder="Enter comments"
+                />
+              </Form.Group>
+            </Col>
             <Col xs={12}>
               <Stack direction="horizontal" gap={2} className="justify-content-between align-items-start mb-2">
                 <div>
@@ -498,7 +602,10 @@ export default function BillOfMaterial() {
                             </td>
                             <td>
                               <Form.Control
-                                type="text"
+                                type="number"
+                                min="0"
+                                step="any"
+                                inputMode="decimal"
                                 value={detail.quantity}
                                 onChange={(event) => updateDetailRow(detail.id, { quantity: event.target.value })}
                                 placeholder="Qty"
@@ -542,11 +649,11 @@ export default function BillOfMaterial() {
           </Row>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="light-secondary" onClick={() => setShowCreateModal(false)} disabled={loadingOptions}>
+          <Button variant="light-secondary" onClick={() => setShowCreateModal(false)} disabled={loadingOptions || saving}>
             Close
           </Button>
-          <Button variant="primary" onClick={handleSubmit} disabled={loadingOptions}>
-            Save
+          <Button variant="primary" onClick={handleSubmit} disabled={loadingOptions || saving}>
+            {saving ? 'Saving...' : 'Save'}
           </Button>
         </Modal.Footer>
       </Modal>

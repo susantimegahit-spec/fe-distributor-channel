@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import moment from 'moment';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
@@ -42,8 +42,6 @@ const statusConfig = {
 };
 
 const comparisonMonthOptions = moment.months().map((label, index) => ({ value: index + 1, label }));
-const allComparisonMonthOption = { value: 'all', label: 'All Month' };
-const comparisonMultiMonthOptions = [allComparisonMonthOption, ...comparisonMonthOptions];
 const currentComparisonYear = moment().year();
 const comparisonYearOptions = Array.from({ length: 7 }, (_, index) => currentComparisonYear + 1 - index);
 const MAX_RETURN_ATTACHMENTS = 5;
@@ -702,6 +700,10 @@ export default function Dashboard() {
   const [orderToComplete, setOrderToComplete] = useState(null);
   const [viewOrder, setViewOrder] = useState(null);
   const [loadingViewOrderId, setLoadingViewOrderId] = useState(null);
+  const [expandedDoOrderId, setExpandedDoOrderId] = useState(null);
+  const [loadingDoOrderId, setLoadingDoOrderId] = useState(null);
+  const [doDetailsByOrderId, setDoDetailsByOrderId] = useState({});
+  const [doErrorsByOrderId, setDoErrorsByOrderId] = useState({});
   const [returnOrder, setReturnOrder] = useState(null);
   const [returnRequests, setReturnRequests] = useState([]);
   const [returnQuantities, setReturnQuantities] = useState({});
@@ -720,7 +722,7 @@ export default function Dashboard() {
   const [isLoadingEta, setIsLoadingEta] = useState(false);
   const [etaError, setEtaError] = useState('');
   const [orderComparison, setOrderComparison] = useState([]);
-  const [isLoadingComparison, setIsLoadingComparison] = useState(false);
+  const [isLoadingComparison, setIsLoadingComparison] = useState(true);
   const [comparisonError, setComparisonError] = useState('');
   const [comparisonCustomers, setComparisonCustomers] = useState([]);
   const [isLoadingComparisonCustomers, setIsLoadingComparisonCustomers] = useState(false);
@@ -734,19 +736,9 @@ export default function Dashboard() {
     customerCode: ''
   });
 
-  const handleComparisonMonthChange = (options) => {
-    const selectedOptions = options || [];
-    const currentMonths = comparisonFilters.months;
-    const previouslySelectedAll = currentMonths.length === 0;
-    const hasAll = selectedOptions.some((option) => option.value === 'all');
-
-    if (!selectedOptions.length || (hasAll && !previouslySelectedAll)) {
-      setComparisonFilters((current) => ({ ...current, months: [] }));
-      return;
-    }
-
-    const selectedMonths = selectedOptions.filter((option) => option.value !== 'all').map((option) => Number(option.value));
-    setComparisonFilters((current) => ({ ...current, months: selectedMonths }));
+  const handleComparisonMonthChange = (option) => {
+    if (!option) return;
+    setComparisonFilters((current) => ({ ...current, months: [Number(option.value)] }));
   };
 
   const comparisonCustomerOptions = useMemo(() => {
@@ -994,6 +986,57 @@ export default function Dashboard() {
     fetchReturnRequests();
   }, []);
 
+  const formatSapDate = (value) => {
+    const compactDate = moment(String(value || ''), 'YYYYMMDD', true);
+
+    return compactDate.isValid() ? compactDate.format('DD MMM YYYY') : formatOrderDate(value);
+  };
+
+  const toggleDoDetails = async (order) => {
+    const orderId = String(order.id);
+
+    if (String(expandedDoOrderId) === orderId) {
+      setExpandedDoOrderId(null);
+      return;
+    }
+
+    setExpandedDoOrderId(orderId);
+    if (Object.prototype.hasOwnProperty.call(doDetailsByOrderId, orderId)) return;
+
+    const soNum = getOrderValue(order, ['sap_doc_num', 'sapDocNum', 'doc_num', 'docNum', 'order_no', 'orderNo'], '');
+
+    if (!soNum) {
+      setDoErrorsByOrderId((current) => ({ ...current, [orderId]: 'Sales Order number is not available.' }));
+      return;
+    }
+
+    setLoadingDoOrderId(orderId);
+    setDoErrorsByOrderId((current) => ({ ...current, [orderId]: '' }));
+
+    try {
+      const response = await OrderServices.getDoBySo(soNum);
+
+      if (response?.data?.success === false) {
+        setDoErrorsByOrderId((current) => ({
+          ...current,
+          [orderId]: response.data.message || 'Failed to fetch Delivery Order details.'
+        }));
+        return;
+      }
+
+      const payload = getResponsePayload(response);
+      const details = Array.isArray(payload) ? payload : getOrderListPayload(payload);
+      setDoDetailsByOrderId((current) => ({ ...current, [orderId]: Array.isArray(details) ? details : [] }));
+    } catch (error) {
+      setDoErrorsByOrderId((current) => ({
+        ...current,
+        [orderId]: error?.response?.data?.message || error?.message || 'Failed to fetch Delivery Order details.'
+      }));
+    } finally {
+      setLoadingDoOrderId(null);
+    }
+  };
+
   const handleCompleteOrder = async (order) => {
     if (!order?.id) {
       showAlert('Order ID not found', 'danger');
@@ -1031,13 +1074,31 @@ export default function Dashboard() {
     setReturnAttachments([]);
   };
 
-  const openReturnOrder = async (order) => {
+  const filterOrderByDoDetail = (order, doDetail) => {
+    if (!doDetail) return order;
+
+    const itemCode = String(doDetail.ItemCode || '');
+    const lines = getOrderLines(order);
+    const matchingLines = lines.filter(
+      (line) => String(getOrderValue(line, ['item_code', 'itemCode', 'ItemCode'], '')) === itemCode
+    );
+    const selectedLines = matchingLines.length ? matchingLines : lines;
+
+    return {
+      ...order,
+      details: selectedLines,
+      lines: selectedLines,
+      selected_do_detail: doDetail
+    };
+  };
+
+  const openReturnOrder = async (order, doDetail = null) => {
     if (!order?.id) {
       showAlert('Order ID not found', 'danger');
       return;
     }
 
-    setReturnOrder(order);
+    setReturnOrder(filterOrderByDoDetail(order, doDetail));
     setReturnQuantities({});
     setReturnReason('');
     setReturnAttachments([]);
@@ -1049,7 +1110,7 @@ export default function Dashboard() {
 
       const payload = getResponsePayload(response);
       const detail = Array.isArray(payload) ? payload[0] : payload;
-      setReturnOrder({ ...order, ...(detail || {}) });
+      setReturnOrder(filterOrderByDoDetail({ ...order, ...(detail || {}) }, doDetail));
     } catch (error) {
       showAlert(error?.message || 'Failed to fetch sales order detail', 'danger');
     } finally {
@@ -1279,6 +1340,7 @@ export default function Dashboard() {
           }
         />
 
+        {!isLoadingComparison && (
         <MainCard
           className="claim-transaction-card dashboard-comparison-card"
           title={
@@ -1316,15 +1378,9 @@ export default function Dashboard() {
               <Col lg={3} sm={6}>
                 <Form.Label className="f-12 fw-semibold">Month</Form.Label>
                 <ReactSelect
-                  isMulti
-                  options={comparisonMultiMonthOptions}
-                  value={
-                    comparisonFilters.months.length
-                      ? comparisonMonthOptions.filter((option) => comparisonFilters.months.includes(option.value))
-                      : [allComparisonMonthOption]
-                  }
+                  options={comparisonMonthOptions}
+                  value={comparisonMonthOptions.find((option) => comparisonFilters.months[0] === option.value) || null}
                   onChange={handleComparisonMonthChange}
-                  closeMenuOnSelect={false}
                   isClearable={false}
                   placeholder="Select month"
                 />
@@ -1344,9 +1400,7 @@ export default function Dashboard() {
               </Col>
             </Row>
 
-            {isLoadingComparison ? (
-              <div className="text-center text-muted py-4">Loading order comparison...</div>
-            ) : comparisonError ? (
+            {comparisonError ? (
               <div className="text-center text-danger py-4">{comparisonError}</div>
             ) : orderComparison.length > 0 ? (
               <>
@@ -1426,6 +1480,7 @@ export default function Dashboard() {
             )}
           </Stack>
         </MainCard>
+        )}
 
         {!isLoadingEta && etaWarnings.length > 0 && (
           <Row className="g-3 align-items-stretch dashboard-action-cards">
@@ -1555,68 +1610,143 @@ export default function Dashboard() {
                     : ['REJECTED', 'FAILED', 'CANCELLED', 'CANCELED'].includes(normalizedReturnStatus)
                       ? 'danger'
                       : 'warning';
+                  const orderId = String(order.id);
+                  const isDoExpanded = String(expandedDoOrderId) === orderId;
+                  const isLoadingDo = String(loadingDoOrderId) === orderId;
+                  const doDetails = doDetailsByOrderId[orderId] || [];
+                  const doError = doErrorsByOrderId[orderId];
 
                   return (
-                    <tr key={order.id}>
-                      <td className="fw-semibold">
-                        {getOrderValue(order, ['sap_doc_num', 'sapDocNum', 'doc_num', 'docNum', 'order_no', 'orderNo'])}
-                      </td>
-                      <td>
-                        {getOrderValue(order, ['depo', 'depot', 'warehouse_name', 'warehouseName'])} -{' '}
-                        {getOrderValue(order, ['customer_name', 'customerName', 'card_name', 'cardName'])}
-                      </td>
-                      <td>{orderDate.isValid() ? orderDate.format('DD MMM YYYY') : '-'}</td>
-                      <td>{currency(getOrderValue(order, ['doc_total', 'docTotal', 'total', 'total_order', 'totalOrder'], 0))}</td>
-                      <td>
-                        <Badge bg="info">Delivery</Badge>
-                      </td>
-                      {showReturnStatusColumn && (
-                        <td>{returnRequest ? <Badge bg={returnStatusColor}>{String(returnStatus).replace(/_/g, ' ')}</Badge> : '-'}</td>
-                      )}
-                      <td className="text-center">
-                        <div className="d-inline-flex flex-wrap justify-content-center gap-2">
-                          <Button
-                            className="rounded-circle"
-                            variant="outline-primary"
-                            size="sm"
-                            disabled={String(loadingViewOrderId) === String(order.id)}
-                            onClick={() => openOrderDetail(order)}
-                            title="View order"
-                            aria-label="View order"
-                          >
-                            <i className={String(loadingViewOrderId) === String(order.id) ? 'ti ti-loader-2' : 'ti ti-eye'} />
-                          </Button>
-                          {!returnRequest && (
-                            <>
+                    <Fragment key={order.id}>
+                      <tr>
+                        <td className="fw-semibold">
+                          {getOrderValue(order, ['sap_doc_num', 'sapDocNum', 'doc_num', 'docNum', 'order_no', 'orderNo'])}
+                        </td>
+                        <td>
+                          {getOrderValue(order, ['depo', 'depot', 'warehouse_name', 'warehouseName'])} -{' '}
+                          {getOrderValue(order, ['customer_name', 'customerName', 'card_name', 'cardName'])}
+                        </td>
+                        <td>{orderDate.isValid() ? orderDate.format('DD MMM YYYY') : '-'}</td>
+                        <td>{currency(getOrderValue(order, ['doc_total', 'docTotal', 'total', 'total_order', 'totalOrder'], 0))}</td>
+                        <td>
+                          <Badge bg="info">Delivery</Badge>
+                        </td>
+                        {showReturnStatusColumn && (
+                          <td>{returnRequest ? <Badge bg={returnStatusColor}>{String(returnStatus).replace(/_/g, ' ')}</Badge> : '-'}</td>
+                        )}
+                        <td className="text-center">
+                          <div className="d-inline-flex flex-wrap justify-content-center gap-2">
                             <Button
-                              variant="warning"
+                              className="rounded-circle"
+                              variant="outline-primary"
                               size="sm"
-                              disabled={String(loadingReturnOrderId) === String(order.id)}
-                              onClick={() => openReturnOrder(order)}
+                              disabled={String(loadingViewOrderId) === String(order.id)}
+                              onClick={() => openOrderDetail(order)}
+                              title="View order"
+                              aria-label="View order"
                             >
-                              <i className="ti ti-package-export me-1" />
-                              {String(loadingReturnOrderId) === String(order.id) ? 'Loading...' : 'Request Retur'}
+                              <i className={String(loadingViewOrderId) === String(order.id) ? 'ti ti-loader-2' : 'ti ti-eye'} />
                             </Button>
-                            <Button
-                              variant="success"
-                              size="sm"
-                              disabled={String(receivingOrderId) === String(order.id)}
-                              onClick={() => setOrderToComplete(order)}
-                            >
-                              <i
-                                className={
-                                  String(receivingOrderId) === String(order.id)
-                                    ? 'ti ti-loader-2 me-1'
-                                    : 'ti ti-circle-check me-1'
-                                }
-                              />
-                              Complete
-                            </Button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
+                            {!returnRequest && (
+                              <>
+                                <Button
+                                  variant="warning"
+                                  size="sm"
+                                  disabled={isLoadingDo}
+                                  onClick={() => toggleDoDetails(order)}
+                                  aria-expanded={isDoExpanded}
+                                >
+                                  <i
+                                    className={`ti ${
+                                      isLoadingDo ? 'ti-loader-2' : isDoExpanded ? 'ti-chevron-up' : 'ti-chevron-down'
+                                    } me-1`}
+                                  />
+                                  {isLoadingDo ? 'Loading...' : 'Return'}
+                                </Button>
+                                <Button
+                                  variant="success"
+                                  size="sm"
+                                  disabled={String(receivingOrderId) === String(order.id)}
+                                  onClick={() => setOrderToComplete(order)}
+                                >
+                                  <i
+                                    className={
+                                      String(receivingOrderId) === String(order.id)
+                                        ? 'ti ti-loader-2 me-1'
+                                        : 'ti ti-circle-check me-1'
+                                    }
+                                  />
+                                  Complete
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                      {isDoExpanded ? (
+                        <tr className="bg-light">
+                          <td colSpan={showReturnStatusColumn ? 7 : 6} className="p-3">
+                            <div className="border rounded bg-white overflow-hidden">
+                              {isLoadingDo ? (
+                                <div className="text-center text-muted py-4">Loading Delivery Order details...</div>
+                              ) : doError ? (
+                                <div className="text-center text-danger py-4">{doError}</div>
+                              ) : (
+                                <Table className="mb-0 align-middle" responsive size="sm">
+                                  <thead>
+                                    <tr>
+                                      <th>Status</th>
+                                      <th>DO Number</th>
+                                      <th>DO Date</th>
+                                      <th>Base Line</th>
+                                      <th>Item Code</th>
+                                      <th>Item Description</th>
+                                      <th className="text-end">Delivered Qty</th>
+                                      <th className="text-center">Action</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {doDetails.length ? (
+                                      doDetails.map((detail, index) => (
+                                        <tr key={`${detail.DocNum || 'do'}-${detail.BaseLine || index}-${detail.ItemCode || index}`}>
+                                          <td>{detail.Status || '-'}</td>
+                                          <td className="fw-semibold">{detail.DocNum || '-'}</td>
+                                          <td>{formatSapDate(detail.DocDate)}</td>
+                                          <td>{detail.BaseLine ?? '-'}</td>
+                                          <td>{detail.ItemCode || '-'}</td>
+                                          <td>{detail.ItemDescription || '-'}</td>
+                                          <td className="text-end">
+                                            {new Intl.NumberFormat('id-ID', { maximumFractionDigits: 6 }).format(
+                                              Number(detail.Delivered_Qty) || 0
+                                            )}
+                                          </td>
+                                          <td className="text-center">
+                                            <Button
+                                              variant="warning"
+                                              size="sm"
+                                              onClick={() => openReturnOrder(order, detail)}
+                                            >
+                                              <i className="ti ti-package-export me-1" />
+                                              Request Return
+                                            </Button>
+                                          </td>
+                                        </tr>
+                                      ))
+                                    ) : (
+                                      <tr>
+                                        <td colSpan={8} className="text-center text-muted py-4">
+                                          Delivery Order details are not available.
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </tbody>
+                                </Table>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
                   );
                 })
               ) : (
@@ -1860,7 +1990,7 @@ export default function Dashboard() {
 
       <Modal show={Boolean(returnOrder)} onHide={closeReturnModal} size="xl" centered scrollable>
         <Modal.Header closeButton={!submittingReturn && !compressingAttachments}>
-          <Modal.Title>Request Retur</Modal.Title>
+          <Modal.Title>Request Return</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Row className="g-3 mb-4">
@@ -2019,7 +2149,7 @@ export default function Dashboard() {
             onClick={submitReturnRequest}
             disabled={submittingReturn || compressingAttachments || loadingReturnOrderId !== null}
           >
-            {submittingReturn ? 'Submitting...' : 'Submit Request Retur'}
+            {submittingReturn ? 'Submitting...' : 'Submit Request Return'}
           </Button>
         </Modal.Footer>
       </Modal>

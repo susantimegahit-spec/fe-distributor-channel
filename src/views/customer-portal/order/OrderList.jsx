@@ -1118,12 +1118,14 @@ export default function OrderList({ showOnlyCommitment = false }) {
             &nbsp;
           </>
         ) : null}
-        {order.status === 'ORDER_APPROVED' ? (
+        {['ORDER_APPROVED', 'APPROVED', 'DELIVERY', 'ARRIVED'].includes(normalizeStatus(order.status)) ? (
           <>
             <Button
               className="rounded-circle"
               variant="outline-secondary"
               size="sm"
+              title="Download PI"
+              aria-label="Download PI"
               disabled={downloadingPdfId === order.id}
               onClick={() => handleDownloadPdf(order)}
             >

@@ -1,0 +1,27 @@
+import { DataService } from '../../config/dataService';
+
+class ProductionServices {
+  getBoms(payload = {}) {
+    const { code = '', search = '' } = payload;
+
+    return DataService.get('/production/boms', { code, search });
+  }
+
+  postBoms(payload) {
+    return DataService.post('/production/boms', payload);
+  }
+
+  getBomsById(id) {
+    return DataService.get(`/production/boms/${id}`);
+  }
+
+  putBoms(id, payload) {
+    return DataService.put(`/production/boms/${id}`, payload);
+  }
+
+  deleteBoms(id) {
+    return DataService.delete(`/production/boms/${id}`);
+  }
+}
+
+export default new ProductionServices();

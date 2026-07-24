@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import Select from 'react-select';
 
 // react-bootstrap
 import Badge from 'react-bootstrap/Badge';
@@ -12,7 +13,13 @@ import Table from 'react-bootstrap/Table';
 
 // project-imports
 import MainCard from 'components/MainCard';
+import WarehouseServices from '../../../services/customer-portal/WarehouseServices';
+import { useAlert } from '../../../utils/alertContext';
 import { currency } from '../../../utils/global';
+
+const selectStyles = {
+  menu: (base) => ({ ...base, zIndex: 10 })
+};
 
 const cities = ['Surabaya', 'Jakarta', 'Bandung', 'Semarang', 'Yogyakarta', 'Denpasar', 'Medan', 'Makassar'];
 
@@ -104,11 +111,48 @@ const getRouteDistance = (departure, destination) => {
 const formatEta = (days) => `${days}-${days + 1} hari`;
 
 export default function ExpeditionDashboard() {
+  const { showAlert } = useAlert();
+  const [warehouseOptions, setWarehouseOptions] = useState([]);
+  const [loadingWarehouses, setLoadingWarehouses] = useState(false);
   const [form, setForm] = useState({
-    departure: 'Surabaya',
+    originWarehouseCode: '',
+    departure: '',
     destination: 'Jakarta',
     weight: 25
   });
+
+  const selectedWarehouse = warehouseOptions.find((item) => item.value === form.originWarehouseCode) || null;
+
+  const fetchWarehouses = useCallback(async () => {
+    setLoadingWarehouses(true);
+
+    try {
+      const response = await WarehouseServices.getAllWarehouse('');
+
+      if (response?.data?.success === false) {
+        showAlert(response.data.message || 'Failed to fetch warehouse data', 'danger');
+        return;
+      }
+
+      const warehouses = response?.data?.data;
+
+      setWarehouseOptions(
+        (Array.isArray(warehouses) ? warehouses : []).map((item) => ({
+          value: String(item.whs_code ?? ''),
+          label: [item.whs_code, item.whs_name].filter(Boolean).join(' - ') || '-',
+          departure: item.city || item.regency || item.whs_name || item.whs_code || ''
+        }))
+      );
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch warehouse data', 'danger');
+    } finally {
+      setLoadingWarehouses(false);
+    }
+  }, [showAlert]);
+
+  useEffect(() => {
+    fetchWarehouses();
+  }, [fetchWarehouses]);
 
   const weight = Number(form.weight || 0);
   const routeDistance = getRouteDistance(form.departure, form.destination);
@@ -141,6 +185,14 @@ export default function ExpeditionDashboard() {
     }));
   };
 
+  const handleOriginChange = (option) => {
+    setForm((current) => ({
+      ...current,
+      originWarehouseCode: option?.value || '',
+      departure: option?.departure || ''
+    }));
+  };
+
   return (
     <Stack gap={3}>
       <MainCard
@@ -162,13 +214,17 @@ export default function ExpeditionDashboard() {
           <Col md={6} xl={3}>
             <Form.Group>
               <Form.Label>Origin</Form.Label>
-              <Form.Select value={form.departure} onChange={handleChange('departure')}>
-                {cities.map((city) => (
-                  <option value={city} key={city}>
-                    {city}
-                  </option>
-                ))}
-              </Form.Select>
+              <Select
+                classNamePrefix="react-select"
+                isClearable
+                isLoading={loadingWarehouses}
+                noOptionsMessage={() => 'Warehouse not found'}
+                onChange={handleOriginChange}
+                options={warehouseOptions}
+                placeholder="Search warehouse"
+                styles={selectStyles}
+                value={selectedWarehouse}
+              />
             </Form.Group>
           </Col>
           <Col md={6} xl={3}>
