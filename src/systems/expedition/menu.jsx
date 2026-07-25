@@ -40,6 +40,16 @@ const expeditionMenu = [
         url: withBasePath('/master/origin')
       },
       {
+        id: 'expedition-destination',
+        title: 'Destination',
+        type: 'item',
+        value: 'expedition-destination',
+        label: 'Destination',
+        selected: true,
+        icon: 'ti ti-map-pin',
+        url: withBasePath('/master/destination')
+      },
+      {
         id: 'expedition-master',
         title: 'Expeditions',
         type: 'item',

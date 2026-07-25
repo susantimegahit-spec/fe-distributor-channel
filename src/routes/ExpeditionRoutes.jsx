@@ -8,6 +8,7 @@ import { RouteErrorBoundary } from 'views/ErrorBoundary';
 
 const ExpeditionDashboard = Loadable(lazy(() => import('views/expedition/dashboard/ExpeditionDashboard')));
 const MasterOrigin = Loadable(lazy(() => import('views/expedition/master/MasterOrigin')));
+const MasterDestination = Loadable(lazy(() => import('views/expedition/master/MasterDestination')));
 const MasterExpedition = Loadable(lazy(() => import('views/expedition/master/MasterExpedition')));
 const Rates = Loadable(lazy(() => import('views/expedition/master/Rates')));
 
@@ -23,6 +24,10 @@ const ExpeditionRoutes = {
     {
       path: 'expedition/master/origin',
       element: <MasterOrigin />
+    },
+    {
+      path: 'expedition/master/destination',
+      element: <MasterDestination />
     },
     {
       path: 'expedition/master/expedition',
@@ -43,6 +48,10 @@ const ExpeditionRoutes = {
     {
       path: 'ekspedisi/master/origin',
       element: <Navigate to="/expedition/master/origin" replace />
+    },
+    {
+      path: 'ekspedisi/master/destination',
+      element: <Navigate to="/expedition/master/destination" replace />
     },
     {
       path: 'ekspedisi/master/ekspedisi',
