@@ -30,6 +30,16 @@ const expeditionMenu = [
     selected: true,
     children: [
       {
+        id: 'expedition-origin',
+        title: 'Origin',
+        type: 'item',
+        value: 'expedition-origin',
+        label: 'Origin',
+        selected: true,
+        icon: 'ti ti-building-warehouse',
+        url: withBasePath('/master/origin')
+      },
+      {
         id: 'expedition-master',
         title: 'Expeditions',
         type: 'item',
@@ -38,6 +48,16 @@ const expeditionMenu = [
         selected: true,
         icon: 'ti ti-package-export',
         url: withBasePath('/master/expedition')
+      },
+      {
+        id: 'expedition-rates',
+        title: 'Rates',
+        type: 'item',
+        value: 'expedition-rates',
+        label: 'Rates',
+        selected: true,
+        icon: 'ti ti-receipt-2',
+        url: withBasePath('/master/rates')
       }
     ]
   }

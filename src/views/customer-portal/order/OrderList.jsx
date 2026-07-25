@@ -202,6 +202,8 @@ export default function OrderList({ showOnlyCommitment = false }) {
   const [commitmentOrderToSend, setCommitmentOrderToSend] = useState(null);
   const [commitmentDeliveryDate, setCommitmentDeliveryDate] = useState('');
   const [processingCmoId, setProcessingCmoId] = useState(null);
+  const [commitmentOrderToDelete, setCommitmentOrderToDelete] = useState(null);
+  const [deletingCmoId, setDeletingCmoId] = useState(null);
   const [expandedCommitmentOrderId, setExpandedCommitmentOrderId] = useState(null);
   const [commitmentStartDate, setCommitmentStartDate] = useState('');
   const [commitmentEndDate, setCommitmentEndDate] = useState('');
@@ -720,6 +722,29 @@ export default function OrderList({ showOnlyCommitment = false }) {
       showAlert(error?.response?.data?.message || error?.message || 'Failed to post CMO to sales order', 'danger');
     } finally {
       setProcessingCmoId(null);
+    }
+  };
+
+  const handleDeleteCmo = async () => {
+    if (!commitmentOrderToDelete?.id) return;
+
+    setDeletingCmoId(commitmentOrderToDelete.id);
+
+    try {
+      const response = await OrderServices.deleteCmo(commitmentOrderToDelete.id);
+
+      if (response?.data?.success === false) {
+        showAlert(response.data.message || 'Failed to delete CMO', 'danger');
+        return;
+      }
+
+      setCommitmentOrderToDelete(null);
+      showAlert(response?.data?.message || 'CMO deleted successfully', 'success');
+      await fetchCommitmentOrders();
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to delete CMO', 'danger');
+    } finally {
+      setDeletingCmoId(null);
     }
   };
 
@@ -1370,6 +1395,18 @@ export default function OrderList({ showOnlyCommitment = false }) {
                                 >
                                   <i className={String(processingCmoId) === String(order.id) ? 'ti ti-loader-2' : 'ti ti-send'} />
                                 </Button>
+                                <Button
+                                  className="rounded-circle p-0"
+                                  size="sm"
+                                  variant="outline-danger"
+                                  title="Delete"
+                                  aria-label="Delete CMO"
+                                  style={{ width: 32, height: 32 }}
+                                  disabled={String(deletingCmoId) === String(order.id)}
+                                  onClick={() => setCommitmentOrderToDelete(order)}
+                                >
+                                  <i className={String(deletingCmoId) === String(order.id) ? 'ti ti-loader-2' : 'ti ti-trash'} />
+                                </Button>
                               </Stack>
                             </td>
                           </tr>
@@ -1594,32 +1631,59 @@ export default function OrderList({ showOnlyCommitment = false }) {
         )}
       </Stack>
       {showOnlyCommitment && (
-        <Modal show={Boolean(commitmentOrderToSend)} onHide={closeProcessCmoModal} centered>
-          <Modal.Header closeButton={processingCmoId === null}>
-            <Modal.Title>Process Commitment Monthly Order</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            <Form.Group>
-              <Form.Label>Delivery Date</Form.Label>
-              <Form.Control
-                type="date"
-                value={commitmentDeliveryDate}
-                min={moment().format('YYYY-MM-DD')}
-                disabled={processingCmoId !== null}
-                onChange={(event) => setCommitmentDeliveryDate(event.target.value)}
-              />
-            </Form.Group>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="danger" disabled={processingCmoId !== null} onClick={closeProcessCmoModal}>
-              Cancel
-            </Button>
-            <Button variant="success" disabled={processingCmoId !== null || !commitmentDeliveryDate} onClick={handleProcessCmo}>
-              <i className={processingCmoId !== null ? 'ti ti-loader-2 me-1' : 'ti ti-send me-1'} />
-              {processingCmoId !== null ? 'Processing...' : 'Process'}
-            </Button>
-          </Modal.Footer>
-        </Modal>
+        <>
+          <Modal show={Boolean(commitmentOrderToSend)} onHide={closeProcessCmoModal} centered>
+            <Modal.Header closeButton={processingCmoId === null}>
+              <Modal.Title>Process Commitment Monthly Order</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <Form.Group>
+                <Form.Label>Delivery Date</Form.Label>
+                <Form.Control
+                  type="date"
+                  value={commitmentDeliveryDate}
+                  min={moment().format('YYYY-MM-DD')}
+                  disabled={processingCmoId !== null}
+                  onChange={(event) => setCommitmentDeliveryDate(event.target.value)}
+                />
+              </Form.Group>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="danger" disabled={processingCmoId !== null} onClick={closeProcessCmoModal}>
+                Cancel
+              </Button>
+              <Button variant="success" disabled={processingCmoId !== null || !commitmentDeliveryDate} onClick={handleProcessCmo}>
+                <i className={processingCmoId !== null ? 'ti ti-loader-2 me-1' : 'ti ti-send me-1'} />
+                {processingCmoId !== null ? 'Processing...' : 'Process'}
+              </Button>
+            </Modal.Footer>
+          </Modal>
+          <Modal
+            show={Boolean(commitmentOrderToDelete)}
+            onHide={() => !deletingCmoId && setCommitmentOrderToDelete(null)}
+            centered
+          >
+            <Modal.Header closeButton={!deletingCmoId}>
+              <Modal.Title>Delete CMO</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <p className="mb-0">
+                Are you sure you want to delete this CMO for{' '}
+                <strong>{commitmentOrderToDelete?.customer_name || commitmentOrderToDelete?.customer_code || '-'}</strong>? This action
+                cannot be undone.
+              </p>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="light" disabled={Boolean(deletingCmoId)} onClick={() => setCommitmentOrderToDelete(null)}>
+                Cancel
+              </Button>
+              <Button variant="danger" disabled={Boolean(deletingCmoId)} onClick={handleDeleteCmo}>
+                <i className={deletingCmoId ? 'ti ti-loader-2 me-1' : 'ti ti-trash me-1'} />
+                {deletingCmoId ? 'Deleting...' : 'Delete CMO'}
+              </Button>
+            </Modal.Footer>
+          </Modal>
+        </>
       )}
       <Modal show={Boolean(orderToCancel)} onHide={() => !cancellingOrderId && setOrderToCancel(null)} centered>
         <Modal.Header closeButton={!cancellingOrderId}>

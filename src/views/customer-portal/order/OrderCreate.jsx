@@ -1685,7 +1685,7 @@ export default function OrderPost({ cmoMode = false }) {
     });
 
     documents.forEach((file) => {
-      formData.append('attachment', file);
+      formData.append('attachments', file);
     });
 
     return formData;

@@ -11,8 +11,10 @@ import Table from 'react-bootstrap/Table';
 
 import MainCard from 'components/MainCard';
 import OrderServices from '../../../services/customer-portal/OrderServices';
+import RoleServices from '../../../services/setting/RoleServices';
 import { useAlert } from '../../../utils/alertContext';
 import { useConfirm } from '../../../utils/confirmContext';
+import { getCookies } from '../../../utils/cookies';
 
 const getList = (response) => {
   const payload = response?.data?.data ?? response?.data;
@@ -58,13 +60,22 @@ const formatQuantity = (value) =>
     maximumFractionDigits: 6
   }).format(Number(value) || 0);
 
+const normalizeAccessValue = (value) =>
+  String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, '_');
+
 export default function OrderRetur() {
   const { showAlert } = useAlert();
   const { showConfirm } = useConfirm();
+  const roleId = getCookies('role');
   const [returns, setReturns] = useState([]);
   const [loading, setLoading] = useState(false);
   const [keyword, setKeyword] = useState('');
   const [selectedReturn, setSelectedReturn] = useState(null);
+  const [previewAttachment, setPreviewAttachment] = useState(null);
+  const [permissionDetail, setPermissionDetail] = useState(null);
 
   useEffect(() => {
     const fetchReturns = async () => {
@@ -83,6 +94,21 @@ export default function OrderRetur() {
 
     fetchReturns();
   }, [showAlert]);
+
+  useEffect(() => {
+    const fetchRolePermission = async () => {
+      if (!roleId) return;
+
+      try {
+        const response = await RoleServices.fetchRole(roleId);
+        setPermissionDetail(response?.data?.success ? response.data.data : null);
+      } catch {
+        setPermissionDetail(null);
+      }
+    };
+
+    fetchRolePermission();
+  }, [roleId]);
 
   const filteredReturns = useMemo(() => {
     const search = keyword.trim().toLowerCase();
@@ -103,15 +129,102 @@ export default function OrderRetur() {
     });
   }, [keyword, returns]);
 
+  const detailItems = getReturnItems(selectedReturn);
+  const selectedPrimaryItem = detailItems[0] || {};
+  const returnAttachmentsValue = getValue(selectedReturn, ['sales_return.attachments', 'salesReturn.attachments', 'attachments'], []);
+  const returnAttachments = Array.isArray(returnAttachmentsValue)
+    ? returnAttachmentsValue
+    : [returnAttachmentsValue].filter(Boolean);
+  const permissionApprovalName = normalizeAccessValue(permissionDetail?.role_menu?.approval?.name);
+  const roleName = normalizeAccessValue(permissionDetail?.name || permissionDetail?.role?.name || permissionDetail?.role_name);
+  const isAdminSales = permissionApprovalName === 'WAITING_ADMIN_SALES' || roleName.includes('ADMIN_SALES');
+  const isFinance = permissionApprovalName === 'WAITING_FINANCE' || roleName.includes('FINANCE');
+  const selectedReturnStatus = normalizeAccessValue(
+    getValue(selectedReturn, ['status', 'return_status', 'returnStatus'], '')
+  );
+  const canManageSelectedReturn =
+    (selectedReturnStatus === 'WAITING_ADMIN_SALES' && isAdminSales) ||
+    (selectedReturnStatus === 'WAITING_FINANCE' && isFinance);
+
   const openReturnDetail = (index) => {
     setSelectedReturn(filteredReturns[index] || null);
   };
 
   const closeDetail = () => {
     setSelectedReturn(null);
+    setPreviewAttachment(null);
+  };
+
+  const getAttachmentValue = (attachment, keys, fallback = '') => {
+    if (typeof attachment === 'string') return attachment;
+    return getValue(attachment, keys, fallback);
+  };
+
+  const getAttachmentName = (attachment) =>
+    getAttachmentValue(attachment, ['file_name', 'original_name', 'name', 'filename'], 'Attachment');
+
+  const getAttachmentUrl = (attachment) => {
+    const rawUrl = getAttachmentValue(
+      attachment,
+      ['file_url', 'url', 'path', 'file_path', 'document_url', 'attachment_url'],
+      ''
+    );
+
+    if (!rawUrl || rawUrl === '-') return '';
+    if (/^https?:\/\//i.test(rawUrl)) return rawUrl;
+
+    try {
+      return new URL(rawUrl, import.meta.env.VITE_APP_API_ENDPOINT_PRODUCTION).href;
+    } catch {
+      return rawUrl;
+    }
+  };
+
+  const getAttachmentType = (attachment) => {
+    const fileName = getAttachmentName(attachment);
+    const mimeType = String(getAttachmentValue(attachment, ['file_type', 'mime_type', 'mimeType', 'type'], '')).toLowerCase();
+    const extension = fileName.split('.').pop()?.toLowerCase() || '';
+
+    if (mimeType.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(extension)) return 'image';
+    if (mimeType === 'application/pdf' || extension === 'pdf') return 'pdf';
+    if (['doc', 'docx'].includes(extension) || mimeType.includes('word')) return 'word';
+    if (['xls', 'xlsx', 'csv'].includes(extension) || mimeType.includes('sheet') || mimeType.includes('excel')) return 'excel';
+    return 'file';
+  };
+
+  const getAttachmentIcon = (attachment) => {
+    const type = getAttachmentType(attachment);
+    if (type === 'pdf') return 'ti ti-file-type-pdf text-danger';
+    if (type === 'word') return 'ti ti-file-type-doc text-primary';
+    if (type === 'excel') return 'ti ti-file-spreadsheet text-success';
+    return 'ti ti-file text-secondary';
+  };
+
+  const openAttachment = (attachment) => {
+    const url = getAttachmentUrl(attachment);
+    if (!url) {
+      showAlert('Attachment URL not found', 'danger');
+      return;
+    }
+
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleAttachmentClick = (attachment) => {
+    if (['image', 'pdf'].includes(getAttachmentType(attachment))) {
+      setPreviewAttachment(attachment);
+      return;
+    }
+
+    openAttachment(attachment);
   };
 
   const submitReturnAction = async (action) => {
+    if (!canManageSelectedReturn) {
+      showAlert('You do not have access to process this return status', 'danger');
+      return;
+    }
+
     const id = getValue(selectedReturn, ['id'], '');
     const actionLabel = action === 'approve' ? 'approved' : 'rejected';
     if (!id) {
@@ -144,6 +257,11 @@ export default function OrderRetur() {
   };
 
   const confirmReturnAction = (action) => {
+    if (!canManageSelectedReturn) {
+      showAlert('You do not have access to process this return status', 'danger');
+      return;
+    }
+
     const isApprove = action === 'approve';
     const id = getValue(selectedReturn, ['id'], '');
 
@@ -153,9 +271,6 @@ export default function OrderRetur() {
       onConfirm: () => submitReturnAction(action)
     });
   };
-
-  const detailItems = getReturnItems(selectedReturn);
-  const selectedPrimaryItem = detailItems[0] || {};
 
   return (
     <>
@@ -362,15 +477,106 @@ export default function OrderRetur() {
           ) : (
             <div className="text-center text-muted py-5">No product detail found.</div>
           )}
+
+          {returnAttachments.length ? (
+            <div className="mt-4">
+              <Stack direction="horizontal" className="justify-content-between mb-3">
+                <div>
+                  <h6 className="mb-1">Return Attachments</h6>
+                  <small className="text-muted">Click an attachment to preview the file.</small>
+                </div>
+                <Badge bg="primary">{returnAttachments.length} files</Badge>
+              </Stack>
+              <Row className="g-3">
+                {returnAttachments.map((attachment, index) => {
+                  const attachmentUrl = getAttachmentUrl(attachment);
+                  const attachmentName = getAttachmentName(attachment);
+                  const attachmentType = getAttachmentType(attachment);
+
+                  return (
+                    <Col xs={6} sm={4} md={3} key={attachment.id || `${attachmentName}-${index}`}>
+                      <Button
+                        variant="light"
+                        className="border w-100 h-100 p-2 text-start"
+                        onClick={() => handleAttachmentClick(attachment)}
+                        disabled={!attachmentUrl}
+                        title={`Preview ${attachmentName}`}
+                      >
+                        <span
+                          className="d-flex align-items-center justify-content-center overflow-hidden rounded bg-light mb-2"
+                          style={{ height: 112 }}
+                        >
+                          {attachmentType === 'image' ? (
+                            <img
+                              src={attachmentUrl}
+                              alt={attachmentName}
+                              className="w-100 h-100"
+                              style={{ objectFit: 'cover' }}
+                            />
+                          ) : (
+                            <i className={`${getAttachmentIcon(attachment)} f-40`} />
+                          )}
+                        </span>
+                        <span className="d-block text-truncate fw-semibold f-12">{attachmentName}</span>
+                        <span className="d-block text-muted text-uppercase" style={{ fontSize: 10 }}>
+                          {attachmentType}
+                        </span>
+                      </Button>
+                    </Col>
+                  );
+                })}
+              </Row>
+            </div>
+          ) : null}
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={closeDetail}>Close</Button>
-          <Button variant="danger" onClick={() => confirmReturnAction('reject')}>
-            <i className="ti ti-x me-1" /> Reject
+          {canManageSelectedReturn && (
+            <>
+              <Button variant="danger" onClick={() => confirmReturnAction('reject')}>
+                <i className="ti ti-x me-1" /> Reject
+              </Button>
+              <Button variant="success" onClick={() => confirmReturnAction('approve')}>
+                <i className="ti ti-check me-1" /> Approve
+              </Button>
+            </>
+          )}
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={Boolean(previewAttachment)} onHide={() => setPreviewAttachment(null)} size="xl" centered>
+        <Modal.Header closeButton>
+          <Modal.Title>{previewAttachment ? getAttachmentName(previewAttachment) : 'Attachment Preview'}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-0 bg-light">
+          {previewAttachment && getAttachmentType(previewAttachment) === 'image' ? (
+            <div className="d-flex align-items-center justify-content-center p-3" style={{ minHeight: 420 }}>
+              <img
+                src={getAttachmentUrl(previewAttachment)}
+                alt={getAttachmentName(previewAttachment)}
+                className="img-fluid"
+                style={{ maxHeight: '70vh' }}
+              />
+            </div>
+          ) : previewAttachment ? (
+            <iframe
+              src={getAttachmentUrl(previewAttachment)}
+              title={getAttachmentName(previewAttachment)}
+              className="border-0 w-100"
+              style={{ minHeight: '70vh' }}
+            />
+          ) : null}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light" onClick={() => setPreviewAttachment(null)}>
+            Close
           </Button>
-          <Button variant="success" onClick={() => confirmReturnAction('approve')}>
-            <i className="ti ti-check me-1" /> Approve
-          </Button>
+          {previewAttachment ? (
+            <Button variant="primary" onClick={() => openAttachment(previewAttachment)}>
+              <i className="ti ti-external-link me-1" />
+              Open in New Tab
+            </Button>
+          ) : null}
         </Modal.Footer>
       </Modal>
     </>

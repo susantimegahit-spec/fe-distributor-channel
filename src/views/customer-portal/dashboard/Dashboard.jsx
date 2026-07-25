@@ -248,7 +248,20 @@ const getOrderLines = (order = {}) => {
 const getOrderListPayload = (payload) => {
   if (Array.isArray(payload)) return payload;
 
-  return getFirstValue(payload, ['data', 'items', 'results', 'orders', 'sales_orders', 'salesOrders']) || [];
+  const list = getFirstValue(payload, [
+    'data',
+    'items',
+    'results',
+    'orders',
+    'sales_orders',
+    'salesOrders',
+    'sales_returns',
+    'salesReturns',
+    'sales_return'
+  ]);
+
+  if (Array.isArray(list)) return list;
+  return list && typeof list === 'object' ? [list] : [];
 };
 
 const getEtaListPayload = (payload) => {
@@ -706,6 +719,7 @@ export default function Dashboard() {
   const [doErrorsByOrderId, setDoErrorsByOrderId] = useState({});
   const [returnOrder, setReturnOrder] = useState(null);
   const [returnRequests, setReturnRequests] = useState([]);
+  const [selectedReturnHistory, setSelectedReturnHistory] = useState(null);
   const [returnQuantities, setReturnQuantities] = useState({});
   const [returnReason, setReturnReason] = useState('');
   const [returnAttachments, setReturnAttachments] = useState([]);
@@ -949,7 +963,7 @@ export default function Dashboard() {
   }, []);
 
   const deliveryOrders = useMemo(() => orders.filter((order) => normalizeStatus(order.status) === 'DELIVERY'), [orders]);
-  const returnRequestByDoItem = useMemo(() => {
+  const returnSummaryByDoItem = useMemo(() => {
     const requestsByDoItem = new Map();
 
     returnRequests.forEach((request) => {
@@ -980,7 +994,22 @@ export default function Dashboard() {
         const itemCode = getFirstValue(item, ['item_code', 'itemCode', 'ItemCode', 'code_item', 'codeItem']);
 
         if (doNumber !== undefined && doNumber !== null && doNumber !== '' && itemCode) {
-          requestsByDoItem.set(`${String(doNumber).trim()}::${String(itemCode).trim().toUpperCase()}`, request);
+          const key = `${String(doNumber).trim()}::${String(itemCode).trim().toUpperCase()}`;
+          const currentSummary = requestsByDoItem.get(key) || {
+            doNumber: String(doNumber).trim(),
+            itemCode: String(itemCode).trim(),
+            totalReturnQuantity: 0,
+            entries: []
+          };
+          const returnQuantity = getNumberValue(item, ['quantity', 'qty', 'return_quantity', 'returnQuantity']);
+
+          currentSummary.totalReturnQuantity += returnQuantity;
+          currentSummary.entries.push({
+            request,
+            item,
+            quantity: returnQuantity
+          });
+          requestsByDoItem.set(key, currentSummary);
         }
       });
     });
@@ -1108,13 +1137,26 @@ export default function Dashboard() {
       return;
     }
 
+    const doNumber = getOrderValue(doDetail, ['DocNum', 'doc_num', 'docNum', 'do_num', 'doNumber'], '');
+    const itemCode = getOrderValue(doDetail, ['ItemCode', 'item_code', 'itemCode'], '');
+    const returnSummary = returnSummaryByDoItem.get(`${String(doNumber).trim()}::${String(itemCode).trim().toUpperCase()}`);
+    const deliveredQuantity = getNumberValue(doDetail, ['Delivered_Qty', 'delivered_qty', 'deliveredQty', 'quantity', 'qty']);
+    const remainingQuantity = Math.max(deliveredQuantity - (returnSummary?.totalReturnQuantity || 0), 0);
+
+    if (remainingQuantity <= 0) {
+      showAlert('The delivered quantity has been fully returned', 'warning');
+      return;
+    }
+
     const returnLine = {
       ...doDetail,
       id: getOrderValue(doDetail, ['id', 'sales_order_detail_id', 'salesOrderDetailId'], ''),
       sales_order_detail_id: getOrderValue(doDetail, ['sales_order_detail_id', 'salesOrderDetailId', 'id'], ''),
       item_code: getOrderValue(doDetail, ['ItemCode', 'item_code', 'itemCode'], ''),
       item_name: getOrderValue(doDetail, ['ItemDescription', 'ItemName', 'item_name', 'itemName'], ''),
-      quantity: getNumberValue(doDetail, ['Delivered_Qty', 'delivered_qty', 'deliveredQty', 'quantity', 'qty'])
+      quantity: remainingQuantity,
+      delivered_quantity: deliveredQuantity,
+      returned_quantity: returnSummary?.totalReturnQuantity || 0
     };
 
     setReturnOrder({
@@ -1254,7 +1296,7 @@ export default function Dashboard() {
         do_quantity: doQuantity,
         do_status: getOrderValue(doDetail, ['Status', 'status'], ''),
         items,
-        attachment: returnAttachments
+        attachments: returnAttachments
       });
 
       if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to submit return request');
@@ -1731,13 +1773,14 @@ export default function Dashboard() {
                                   <tbody>
                                     {doDetails.length ? (
                                       doDetails.map((detail, index) => {
-                                        const doReturnRequest = returnRequestByDoItem.get(
+                                        const doReturnSummary = returnSummaryByDoItem.get(
                                           `${String(detail.DocNum || '').trim()}::${String(detail.ItemCode || '')
                                             .trim()
                                             .toUpperCase()}`
                                         );
+                                        const latestReturnRequest = doReturnSummary?.entries.at(-1)?.request;
                                         const doReturnStatus = getOrderValue(
-                                          doReturnRequest,
+                                          latestReturnRequest,
                                           ['status', 'return_status', 'returnStatus'],
                                           '-'
                                         );
@@ -1749,6 +1792,9 @@ export default function Dashboard() {
                                           : ['REJECTED', 'FAILED', 'CANCELLED', 'CANCELED'].includes(normalizedDoReturnStatus)
                                             ? 'danger'
                                             : 'warning';
+                                        const deliveredQuantity = Number(detail.Delivered_Qty) || 0;
+                                        const returnedQuantity = doReturnSummary?.totalReturnQuantity || 0;
+                                        const remainingQuantity = Math.max(deliveredQuantity - returnedQuantity, 0);
 
                                         return (
                                           <tr key={`${detail.DocNum || 'do'}-${detail.BaseLine || index}-${detail.ItemCode || index}`}>
@@ -1760,12 +1806,32 @@ export default function Dashboard() {
                                             <td>{detail.ItemDescription || '-'}</td>
                                             <td className="text-end">
                                               {new Intl.NumberFormat('id-ID', { maximumFractionDigits: 6 }).format(
-                                                Number(detail.Delivered_Qty) || 0
+                                                deliveredQuantity
                                               )}
+                                              {doReturnSummary ? (
+                                                <small className="d-block text-muted">
+                                                  Returned {formatComparisonValue(returnedQuantity)} · Remaining{' '}
+                                                  {formatComparisonValue(remainingQuantity)}
+                                                </small>
+                                              ) : null}
                                             </td>
                                             <td>
-                                              {doReturnRequest ? (
-                                                <Badge bg={doReturnStatusColor}>{String(doReturnStatus).replace(/_/g, ' ')}</Badge>
+                                              {doReturnSummary ? (
+                                                <Button
+                                                  variant="link"
+                                                  className="p-0 text-decoration-none"
+                                                  onClick={() =>
+                                                    setSelectedReturnHistory({
+                                                      ...doReturnSummary,
+                                                      deliveredQuantity,
+                                                      remainingQuantity,
+                                                      itemDescription: detail.ItemDescription || '-'
+                                                    })
+                                                  }
+                                                >
+                                                  <Badge bg={doReturnStatusColor}>{String(doReturnStatus).replace(/_/g, ' ')}</Badge>
+                                                  <small className="d-block mt-1">{doReturnSummary.entries.length} return detail</small>
+                                                </Button>
                                               ) : (
                                                 '-'
                                               )}
@@ -1774,11 +1840,11 @@ export default function Dashboard() {
                                               <Button
                                                 variant="warning"
                                                 size="sm"
-                                                disabled={Boolean(doReturnRequest)}
+                                                disabled={remainingQuantity <= 0}
                                                 onClick={() => openReturnOrder(order, index)}
                                               >
                                                 <i className="ti ti-package-export me-1" />
-                                                {doReturnRequest ? 'Return Requested' : 'Request Return'}
+                                                {remainingQuantity <= 0 ? 'Fully Returned' : doReturnSummary ? 'Return Remaining' : 'Request Return'}
                                               </Button>
                                             </td>
                                           </tr>
@@ -2084,6 +2150,8 @@ export default function Dashboard() {
                   <th>Product Code</th>
                   <th>Product Name</th>
                   <th className="text-end">Delivered Qty</th>
+                  <th className="text-end">Returned Qty</th>
+                  <th className="text-end">Remaining Qty</th>
                   <th style={{ minWidth: 160 }}>Qty Retur</th>
                 </tr>
               </thead>
@@ -2095,7 +2163,9 @@ export default function Dashboard() {
                     index
                   );
                   const lineKey = `${identity}-${index}`;
-                  const orderedQuantity = getNumberValue(line, ['quantity', 'qty', 'Quantity']);
+                  const remainingQuantity = getNumberValue(line, ['quantity', 'qty', 'Quantity']);
+                  const deliveredQuantity = getNumberValue(line, ['delivered_quantity', 'deliveredQuantity']);
+                  const returnedQuantity = getNumberValue(line, ['returned_quantity', 'returnedQuantity']);
 
                   return (
                     <tr key={lineKey}>
@@ -2104,17 +2174,19 @@ export default function Dashboard() {
                       <td>
                         {getOrderValue(line, ['item_name', 'itemName', 'ItemName', 'description', 'Dscription', 'item_description'])}
                       </td>
-                      <td className="text-end">{orderedQuantity}</td>
+                      <td className="text-end">{formatComparisonValue(deliveredQuantity)}</td>
+                      <td className="text-end">{formatComparisonValue(returnedQuantity)}</td>
+                      <td className="text-end fw-semibold text-success">{formatComparisonValue(remainingQuantity)}</td>
                       <td>
                         <Form.Control
                           type="number"
                           min={0}
-                          max={orderedQuantity}
+                          max={remainingQuantity}
                           step={1}
                           value={returnQuantities[lineKey] ?? ''}
-                          onChange={(event) => updateReturnQuantity(lineKey, event.target.value, orderedQuantity)}
+                          onChange={(event) => updateReturnQuantity(lineKey, event.target.value, remainingQuantity)}
                         />
-                        <small className="text-muted">Maximum {orderedQuantity}</small>
+                        <small className="text-muted">Maximum {formatComparisonValue(remainingQuantity)}</small>
                       </td>
                     </tr>
                   );
@@ -2206,6 +2278,80 @@ export default function Dashboard() {
             disabled={submittingReturn || compressingAttachments}
           >
             {submittingReturn ? 'Submitting...' : 'Submit Request Return'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={Boolean(selectedReturnHistory)} onHide={() => setSelectedReturnHistory(null)} size="lg" centered scrollable>
+        <Modal.Header closeButton>
+          <Modal.Title>Return Detail</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedReturnHistory ? (
+            <>
+              <Row className="g-3 mb-4">
+                <Col sm={6}>
+                  <small className="text-muted">DO Number</small>
+                  <div className="fw-semibold">{selectedReturnHistory.doNumber || '-'}</div>
+                </Col>
+                <Col sm={6}>
+                  <small className="text-muted">Item Code</small>
+                  <div className="fw-semibold">{selectedReturnHistory.itemCode || '-'}</div>
+                  <small className="text-muted">{selectedReturnHistory.itemDescription}</small>
+                </Col>
+                <Col sm={4}>
+                  <small className="text-muted">Delivered Qty</small>
+                  <div className="fw-semibold">{formatComparisonValue(selectedReturnHistory.deliveredQuantity)}</div>
+                </Col>
+                <Col sm={4}>
+                  <small className="text-muted">Total Returned Qty</small>
+                  <div className="fw-semibold text-warning">{formatComparisonValue(selectedReturnHistory.totalReturnQuantity)}</div>
+                </Col>
+                <Col sm={4}>
+                  <small className="text-muted">Remaining Qty</small>
+                  <div className="fw-semibold text-success">{formatComparisonValue(selectedReturnHistory.remainingQuantity)}</div>
+                </Col>
+              </Row>
+              <Table responsive bordered hover className="mb-0 align-middle">
+                <thead>
+                  <tr>
+                    <th>No.</th>
+                    <th>Date</th>
+                    <th className="text-end">Return Qty</th>
+                    <th>Reason</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedReturnHistory.entries.map(({ request, item, quantity }, index) => {
+                    const requestStatus = getOrderValue(request, ['status', 'return_status', 'returnStatus'], 'PENDING');
+                    const normalizedRequestStatus = normalizeStatus(requestStatus);
+                    const statusColor = ['APPROVED', 'COMPLETED', 'SUCCESS'].includes(normalizedRequestStatus)
+                      ? 'success'
+                      : ['REJECTED', 'FAILED', 'CANCELLED', 'CANCELED'].includes(normalizedRequestStatus)
+                        ? 'danger'
+                        : 'warning';
+
+                    return (
+                      <tr key={request.id || `${selectedReturnHistory.doNumber}-${selectedReturnHistory.itemCode}-${index}`}>
+                        <td>{index + 1}</td>
+                        <td>{formatOrderDate(getOrderValue(request, ['created_at', 'createdAt', 'request_date'], ''))}</td>
+                        <td className="text-end fw-semibold">{formatComparisonValue(quantity)}</td>
+                        <td>{getOrderValue(item, ['reason'], getOrderValue(request, ['reason'], '-'))}</td>
+                        <td>
+                          <Badge bg={statusColor}>{String(requestStatus).replace(/_/g, ' ')}</Badge>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </Table>
+            </>
+          ) : null}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setSelectedReturnHistory(null)}>
+            Close
           </Button>
         </Modal.Footer>
       </Modal>

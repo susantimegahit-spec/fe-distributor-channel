@@ -1,15 +1,16 @@
 import { Navigate, useNavigate } from 'react-router-dom';
 
 // react-bootstrap
-import Button from 'react-bootstrap/Button';
 import Card from 'react-bootstrap/Card';
+import Col from 'react-bootstrap/Col';
 import Modal from 'react-bootstrap/Modal';
-import Stack from 'react-bootstrap/Stack';
+import Row from 'react-bootstrap/Row';
 
 // project-imports
 import { getCookies } from '../../utils/cookies';
 import { normalizeAccessibleSystems, systems } from '../../systems';
 import AccessDenied from './AccessDenied';
+import './system-selector.scss';
 
 export default function SystemSelector() {
   const navigate = useNavigate();
@@ -24,35 +25,42 @@ export default function SystemSelector() {
   if (availableSystems.length > 1) {
     return (
       <Modal show centered backdrop="static" keyboard={false} size="lg">
-        <Modal.Header>
+        <Modal.Header className="system-selector__header">
           <div>
             <Modal.Title>Choose System</Modal.Title>
             <div className="text-muted f-12">Select the workspace you want to open.</div>
           </div>
         </Modal.Header>
-        <Modal.Body>
-          <Stack gap={3}>
+        <Modal.Body className="system-selector__body">
+          <Row className="g-3">
             {availableSystems.map((system) => (
-              <Card className="border mb-0" key={system.key}>
-                <Card.Body>
-                  <Stack direction="horizontal" gap={3} className="align-items-start justify-content-between flex-wrap">
-                    <Stack direction="horizontal" gap={3} className="align-items-start">
-                      <span className="avtar avtar-s bg-light-primary text-primary">
-                        <i className={system.icon} />
-                      </span>
-                      <div>
-                        <h5 className="mb-1">{system.title}</h5>
-                        <p className="text-muted mb-0">{system.description}</p>
-                      </div>
-                    </Stack>
-                    <Button onClick={() => navigate(system.defaultPath)}>
+              <Col xs={12} sm={6} key={system.key}>
+                <Card
+                  className="system-selector__card border mb-0 h-100"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => navigate(system.defaultPath)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      navigate(system.defaultPath);
+                    }
+                  }}
+                >
+                  <Card.Body className="d-flex flex-column align-items-center text-center">
+                    <span className="system-selector__icon bg-light-primary text-primary">
+                      <i className={system.icon} />
+                    </span>
+                    <h5 className="mb-2">{system.title}</h5>
+                    <p className="text-muted mb-4">{system.description}</p>
+                    <span className="btn btn-primary mt-auto">
                       Open {system.title}
-                    </Button>
-                  </Stack>
-                </Card.Body>
-              </Card>
+                    </span>
+                  </Card.Body>
+                </Card>
+              </Col>
             ))}
-          </Stack>
+          </Row>
         </Modal.Body>
       </Modal>
     );

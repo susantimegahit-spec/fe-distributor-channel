@@ -128,7 +128,7 @@ class OrderServices {
     (payload.items || []).forEach((item, index) => {
       Object.entries(item).forEach(([key, value]) => formData.append(`items[${index}][${key}]`, value ?? ''));
     });
-    (payload.attachment || []).forEach((file) => formData.append('attachment[]', file));
+    (payload.attachments || []).forEach((file) => formData.append('attachments[]', file));
 
     return DataService.post('/sales-returns', formData);
   }
