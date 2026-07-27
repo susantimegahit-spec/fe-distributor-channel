@@ -26,6 +26,42 @@ const getList = (response, keys = []) => {
 
 const uniqueValues = (values) => [...new Set(values.map((value) => String(value || '').trim()).filter(Boolean))];
 
+const firstValue = (item, keys) =>
+  keys.map((key) => item?.[key]).find((value) => String(value || '').trim()) || '';
+
+const joinValues = (values, separator = ' - ') =>
+  values
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+    .join(separator);
+
+const getDestinationRow = (item) => {
+  const customerCode = firstValue(item, ['customerCode', 'customer_code', 'code_customer', 'card_code', 'CardCode']);
+  const customerName =
+    firstValue(item, ['customerName', 'customer_name', 'card_name', 'CardName', 'name']) || item?.customer?.name;
+  const destinationCode = firstValue(item, ['shipToCode', 'ship_to_code', 'address_code', 'AddressName']);
+  const destinationName = firstValue(item, [
+    'shipToName',
+    'ship_to_name',
+    'address_name',
+    'AddressName2',
+    'destination_name'
+  ]);
+  const street = firstValue(item, ['street', 'Street', 'ship_to_address', 'Address', 'address']);
+  const city = firstValue(item, ['city', 'City']);
+  const province = firstValue(item, ['province', 'state', 'State']);
+  const postalCode = firstValue(item, ['postalCode', 'postal_code', 'zip_code', 'ZipCode']);
+  const customer = joinValues([customerCode, customerName]);
+  const destination = joinValues([destinationCode, destinationName]);
+
+  return {
+    customer,
+    destination,
+    address: joinValues([street, city, province, postalCode], ', '),
+    dropdown: joinValues([customer, destination])
+  };
+};
+
 const getLoggedInExpedition = (response) => {
   const payload = getPayload(response);
   const user = payload?.user || payload;
@@ -105,19 +141,8 @@ export default function Rates() {
       const originValues = uniqueValues(
         origins.map((item) => item.whs_name_origin || item.origin_name || item.name || item.whs_code)
       );
-      const destinationValues = uniqueValues(
-        destinations.map(
-          (item) =>
-            item.ship_to_name ||
-            item.shipToName ||
-            item.address_name ||
-            item.ship_to_address ||
-            item.Address ||
-            item.destination_name ||
-            item.street ||
-            item.address
-        )
-      );
+      const destinationRows = destinations.map(getDestinationRow).filter((item) => item.dropdown);
+      const destinationValues = uniqueValues(destinationRows.map((item) => item.dropdown));
 
       if (!originValues.length) throw new Error('Origin master is empty');
       if (!destinationValues.length) throw new Error('Destination master is empty');
@@ -135,7 +160,14 @@ export default function Rates() {
 
       const ratesSheet = XLSX.utils.aoa_to_sheet(rateRows);
       const originSheet = XLSX.utils.aoa_to_sheet([['origin'], ...originValues.map((value) => [value])]);
-      const destinationSheet = XLSX.utils.aoa_to_sheet([['destination'], ...destinationValues.map((value) => [value])]);
+      const destinationSheet = XLSX.utils.aoa_to_sheet([
+        ['customer', 'destination', 'address'],
+        ...destinationRows.map((item) => [item.customer, item.destination, item.address])
+      ]);
+      const dropdownSheet = XLSX.utils.aoa_to_sheet([
+        ['customer_destination'],
+        ...destinationValues.map((value) => [value])
+      ]);
       const expeditionSheet = XLSX.utils.aoa_to_sheet([
         ['expedition_code', 'expedition_name'],
         [expedition.code, expedition.name]
@@ -144,12 +176,14 @@ export default function Rates() {
 
       ratesSheet['!cols'] = [{ wch: 32 }, { wch: 36 }, { wch: 30 }, { wch: 14 }, { wch: 14 }, { wch: 18 }, { wch: 18 }];
       originSheet['!cols'] = [{ wch: 40 }];
-      destinationSheet['!cols'] = [{ wch: 50 }];
+      destinationSheet['!cols'] = [{ wch: 40 }, { wch: 40 }, { wch: 70 }];
+      dropdownSheet['!cols'] = [{ wch: 80 }];
       expeditionSheet['!cols'] = [{ wch: 22 }, { wch: 36 }];
       serviceTypeSheet['!cols'] = [{ wch: 20 }];
       ratesSheet['!autofilter'] = { ref: 'A1:G200' };
       originSheet['!autofilter'] = { ref: `A1:A${originValues.length + 1}` };
-      destinationSheet['!autofilter'] = { ref: `A1:A${destinationValues.length + 1}` };
+      destinationSheet['!autofilter'] = { ref: `A1:C${destinationRows.length + 1}` };
+      dropdownSheet['!autofilter'] = { ref: `A1:A${destinationValues.length + 1}` };
       expeditionSheet['!autofilter'] = { ref: 'A1:B2' };
       serviceTypeSheet['!autofilter'] = { ref: 'A1:A3' };
 
@@ -158,10 +192,15 @@ export default function Rates() {
       XLSX.utils.book_append_sheet(workbook, destinationSheet, 'Master Destination');
       XLSX.utils.book_append_sheet(workbook, expeditionSheet, 'User Expedition');
       XLSX.utils.book_append_sheet(workbook, serviceTypeSheet, 'Master Service Type');
+      XLSX.utils.book_append_sheet(workbook, dropdownSheet, 'Dropdown Lists');
       workbook.Workbook = {
+        Sheets: workbook.SheetNames.map((name) => ({
+          name,
+          Hidden: name === 'Dropdown Lists' ? 1 : 0
+        })),
         Names: [
           { Name: 'OriginList', Ref: `'Master Origin'!$A$2:$A$${originValues.length + 1}` },
-          { Name: 'DestinationList', Ref: `'Master Destination'!$A$2:$A$${destinationValues.length + 1}` },
+          { Name: 'DestinationList', Ref: `'Dropdown Lists'!$A$2:$A$${destinationValues.length + 1}` },
           { Name: 'ServiceTypeList', Ref: "'Master Service Type'!$A$2:$A$3" }
         ]
       };
