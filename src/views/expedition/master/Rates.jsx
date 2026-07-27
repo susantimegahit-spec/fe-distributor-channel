@@ -1,17 +1,29 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import Select from 'react-select';
 import * as XLSX from 'xlsx';
 
 // react-bootstrap
+import Badge from 'react-bootstrap/Badge';
 import Button from 'react-bootstrap/Button';
 import Card from 'react-bootstrap/Card';
+import Col from 'react-bootstrap/Col';
+import Form from 'react-bootstrap/Form';
+import Modal from 'react-bootstrap/Modal';
+import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
+import Table from 'react-bootstrap/Table';
 
 // project-imports
 import MainCard from 'components/MainCard';
+import LoaderData from 'components/LoaderData';
 import DestinationServices from '../../../services/expedition/DestinationServices';
+import ExpeditionServices from '../../../services/expedition/ExpeditionServices';
 import OriginServices from '../../../services/expedition/OriginServices';
+import RateServices from '../../../services/expedition/RateServices';
 import { useAlert } from '../../../utils/alertContext';
 import { getCookies } from '../../../utils/cookies';
+
+const rateColumns = ['origin', 'destination', 'expedition', 'min_kg', 'max_kg', 'service_type', 'rate'];
 
 const getPayload = (response) => response?.data?.data ?? response?.data ?? {};
 
@@ -23,7 +35,30 @@ const getList = (response, keys = []) => {
   return Array.isArray(list) ? list : [];
 };
 
+const getRateList = (response) => getList(response, ['rates']);
+
+const getRateValue = (item, keys) =>
+  keys
+    .map((key) => item?.[key])
+    .find(
+      (value) =>
+        value !== undefined && value !== null && typeof value !== 'object' && String(value).trim() !== ''
+    ) ?? '';
+
+const formatNumber = (value) => {
+  const number = Number(value);
+
+  return Number.isFinite(number) ? number.toLocaleString('id-ID') : value;
+};
+
 const uniqueValues = (values) => [...new Set(values.map((value) => String(value || '').trim()).filter(Boolean))];
+
+const normalizeColumnName = (value) =>
+  String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
 
 const firstValue = (item, keys) =>
   keys.map((key) => item?.[key]).find((value) => String(value || '').trim()) || '';
@@ -38,26 +73,17 @@ const getDestinationRow = (item) => {
   const customerCode = firstValue(item, ['customerCode', 'customer_code', 'code_customer', 'card_code', 'CardCode']);
   const customerName =
     firstValue(item, ['customerName', 'customer_name', 'card_name', 'CardName', 'name']) || item?.customer?.name;
-  const destinationCode = firstValue(item, ['shipToCode', 'ship_to_code', 'address_code', 'AddressName']);
-  const destinationName = firstValue(item, [
-    'shipToName',
-    'ship_to_name',
-    'address_name',
-    'AddressName2',
-    'destination_name'
-  ]);
   const street = firstValue(item, ['street', 'Street', 'ship_to_address', 'Address', 'address']);
   const city = firstValue(item, ['city', 'City']);
   const province = firstValue(item, ['province', 'state', 'State']);
   const postalCode = firstValue(item, ['postalCode', 'postal_code', 'zip_code', 'ZipCode']);
   const customer = joinValues([customerCode, customerName]);
-  const destination = joinValues([destinationCode, destinationName]);
 
   return {
     customer,
-    destination,
+    destination: city,
     address: joinValues([street, city, province, postalCode], ', '),
-    dropdown: joinValues([customer, destination])
+    dropdown: joinValues([customerCode, customerName, city])
   };
 };
 
@@ -77,16 +103,146 @@ const addDropdownValidations = (workbookBuffer) => {
     '<dataValidation type="list" allowBlank="0" sqref="B2:B1000"><formula1>DestinationList</formula1></dataValidation>' +
     '<dataValidation type="list" allowBlank="0" sqref="F2:F1000"><formula1>ServiceTypeList</formula1></dataValidation>' +
     '</dataValidations>';
+  const trailingWorksheetElement = /<(?:hyperlinks|printOptions|pageMargins|pageSetup|headerFooter|rowBreaks|colBreaks|customProperties|cellWatches|ignoredErrors|smartTags|drawing|legacyDrawing|legacyDrawingHF|picture|oleObjects|controls|webPublishItems|tableParts|extLst)\b/;
+  const insertionIndex = xml.search(trailingWorksheetElement);
+  const validatedXml =
+    insertionIndex >= 0
+      ? `${xml.slice(0, insertionIndex)}${validations}${xml.slice(insertionIndex)}`
+      : xml.replace('</worksheet>', `${validations}</worksheet>`);
 
-  sheetEntry.content = encoder.encode(xml.replace('</worksheet>', `${validations}</worksheet>`));
+  sheetEntry.content = encoder.encode(validatedXml);
   sheetEntry.size = sheetEntry.content.length;
 
   return XLSX.CFB.write(container, { fileType: 'zip', type: 'array' });
 };
 
+const validateRatesWorkbook = (workbook, expeditionCode) => {
+  const sheetName = workbook.SheetNames.find((name) => name.trim().toLowerCase() === 'rates upload') || workbook.SheetNames[0];
+  const sheet = workbook.Sheets[sheetName];
+
+  if (!sheet) throw new Error('Rates Upload sheet was not found');
+
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true });
+  const headers = (rows[0] || []).map(normalizeColumnName);
+  const missingColumns = rateColumns.filter((column) => !headers.includes(column));
+
+  if (missingColumns.length) throw new Error(`Missing required columns: ${missingColumns.join(', ')}`);
+
+  const columnIndexes = Object.fromEntries(rateColumns.map((column) => [column, headers.indexOf(column)]));
+  const dataRows = rows
+    .slice(1)
+    .map((row, index) => ({
+      excelRow: index + 2,
+      values: Object.fromEntries(rateColumns.map((column) => [column, row[columnIndexes[column]]]))
+    }))
+    .filter(({ values }) => rateColumns.some((column) => String(values[column] ?? '').trim()));
+
+  if (!dataRows.length) throw new Error('No rates data found in the Rates Upload sheet');
+
+  dataRows.forEach(({ excelRow, values }) => {
+    const emptyColumns = rateColumns.filter((column) => String(values[column] ?? '').trim() === '');
+    if (emptyColumns.length) throw new Error(`Row ${excelRow}: fill in ${emptyColumns.join(', ')}`);
+
+    const minKg = Number(values.min_kg);
+    const maxKg = Number(values.max_kg);
+    const rate = Number(values.rate);
+    if (![minKg, maxKg, rate].every(Number.isFinite)) {
+      throw new Error(`Row ${excelRow}: min_kg, max_kg, and rate must be numbers`);
+    }
+    if (minKg < 0 || maxKg < minKg || rate < 0) {
+      throw new Error(`Row ${excelRow}: check the weight range and rate values`);
+    }
+
+    const serviceType = String(values.service_type).trim().toUpperCase();
+    if (!['RIT', 'TONASE'].includes(serviceType)) {
+      throw new Error(`Row ${excelRow}: service_type must be RIT or TONASE`);
+    }
+    if (String(values.expedition).trim() !== expeditionCode) {
+      throw new Error(`Row ${excelRow}: expedition must match ${expeditionCode}`);
+    }
+  });
+
+  return dataRows.length;
+};
+
 export default function Rates() {
   const { showAlert } = useAlert();
+  const isAdministrator = Number(getCookies('role')) === 5;
+  const uploadInputRef = useRef(null);
   const [downloadingTemplate, setDownloadingTemplate] = useState(false);
+  const [showUpload, setShowUpload] = useState(false);
+  const [uploadingExcel, setUploadingExcel] = useState(false);
+  const [rates, setRates] = useState([]);
+  const [loadingRates, setLoadingRates] = useState(true);
+  const [expeditionOptions, setExpeditionOptions] = useState([]);
+  const [loadingExpeditions, setLoadingExpeditions] = useState(false);
+  const [selectedExpeditionCode, setSelectedExpeditionCode] = useState(() =>
+    String(getCookies('expedition_code') || '').trim()
+  );
+
+  const fetchRates = useCallback(async () => {
+    setLoadingRates(true);
+
+    try {
+      const expeditionCode = isAdministrator
+        ? selectedExpeditionCode
+        : String(getCookies('expedition_code') || '').trim();
+      const response = await RateServices.getRates({
+        per_page: 1000,
+        expedition_code: expeditionCode || undefined
+      });
+
+      if (response?.data?.success === false) {
+        throw new Error(response.data.message || 'Failed to fetch rates');
+      }
+
+      setRates(getRateList(response));
+    } catch (error) {
+      setRates([]);
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch rates', 'danger');
+    } finally {
+      setLoadingRates(false);
+    }
+  }, [isAdministrator, selectedExpeditionCode, showAlert]);
+
+  useEffect(() => {
+    fetchRates();
+  }, [fetchRates]);
+
+  useEffect(() => {
+    const fetchExpeditions = async () => {
+      setLoadingExpeditions(true);
+
+      try {
+        const response = await ExpeditionServices.getExpeditions({ per_page: 1000 });
+        if (response?.data?.success === false) {
+          throw new Error(response.data.message || 'Failed to fetch expedition data');
+        }
+
+        const options = getList(response, ['expeditions'])
+          .map((item) => {
+            const code = String(item.code ?? item.expedition_code ?? '').trim();
+            const name = String(item.name ?? item.expedition_name ?? '').trim();
+
+            return {
+              value: code,
+              label: [code, name].filter(Boolean).join(' - '),
+              name
+            };
+          })
+          .filter((item) => item.value);
+
+        setExpeditionOptions(options);
+      } catch (error) {
+        setExpeditionOptions([]);
+        showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch expedition data', 'danger');
+      } finally {
+        setLoadingExpeditions(false);
+      }
+    };
+
+    fetchExpeditions();
+  }, [isAdministrator, showAlert]);
 
   const handleDownloadTemplate = async () => {
     setDownloadingTemplate(true);
@@ -106,7 +262,18 @@ export default function Rates() {
       const destinations = getList(destinationResponse, ['shiptos', 'ship_tos', 'destinations']);
       const expeditionCode = String(getCookies('expedition_code') || '').trim();
       const originValues = uniqueValues(
-        origins.map((item) => item.whs_name_origin || item.origin_name || item.name || item.whs_code)
+        origins.map((item) => {
+          const warehouseCode = firstValue(item, ['whsCode', 'whs_code', 'warehouse_code', 'code', 'origin_code']);
+          const warehouseName = firstValue(item, [
+            'whsNameOrigin',
+            'whs_name_origin',
+            'origin_name',
+            'warehouse_name',
+            'name'
+          ]);
+
+          return joinValues([warehouseCode, warehouseName]);
+        })
       );
       const destinationRows = destinations.map(getDestinationRow).filter((item) => item.dropdown);
       const destinationValues = uniqueValues(destinationRows.map((item) => item.dropdown));
@@ -122,7 +289,7 @@ export default function Rates() {
       ];
 
       for (let row = 3; row <= 200; row += 1) {
-        rateRows.push(['', '', expeditionCode, '', '', '', '']);
+        rateRows.push(['', '', '', '', '', '', '']);
       }
 
       const ratesSheet = XLSX.utils.aoa_to_sheet(rateRows);
@@ -190,32 +357,220 @@ export default function Rates() {
     }
   };
 
-  return (
-    <MainCard
-      title={
-        <Stack direction="horizontal" className="justify-content-between flex-wrap gap-3">
-          <div>
-            <h5 className="mb-1">Rates</h5>
-            <span className="text-muted f-12">Kelola tarif pengiriman untuk setiap ekspedisi dan rute.</span>
-          </div>
-          <Button disabled={downloadingTemplate} onClick={handleDownloadTemplate}>
-            <i className={downloadingTemplate ? 'ti ti-loader-2 me-1' : 'ti ti-download me-1'} />
-            {downloadingTemplate ? 'Preparing...' : 'Download Template'}
-          </Button>
-        </Stack>
+  const handleUploadExcel = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    if (!['xlsx', 'xls'].includes(extension)) {
+      showAlert('File format must be XLSX or XLS', 'danger');
+      event.target.value = '';
+      return;
+    }
+
+    const expeditionCode = String(getCookies('expedition_code') || '').trim();
+    if (!expeditionCode) {
+      showAlert('Expedition code for the logged-in user was not found', 'danger');
+      event.target.value = '';
+      return;
+    }
+
+    setUploadingExcel(true);
+
+    try {
+      const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+      const recordCount = validateRatesWorkbook(workbook, expeditionCode);
+      const response = await RateServices.uploadRatesExcel(file, expeditionCode);
+
+      if (response?.data?.success === false) {
+        throw new Error(response.data.message || 'Failed to import rates');
       }
-    >
-      <Card className="border mb-0">
-        <Card.Body className="py-5 text-center">
-          <span className="avtar avtar-xl bg-light-primary text-primary mb-3">
-            <i className="ti ti-receipt-2 f-32" />
-          </span>
-          <h5 className="mb-2">Rates Upload Template</h5>
-          <p className="text-muted mb-0">
-            Download the template to enter rates by origin, destination, expedition, weight range, and service type.
-          </p>
-        </Card.Body>
-      </Card>
-    </MainCard>
+
+      showAlert(response?.data?.message || `${recordCount} rates imported successfully`, 'success');
+      setShowUpload(false);
+      await fetchRates();
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to upload rates Excel', 'danger');
+    } finally {
+      setUploadingExcel(false);
+      event.target.value = '';
+    }
+  };
+
+  return (
+    <>
+      <MainCard
+        title={
+          <Stack direction="horizontal" className="justify-content-between flex-wrap gap-3">
+            <div>
+              <h5 className="mb-1">Rates</h5>
+              <span className="text-muted f-12">Kelola tarif pengiriman untuk setiap ekspedisi dan rute.</span>
+            </div>
+            <Stack direction="horizontal" gap={2}>
+              <Button variant="success" onClick={() => setShowUpload(true)}>
+                <i className="ti ti-file-upload me-1" />
+                Upload Excel
+              </Button>
+              <Button disabled={downloadingTemplate} onClick={handleDownloadTemplate}>
+                <i className={downloadingTemplate ? 'ti ti-loader-2 me-1' : 'ti ti-download me-1'} />
+                {downloadingTemplate ? 'Preparing...' : 'Download Template'}
+              </Button>
+            </Stack>
+          </Stack>
+        }
+      >
+        {isAdministrator && (
+          <Row className="mb-3">
+            <Col md={6} lg={4}>
+              <Form.Label className="f-12 text-muted">Expedition</Form.Label>
+              <Select
+                value={expeditionOptions.find((option) => option.value === selectedExpeditionCode) || null}
+                options={expeditionOptions}
+                onChange={(option) => setSelectedExpeditionCode(option?.value || '')}
+                placeholder={loadingExpeditions ? 'Loading expedition...' : 'Search expedition'}
+                isLoading={loadingExpeditions}
+                isClearable
+                isSearchable
+                menuPosition="fixed"
+              />
+            </Col>
+          </Row>
+        )}
+        <Table responsive hover className="mb-0 align-middle">
+          <thead>
+            <tr>
+              <th>Origin</th>
+              <th>Destination</th>
+              <th>Expedition</th>
+              <th>Weight Range (Kg)</th>
+              <th>Service Type</th>
+              <th className="text-end">Rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loadingRates ? (
+              <tr>
+                <td colSpan={6}>
+                  <LoaderData />
+                </td>
+              </tr>
+            ) : rates.length ? (
+              rates.map((rate, index) => {
+                const warehouseName =
+                  getRateValue(rate?.warehouse, ['whs_name', 'warehouse_name', 'name']) ||
+                  getRateValue(rate, ['warehouse_name', 'whs_name', 'warehouse']);
+                const warehouseCode =
+                  getRateValue(rate?.warehouse, ['whs_code', 'warehouse_code', 'code']) ||
+                  getRateValue(rate, ['whs_code', 'warehouse_code']);
+                const destination =
+                  getRateValue(rate, ['destination', 'destination_name']) ||
+                  getRateValue(rate?.destination_data || rate?.destination, [
+                    'name',
+                    'destination_name',
+                    'ship_to_name',
+                    'address_name'
+                  ]);
+                const destinationCity =
+                  getRateValue(rate, ['city', 'destination_city']) ||
+                  getRateValue(rate?.destination_data || rate?.destination, ['city']);
+                const expeditionCode = getRateValue(rate, ['expedition_code']);
+                const expeditionMaster = expeditionOptions.find((option) => option.value === expeditionCode);
+                const expedition =
+                  getRateValue(rate?.expedition_data || rate?.expedition, ['name', 'expedition_name']) ||
+                  getRateValue(rate, ['expedition_name']) ||
+                  expeditionMaster?.name ||
+                  getRateValue(rate, ['expedition']);
+                const minTonnage = getRateValue(rate, ['min_tonnage']);
+                const maxTonnage = getRateValue(rate, ['max_tonnage']);
+                const numericMinTonnage = Number(minTonnage);
+                const numericMaxTonnage = Number(maxTonnage);
+                const isSameTonnage =
+                  minTonnage !== '' &&
+                  maxTonnage !== '' &&
+                  Number.isFinite(numericMinTonnage) &&
+                  Number.isFinite(numericMaxTonnage) &&
+                  numericMinTonnage === numericMaxTonnage;
+                const weightRange =
+                  isSameTonnage
+                    ? formatNumber(minTonnage)
+                    : [minTonnage, maxTonnage]
+                        .filter((value) => value !== '')
+                        .map(formatNumber)
+                        .join(' - ');
+                const serviceType = getRateValue(rate, ['service_type', 'service']);
+                const rateValue = getRateValue(rate, ['rate', 'amount', 'price']);
+
+                return (
+                  <tr key={rate.id || rate.rate_id || `${warehouseCode}-${destination}-${index}`}>
+                    <td>
+                      <div>{warehouseName || '-'}</div>
+                      {warehouseCode ? <small className="text-muted">{warehouseCode}</small> : null}
+                    </td>
+                    <td>
+                      <div>{destination || '-'}</div>
+                      {destinationCity ? <small className="text-muted">{destinationCity}</small> : null}
+                    </td>
+                    <td>{expedition || '-'}</td>
+                    <td>{weightRange === '' ? '-' : weightRange}</td>
+                    <td>{serviceType || '-'}</td>
+                    <td className="text-end">{rateValue === '' ? '-' : `Rp ${formatNumber(rateValue)}`}</td>
+                  </tr>
+                );
+              })
+            ) : (
+              <tr>
+                <td colSpan={6} className="text-center text-muted py-5">
+                  No rates data found.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </Table>
+      </MainCard>
+
+      <Modal show={showUpload} onHide={() => !uploadingExcel && setShowUpload(false)} centered>
+        <Modal.Header closeButton={!uploadingExcel}>
+          <Modal.Title>Upload Rates Excel</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Card className="border mb-3">
+            <Card.Body>
+              <Stack direction="horizontal" gap={3} className="align-items-start">
+                <span className="avtar avtar-s bg-light-primary text-primary">
+                  <i className="ti ti-table" />
+                </span>
+                <div>
+                  <h6 className="mb-1">Rates Upload Format</h6>
+                  <p className="text-muted mb-2">Use the downloaded template and complete all columns on each data row.</p>
+                  <div className="d-flex flex-wrap gap-2">
+                    {rateColumns.map((column) => (
+                      <Badge key={column} bg="light" text="dark" className="border">
+                        {column}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </Stack>
+            </Card.Body>
+          </Card>
+          <Button variant="success" className="w-100" onClick={() => uploadInputRef.current?.click()} disabled={uploadingExcel}>
+            <i className={`${uploadingExcel ? 'ti ti-loader-2' : 'ti ti-upload'} me-1`} />
+            {uploadingExcel ? 'Uploading...' : 'Choose Excel File'}
+          </Button>
+          <Form.Control
+            ref={uploadInputRef}
+            type="file"
+            accept=".xlsx,.xls"
+            className="d-none"
+            onChange={handleUploadExcel}
+          />
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" onClick={() => setShowUpload(false)} disabled={uploadingExcel}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
+    </>
   );
 }

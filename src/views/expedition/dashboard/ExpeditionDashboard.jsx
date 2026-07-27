@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Select from 'react-select';
 
 // react-bootstrap
@@ -13,7 +13,9 @@ import Table from 'react-bootstrap/Table';
 
 // project-imports
 import MainCard from 'components/MainCard';
-import WarehouseServices from '../../../services/customer-portal/WarehouseServices';
+import DestinationServices from '../../../services/expedition/DestinationServices';
+import OriginServices from '../../../services/expedition/OriginServices';
+import RateServices from '../../../services/expedition/RateServices';
 import { useAlert } from '../../../utils/alertContext';
 import { currency } from '../../../utils/global';
 
@@ -21,161 +23,131 @@ const selectStyles = {
   menu: (base) => ({ ...base, zIndex: 10 })
 };
 
-const cities = ['Surabaya', 'Jakarta', 'Bandung', 'Semarang', 'Yogyakarta', 'Denpasar', 'Medan', 'Makassar'];
+const getPayloadList = (response, keys = []) => {
+  const payload = response?.data?.data ?? response?.data ?? [];
+  if (Array.isArray(payload)) return payload;
 
-const routeDistances = {
-  'Surabaya-Jakarta': 780,
-  'Surabaya-Bandung': 690,
-  'Surabaya-Semarang': 350,
-  'Surabaya-Yogyakarta': 330,
-  'Surabaya-Denpasar': 430,
-  'Surabaya-Medan': 2500,
-  'Surabaya-Makassar': 980,
-  'Jakarta-Bandung': 155,
-  'Jakarta-Semarang': 440,
-  'Jakarta-Yogyakarta': 560,
-  'Jakarta-Denpasar': 1180,
-  'Jakarta-Medan': 1880,
-  'Jakarta-Makassar': 1450,
-  'Bandung-Semarang': 370,
-  'Bandung-Yogyakarta': 480,
-  'Bandung-Denpasar': 1080,
-  'Bandung-Medan': 1960,
-  'Bandung-Makassar': 1390,
-  'Semarang-Yogyakarta': 130,
-  'Semarang-Denpasar': 760,
-  'Semarang-Medan': 2200,
-  'Semarang-Makassar': 1160,
-  'Yogyakarta-Denpasar': 720,
-  'Yogyakarta-Medan': 2260,
-  'Yogyakarta-Makassar': 1100,
-  'Denpasar-Medan': 2900,
-  'Denpasar-Makassar': 900,
-  'Medan-Makassar': 3100
-};
-
-const expeditionOptions = [
-  {
-    name: 'Nusantara Cargo',
-    service: 'Reguler Darat',
-    basePrice: 12000,
-    perKg: 3100,
-    perKm: 18,
-    etaBase: 3,
-    rating: 4.6
-  },
-  {
-    name: 'Laju Express',
-    service: 'Ekonomi',
-    basePrice: 9000,
-    perKg: 3600,
-    perKm: 20,
-    etaBase: 4,
-    rating: 4.4
-  },
-  {
-    name: 'Samudra Logistik',
-    service: 'Cargo Laut',
-    basePrice: 15000,
-    perKg: 2600,
-    perKm: 16,
-    etaBase: 5,
-    rating: 4.5
-  },
-  {
-    name: 'Kilatan Kurir',
-    service: 'Express',
-    basePrice: 25000,
-    perKg: 5200,
-    perKm: 26,
-    etaBase: 2,
-    rating: 4.8
-  },
-  {
-    name: 'Amanah Freight',
-    service: 'Reguler Prioritas',
-    basePrice: 18000,
-    perKg: 3900,
-    perKm: 22,
-    etaBase: 3,
-    rating: 4.7
+  for (const key of ['data', 'items', ...keys]) {
+    if (Array.isArray(payload?.[key])) return payload[key];
   }
-];
 
-const getRouteDistance = (departure, destination) => {
-  if (!departure || !destination || departure === destination) return 0;
-
-  return routeDistances[`${departure}-${destination}`] || routeDistances[`${destination}-${departure}`] || 500;
+  return [];
 };
 
-const formatEta = (days) => `${days}-${days + 1} hari`;
+const formatMasterOption = ({ label, code, customerCode }) => (
+  <div>
+    <div>{label || '-'}</div>
+    {code ? <small className="text-muted">{code}</small> : null}
+    {customerCode ? <small className="text-muted d-block">{customerCode}</small> : null}
+  </div>
+);
+
+const filterMasterOption = ({ data }, inputValue) =>
+  `${data.label} ${data.code} ${data.customerCode}`.toLowerCase().includes(inputValue.trim().toLowerCase());
 
 export default function ExpeditionDashboard() {
   const { showAlert } = useAlert();
-  const [warehouseOptions, setWarehouseOptions] = useState([]);
-  const [loadingWarehouses, setLoadingWarehouses] = useState(false);
+  const [originOptions, setOriginOptions] = useState([]);
+  const [destinationOptions, setDestinationOptions] = useState([]);
+  const [loadingOrigins, setLoadingOrigins] = useState(false);
+  const [loadingDestinations, setLoadingDestinations] = useState(false);
+  const [loadingRatesRank, setLoadingRatesRank] = useState(false);
+  const [recommendations, setRecommendations] = useState([]);
   const [form, setForm] = useState({
-    originWarehouseCode: '',
+    originCode: '',
     departure: '',
-    destination: 'Jakarta',
-    weight: 25
+    originLabel: '',
+    destinationCode: '',
+    destination: '',
+    destinationLabel: '',
+    weight: 25,
+    serviceType: ''
   });
 
-  const selectedWarehouse = warehouseOptions.find((item) => item.value === form.originWarehouseCode) || null;
+  const selectedOrigin = originOptions.find((item) => item.value === form.originCode) || null;
+  const selectedDestination = destinationOptions.find((item) => item.value === form.destinationCode) || null;
 
-  const fetchWarehouses = useCallback(async () => {
-    setLoadingWarehouses(true);
+  const fetchMasterRoutes = useCallback(async () => {
+    setLoadingOrigins(true);
+    setLoadingDestinations(true);
 
     try {
-      const response = await WarehouseServices.getAllWarehouse('');
+      const [originResponse, destinationResponse] = await Promise.all([
+        OriginServices.getOrigins({ per_page: 100 }),
+        DestinationServices.getDestinations({ per_page: 100 })
+      ]);
 
-      if (response?.data?.success === false) {
-        showAlert(response.data.message || 'Failed to fetch warehouse data', 'danger');
-        return;
+      if (originResponse?.data?.success === false) throw new Error(originResponse.data.message || 'Failed to fetch origin data');
+      if (destinationResponse?.data?.success === false) {
+        throw new Error(destinationResponse.data.message || 'Failed to fetch destination data');
       }
 
-      const warehouses = response?.data?.data;
+      const origins = getPayloadList(originResponse, ['origins']);
+      const destinations = getPayloadList(destinationResponse, ['shiptos', 'ship_tos', 'destinations']);
 
-      setWarehouseOptions(
-        (Array.isArray(warehouses) ? warehouses : []).map((item) => ({
-          value: String(item.whs_code ?? ''),
-          label: [item.whs_code, item.whs_name].filter(Boolean).join(' - ') || '-',
-          departure: item.city || item.regency || item.whs_name || item.whs_code || ''
-        }))
+      setOriginOptions(
+        origins.map((item, index) => {
+          const code = String(item.whsCode ?? item.whs_code ?? item.warehouse_code ?? item.code ?? '');
+          const name = item.whsNameOrigin ?? item.whs_name_origin ?? item.warehouse_name ?? item.name ?? '';
+
+          return {
+            value: code || String(item.id ?? item.origin_id ?? index),
+            label: name || code || '-',
+            code,
+            departure: item.city || item.regency || name || code || ''
+          };
+        })
+      );
+      setDestinationOptions(
+        destinations.map((item, index) => {
+          const code = String(
+            item.shipToCode ?? item.ship_to_code ?? item.address_code ?? item.AddressName ?? item.code ?? ''
+          );
+          const customerCode = String(
+            item.customerCode ??
+              item.customer_code ??
+              item.code_customer ??
+              item.card_code ??
+              item.CardCode ??
+              item.customer?.code ??
+              ''
+          );
+          const name =
+            item.customerName ??
+            item.customer_name ??
+            item.name ??
+            item.customer?.name ??
+            item.card_name ??
+            item.CardName ??
+            '';
+          const destination =
+            item.shipToName ?? item.ship_to_name ?? item.address_name ?? item.AddressName2 ?? item.destination ?? item.city ?? '';
+
+          return {
+            value: code || String(item.id ?? item.shipto_id ?? item.ship_to_id ?? index),
+            label: [name, destination].filter(Boolean).join(' - ') || code || '-',
+            code,
+            customerCode,
+            destination: item.city ?? item.City ?? destination ?? code,
+            destinationLabel: destination || name || code || '-'
+          };
+        })
       );
     } catch (error) {
-      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch warehouse data', 'danger');
+      setOriginOptions([]);
+      setDestinationOptions([]);
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch route master data', 'danger');
     } finally {
-      setLoadingWarehouses(false);
+      setLoadingOrigins(false);
+      setLoadingDestinations(false);
     }
   }, [showAlert]);
 
   useEffect(() => {
-    fetchWarehouses();
-  }, [fetchWarehouses]);
+    fetchMasterRoutes();
+  }, [fetchMasterRoutes]);
 
   const weight = Number(form.weight || 0);
-  const routeDistance = getRouteDistance(form.departure, form.destination);
-  const isRouteValid = form.departure && form.destination && form.departure !== form.destination && weight > 0;
-
-  const recommendations = useMemo(() => {
-    if (!isRouteValid) return [];
-
-    return expeditionOptions
-      .map((option) => {
-        const totalPrice = Math.round(option.basePrice + option.perKg * weight + option.perKm * routeDistance);
-        const etaDays = option.etaBase + Math.ceil(routeDistance / 900);
-
-        return {
-          ...option,
-          totalPrice,
-          eta: formatEta(etaDays),
-          pricePerKg: Math.round(totalPrice / weight)
-        };
-      })
-      .sort((a, b) => a.totalPrice - b.totalPrice);
-  }, [isRouteValid, routeDistance, weight]);
-
   const cheapestRecommendation = recommendations[0];
 
   const handleChange = (field) => (event) => {
@@ -188,9 +160,63 @@ export default function ExpeditionDashboard() {
   const handleOriginChange = (option) => {
     setForm((current) => ({
       ...current,
-      originWarehouseCode: option?.value || '',
-      departure: option?.departure || ''
+      originCode: option?.value || '',
+      departure: option?.departure || '',
+      originLabel: option?.label || ''
     }));
+  };
+
+  const handleDestinationChange = (option) => {
+    setForm((current) => ({
+      ...current,
+      destinationCode: option?.value || '',
+      destination: option?.destination || '',
+      destinationLabel: option?.destinationLabel || ''
+    }));
+  };
+
+  const handleFindRates = async () => {
+    if (!form.originCode || !form.destinationCode || weight <= 0 || !form.serviceType) {
+      showAlert('Please select origin, destination, service type, and enter a valid weight', 'warning');
+      return;
+    }
+
+    setLoadingRatesRank(true);
+
+    try {
+      const response = await RateServices.getRatesRank(form.originCode, form.destinationCode, weight, form.serviceType);
+
+      if (response?.data?.success === false) {
+        throw new Error(response.data.message || 'Failed to fetch rate recommendations');
+      }
+
+      const rates = getPayloadList(response, ['rank', 'ranks', 'rates', 'rankings']);
+      const normalizedRates = rates.map((item, index) => {
+        const expedition = item.expedition_data ?? item.expedition ?? {};
+        const expeditionName =
+          typeof expedition === 'object'
+            ? expedition.name ?? expedition.expedition_name ?? expedition.code ?? expedition.expedition_code
+            : expedition;
+        const totalPrice = Number(item.total_price ?? item.total_rate ?? item.rate ?? item.price ?? 0);
+
+        return {
+          ...item,
+          id: item.id ?? item.rate_id ?? index,
+          name: expeditionName ?? item.expedition_name ?? item.expedition_code ?? '-',
+          service: item.service_type ?? item.service ?? '-',
+          totalPrice,
+          pricePerKg: Number(item.price_per_kg ?? item.rate_per_kg ?? (weight > 0 ? totalPrice / weight : 0))
+        };
+      });
+
+      setRecommendations(normalizedRates);
+      if (!normalizedRates.length) showAlert('No rate recommendations found', 'info');
+    } catch (error) {
+      setRecommendations([]);
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch rate recommendations', 'danger');
+    } finally {
+      setLoadingRatesRank(false);
+    }
   };
 
   return (
@@ -217,62 +243,76 @@ export default function ExpeditionDashboard() {
               <Select
                 classNamePrefix="react-select"
                 isClearable
-                isLoading={loadingWarehouses}
-                noOptionsMessage={() => 'Warehouse not found'}
+                isLoading={loadingOrigins}
+                filterOption={filterMasterOption}
+                formatOptionLabel={formatMasterOption}
+                noOptionsMessage={() => 'Origin not found'}
                 onChange={handleOriginChange}
-                options={warehouseOptions}
-                placeholder="Search warehouse"
+                options={originOptions}
+                placeholder="Search origin"
                 styles={selectStyles}
-                value={selectedWarehouse}
+                value={selectedOrigin}
               />
             </Form.Group>
           </Col>
           <Col md={6} xl={3}>
             <Form.Group>
               <Form.Label>Destination</Form.Label>
-              <Form.Select value={form.destination} onChange={handleChange('destination')}>
-                {cities.map((city) => (
-                  <option value={city} key={city}>
-                    {city}
-                  </option>
-                ))}
-              </Form.Select>
+              <Select
+                classNamePrefix="react-select"
+                isClearable
+                isLoading={loadingDestinations}
+                filterOption={filterMasterOption}
+                formatOptionLabel={formatMasterOption}
+                noOptionsMessage={() => 'Destination not found'}
+                onChange={handleDestinationChange}
+                options={destinationOptions}
+                placeholder="Search destination"
+                styles={selectStyles}
+                value={selectedDestination}
+              />
             </Form.Group>
           </Col>
-          <Col md={6} xl={3}>
+          <Col md={6} xl={2}>
             <Form.Group>
               <Form.Label>Weight</Form.Label>
               <Form.Control min={1} type="number" value={form.weight} onChange={handleChange('weight')} />
             </Form.Group>
           </Col>
-          <Col md={6} xl={3}>
-            <div className="border rounded p-3 h-100">
-              <span className="text-muted f-12">Estimated Distance</span>
-              <h4 className="mb-0 mt-2">{routeDistance} km</h4>
-            </div>
+          <Col md={6} xl={2}>
+            <Form.Group>
+              <Form.Label>Service Type</Form.Label>
+              <Form.Select value={form.serviceType} onChange={handleChange('serviceType')}>
+                <option value="">Select service</option>
+                <option value="RIT">RIT</option>
+                <option value="TONASE">TONASE</option>
+              </Form.Select>
+            </Form.Group>
+          </Col>
+          <Col md={6} xl={2} className="d-flex align-items-end">
+            <Button
+              className="w-100"
+              disabled={loadingRatesRank || !form.originCode || !form.destinationCode || weight <= 0 || !form.serviceType}
+              onClick={handleFindRates}
+            >
+              {loadingRatesRank ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />
+                  Finding...
+                </>
+              ) : (
+                <>
+                  <i className="ti ti-search me-1" />
+                  Find
+                </>
+              )}
+            </Button>
           </Col>
         </Row>
       </MainCard>
 
       <Row className="g-3">
-        <Col md={4}>
-          <Card className="border mb-0 h-100">
-            <Card.Body>
-              <Stack direction="horizontal" className="justify-content-between" gap={3}>
-                <div>
-                  <div className="text-muted f-12">Route</div>
-                  <h5 className="mb-0">
-                    {form.departure} - {form.destination}
-                  </h5>
-                </div>
-                <span className="avtar avtar-s bg-light-primary text-primary">
-                  <i className="ti ti-route" />
-                </span>
-              </Stack>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={4}>
+        <Col md={6}>
           <Card className="border mb-0 h-100">
             <Card.Body>
               <Stack direction="horizontal" className="justify-content-between" gap={3}>
@@ -287,7 +327,7 @@ export default function ExpeditionDashboard() {
             </Card.Body>
           </Card>
         </Col>
-        <Col md={4}>
+        <Col md={6}>
           <Card className="border mb-0 h-100">
             <Card.Body>
               <Stack direction="horizontal" className="justify-content-between" gap={3}>
@@ -308,13 +348,13 @@ export default function ExpeditionDashboard() {
         title={
           <Stack gap={1}>
             <h5 className="mb-0">Expedition Recommendations</h5>
-            <span className="text-muted f-12">Dummy data is automatically sorted from the lowest price.</span>
+            <span className="text-muted f-12">Rates are ranked based on the selected route and shipment weight.</span>
           </Stack>
         }
         secondary={
-          <Button variant="light-secondary" disabled>
-            <i className="ti ti-database me-1" />
-            Dummy Data
+          <Button variant="light-secondary" disabled={loadingRatesRank} onClick={handleFindRates}>
+            <i className="ti ti-refresh me-1" />
+            Refresh
           </Button>
         }
       >
@@ -325,26 +365,22 @@ export default function ExpeditionDashboard() {
               <th>Service</th>
               <th className="text-end">Estimated Price</th>
               <th className="text-end">Price / Kg</th>
-              <th>ETA</th>
-              <th className="text-center">Rating</th>
               <th className="text-center">Recommendation</th>
             </tr>
           </thead>
           <tbody>
             {recommendations.length > 0 ? (
               recommendations.map((item, index) => (
-                <tr key={`${item.name}-${item.service}`}>
+                <tr key={item.id || `${item.name}-${item.service}`}>
                   <td>
                     <div className="fw-semibold">{item.name}</div>
                     <div className="text-muted f-12">
-                      {form.departure} to {form.destination}
+                      {form.originLabel || form.departure} to {form.destinationLabel || form.destination}
                     </div>
                   </td>
                   <td>{item.service}</td>
                   <td className="text-end fw-semibold">{currency(item.totalPrice)}</td>
                   <td className="text-end">{currency(item.pricePerKg)}</td>
-                  <td>{item.eta}</td>
-                  <td className="text-center">{item.rating}</td>
                   <td className="text-center">
                     {index === 0 ? (
                       <Badge bg="success">Cheapest</Badge>
@@ -358,7 +394,7 @@ export default function ExpeditionDashboard() {
               ))
             ) : (
               <tr>
-                <td colSpan={7} className="text-center text-muted py-4">
+                <td colSpan={5} className="text-center text-muted py-4">
                   Complete the origin, destination, and weight to view recommendations.
                 </td>
               </tr>
