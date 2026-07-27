@@ -86,6 +86,17 @@ export default function AuthLoginForm({ className }) {
           [];
         const accessibleSystems = normalizeAccessibleSystems(accessibleSystemSource);
         const customerCode = userData.customer_code || userData.code_customer || loginData.customer_code || loginData.code_customer || '';
+        const expeditionData = userData.expedition || loginData.expedition || {};
+        const expeditionCode =
+          userData.expedition_code ||
+          userData.expeditionCode ||
+          userData.code_expedition ||
+          loginData.expedition_code ||
+          loginData.expeditionCode ||
+          loginData.code_expedition ||
+          expeditionData.code ||
+          expeditionData.expedition_code ||
+          '';
 
         Cookies.set('isLoggedIn', true);
         Cookies.set('accessToken', loginData.access_token);
@@ -101,6 +112,11 @@ export default function AuthLoginForm({ className }) {
           Cookies.set('customerCode', String(customerCode).trim());
         } else {
           Cookies.remove('customerCode');
+        }
+        if (String(expeditionCode).trim()) {
+          Cookies.set('expedition_code', String(expeditionCode).trim());
+        } else {
+          Cookies.remove('expedition_code');
         }
         Cookies.set('distributorName', userData?.name_distributor);
         Cookies.set('distributorId', userData?.id_distributor);

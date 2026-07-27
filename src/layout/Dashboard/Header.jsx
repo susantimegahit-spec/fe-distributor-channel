@@ -210,6 +210,7 @@ export default function Header({ showSidebar = true }) {
       Cookies.remove('menu');
       Cookies.remove('systems');
       Cookies.remove('system');
+      Cookies.remove('expedition_code');
       dispatch(destroyAuthState());
       Cookies.remove('customerCode');
       Cookies.remove('distributorName');

@@ -10,7 +10,6 @@ import Stack from 'react-bootstrap/Stack';
 import MainCard from 'components/MainCard';
 import DestinationServices from '../../../services/expedition/DestinationServices';
 import OriginServices from '../../../services/expedition/OriginServices';
-import UserServices from '../../../services/setting/UserServices';
 import { useAlert } from '../../../utils/alertContext';
 import { getCookies } from '../../../utils/cookies';
 
@@ -62,37 +61,6 @@ const getDestinationRow = (item) => {
   };
 };
 
-const getLoggedInExpedition = (response) => {
-  const payload = getPayload(response);
-  const user = payload?.user || payload;
-  const expedition =
-    user?.expedition ||
-    user?.expedition_data ||
-    user?.expeditionData ||
-    (Array.isArray(user?.expeditions) ? user.expeditions[0] : {}) ||
-    {};
-  const code =
-    expedition.code ||
-    expedition.expedition_code ||
-    user?.expedition_code ||
-    user?.code_expedition ||
-    user?.expedition_id ||
-    expedition.id ||
-    '';
-  const name =
-    expedition.name ||
-    expedition.expedition_name ||
-    user?.expedition_name ||
-    user?.name_expedition ||
-    getCookies('name') ||
-    '';
-
-  return {
-    code: String(code || '').trim(),
-    name: String(name || '').trim()
-  };
-};
-
 const addDropdownValidations = (workbookBuffer) => {
   const workbookBytes = workbookBuffer instanceof Uint8Array ? workbookBuffer : new Uint8Array(workbookBuffer);
   const container = XLSX.CFB.read(workbookBytes, { type: 'buffer' });
@@ -124,10 +92,9 @@ export default function Rates() {
     setDownloadingTemplate(true);
 
     try {
-      const [originResponse, destinationResponse, userResponse] = await Promise.all([
+      const [originResponse, destinationResponse] = await Promise.all([
         OriginServices.getOrigins({ per_page: 1000 }),
-        DestinationServices.getDestinations({ per_page: 1000 }),
-        UserServices.getUserDetail(getCookies('id'))
+        DestinationServices.getDestinations({ per_page: 1000 })
       ]);
 
       if (originResponse?.data?.success === false) throw new Error(originResponse.data.message || 'Failed to fetch origin master');
@@ -137,7 +104,7 @@ export default function Rates() {
 
       const origins = getList(originResponse, ['origins']);
       const destinations = getList(destinationResponse, ['shiptos', 'ship_tos', 'destinations']);
-      const expedition = getLoggedInExpedition(userResponse);
+      const expeditionCode = String(getCookies('expedition_code') || '').trim();
       const originValues = uniqueValues(
         origins.map((item) => item.whs_name_origin || item.origin_name || item.name || item.whs_code)
       );
@@ -146,16 +113,16 @@ export default function Rates() {
 
       if (!originValues.length) throw new Error('Origin master is empty');
       if (!destinationValues.length) throw new Error('Destination master is empty');
-      if (!expedition.name && !expedition.code) throw new Error('Expedition data for the logged-in user was not found');
+      if (!expeditionCode) throw new Error('Expedition code for the logged-in user was not found');
 
       const workbook = XLSX.utils.book_new();
       const rateRows = [
         ['origin', 'destination', 'expedition', 'min_kg', 'max_kg', 'service_type', 'rate'],
-        [originValues[0], destinationValues[0], [expedition.code, expedition.name].filter(Boolean).join(' - '), 0, 1000, 'TONASE', 0]
+        [originValues[0], destinationValues[0], expeditionCode, 0, 1000, 'TONASE', 0]
       ];
 
       for (let row = 3; row <= 200; row += 1) {
-        rateRows.push(['', '', [expedition.code, expedition.name].filter(Boolean).join(' - '), '', '', '', '']);
+        rateRows.push(['', '', expeditionCode, '', '', '', '']);
       }
 
       const ratesSheet = XLSX.utils.aoa_to_sheet(rateRows);
@@ -168,23 +135,20 @@ export default function Rates() {
         ['customer_destination'],
         ...destinationValues.map((value) => [value])
       ]);
-      const expeditionSheet = XLSX.utils.aoa_to_sheet([
-        ['expedition_code', 'expedition_name'],
-        [expedition.code, expedition.name]
-      ]);
+      const expeditionSheet = XLSX.utils.aoa_to_sheet([['expedition_code'], [expeditionCode]]);
       const serviceTypeSheet = XLSX.utils.aoa_to_sheet([['service_type'], ['RIT'], ['TONASE']]);
 
       ratesSheet['!cols'] = [{ wch: 32 }, { wch: 36 }, { wch: 30 }, { wch: 14 }, { wch: 14 }, { wch: 18 }, { wch: 18 }];
       originSheet['!cols'] = [{ wch: 40 }];
       destinationSheet['!cols'] = [{ wch: 40 }, { wch: 40 }, { wch: 70 }];
       dropdownSheet['!cols'] = [{ wch: 80 }];
-      expeditionSheet['!cols'] = [{ wch: 22 }, { wch: 36 }];
+      expeditionSheet['!cols'] = [{ wch: 22 }];
       serviceTypeSheet['!cols'] = [{ wch: 20 }];
       ratesSheet['!autofilter'] = { ref: 'A1:G200' };
       originSheet['!autofilter'] = { ref: `A1:A${originValues.length + 1}` };
       destinationSheet['!autofilter'] = { ref: `A1:C${destinationRows.length + 1}` };
       dropdownSheet['!autofilter'] = { ref: `A1:A${destinationValues.length + 1}` };
-      expeditionSheet['!autofilter'] = { ref: 'A1:B2' };
+      expeditionSheet['!autofilter'] = { ref: 'A1:A2' };
       serviceTypeSheet['!autofilter'] = { ref: 'A1:A3' };
 
       XLSX.utils.book_append_sheet(workbook, ratesSheet, 'Rates Upload');

@@ -20,6 +20,7 @@ import ConfirmDialog from '../../../components/ConfirmDialog';
 import LoaderButton from '../../../components/LoaderButton';
 import LoaderData from '../../../components/LoaderData';
 import DistributorServices from '../../../services/customer-portal/DistributorServices';
+import ExpeditionServices from '../../../services/expedition/ExpeditionServices';
 import RoleServices from '../../../services/setting/RoleServices';
 import UserServices from '../../../services/setting/UserServices';
 import { SYSTEM_KEYS } from '../../../systems';
@@ -32,6 +33,7 @@ const initialInput = {
   email: '',
   password: '',
   roleId: '',
+  expeditionCode: '',
   accessibleSystems: [],
   distributorCodes: [],
   distributorIds: []
@@ -221,12 +223,29 @@ const formatAccessibleSystems = (item) => {
     .join(', ');
 };
 
+const getUserExpeditionCode = (item) =>
+  item?.expedition_code ||
+  item?.expeditionCode ||
+  item?.code_expedition ||
+  item?.expedition?.code ||
+  item?.expedition?.expedition_code ||
+  '';
+
+const getExpeditionList = (response) => {
+  const payload = response?.data?.data ?? response?.data ?? [];
+  const list = Array.isArray(payload) ? payload : (payload?.data ?? payload?.items ?? payload?.expeditions ?? []);
+
+  return Array.isArray(list) ? list : [];
+};
+
 export default function UserList() {
   const assignedCustomerCode = getAssignedCustomerCode();
   const { showAlert } = useAlert();
   const [dataSource, setDataSource] = useState([]);
   const [listRole, setListRole] = useState([]);
   const [listDistributor, setListDistributor] = useState([]);
+  const [listExpedition, setListExpedition] = useState([]);
+  const [loadingExpedition, setLoadingExpedition] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showView, setShowView] = useState(false);
   const [formMode, setFormMode] = useState('create');
@@ -247,6 +266,7 @@ export default function UserList() {
     fetchData();
     getListRole();
     getListDistributor();
+    getListExpedition();
   }, []);
 
   useEffect(() => {
@@ -288,6 +308,37 @@ export default function UserList() {
         .filter((item) => item.value);
 
       setListDistributor(options);
+    }
+  };
+
+  const getListExpedition = async () => {
+    setLoadingExpedition(true);
+
+    try {
+      const response = await ExpeditionServices.getExpeditions({ per_page: 1000 });
+
+      if (response?.data?.success === false) {
+        showAlert(response.data.message || 'Failed to fetch expedition data', 'danger');
+        return;
+      }
+
+      const options = getExpeditionList(response)
+        .map((item) => {
+          const code = String(item.code ?? item.expedition_code ?? '').trim();
+          const name = String(item.name ?? item.expedition_name ?? '').trim();
+
+          return {
+            value: code,
+            label: [code, name].filter(Boolean).join(' - ')
+          };
+        })
+        .filter((item) => item.value);
+
+      setListExpedition(options);
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch expedition data', 'danger');
+    } finally {
+      setLoadingExpedition(false);
     }
   };
 
@@ -368,12 +419,20 @@ export default function UserList() {
     });
   };
 
+  const handleSelectExpedition = (option) => {
+    setInput({
+      ...input,
+      expeditionCode: option?.value || ''
+    });
+  };
+
   const distributorOptions = assignedCustomerCode ? listDistributor : [allDistributorOption, ...listDistributor];
   const isAllDistributorSelected = input.distributorCodes.includes(ALL_DISTRIBUTORS_VALUE);
   const selectedDistributor = isAllDistributorSelected
     ? [allDistributorOption]
     : listDistributor.filter((item) => input.distributorCodes.includes(item.value));
   const selectedAccessibleSystems = accessibleSystemOptions.filter((item) => input.accessibleSystems.includes(item.value));
+  const selectedExpedition = listExpedition.find((item) => item.value === input.expeditionCode) || null;
   const getSelectedDistributorPayload = () => ({
     code_customer: isAllDistributorSelected ? listDistributor.map((item) => item.value) : input.distributorCodes,
     id_distributor: isAllDistributorSelected ? listDistributor.map((item) => item.id) : input.distributorIds
@@ -404,6 +463,7 @@ export default function UserList() {
       email: item.email || '',
       password: '',
       roleId: item.role?.id || item.role_id || '',
+      expeditionCode: String(getUserExpeditionCode(item) || ''),
       accessibleSystems: getUserAccessibleSystems(item),
       distributorCodes: hasAllDistributors ? [ALL_DISTRIBUTORS_VALUE] : distributorCodes,
       distributorIds: hasAllDistributors ? [ALL_DISTRIBUTORS_VALUE] : distributorIds
@@ -453,6 +513,7 @@ export default function UserList() {
       email: input.email,
       password: input.password,
       role_id: input.roleId,
+      expedition_code: input.expeditionCode || null,
       accessible_systems: input.accessibleSystems,
       code_customer: distributorPayload.code_customer?.toString(),
       id_distributor: distributorPayload.id_distributor?.toString()
@@ -477,6 +538,7 @@ export default function UserList() {
       username: input.username,
       email: input.email,
       role_id: input.roleId,
+      expedition_code: input.expeditionCode || null,
       accessible_systems: input.accessibleSystems,
       code_customer: distributorPayload.code_customer?.toString(),
       id_distributor: distributorPayload.id_distributor?.toString()
@@ -839,6 +901,18 @@ export default function UserList() {
                     isClearable
                     isMulti
                     closeMenuOnSelect={false}
+                  />
+                </Col>
+                <Col md={12}>
+                  <Form.Label className="f-12 text-muted">Expedition</Form.Label>
+                  <Select
+                    value={selectedExpedition}
+                    options={listExpedition}
+                    menuPosition="fixed"
+                    onChange={handleSelectExpedition}
+                    placeholder={loadingExpedition ? 'Loading expedition...' : 'Select expedition'}
+                    isLoading={loadingExpedition}
+                    isClearable
                   />
                 </Col>
                 {/* {input.roleId == 1 ? ( */}

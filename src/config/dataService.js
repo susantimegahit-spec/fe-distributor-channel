@@ -139,6 +139,7 @@ client.interceptors.response.use(
         Cookies.remove('menu');
         Cookies.remove('systems');
         Cookies.remove('system');
+        Cookies.remove('expedition_code');
         store.dispatch(destroyAuthState());
         window.location.replace('/');
       } else if (response.status === 400) {
