@@ -8,6 +8,7 @@ import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
 import InputGroup from 'react-bootstrap/InputGroup';
 import Modal from 'react-bootstrap/Modal';
+import Overlay from 'react-bootstrap/Overlay';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
@@ -24,6 +25,22 @@ import { useAlert } from '../../../utils/alertContext';
 import { useConfirm } from '../../../utils/confirmContext';
 
 const pageSize = 10;
+const priceActionPopperConfig = {
+  modifiers: [
+    {
+      name: 'offset',
+      options: { offset: [0, 8] }
+    },
+    {
+      name: 'preventOverflow',
+      options: { boundary: 'viewport', padding: 8 }
+    },
+    {
+      name: 'flip',
+      options: { fallbackPlacements: ['top-end', 'bottom-end'] }
+    }
+  ]
+};
 const initialPriceInput = {
   item_code: '',
   code_customer: '',
@@ -74,6 +91,7 @@ export default function MasterPrice() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingPriceId, setEditingPriceId] = useState(null);
   const [deletingPriceId, setDeletingPriceId] = useState(null);
+  const [priceActionMenu, setPriceActionMenu] = useState(null);
   const [submittingPrice, setSubmittingPrice] = useState(false);
   const [priceInput, setPriceInput] = useState(initialPriceInput);
   const [listItem, setListItem] = useState([]);
@@ -429,10 +447,10 @@ export default function MasterPrice() {
                     paginatedData.map((item, index) => {
                       const status = Number(getValue(item, ['status', 'is_active'], 0));
                       const priceId = getPriceId(item);
-                      const isDeleting = String(deletingPriceId) === String(priceId);
+                      const actionKey = priceId || `${getValue(item, ['item_code'], 'item')}-${index}`;
 
                       return (
-                        <tr key={priceId || `${getValue(item, ['item_code'], 'item')}-${index}`}>
+                        <tr key={actionKey}>
                           <td className="fw-semibold">{getValue(item, ['item_code', 'code_item', 'itemCode'])}</td>
                           <td style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>
                             {getValue(item, ['item_name', 'name_item', 'itemName', 'product_name'])}
@@ -444,29 +462,23 @@ export default function MasterPrice() {
                           <td className="fw-semibold">{formatCurrency(getPriceValue(item))}</td>
                           <td>{status === 1 ? <Badge bg="success">Active</Badge> : <Badge bg="secondary">Inactive</Badge>}</td>
                           <td className="text-center">
-                            <Stack direction="horizontal" gap={1} className="justify-content-center flex-nowrap">
-                              <Button className="rounded-circle" variant="outline-primary" size="sm" onClick={() => setSelectedPrice(item)}>
-                                <i className="ti ti-eye" />
-                              </Button>
-                              <Button
-                                className="rounded-circle"
-                                variant="outline-warning"
-                                size="sm"
-                                onClick={() => openEditModal(item)}
-                                disabled={submittingPrice || Boolean(deletingPriceId)}
-                              >
-                                <i className="ti ti-edit" />
-                              </Button>
-                              <Button
-                                className="rounded-circle"
-                                variant="outline-danger"
-                                size="sm"
-                                onClick={() => confirmDeletePrice(item)}
-                                disabled={Boolean(deletingPriceId)}
-                              >
-                                {isDeleting ? <span className="spinner-border spinner-border-sm" /> : <i className="ti ti-trash" />}
-                              </Button>
-                            </Stack>
+                            <Button
+                              size="sm"
+                              variant={String(priceActionMenu?.actionKey) === String(actionKey) ? 'primary' : 'outline-primary'}
+                              aria-label="Open price actions"
+                              aria-expanded={String(priceActionMenu?.actionKey) === String(actionKey)}
+                              onClick={(event) =>
+                                setPriceActionMenu((current) =>
+                                  String(current?.actionKey) === String(actionKey)
+                                    ? null
+                                    : { item, itemId: priceId, actionKey, target: event.currentTarget }
+                                )
+                              }
+                            >
+                              <i className="ti ti-dots-vertical me-1" />
+                              Actions
+                              <i className="ti ti-chevron-down ms-1" />
+                            </Button>
                           </td>
                         </tr>
                       );
@@ -510,6 +522,74 @@ export default function MasterPrice() {
           />
         </MainCard>
       </Stack>
+
+      <Overlay
+        show={Boolean(priceActionMenu)}
+        target={priceActionMenu?.target}
+        placement="top-end"
+        container={typeof document !== 'undefined' ? document.body : null}
+        containerPadding={8}
+        popperConfig={priceActionPopperConfig}
+        rootClose
+        rootCloseEvent="mousedown"
+        onHide={() => setPriceActionMenu(null)}
+      >
+        {({ ref, style, placement }) => {
+          const item = priceActionMenu?.item;
+          const itemId = priceActionMenu?.itemId;
+          const isDeleting = String(deletingPriceId) === String(itemId);
+
+          return (
+            <div
+              ref={ref}
+              className="dropdown-menu show"
+              data-popper-placement={placement}
+              style={{ ...style, zIndex: 1080, minWidth: 190 }}
+            >
+              <button
+                type="button"
+                className="dropdown-item"
+                onClick={() => {
+                  setPriceActionMenu(null);
+                  if (item) setSelectedPrice(item);
+                }}
+              >
+                <i className="ti ti-eye text-primary me-2" />
+                Detail
+              </button>
+              <button
+                type="button"
+                className="dropdown-item"
+                disabled={submittingPrice || Boolean(deletingPriceId)}
+                onClick={() => {
+                  setPriceActionMenu(null);
+                  if (item) openEditModal(item);
+                }}
+              >
+                <i className="ti ti-edit text-warning me-2" />
+                Edit
+              </button>
+              <div className="dropdown-divider" />
+              <button
+                type="button"
+                className="dropdown-item text-danger"
+                disabled={Boolean(deletingPriceId)}
+                onClick={() => {
+                  setPriceActionMenu(null);
+                  if (item) confirmDeletePrice(item);
+                }}
+              >
+                {isDeleting ? (
+                  <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />
+                ) : (
+                  <i className="ti ti-trash me-2" />
+                )}
+                Delete
+              </button>
+            </div>
+          );
+        }}
+      </Overlay>
 
       <Modal show={Boolean(selectedPrice)} onHide={() => setSelectedPrice(null)} centered size="lg">
         <Modal.Header closeButton>

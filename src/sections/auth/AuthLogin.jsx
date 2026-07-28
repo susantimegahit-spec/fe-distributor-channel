@@ -42,6 +42,47 @@ const productLogos = [
   { src: GaramJempolLogo, alt: 'Garam Jempol' }
 ];
 
+const normalizeAssignmentValues = (value, valueKeys = []) => {
+  if (value === undefined || value === null || value === '') return [];
+
+  if (Array.isArray(value)) {
+    return [...new Set(value.flatMap((item) => normalizeAssignmentValues(item, valueKeys)).filter(Boolean))];
+  }
+
+  if (typeof value === 'object') {
+    const objectValue = valueKeys.map((key) => value?.[key]).find((item) => item !== undefined && item !== null && item !== '');
+    return normalizeAssignmentValues(objectValue, valueKeys);
+  }
+
+  const normalizedValue = String(value).trim();
+  if (!normalizedValue) return [];
+
+  try {
+    const parsedValue = JSON.parse(normalizedValue);
+    if (parsedValue !== normalizedValue) return normalizeAssignmentValues(parsedValue, valueKeys);
+  } catch {
+    // Use a comma-separated assignment value when the response is not JSON.
+  }
+
+  return [...new Set(normalizedValue.split(',').map((item) => item.trim()).filter(Boolean))];
+};
+
+const getAssignmentValues = (userData, loginData, keys, valueKeys = keys) => {
+  const source = [...keys.map((key) => userData?.[key]), ...keys.map((key) => loginData?.[key])].find(
+    (value) => value !== undefined && value !== null && value !== ''
+  );
+
+  return normalizeAssignmentValues(source, valueKeys);
+};
+
+const setAssignmentCookie = (key, values) => {
+  if (values.length) {
+    Cookies.set(key, JSON.stringify(values));
+  } else {
+    Cookies.remove(key);
+  }
+};
+
 export default function AuthLoginForm({ className }) {
   const [showPassword, setShowPassword] = useState(false);
   const dispatch = useDispatch();
@@ -97,6 +138,30 @@ export default function AuthLoginForm({ className }) {
           expeditionData.code ||
           expeditionData.expedition_code ||
           '';
+        const warehouseCodes = getAssignmentValues(
+          userData,
+          loginData,
+          ['whs_code', 'whsCodes', 'warehouse_codes', 'warehouses', 'warehouse'],
+          ['whs_code', 'whsCode', 'warehouse_code', 'code', 'value']
+        );
+        const ocrCodes = getAssignmentValues(
+          userData,
+          loginData,
+          ['ocr_code', 'ocrCode', 'branches', 'branch_codes'],
+          ['ocr_code', 'ocrCode', 'code', 'value']
+        );
+        const ocrCodes2 = getAssignmentValues(
+          userData,
+          loginData,
+          ['ocr_code2', 'ocrCode2', 'business_units', 'business_unit_codes'],
+          ['ocr_code2', 'ocrCode2', 'ocr_code', 'code', 'value']
+        );
+        const ocrCodes3 = getAssignmentValues(
+          userData,
+          loginData,
+          ['ocr_code3', 'ocrCode3', 'departments', 'department_codes'],
+          ['ocr_code3', 'ocrCode3', 'ocr_code', 'code', 'value']
+        );
 
         Cookies.set('isLoggedIn', true);
         Cookies.set('accessToken', loginData.access_token);
@@ -118,6 +183,10 @@ export default function AuthLoginForm({ className }) {
         } else {
           Cookies.remove('expedition_code');
         }
+        setAssignmentCookie('whs_code', warehouseCodes);
+        setAssignmentCookie('ocr_code', ocrCodes);
+        setAssignmentCookie('ocr_code2', ocrCodes2);
+        setAssignmentCookie('ocr_code3', ocrCodes3);
         Cookies.set('distributorName', userData?.name_distributor);
         Cookies.set('distributorId', userData?.id_distributor);
         window.dispatchEvent(new Event(AUTH_STATE_CHANGED_EVENT));

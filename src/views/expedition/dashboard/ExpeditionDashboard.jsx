@@ -237,9 +237,9 @@ export default function ExpeditionDashboard() {
         }
       >
         <Row className="g-3">
-          <Col md={6} xl={3}>
+          <Col md={6} xl={4}>
             <Form.Group>
-              <Form.Label>Origin</Form.Label>
+              <Form.Label className="f-12 text-muted">Origin</Form.Label>
               <Select
                 classNamePrefix="react-select"
                 isClearable
@@ -255,9 +255,9 @@ export default function ExpeditionDashboard() {
               />
             </Form.Group>
           </Col>
-          <Col md={6} xl={3}>
+          <Col md={6} xl={4}>
             <Form.Group>
-              <Form.Label>Destination</Form.Label>
+              <Form.Label className="f-12 text-muted">Destination</Form.Label>
               <Select
                 classNamePrefix="react-select"
                 isClearable
@@ -275,13 +275,13 @@ export default function ExpeditionDashboard() {
           </Col>
           <Col md={6} xl={2}>
             <Form.Group>
-              <Form.Label>Weight</Form.Label>
-              <Form.Control min={1} type="number" value={form.weight} onChange={handleChange('weight')} />
+              <Form.Label className="f-12 text-muted">Weight (Kg)</Form.Label>
+              <Form.Control min={1} type="number" value={form.weight} onChange={handleChange('weight')} placeholder="0" />
             </Form.Group>
           </Col>
           <Col md={6} xl={2}>
             <Form.Group>
-              <Form.Label>Service Type</Form.Label>
+              <Form.Label className="f-12 text-muted">Service Type</Form.Label>
               <Form.Select value={form.serviceType} onChange={handleChange('serviceType')}>
                 <option value="">Select service</option>
                 <option value="RIT">RIT</option>
@@ -289,9 +289,10 @@ export default function ExpeditionDashboard() {
               </Form.Select>
             </Form.Group>
           </Col>
-          <Col md={6} xl={2} className="d-flex align-items-end">
+          <Col xs={12}>
             <Button
-              className="w-100"
+              className="w-100 py-3"
+              size="lg"
               disabled={loadingRatesRank || !form.originCode || !form.destinationCode || weight <= 0 || !form.serviceType}
               onClick={handleFindRates}
             >
@@ -302,8 +303,8 @@ export default function ExpeditionDashboard() {
                 </>
               ) : (
                 <>
-                  <i className="ti ti-search me-1" />
-                  Find
+                  <i className="ti ti-search me-2" />
+                  Find Expedition Recommendation
                 </>
               )}
             </Button>
@@ -364,7 +365,7 @@ export default function ExpeditionDashboard() {
               <th>Expedition</th>
               <th>Service</th>
               <th className="text-end">Estimated Price</th>
-              <th className="text-end">Price / Kg</th>
+              <th className="text-end">Price</th>
               <th className="text-center">Recommendation</th>
             </tr>
           </thead>

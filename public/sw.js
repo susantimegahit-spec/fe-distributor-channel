@@ -1,4 +1,4 @@
-const CACHE_NAME = 'distributor-channel-v9';
+const CACHE_NAME = 'distributor-channel-v10';
 const APP_SHELL = [
   './',
   './manifest.webmanifest',

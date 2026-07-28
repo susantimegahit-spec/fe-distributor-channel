@@ -78,6 +78,16 @@ const productionMenu = [
         selected: true,
         icon: 'ti ti-clipboard-text',
         url: withBasePath('/order')
+      },
+      {
+        id: 'production-inventory-transfer',
+        title: 'Inventory Transfer',
+        type: 'item',
+        value: 'production-inventory-transfer',
+        label: 'Inventory Transfer',
+        selected: true,
+        icon: 'ti ti-transfer',
+        url: withBasePath('/inventory-transfer')
       }
     ]
   }

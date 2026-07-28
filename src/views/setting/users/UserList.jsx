@@ -20,6 +20,7 @@ import ConfirmDialog from '../../../components/ConfirmDialog';
 import LoaderButton from '../../../components/LoaderButton';
 import LoaderData from '../../../components/LoaderData';
 import DistributorServices from '../../../services/customer-portal/DistributorServices';
+import WarehouseServices from '../../../services/customer-portal/WarehouseServices';
 import ExpeditionServices from '../../../services/expedition/ExpeditionServices';
 import RoleServices from '../../../services/setting/RoleServices';
 import UserServices from '../../../services/setting/UserServices';
@@ -34,6 +35,10 @@ const initialInput = {
   password: '',
   roleId: '',
   expeditionCode: '',
+  whsCodes: [],
+  ocrCodes: [],
+  ocrCodes2: [],
+  ocrCodes3: [],
   accessibleSystems: [],
   distributorCodes: [],
   distributorIds: []
@@ -49,9 +54,10 @@ const allDistributorOption = {
   isAll: true
 };
 const accessibleSystemOptions = [
-  { value: SYSTEM_KEYS.CUSTOMER_PORTAL, label: 'Customer Portal' },
-  { value: SYSTEM_KEYS.EXPEDITION, label: 'Expedition' },
-  { value: SYSTEM_KEYS.PICKING_LIST, label: 'Picking List' }
+  { value: SYSTEM_KEYS.CUSTOMER_PORTAL, label: 'Customer Portal', color: '#315fb4' },
+  { value: SYSTEM_KEYS.EXPEDITION, label: 'Expedition', color: '#e8590c' },
+  { value: SYSTEM_KEYS.PICKING_LIST, label: 'Picking List', color: '#7048e8' },
+  { value: SYSTEM_KEYS.PRODUCTION, label: 'Production', color: '#198754' }
 ];
 const accessibleSystemAliases = {
   distributor: SYSTEM_KEYS.CUSTOMER_PORTAL,
@@ -62,7 +68,10 @@ const accessibleSystemAliases = {
   pickinglist: SYSTEM_KEYS.PICKING_LIST,
   picking_list: SYSTEM_KEYS.PICKING_LIST,
   'picking-list': SYSTEM_KEYS.PICKING_LIST,
-  'picking list': SYSTEM_KEYS.PICKING_LIST
+  'picking list': SYSTEM_KEYS.PICKING_LIST,
+  production: SYSTEM_KEYS.PRODUCTION,
+  produksi: SYSTEM_KEYS.PRODUCTION,
+  manufacturing: SYSTEM_KEYS.PRODUCTION
 };
 
 const getUserDistributorCode = (item) =>
@@ -107,6 +116,7 @@ const getUserDistributors = (item) => {
       const source = distributor?.distributor || distributor;
 
       return {
+        ...source,
         id: source?.id || distributor?.id_distributor || distributor?.distributor_id || distributor?.id || '',
         code:
           source?.code_customer ||
@@ -123,7 +133,11 @@ const getUserDistributors = (item) => {
           distributor?.name ||
           distributor?.name_distributor ||
           distributor?.distributor_name ||
-          ''
+          '',
+        address: source?.address || source?.mail_address || distributor?.address || distributor?.mail_address || '',
+        phone: source?.phone || distributor?.phone || '',
+        email: source?.email || distributor?.email || '',
+        depo: source?.depo || source?.customer_depo || distributor?.depo || distributor?.customer_depo || ''
       };
     });
   }
@@ -146,7 +160,11 @@ const getUserDistributors = (item) => {
     return Array.from({ length: maxLength }, (_, index) => ({
       id: ids[index] || '',
       code: codes[index] || '',
-      name: names[index] || ''
+      name: names[index] || '',
+      address: '',
+      phone: '',
+      email: '',
+      depo: ''
     }));
   }
 
@@ -158,7 +176,11 @@ const getUserDistributors = (item) => {
         {
           id: item?.id_distributor || item?.distributor_id || item?.distributor?.id || '',
           code,
-          name
+          name,
+          address: item?.distributor?.address || item?.distributor?.mail_address || '',
+          phone: item?.distributor?.phone || '',
+          email: item?.distributor?.email || '',
+          depo: item?.distributor?.depo || item?.distributor?.customer_depo || ''
         }
       ]
     : [];
@@ -231,6 +253,55 @@ const getUserExpeditionCode = (item) =>
   item?.expedition?.expedition_code ||
   '';
 
+const getWarehouseCodeValue = (item) => {
+  if (typeof item === 'string' || typeof item === 'number') return String(item);
+
+  return String(item?.whs_code || item?.whsCode || item?.warehouse_code || item?.warehouseCode || item?.code || '');
+};
+
+const getUserWarehouseCodes = (item) =>
+  normalizeArray(
+    item?.whs_code ||
+      item?.whsCodes ||
+      item?.warehouse_codes ||
+      item?.warehouseCodes ||
+      item?.warehouses ||
+      item?.warehouse ||
+      item?.warehouse_code ||
+      item?.warehouseCode
+  )
+    .map(getWarehouseCodeValue)
+    .map((code) => code.trim())
+    .filter(Boolean);
+
+const getOcrCodeValue = (item, key) => {
+  if (typeof item === 'string' || typeof item === 'number') return String(item);
+
+  return String(item?.[key] || item?.ocr_code || item?.value || item?.code || '');
+};
+
+const getUserOcrCodes = (item, key, aliases = []) => {
+  const source = [item?.[key], ...aliases.map((alias) => item?.[alias])].find(
+    (value) => value !== undefined && value !== null && value !== ''
+  );
+
+  return normalizeArray(source)
+    .map((value) => getOcrCodeValue(value, key))
+    .map((code) => code.trim())
+    .filter(Boolean);
+};
+
+const formatDateTime = (value) => {
+  if (!value) return '-';
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? String(value)
+    : date.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+};
+
+const isUserActive = (value) => ['1', 'true', 'active', 'aktif', 'enabled'].includes(String(value).trim().toLowerCase());
+
 const getExpeditionList = (response) => {
   const payload = response?.data?.data ?? response?.data ?? [];
   const list = Array.isArray(payload) ? payload : (payload?.data ?? payload?.items ?? payload?.expeditions ?? []);
@@ -244,7 +315,13 @@ export default function UserList() {
   const [dataSource, setDataSource] = useState([]);
   const [listRole, setListRole] = useState([]);
   const [listDistributor, setListDistributor] = useState([]);
+  const [listWarehouse, setListWarehouse] = useState([]);
+  const [listOcr1, setListOcr1] = useState([]);
+  const [listOcr2, setListOcr2] = useState([]);
+  const [listOcr3, setListOcr3] = useState([]);
   const [listExpedition, setListExpedition] = useState([]);
+  const [loadingWarehouse, setLoadingWarehouse] = useState(false);
+  const [loadingOcr, setLoadingOcr] = useState(false);
   const [loadingExpedition, setLoadingExpedition] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showView, setShowView] = useState(false);
@@ -266,6 +343,8 @@ export default function UserList() {
     fetchData();
     getListRole();
     getListDistributor();
+    getListWarehouse();
+    getListOcrCodes();
     getListExpedition();
   }, []);
 
@@ -342,6 +421,88 @@ export default function UserList() {
     }
   };
 
+  const getListWarehouse = async () => {
+    setLoadingWarehouse(true);
+
+    try {
+      const response = await WarehouseServices.getAllWarehouse('');
+      if (response?.data?.success === false) {
+        showAlert(response.data.message || 'Failed to fetch warehouse data', 'danger');
+        return;
+      }
+
+      const payload = response?.data?.data ?? response?.data ?? [];
+      const warehouses = Array.isArray(payload) ? payload : (payload?.data ?? payload?.items ?? payload?.warehouses ?? []);
+
+      setListWarehouse(
+        (Array.isArray(warehouses) ? warehouses : [])
+          .map((warehouse) => {
+            const code = String(warehouse.whs_code ?? warehouse.warehouse_code ?? warehouse.code ?? '').trim();
+            const name = String(warehouse.whs_name ?? warehouse.warehouse_name ?? warehouse.name ?? '').trim();
+
+            return {
+              value: code,
+              label: [code, name].filter(Boolean).join(' - ') || '-',
+              code,
+              name
+            };
+          })
+          .filter((warehouse) => warehouse.value)
+      );
+    } catch (error) {
+      setListWarehouse([]);
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch warehouse data', 'danger');
+    } finally {
+      setLoadingWarehouse(false);
+    }
+  };
+
+  const getListOcrCodes = async () => {
+    setLoadingOcr(true);
+
+    const normalizeOcrOptions = (response) => {
+      const payload = response?.data?.data ?? response?.data ?? [];
+      const list = Array.isArray(payload) ? payload : (payload?.data ?? payload?.items ?? payload?.ocr_codes ?? []);
+
+      return (Array.isArray(list) ? list : [])
+        .map((item) => {
+          const code = String(item.ocr_code ?? item.code ?? '').trim();
+          const name = String(item.ocr_name ?? item.name ?? '').trim();
+
+          return {
+            value: code,
+            label: [code, name].filter(Boolean).join(' - ') || '-',
+            code,
+            name
+          };
+        })
+        .filter((item) => item.value);
+    };
+
+    try {
+      const [branchResponse, businessUnitResponse, departmentResponse] = await Promise.all([
+        DistributorServices.getOcrByType(1),
+        DistributorServices.getOcrByType(2),
+        DistributorServices.getOcrByType(3)
+      ]);
+
+      if ([branchResponse, businessUnitResponse, departmentResponse].some((response) => response?.data?.success === false)) {
+        throw new Error('Failed to fetch OCR code data');
+      }
+
+      setListOcr1(normalizeOcrOptions(branchResponse));
+      setListOcr2(normalizeOcrOptions(businessUnitResponse));
+      setListOcr3(normalizeOcrOptions(departmentResponse));
+    } catch (error) {
+      setListOcr1([]);
+      setListOcr2([]);
+      setListOcr3([]);
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch OCR code data', 'danger');
+    } finally {
+      setLoadingOcr(false);
+    }
+  };
+
   const filteredData = useMemo(() => {
     return dataSource.filter((item) => {
       const keyword = keywords.toLowerCase();
@@ -413,10 +574,15 @@ export default function UserList() {
   };
 
   const handleSelectAccessibleSystems = (options) => {
-    setInput({
-      ...input,
-      accessibleSystems: (options || []).map((option) => option.value)
-    });
+    const selectedSystems = (options || []).map((option) => option.value);
+
+    setInput((currentInput) => ({
+      ...currentInput,
+      accessibleSystems: selectedSystems,
+      expeditionCode: selectedSystems.includes(SYSTEM_KEYS.EXPEDITION) ? currentInput.expeditionCode : '',
+      distributorCodes: selectedSystems.includes(SYSTEM_KEYS.CUSTOMER_PORTAL) ? currentInput.distributorCodes : [],
+      distributorIds: selectedSystems.includes(SYSTEM_KEYS.CUSTOMER_PORTAL) ? currentInput.distributorIds : []
+    }));
   };
 
   const handleSelectExpedition = (option) => {
@@ -426,6 +592,20 @@ export default function UserList() {
     });
   };
 
+  const handleSelectWarehouse = (option) => {
+    setInput({
+      ...input,
+      whsCodes: (option || []).map((warehouse) => warehouse.value)
+    });
+  };
+
+  const handleSelectOcr = (field) => (options) => {
+    setInput((currentInput) => ({
+      ...currentInput,
+      [field]: (options || []).map((option) => option.value)
+    }));
+  };
+
   const distributorOptions = assignedCustomerCode ? listDistributor : [allDistributorOption, ...listDistributor];
   const isAllDistributorSelected = input.distributorCodes.includes(ALL_DISTRIBUTORS_VALUE);
   const selectedDistributor = isAllDistributorSelected
@@ -433,6 +613,24 @@ export default function UserList() {
     : listDistributor.filter((item) => input.distributorCodes.includes(item.value));
   const selectedAccessibleSystems = accessibleSystemOptions.filter((item) => input.accessibleSystems.includes(item.value));
   const selectedExpedition = listExpedition.find((item) => item.value === input.expeditionCode) || null;
+  const selectedWarehouses = input.whsCodes.map(
+    (code) => listWarehouse.find((warehouse) => warehouse.value === code) || { value: code, label: code }
+  );
+  const getSelectedOcrOptions = (codes, options) =>
+    codes.map((code) => options.find((option) => option.value === code) || { value: code, label: code });
+  const selectedOcr1 = getSelectedOcrOptions(input.ocrCodes, listOcr1);
+  const selectedOcr2 = getSelectedOcrOptions(input.ocrCodes2, listOcr2);
+  const selectedOcr3 = getSelectedOcrOptions(input.ocrCodes3, listOcr3);
+  const hasCustomerPortalAccess = input.accessibleSystems.includes(SYSTEM_KEYS.CUSTOMER_PORTAL);
+  const hasExpeditionAccess = input.accessibleSystems.includes(SYSTEM_KEYS.EXPEDITION);
+  const selectedUserAccessibleSystems = selectedUser ? getUserAccessibleSystems(selectedUser) : [];
+  const selectedUserDistributors = selectedUser ? getUserDistributors(selectedUser) : [];
+  const selectedUserExpeditionCode = selectedUser ? String(getUserExpeditionCode(selectedUser)) : '';
+  const selectedUserExpedition = listExpedition.find((item) => item.value === selectedUserExpeditionCode);
+  const formatUserOcrCodes = (key, aliases, options) =>
+    getUserOcrCodes(selectedUser, key, aliases)
+      .map((code) => options.find((option) => option.value === code)?.label || code)
+      .join(', ') || '-';
   const getSelectedDistributorPayload = () => ({
     code_customer: isAllDistributorSelected ? listDistributor.map((item) => item.value) : input.distributorCodes,
     id_distributor: isAllDistributorSelected ? listDistributor.map((item) => item.id) : input.distributorIds
@@ -464,6 +662,10 @@ export default function UserList() {
       password: '',
       roleId: item.role?.id || item.role_id || '',
       expeditionCode: String(getUserExpeditionCode(item) || ''),
+      whsCodes: getUserWarehouseCodes(item),
+      ocrCodes: getUserOcrCodes(item, 'ocr_code', ['ocrCode', 'branches', 'branch_codes']),
+      ocrCodes2: getUserOcrCodes(item, 'ocr_code2', ['ocrCode2', 'business_units', 'business_unit_codes']),
+      ocrCodes3: getUserOcrCodes(item, 'ocr_code3', ['ocrCode3', 'departments', 'department_codes']),
       accessibleSystems: getUserAccessibleSystems(item),
       distributorCodes: hasAllDistributors ? [ALL_DISTRIBUTORS_VALUE] : distributorCodes,
       distributorIds: hasAllDistributors ? [ALL_DISTRIBUTORS_VALUE] : distributorIds
@@ -514,6 +716,10 @@ export default function UserList() {
       password: input.password,
       role_id: input.roleId,
       expedition_code: input.expeditionCode || null,
+      whs_code: input.whsCodes,
+      ocr_code: input.ocrCodes,
+      ocr_code2: input.ocrCodes2,
+      ocr_code3: input.ocrCodes3,
       accessible_systems: input.accessibleSystems,
       code_customer: distributorPayload.code_customer?.toString(),
       id_distributor: distributorPayload.id_distributor?.toString()
@@ -539,6 +745,10 @@ export default function UserList() {
       email: input.email,
       role_id: input.roleId,
       expedition_code: input.expeditionCode || null,
+      whs_code: input.whsCodes,
+      ocr_code: input.ocrCodes,
+      ocr_code2: input.ocrCodes2,
+      ocr_code3: input.ocrCodes3,
       accessible_systems: input.accessibleSystems,
       code_customer: distributorPayload.code_customer?.toString(),
       id_distributor: distributorPayload.id_distributor?.toString()
@@ -716,7 +926,7 @@ export default function UserList() {
             {loadingData ? (
               <tbody>
                 <tr>
-                  <td colSpan={7}>
+                  <td colSpan={5}>
                     <LoaderData />
                   </td>
                 </tr>
@@ -726,8 +936,6 @@ export default function UserList() {
                 <thead>
                   <tr>
                     <th style={{ minWidth: 220 }}>User</th>
-                    <th style={{ minWidth: 220 }}>Email</th>
-                    <th style={{ minWidth: 220 }}>Distributor</th>
                     <th style={{ minWidth: 180 }}>Accessible System</th>
                     <th style={{ minWidth: 180 }}>Access Rights</th>
                     <th style={{ minWidth: 120 }}>Status</th>
@@ -749,12 +957,29 @@ export default function UserList() {
                             </div>
                           </Stack>
                         </td>
-                        <td>{item.email || '-'}</td>
                         <td>
-                          <div className="fw-semibold">{formatDistributorCodes(item) || '-'}</div>
-                          <small className="text-muted">{formatDistributorNames(item) || '-'}</small>
+                          <Stack direction="horizontal" gap={1} className="flex-wrap">
+                            {getUserAccessibleSystems(item).length ? (
+                              accessibleSystemOptions
+                                .filter((system) => getUserAccessibleSystems(item).includes(system.value))
+                                .map((system) => (
+                                  <span
+                                    className="badge"
+                                    key={system.value}
+                                    style={{
+                                      backgroundColor: system.color,
+                                      color: '#fff',
+                                      border: `1px solid ${system.color}`
+                                    }}
+                                  >
+                                    {system.label}
+                                  </span>
+                                ))
+                            ) : (
+                              <span>-</span>
+                            )}
+                          </Stack>
                         </td>
-                        <td>{formatAccessibleSystems(item) || '-'}</td>
                         <td>
                           <Badge bg="light" text="dark">
                             {item.role?.name || '-'}
@@ -795,7 +1020,7 @@ export default function UserList() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={7}>
+                      <td colSpan={5}>
                         <div className="text-center py-5">
                           <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                             <i className="ti ti-users f-24" />
@@ -833,123 +1058,206 @@ export default function UserList() {
         </MainCard>
       </Stack>
 
-      <Modal show={showMenu} onHide={resetForm} size="lg" centered>
+      <Modal show={showMenu} onHide={resetForm} size="xl" centered scrollable>
         <Modal.Header closeButton>
           <Modal.Title>{formMode === 'edit' ? 'Edit User' : 'Add User'}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Row className="g-3">
-            <Col lg={4}>
+            <Col lg={6}>
               <Card className="border mb-0 h-100">
+                <Card.Header className="py-3">
+                  <Stack direction="horizontal" gap={2}>
+                    <i className="ti ti-user text-primary" />
+                    <h6 className="mb-0">Account & Access</h6>
+                  </Stack>
+                </Card.Header>
                 <Card.Body>
-                  <div className="avtar avtar-xl bg-light-primary text-primary mb-3">
-                    <i className="ti ti-user-plus f-24" />
-                  </div>
-                  <h6 className="mb-1">{formMode === 'edit' ? 'Update Account' : 'New Account'}</h6>
-                  <p className="text-muted mb-0">Complete the user identity, role, and linked distributor code.</p>
+                  <Row className="g-3">
+                    <Col md={6}>
+                      <Form.Label className="f-12 text-muted">Name</Form.Label>
+                      <Form.Control
+                        type="text"
+                        placeholder="Full name"
+                        value={input.name}
+                        onChange={(event) => handleSetState('name', event)}
+                      />
+                    </Col>
+                    <Col md={6}>
+                      <Form.Label className="f-12 text-muted">Username</Form.Label>
+                      <Form.Control
+                        type="text"
+                        placeholder="Username login"
+                        value={input.username}
+                        onChange={(event) => handleSetState('username', event)}
+                      />
+                    </Col>
+                    <Col md={6}>
+                      <Form.Label className="f-12 text-muted">Email</Form.Label>
+                      <Form.Control
+                        type="email"
+                        placeholder="name@email.com"
+                        value={input.email}
+                        onChange={(event) => handleSetState('email', event)}
+                      />
+                    </Col>
+                    <Col md={6}>
+                      <Form.Label className="f-12 text-muted">Access Rights</Form.Label>
+                      <Form.Select value={input.roleId} onChange={(event) => handleSetState('roleId', event)}>
+                        <option value="">Select Access Rights</option>
+                        {listRole.map((role) => (
+                          <option key={role.id} value={role.id}>
+                            {role.name}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    </Col>
+                    <Col xs={12}>
+                      <Form.Label className="f-12 text-muted">Accessible System</Form.Label>
+                      <Select
+                        value={selectedAccessibleSystems}
+                        options={accessibleSystemOptions}
+                        menuPosition="fixed"
+                        onChange={handleSelectAccessibleSystems}
+                        placeholder="Select accessible system"
+                        isClearable
+                        isMulti
+                        closeMenuOnSelect={false}
+                      />
+                    </Col>
+                    <Col xs={12}>
+                      <Form.Label className="f-12 text-muted">{formMode === 'edit' ? 'New Password' : 'Password'}</Form.Label>
+                      <div className="sm-user-password-field">
+                        <Form.Control
+                          type={showPassword ? 'text' : 'password'}
+                          placeholder={formMode === 'edit' ? 'Leave blank if unchanged' : 'Initial password'}
+                          value={input.password}
+                          onChange={(event) => handleSetState('password', event)}
+                        />
+                        <Button
+                          type="button"
+                          variant="link"
+                          className="sm-user-password-toggle"
+                          onClick={() => setShowPassword((value) => !value)}
+                        >
+                          {showPassword ? <i className="ti ti-eye" /> : <i className="ti ti-eye-off" />}
+                        </Button>
+                      </div>
+                    </Col>
+                  </Row>
                 </Card.Body>
               </Card>
             </Col>
-            <Col lg={8}>
-              <Row className="g-3">
-                <Col md={6}>
-                  <Form.Label className="f-12 text-muted">Name</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="Full name"
-                    value={input.name}
-                    onChange={(event) => handleSetState('name', event)}
-                  />
-                </Col>
-                <Col md={6}>
-                  <Form.Label className="f-12 text-muted">Username</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="Username login"
-                    value={input.username}
-                    onChange={(event) => handleSetState('username', event)}
-                  />
-                </Col>
-                <Col md={6}>
-                  <Form.Label className="f-12 text-muted">Email</Form.Label>
-                  <Form.Control
-                    type="email"
-                    placeholder="nama@email.com"
-                    value={input.email}
-                    onChange={(event) => handleSetState('email', event)}
-                  />
-                </Col>
-                <Col md={6}>
-                  <Form.Label className="f-12 text-muted">Access Rights</Form.Label>
-                  <Form.Select value={input.roleId} onChange={(event) => handleSetState('roleId', event)}>
-                    <option value="">Select Access Rights</option>
-                    {listRole.map((role) => (
-                      <option key={role.id} value={role.id}>
-                        {role.name}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Col>
-                <Col md={12}>
-                  <Form.Label className="f-12 text-muted">Accessible System</Form.Label>
-                  <Select
-                    value={selectedAccessibleSystems}
-                    options={accessibleSystemOptions}
-                    menuPosition="fixed"
-                    onChange={handleSelectAccessibleSystems}
-                    placeholder="Select accessible system"
-                    isClearable
-                    isMulti
-                    closeMenuOnSelect={false}
-                  />
-                </Col>
-                <Col md={12}>
-                  <Form.Label className="f-12 text-muted">Expedition</Form.Label>
-                  <Select
-                    value={selectedExpedition}
-                    options={listExpedition}
-                    menuPosition="fixed"
-                    onChange={handleSelectExpedition}
-                    placeholder={loadingExpedition ? 'Loading expedition...' : 'Select expedition'}
-                    isLoading={loadingExpedition}
-                    isClearable
-                  />
-                </Col>
-                {/* {input.roleId == 1 ? ( */}
-                <Col md={12}>
-                  <Form.Label className="f-12 text-muted">Distributor</Form.Label>
-                  <Select
-                    value={selectedDistributor}
-                    options={distributorOptions}
-                    menuPosition="fixed"
-                    onChange={handleSelectDistributor}
-                    placeholder="Select distributor"
-                    isClearable
-                    isMulti
-                    closeMenuOnSelect={false}
-                  />
-                </Col>
-                {/* ) : null} */}
-                <Col md={12}>
-                  <Form.Label className="f-12 text-muted">{formMode === 'edit' ? 'New Password' : 'Password'}</Form.Label>
-                  <div className="sm-user-password-field">
-                    <Form.Control
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder={formMode === 'edit' ? 'Leave blank if unchanged' : 'Initial password'}
-                      value={input.password}
-                      onChange={(event) => handleSetState('password', event)}
-                    />
-                    <Button
-                      type="button"
-                      variant="link"
-                      className="sm-user-password-toggle"
-                      onClick={() => setShowPassword((value) => !value)}
-                    >
-                      {showPassword ? <i className="ti ti-eye" /> : <i className="ti ti-eye-off" />}
-                    </Button>
+            <Col lg={6}>
+              <Card className="border mb-0 h-100">
+                <Card.Header className="py-3">
+                  <Stack direction="horizontal" gap={2}>
+                    <i className="ti ti-building-warehouse text-primary" />
+                    <h6 className="mb-0">Organizational Assignment</h6>
+                  </Stack>
+                </Card.Header>
+                <Card.Body>
+                  <div className="alert alert-info d-flex align-items-start gap-2 py-2 px-3 mb-3" role="note">
+                    <i className="ti ti-info-circle mt-1" />
+                    <small>Leave a field blank to grant access to all values in that category.</small>
                   </div>
-                </Col>
-              </Row>
+                  <Row className="g-3">
+                    <Col xs={12}>
+                      <Form.Label className="f-12 text-muted">Warehouse</Form.Label>
+                      <Select
+                        value={selectedWarehouses}
+                        options={listWarehouse}
+                        menuPosition="fixed"
+                        onChange={handleSelectWarehouse}
+                        placeholder={loadingWarehouse ? 'Loading warehouses...' : 'Select warehouse'}
+                        isLoading={loadingWarehouse}
+                        isClearable
+                        isSearchable
+                        isMulti
+                        closeMenuOnSelect={false}
+                        noOptionsMessage={() => 'No warehouse found'}
+                      />
+                    </Col>
+                    <Col md={6}>
+                      <Form.Label className="f-12 text-muted">Branch</Form.Label>
+                      <Select
+                        value={selectedOcr1}
+                        options={listOcr1}
+                        menuPosition="fixed"
+                        onChange={handleSelectOcr('ocrCodes')}
+                        placeholder={loadingOcr ? 'Loading branches...' : 'Select branch'}
+                        isLoading={loadingOcr}
+                        isClearable
+                        isSearchable
+                        isMulti
+                        closeMenuOnSelect={false}
+                        noOptionsMessage={() => 'No branch found'}
+                      />
+                    </Col>
+                    <Col md={6}>
+                      <Form.Label className="f-12 text-muted">Business Unit</Form.Label>
+                      <Select
+                        value={selectedOcr2}
+                        options={listOcr2}
+                        menuPosition="fixed"
+                        onChange={handleSelectOcr('ocrCodes2')}
+                        placeholder={loadingOcr ? 'Loading business units...' : 'Select business unit'}
+                        isLoading={loadingOcr}
+                        isClearable
+                        isSearchable
+                        isMulti
+                        closeMenuOnSelect={false}
+                        noOptionsMessage={() => 'No business unit found'}
+                      />
+                    </Col>
+                    <Col xs={12}>
+                      <Form.Label className="f-12 text-muted">Department</Form.Label>
+                      <Select
+                        value={selectedOcr3}
+                        options={listOcr3}
+                        menuPosition="fixed"
+                        onChange={handleSelectOcr('ocrCodes3')}
+                        placeholder={loadingOcr ? 'Loading departments...' : 'Select department'}
+                        isLoading={loadingOcr}
+                        isClearable
+                        isSearchable
+                        isMulti
+                        closeMenuOnSelect={false}
+                        noOptionsMessage={() => 'No department found'}
+                      />
+                    </Col>
+                    {hasExpeditionAccess ? (
+                      <Col xs={12}>
+                        <Form.Label className="f-12 text-muted">Expedition</Form.Label>
+                        <Select
+                          value={selectedExpedition}
+                          options={listExpedition}
+                          menuPosition="fixed"
+                          onChange={handleSelectExpedition}
+                          placeholder={loadingExpedition ? 'Loading expedition...' : 'Select expedition'}
+                          isLoading={loadingExpedition}
+                          isClearable
+                        />
+                      </Col>
+                    ) : null}
+                    {hasCustomerPortalAccess ? (
+                      <Col xs={12}>
+                        <Form.Label className="f-12 text-muted">Distributor</Form.Label>
+                        <Select
+                          value={selectedDistributor}
+                          options={distributorOptions}
+                          menuPosition="fixed"
+                          onChange={handleSelectDistributor}
+                          placeholder="Select distributor"
+                          isClearable
+                          isMulti
+                          closeMenuOnSelect={false}
+                        />
+                      </Col>
+                    ) : null}
+                  </Row>
+                </Card.Body>
+              </Card>
             </Col>
           </Row>
         </Modal.Body>
@@ -963,7 +1271,7 @@ export default function UserList() {
         </Modal.Footer>
       </Modal>
 
-      <Modal show={showView} onHide={resetForm} size="lg" centered>
+      <Modal show={showView} onHide={resetForm} size="xl" centered scrollable>
         <Modal.Header closeButton>
           <Modal.Title>User Detail</Modal.Title>
         </Modal.Header>
@@ -972,43 +1280,196 @@ export default function UserList() {
             <Row className="g-3">
               <Col lg={4}>
                 <Card className="border mb-0 h-100">
-                  <Card.Body>
+                  <Card.Body className="text-center">
                     <span className="sm-account-avatar sm-account-avatar-lg mb-3">
                       {selectedUser.name?.charAt(0)?.toUpperCase() || 'U'}
                     </span>
                     <h6 className="mb-1">{selectedUser.name || '-'}</h6>
-                    <p className="text-muted mb-0">{selectedUser.email || '-'}</p>
+                    <p className="text-muted mb-3">{selectedUser.email || '-'}</p>
+                    {isUserActive(selectedUser.is_active ?? selectedUser.active ?? selectedUser.status) ? (
+                      <Badge bg="success">Active</Badge>
+                    ) : (
+                      <Badge bg="secondary">Inactive</Badge>
+                    )}
                   </Card.Body>
                 </Card>
               </Col>
               <Col lg={8}>
-                <Row className="g-3">
-                  <Col md={6}>
-                    <Form.Label className="f-12 text-muted">Username</Form.Label>
-                    <div className="fw-semibold">{selectedUser.username || '-'}</div>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Label className="f-12 text-muted">Access Rights</Form.Label>
-                    <div>{selectedUser.role?.name || '-'}</div>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Label className="f-12 text-muted">Accessible System</Form.Label>
-                    <div className="fw-semibold">{formatAccessibleSystems(selectedUser) || '-'}</div>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Label className="f-12 text-muted">Distributor Code</Form.Label>
-                    <div className="fw-semibold">{formatDistributorCodes(selectedUser) || '-'}</div>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Label className="f-12 text-muted">Distributor Name</Form.Label>
-                    <div>{formatDistributorNames(selectedUser) || '-'}</div>
-                  </Col>
-                  <Col md={6}>
-                    <Form.Label className="f-12 text-muted">Status</Form.Label>
-                    <div>{selectedUser.is_active ? <Badge bg="success">Active</Badge> : <Badge bg="secondary">Inactive</Badge>}</div>
-                  </Col>
-                </Row>
+                <Card className="border mb-0 h-100">
+                  <Card.Header className="py-3">
+                    <h6 className="mb-0">Account Information</h6>
+                  </Card.Header>
+                  <Card.Body>
+                    <Row className="g-3">
+                      <Col md={6}>
+                        <Form.Label className="f-12 text-muted">User ID</Form.Label>
+                        <div className="fw-semibold">{selectedUser.id || '-'}</div>
+                      </Col>
+                      <Col md={6}>
+                        <Form.Label className="f-12 text-muted">Username</Form.Label>
+                        <div className="fw-semibold">{selectedUser.username || '-'}</div>
+                      </Col>
+                      <Col md={6}>
+                        <Form.Label className="f-12 text-muted">Full Name</Form.Label>
+                        <div>{selectedUser.name || '-'}</div>
+                      </Col>
+                      <Col md={6}>
+                        <Form.Label className="f-12 text-muted">Email</Form.Label>
+                        <div>{selectedUser.email || '-'}</div>
+                      </Col>
+                      <Col md={6}>
+                        <Form.Label className="f-12 text-muted">Created At</Form.Label>
+                        <div>{formatDateTime(selectedUser.created_at || selectedUser.createdAt)}</div>
+                      </Col>
+                      <Col md={6}>
+                        <Form.Label className="f-12 text-muted">Updated At</Form.Label>
+                        <div>{formatDateTime(selectedUser.updated_at || selectedUser.updatedAt)}</div>
+                      </Col>
+                    </Row>
+                  </Card.Body>
+                </Card>
               </Col>
+
+              <Col xs={12}>
+                <Card className="border mb-0">
+                  <Card.Header className="py-3">
+                    <h6 className="mb-0">Access Information</h6>
+                  </Card.Header>
+                  <Card.Body>
+                    <Row className="g-3">
+                      <Col md={4}>
+                        <Form.Label className="f-12 text-muted">Role ID</Form.Label>
+                        <div>{selectedUser.role?.id || selectedUser.role_id || '-'}</div>
+                      </Col>
+                      <Col md={4}>
+                        <Form.Label className="f-12 text-muted">Access Rights</Form.Label>
+                        <div className="fw-semibold">
+                          {selectedUser.role?.name || selectedUser.role_name || selectedUser.roleName || '-'}
+                        </div>
+                      </Col>
+                      <Col md={4}>
+                        <Form.Label className="f-12 text-muted">Approval Permission</Form.Label>
+                        <div>
+                          {selectedUser.role?.role_menu?.approval?.label ||
+                            selectedUser.role?.role_menu?.approval?.name ||
+                            selectedUser.role?.approval?.label ||
+                            selectedUser.role?.approval?.name ||
+                            '-'}
+                        </div>
+                      </Col>
+                      <Col md={4}>
+                        <Form.Label className="f-12 text-muted">Warehouse</Form.Label>
+                        <div className="fw-semibold">
+                          {getUserWarehouseCodes(selectedUser)
+                            .map((code) => listWarehouse.find((warehouse) => warehouse.value === code)?.label || code)
+                            .join(', ') || '-'}
+                        </div>
+                      </Col>
+                      <Col md={4}>
+                        <Form.Label className="f-12 text-muted">Branch</Form.Label>
+                        <div>{formatUserOcrCodes('ocr_code', ['ocrCode', 'branches', 'branch_codes'], listOcr1)}</div>
+                      </Col>
+                      <Col md={4}>
+                        <Form.Label className="f-12 text-muted">Business Unit</Form.Label>
+                        <div>
+                          {formatUserOcrCodes(
+                            'ocr_code2',
+                            ['ocrCode2', 'business_units', 'business_unit_codes'],
+                            listOcr2
+                          )}
+                        </div>
+                      </Col>
+                      <Col md={4}>
+                        <Form.Label className="f-12 text-muted">Department</Form.Label>
+                        <div>
+                          {formatUserOcrCodes('ocr_code3', ['ocrCode3', 'departments', 'department_codes'], listOcr3)}
+                        </div>
+                      </Col>
+                      <Col xs={12}>
+                        <Form.Label className="f-12 text-muted">Accessible System</Form.Label>
+                        <Stack direction="horizontal" gap={2} className="flex-wrap">
+                          {selectedUserAccessibleSystems.length ? (
+                            accessibleSystemOptions
+                              .filter((option) => selectedUserAccessibleSystems.includes(option.value))
+                              .map((option) => (
+                                <Badge bg="light" text="dark" key={option.value}>
+                                  {option.label}
+                                </Badge>
+                              ))
+                          ) : (
+                            <span>-</span>
+                          )}
+                        </Stack>
+                      </Col>
+                      {selectedUserAccessibleSystems.includes(SYSTEM_KEYS.EXPEDITION) || selectedUserExpeditionCode ? (
+                        <Col md={6}>
+                          <Form.Label className="f-12 text-muted">Expedition</Form.Label>
+                          <div className="fw-semibold">
+                            {selectedUserExpedition?.label ||
+                              [
+                                selectedUserExpeditionCode,
+                                selectedUser.expedition?.name || selectedUser.expedition?.expedition_name
+                              ]
+                                .filter(Boolean)
+                                .join(' - ') ||
+                              '-'}
+                          </div>
+                        </Col>
+                      ) : null}
+                    </Row>
+                  </Card.Body>
+                </Card>
+              </Col>
+
+              {selectedUserAccessibleSystems.includes(SYSTEM_KEYS.CUSTOMER_PORTAL) || selectedUserDistributors.length ? (
+                <Col xs={12}>
+                  <Card className="border mb-0">
+                    <Card.Header className="py-3">
+                      <Stack direction="horizontal" className="justify-content-between">
+                        <h6 className="mb-0">Distributor Access</h6>
+                        <Badge bg="light" text="dark">
+                          {selectedUserDistributors.length} distributor
+                        </Badge>
+                      </Stack>
+                    </Card.Header>
+                    <Table className="mb-0 align-middle" responsive hover>
+                      <thead>
+                        <tr>
+                          <th style={{ width: 70 }}>#</th>
+                          <th>Code</th>
+                          <th>Distributor Name</th>
+                          <th>Depo</th>
+                          <th>Contact</th>
+                          <th>Address</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedUserDistributors.length ? (
+                          selectedUserDistributors.map((distributor, index) => (
+                            <tr key={distributor.id || distributor.code || index}>
+                              <td>{index + 1}</td>
+                              <td className="fw-semibold">{distributor.code || '-'}</td>
+                              <td>{distributor.name || '-'}</td>
+                              <td>{distributor.depo || '-'}</td>
+                              <td>
+                                <div>{distributor.phone || '-'}</div>
+                                {distributor.email ? <small className="text-muted">{distributor.email}</small> : null}
+                              </td>
+                              <td style={{ whiteSpace: 'normal', minWidth: 220 }}>{distributor.address || '-'}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={6} className="text-center text-muted py-4">
+                              No distributor assigned.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </Table>
+                  </Card>
+                </Col>
+              ) : null}
             </Row>
           )}
         </Modal.Body>

@@ -8,6 +8,7 @@ import Card from 'react-bootstrap/Card';
 import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
 import Modal from 'react-bootstrap/Modal';
+import Overlay from 'react-bootstrap/Overlay';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
@@ -23,6 +24,13 @@ import PromoServices from '../../../services/customer-portal/PromoServices';
 import { useAlert } from '../../../utils/alertContext';
 
 const pageSize = 10;
+const promoActionPopperConfig = {
+  modifiers: [
+    { name: 'offset', options: { offset: [0, 8] } },
+    { name: 'preventOverflow', options: { boundary: 'viewport', padding: 8 } },
+    { name: 'flip', options: { fallbackPlacements: ['top-end', 'bottom-end'] } }
+  ]
+};
 
 const initialPromoInput = {
   program_name: '',
@@ -247,6 +255,7 @@ export default function MasterPromo() {
   const [editingPromoId, setEditingPromoId] = useState(null);
   const [promoToDelete, setPromoToDelete] = useState(null);
   const [deletingPromoId, setDeletingPromoId] = useState(null);
+  const [promoActionMenu, setPromoActionMenu] = useState(null);
   const [promoInput, setPromoInput] = useState(initialPromoInput);
   const [promoRules, setPromoRules] = useState(initialPromoRules);
   const [listItem, setListItem] = useState([]);
@@ -628,7 +637,7 @@ export default function MasterPromo() {
                 <th style={{ minWidth: 240 }}>Remarks</th>
                 <th style={{ minWidth: 120 }}>Status</th>
                 <th className="text-center" style={{ minWidth: 150 }}>
-                  #
+                  Action
                 </th>
               </tr>
             </thead>
@@ -680,54 +689,24 @@ export default function MasterPromo() {
                       <td>
                         <Badge bg={statusVariant[program.status] || 'secondary'}>{statusLabel[program.status] || program.status}</Badge>
                       </td>
-                      <td>
-                        <Stack direction="horizontal" gap={2} className="justify-content-center">
-                          <Button
-                            className="rounded-circle"
-                            variant="outline-primary"
-                            size="sm"
-                            title="View detail program"
-                            aria-label={`View detail ${program.program_name || 'program promo'}`}
-                            onClick={() => handleViewPromo(program)}
-                            disabled={loadingDetailId !== null || deletingPromoId !== null}
-                          >
-                            {String(loadingDetailId) === String(program.id) && loadingDetailType === 'view' ? (
-                              <span className="spinner-border spinner-border-sm" aria-hidden="true" />
-                            ) : (
-                              <i className="ti ti-eye" />
-                            )}
-                          </Button>
-                          <Button
-                            className="rounded-circle"
-                            variant="outline-secondary"
-                            size="sm"
-                            title="Edit program"
-                            aria-label={`Edit ${program.program_name || 'program promo'}`}
-                            onClick={() => handleEditPromo(program)}
-                            disabled={loadingDetailId !== null || deletingPromoId !== null}
-                          >
-                            {String(loadingDetailId) === String(program.id) && loadingDetailType === 'edit' ? (
-                              <span className="spinner-border spinner-border-sm" aria-hidden="true" />
-                            ) : (
-                              <i className="ti ti-pencil" />
-                            )}
-                          </Button>
-                          <Button
-                            className="rounded-circle"
-                            variant="outline-danger"
-                            size="sm"
-                            title="Delete program"
-                            aria-label={`Delete ${program.program_name || 'program promo'}`}
-                            onClick={() => setPromoToDelete(program)}
-                            disabled={loadingDetailId !== null || deletingPromoId !== null}
-                          >
-                            {String(deletingPromoId) === String(program.id) ? (
-                              <span className="spinner-border spinner-border-sm" aria-hidden="true" />
-                            ) : (
-                              <i className="ti ti-trash" />
-                            )}
-                          </Button>
-                        </Stack>
+                      <td className="text-center">
+                        <Button
+                          size="sm"
+                          variant={String(promoActionMenu?.program?.id) === String(program.id) ? 'primary' : 'outline-primary'}
+                          aria-label={`Open actions for ${program.program_name || 'promo program'}`}
+                          aria-expanded={String(promoActionMenu?.program?.id) === String(program.id)}
+                          onClick={(event) =>
+                            setPromoActionMenu((current) =>
+                              String(current?.program?.id) === String(program.id)
+                                ? null
+                                : { program, target: event.currentTarget }
+                            )
+                          }
+                        >
+                          <i className="ti ti-dots-vertical me-1" />
+                          Actions
+                          <i className="ti ti-chevron-down ms-1" />
+                        </Button>
                       </td>
                     </tr>
                   );
@@ -762,6 +741,85 @@ export default function MasterPromo() {
           />
         </MainCard>
       </Stack>
+
+      <Overlay
+        show={Boolean(promoActionMenu)}
+        target={promoActionMenu?.target}
+        placement="top-end"
+        container={typeof document !== 'undefined' ? document.body : null}
+        containerPadding={8}
+        popperConfig={promoActionPopperConfig}
+        rootClose
+        rootCloseEvent="mousedown"
+        onHide={() => setPromoActionMenu(null)}
+      >
+        {({ ref, style, placement }) => {
+          const program = promoActionMenu?.program;
+          const isLoadingView = String(loadingDetailId) === String(program?.id) && loadingDetailType === 'view';
+          const isLoadingEdit = String(loadingDetailId) === String(program?.id) && loadingDetailType === 'edit';
+          const isDeleting = String(deletingPromoId) === String(program?.id);
+          const isActionDisabled = loadingDetailId !== null || deletingPromoId !== null;
+
+          return (
+            <div
+              ref={ref}
+              className="dropdown-menu show"
+              data-popper-placement={placement}
+              style={{ ...style, zIndex: 1080, minWidth: 190 }}
+            >
+              <button
+                type="button"
+                className="dropdown-item"
+                disabled={isActionDisabled}
+                onClick={() => {
+                  setPromoActionMenu(null);
+                  if (program) handleViewPromo(program);
+                }}
+              >
+                {isLoadingView ? (
+                  <span className="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true" />
+                ) : (
+                  <i className="ti ti-eye text-primary me-2" />
+                )}
+                Detail
+              </button>
+              <button
+                type="button"
+                className="dropdown-item"
+                disabled={isActionDisabled}
+                onClick={() => {
+                  setPromoActionMenu(null);
+                  if (program) handleEditPromo(program);
+                }}
+              >
+                {isLoadingEdit ? (
+                  <span className="spinner-border spinner-border-sm text-warning me-2" aria-hidden="true" />
+                ) : (
+                  <i className="ti ti-pencil text-warning me-2" />
+                )}
+                Edit
+              </button>
+              <div className="dropdown-divider" />
+              <button
+                type="button"
+                className="dropdown-item text-danger"
+                disabled={isActionDisabled}
+                onClick={() => {
+                  setPromoActionMenu(null);
+                  if (program) setPromoToDelete(program);
+                }}
+              >
+                {isDeleting ? (
+                  <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />
+                ) : (
+                  <i className="ti ti-trash me-2" />
+                )}
+                Delete
+              </button>
+            </div>
+          );
+        }}
+      </Overlay>
 
       <Modal show={showAddModal} onHide={handleCloseModal} size="xl" centered fullscreen="lg-down">
         <Modal.Header closeButton>

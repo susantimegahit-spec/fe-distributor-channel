@@ -38,7 +38,8 @@ const createInitialForm = () => ({
   uom: null,
   warehouse: null,
   distributionRule: null,
-  alternate: '',
+  businessUnit: null,
+  department: null,
   comments: '',
   details: [createDetailRow()]
 });
@@ -61,6 +62,17 @@ const getResponseList = (response) => {
   if (Array.isArray(payload?.rows)) return payload.rows;
 
   return [];
+};
+
+const getResponseItem = (response) => {
+  const payload = response?.data?.data ?? response?.data ?? {};
+
+  if (Array.isArray(payload)) return payload[0] ?? {};
+  if (payload?.data && !Array.isArray(payload.data)) return payload.data;
+  if (payload?.item && !Array.isArray(payload.item)) return payload.item;
+  if (payload?.bom && !Array.isArray(payload.bom)) return payload.bom;
+
+  return payload;
 };
 
 const getProductUoms = (item = {}) =>
@@ -91,15 +103,22 @@ const normalizeComponentOption = (item = {}, type) => {
 
 const normalizeBom = (item = {}, index = 0) => ({
   id: item.id || item.bom_id || item.code || index,
-  productNo: item.code || item.product_code || item.item_code || '',
-  productName: item.product_name || item.item_name || item.name || '',
+  productNo: item.code || item.product_code || item.item_code || item.product?.item_code || item.product?.code || '',
+  productName:
+    item.product_name || item.item_name || item.name || item.product?.item_name || item.product?.product_name || item.product?.name || '',
   quantity: item.qty ?? item.quantity ?? 0,
   uom: item.uom || item.unit || item.invntry_uom || '',
   warehouse: item.to_whs_name || item.warehouse_name || item.to_whs || '',
   distributionRule: item.distribution_rule_name || item.distribution_rule || item.ocr_code || '',
   alternate: item.alternate || '',
   comments: item.comments || '',
-  details: Array.isArray(item.details) ? item.details : []
+  details: Array.isArray(item.details)
+    ? item.details
+    : Array.isArray(item.bom_details)
+      ? item.bom_details
+      : Array.isArray(item.lines)
+        ? item.lines
+        : []
 });
 
 export default function BillOfMaterial() {
@@ -113,10 +132,17 @@ export default function BillOfMaterial() {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isDuplicate, setIsDuplicate] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [selectedBom, setSelectedBom] = useState(null);
+  const [duplicatingId, setDuplicatingId] = useState(null);
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [productOptions, setProductOptions] = useState([]);
   const [warehouseOptions, setWarehouseOptions] = useState([]);
   const [distributionRuleOptions, setDistributionRuleOptions] = useState([]);
+  const [businessUnitOptions, setBusinessUnitOptions] = useState([]);
+  const [departmentOptions, setDepartmentOptions] = useState([]);
   const [form, setForm] = useState(createInitialForm);
 
   const uomOptions = useMemo(() => form.product?.uoms || [], [form.product]);
@@ -148,60 +174,84 @@ export default function BillOfMaterial() {
     setLoadingOptions(true);
 
     try {
-      const [productResponse, warehouseResponse, distributionRuleResponse] = await Promise.all([
+      const [productResponse, warehouseResponse, distributionRuleResponse, businessUnitResponse, departmentResponse] = await Promise.all([
         ProductServices.getAllProduct(''),
         WarehouseServices.getAllWarehouse(''),
-        DistributorServices.getOcrByType(1)
+        DistributorServices.getOcrByType(1),
+        DistributorServices.getOcrByType(2),
+        DistributorServices.getOcrByType(3)
       ]);
 
-      if ([productResponse, warehouseResponse, distributionRuleResponse].some((response) => response?.data?.success === false)) {
+      if (
+        [productResponse, warehouseResponse, distributionRuleResponse, businessUnitResponse, departmentResponse].some(
+          (response) => response?.data?.success === false
+        )
+      ) {
         throw new Error('Failed to fetch Bill of Material form options');
       }
 
-      setProductOptions(
-        getResponseList(productResponse).map((item) => {
-          const code = item.item_code || item.product_code || item.code || '';
-          const name = item.item_name || item.product_name || item.name || '';
+      const nextProductOptions = getResponseList(productResponse).map((item) => {
+        const code = item.item_code || item.product_code || item.code || '';
+        const name = item.item_name || item.product_name || item.name || '';
 
-          return {
-            value: code,
-            label: [code, name].filter(Boolean).join(' - ') || '-',
-            productName: name,
-            uoms: getProductUoms(item)
-          };
-        })
-      );
-      setWarehouseOptions(
-        getResponseList(warehouseResponse).map((item) => {
-          const code = item.whs_code || item.warehouse_code || item.code || '';
-          const name = item.whs_name || item.warehouse_name || item.name || '';
+        return {
+          value: code,
+          label: [code, name].filter(Boolean).join(' - ') || '-',
+          productName: name,
+          uoms: getProductUoms(item)
+        };
+      });
+      const nextWarehouseOptions = getResponseList(warehouseResponse).map((item) => {
+        const code = item.whs_code || item.warehouse_code || item.code || '';
+        const name = item.whs_name || item.warehouse_name || item.name || '';
 
-          return {
-            value: code,
-            label: [code, name].filter(Boolean).join(' - ') || '-',
-            name
-          };
-        })
-      );
-      setDistributionRuleOptions(
-        getResponseList(distributionRuleResponse).map((item) => {
-          const code = item.ocr_code || item.code || '';
-          const name = item.ocr_name || item.name || '';
+        return {
+          value: code,
+          label: [code, name].filter(Boolean).join(' - ') || '-',
+          name
+        };
+      });
+      const nextDistributionRuleOptions = getResponseList(distributionRuleResponse).map((item) => {
+        const code = item.ocr_code || item.code || '';
+        const name = item.ocr_name || item.name || '';
 
-          return {
-            value: code,
-            label: [code, name].filter(Boolean).join(' - ') || '-'
-          };
-        })
-      );
+        return {
+          value: code,
+          label: [code, name].filter(Boolean).join(' - ') || '-'
+        };
+      });
+      const nextBusinessUnitOptions = getResponseList(businessUnitResponse).map((item) => ({
+        value: item.ocr_code || item.code || '',
+        label: [item.ocr_code || item.code, item.ocr_name || item.name].filter(Boolean).join(' - ') || '-'
+      }));
+      const nextDepartmentOptions = getResponseList(departmentResponse).map((item) => ({
+        value: item.ocr_code || item.code || '',
+        label: [item.ocr_code || item.code, item.ocr_name || item.name].filter(Boolean).join(' - ') || '-'
+      }));
+
+      setProductOptions(nextProductOptions);
+      setWarehouseOptions(nextWarehouseOptions);
+      setDistributionRuleOptions(nextDistributionRuleOptions);
+      setBusinessUnitOptions(nextBusinessUnitOptions);
+      setDepartmentOptions(nextDepartmentOptions);
+
+      return {
+        products: nextProductOptions,
+        warehouses: nextWarehouseOptions,
+        distributionRules: nextDistributionRuleOptions,
+        businessUnits: nextBusinessUnitOptions,
+        departments: nextDepartmentOptions
+      };
     } catch (error) {
       showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch Bill of Material form options', 'danger');
+      return null;
     } finally {
       setLoadingOptions(false);
     }
   };
 
   const handleOpenCreateModal = () => {
+    setIsDuplicate(false);
     setForm(createInitialForm());
     setShowCreateModal(true);
     fetchFormOptions();
@@ -276,14 +326,18 @@ export default function BillOfMaterial() {
       code: form.product.value,
       qty: Number(form.quantity),
       to_whs: form.warehouse.value,
-      alternate: form.alternate.trim(),
+      ocr_code: form.distributionRule.value,
+      ocr_code2: form.businessUnit?.value || '',
+      ocr_code3: form.department?.value || '',
       comments: form.comments.trim(),
       details: form.details.map((detail) => ({
         type: Number(detail.type),
         code: detail.item.value,
         qty: Number(detail.quantity),
         issue_method: detail.issueMethod,
-        distribution_rule: form.distributionRule.value
+        ocr_code: form.distributionRule.value,
+        ocr_code2: form.businessUnit?.value || '',
+        ocr_code3: form.department?.value || ''
       }))
     };
 
@@ -293,6 +347,7 @@ export default function BillOfMaterial() {
       if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to create Bill of Material');
 
       setShowCreateModal(false);
+      setIsDuplicate(false);
       setForm(createInitialForm());
       await fetchBoms(search.trim());
       showAlert(response?.data?.message || 'Bill of Material created successfully', 'success');
@@ -321,6 +376,116 @@ export default function BillOfMaterial() {
     });
   };
 
+  const handleOpenDetail = async (item) => {
+    setSelectedBom(item);
+    setShowDetailModal(true);
+    setLoadingDetail(true);
+
+    try {
+      const response = await ProductionServices.getBomsById(item.id);
+      if (response?.data?.success === false) {
+        throw new Error(response.data.message || 'Failed to fetch Bill of Material detail');
+      }
+
+      setSelectedBom(normalizeBom(getResponseItem(response)));
+    } catch (error) {
+      setShowDetailModal(false);
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch Bill of Material detail', 'danger');
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
+  const handleDuplicate = async (item) => {
+    setDuplicatingId(item.id);
+    setIsDuplicate(true);
+    setForm(createInitialForm());
+    setShowCreateModal(true);
+
+    try {
+      const [response, options] = await Promise.all([ProductionServices.getBomsById(item.id), fetchFormOptions()]);
+      if (response?.data?.success === false) {
+        throw new Error(response.data.message || 'Failed to fetch Bill of Material detail');
+      }
+      if (!options) throw new Error('Failed to fetch Bill of Material form options');
+
+      const source = normalizeBom(getResponseItem(response));
+      const rawSource = getResponseItem(response);
+      const product = options.products.find((option) => String(option.value) === String(source.productNo)) || null;
+      const warehouseCode =
+        rawSource.to_whs ?? rawSource.whs_code ?? rawSource.warehouse_code ?? rawSource.warehouse?.code ?? '';
+      const ocrCode = rawSource.ocr_code ?? rawSource.distribution_rule ?? '';
+      const ocrCode2 = rawSource.ocr_code2 ?? rawSource.business_unit_code ?? '';
+      const ocrCode3 = rawSource.ocr_code3 ?? rawSource.department_code ?? '';
+      const componentTypes = [...new Set(source.details.map((detail) => String(detail.type ?? detail.component_type ?? '')))];
+
+      await Promise.all([
+        componentTypes.includes(COMPONENT_TYPE_ITEM) ? dispatch(getItem('')) : Promise.resolve(),
+        componentTypes.includes(COMPONENT_TYPE_RESOURCE) ? dispatch(getResource('')) : Promise.resolve()
+      ]);
+
+      setForm({
+        product,
+        quantity: source.quantity === '' || source.quantity == null ? '' : Number(source.quantity),
+        uom:
+          product?.uoms.find((option) => String(option.value) === String(source.uom)) ||
+          (source.uom ? { value: source.uom, label: source.uom } : null),
+        warehouse: options.warehouses.find((option) => String(option.value) === String(warehouseCode)) || null,
+        distributionRule:
+          options.distributionRules.find((option) => String(option.value) === String(ocrCode)) || null,
+        businessUnit: options.businessUnits.find((option) => String(option.value) === String(ocrCode2)) || null,
+        department: options.departments.find((option) => String(option.value) === String(ocrCode3)) || null,
+        comments: source.comments || '',
+        details: source.details.length
+          ? source.details.map((detail) => {
+              const type = String(detail.type ?? detail.component_type ?? '');
+              const itemData = detail.item ?? {};
+              const code =
+                (typeof itemData === 'object'
+                  ? itemData.code ?? itemData.item_code ?? itemData.material_code ?? itemData.resource_code ?? itemData.res_code
+                  : null) ??
+                detail.code ??
+                detail.item_code ??
+                detail.material_code ??
+                detail.resource_code ??
+                detail.res_code ??
+                '';
+              const name =
+                (typeof itemData === 'object'
+                  ? itemData.name ??
+                    itemData.item_name ??
+                    itemData.material_name ??
+                    itemData.resource_name ??
+                    itemData.res_name
+                  : itemData) ||
+                detail.name ||
+                detail.item_name ||
+                detail.material_name ||
+                detail.resource_name ||
+                detail.res_name ||
+                '';
+              const uom = detail.uom ?? detail.unit ?? detail.unit_of_msr ?? detail.invntry_uom ?? '';
+
+              return {
+                id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                type,
+                item: code ? { value: code, label: [code, name].filter(Boolean).join(' - '), name, uom } : null,
+                quantity:
+                  detail.qty == null && detail.quantity == null ? '' : Number(detail.qty ?? detail.quantity),
+                issueMethod: detail.issue_mthd ?? detail.issue_method ?? detail.issueMethod ?? ''
+              };
+            })
+          : [createDetailRow()]
+      });
+    } catch (error) {
+      setShowCreateModal(false);
+      setIsDuplicate(false);
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to duplicate Bill of Material', 'danger');
+    } finally {
+      setDuplicatingId(null);
+    }
+  };
+
   return (
     <>
       <MainCard
@@ -346,46 +511,77 @@ export default function BillOfMaterial() {
             </InputGroup>
           </Col>
         </Row>
-        <Table className="mb-0 align-middle" responsive hover>
+        <Table className="mb-0 align-middle f-12" style={{ tableLayout: 'fixed', width: '100%', wordBreak: 'break-word' }} hover>
           <thead>
             <tr>
-              <th style={{ width: 70 }}>#</th>
-              <th style={{ minWidth: 150 }}>Product No</th>
-              <th style={{ minWidth: 240 }}>Product Name</th>
-              <th className="text-end" style={{ minWidth: 110 }}>Quantity</th>
-              <th style={{ minWidth: 100 }}>UOM</th>
-              <th style={{ minWidth: 220 }}>Warehouse</th>
-              <th style={{ minWidth: 220 }}>Distribution Rule</th>
-              <th style={{ minWidth: 180 }}>Alternate</th>
-              <th className="text-center" style={{ minWidth: 110 }}>Components</th>
-              <th className="text-center" style={{ width: 90 }}>Action</th>
+              <th style={{ width: '5%' }}>#</th>
+              <th style={{ width: '29%' }}>Product</th>
+              <th className="text-end" style={{ width: '10%' }}>Quantity</th>
+              <th style={{ width: '7%' }}>UOM</th>
+              <th style={{ width: '24%' }}>Warehouse</th>
+              <th style={{ width: '12%' }}>Alternate</th>
+              <th className="text-center" style={{ width: '13%' }}>Action</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={10}><LoaderData /></td></tr>
+              <tr><td colSpan={7}><LoaderData /></td></tr>
             ) : rows.length ? (
               rows.map((item, index) => (
                 <tr key={item.id}>
                   <td>{index + 1}</td>
-                  <td className="fw-semibold">{item.productNo}</td>
-                  <td>{item.productName || '-'}</td>
+                  <td>
+                    <div className="fw-semibold">{item.productNo || '-'}</div>
+                    <div className="text-muted">{item.productName || '-'}</div>
+                  </td>
                   <td className="text-end">{numberFormatter.format(Number(item.quantity) || 0)}</td>
                   <td>{item.uom}</td>
                   <td>{item.warehouse}</td>
-                  <td>{item.distributionRule}</td>
                   <td>{item.alternate || '-'}</td>
-                  <td className="text-center">{item.details.length}</td>
                   <td className="text-center">
-                    <Button variant="outline-danger" size="sm" onClick={() => handleDelete(item)} aria-label="Delete Bill of Material">
-                      <i className="ti ti-trash" />
-                    </Button>
+                    <Stack direction="horizontal" gap={1} className="justify-content-center">
+                      <Button
+                        variant="outline-info"
+                        size="sm"
+                        className="rounded-circle p-0 d-inline-flex align-items-center justify-content-center"
+                        style={{ width: 32, height: 32 }}
+                        onClick={() => handleDuplicate(item)}
+                        disabled={duplicatingId !== null}
+                        aria-label="Duplicate Bill of Material"
+                      >
+                        {duplicatingId === item.id ? (
+                          <span className="spinner-border spinner-border-sm" aria-hidden="true" />
+                        ) : (
+                          <i className="ti ti-copy" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        className="rounded-circle p-0 d-inline-flex align-items-center justify-content-center"
+                        style={{ width: 32, height: 32 }}
+                        onClick={() => handleOpenDetail(item)}
+                        aria-label="View Bill of Material detail"
+                      >
+                        <i className="ti ti-eye" />
+                      </Button>
+                      <Button
+                        variant="outline-danger"
+                        size="sm"
+                        className="rounded-circle p-0 d-inline-flex align-items-center justify-content-center"
+                        style={{ width: 32, height: 32 }}
+                        onClick={() => handleDelete(item)}
+                        aria-label="Delete Bill of Material"
+                      >
+                        <i className="ti ti-trash" />
+                      </Button>
+                    </Stack>
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={10}>
+                <td colSpan={7}>
                   <div className="text-center py-5">
                     <span className="avtar avtar-xl bg-light-primary text-primary mb-3">
                       <i className="ti ti-list-tree f-24" />
@@ -405,17 +601,156 @@ export default function BillOfMaterial() {
       </MainCard>
 
       <Modal
+        show={showDetailModal}
+        onHide={() => {
+          if (!loadingDetail) {
+            setShowDetailModal(false);
+            setSelectedBom(null);
+          }
+        }}
+        size="xl"
+        centered
+        scrollable
+      >
+        <Modal.Header closeButton={!loadingDetail}>
+          <Modal.Title>Bill of Material Detail</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {loadingDetail ? (
+            <LoaderData />
+          ) : selectedBom ? (
+            <Stack gap={4}>
+              <Row className="g-3">
+                <Col md={6} lg={4}>
+                  <div className="text-muted f-12 mb-1">Product No</div>
+                  <div className="fw-semibold">{selectedBom.productNo || '-'}</div>
+                </Col>
+                <Col md={6} lg={4}>
+                  <div className="text-muted f-12 mb-1">Product Name</div>
+                  <div className="fw-semibold">{selectedBom.productName || '-'}</div>
+                </Col>
+                <Col md={6} lg={4}>
+                  <div className="text-muted f-12 mb-1">Quantity</div>
+                  <div className="fw-semibold">
+                    {numberFormatter.format(Number(selectedBom.quantity) || 0)} {selectedBom.uom || ''}
+                  </div>
+                </Col>
+                <Col md={6} lg={4}>
+                  <div className="text-muted f-12 mb-1">Warehouse</div>
+                  <div className="fw-semibold">{selectedBom.warehouse || '-'}</div>
+                </Col>
+                <Col md={6} lg={4}>
+                  <div className="text-muted f-12 mb-1">Alternate</div>
+                  <div className="fw-semibold">{selectedBom.alternate || '-'}</div>
+                </Col>
+                <Col xs={12}>
+                  <div className="text-muted f-12 mb-1">Comments</div>
+                  <div>{selectedBom.comments || '-'}</div>
+                </Col>
+              </Row>
+
+              <div>
+                <h6 className="mb-3">Components</h6>
+                <Table className="mb-0 align-middle" responsive bordered>
+                  <thead>
+                    <tr>
+                      <th style={{ width: 60 }}>#</th>
+                      <th>Type</th>
+                      <th>Item</th>
+                      <th className="text-end">Quantity</th>
+                      <th>UOM</th>
+                      <th>Issue Method</th>
+                      <th>Distribution Rule</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedBom.details.length ? (
+                      selectedBom.details.map((detail, index) => {
+                        const type = String(detail.type ?? detail.component_type ?? '');
+                        const item = detail.item ?? {};
+                        const code =
+                          (typeof item === 'object'
+                            ? item.code ?? item.item_code ?? item.material_code ?? item.resource_code ?? item.res_code
+                            : null) ??
+                          detail.code ??
+                          detail.item_code ??
+                          detail.material_code ??
+                          detail.resource_code ??
+                          detail.res_code ??
+                          '';
+                        const name =
+                          (typeof item === 'object'
+                            ? item.name ?? item.item_name ?? item.material_name ?? item.resource_name ?? item.res_name
+                            : item) ||
+                          detail.name ||
+                          detail.item_name ||
+                          detail.material_name ||
+                          detail.resource_name ||
+                          detail.res_name ||
+                          '';
+                        const quantity = detail.qty ?? detail.quantity ?? 0;
+                        const uom = detail.uom ?? detail.unit ?? detail.unit_of_msr ?? detail.invntry_uom ?? '';
+                        const issueMethod = detail.issue_mthd ?? detail.issue_method ?? detail.issueMethod ?? '-';
+                        const distributionRule =
+                          detail.distribution_rule_name ??
+                          detail.distribution_rule ??
+                          detail.ocr_name ??
+                          detail.ocr_code ??
+                          '-';
+
+                        return (
+                          <tr key={detail.id ?? detail.detail_id ?? `${code}-${index}`}>
+                            <td>{index + 1}</td>
+                            <td>
+                              {type === COMPONENT_TYPE_ITEM
+                                ? 'Item'
+                                : type === COMPONENT_TYPE_RESOURCE
+                                  ? 'Resource'
+                                  : type || '-'}
+                            </td>
+                            <td>
+                              <div className="fw-semibold">{code || '-'}</div>
+                              <div className="text-muted">{name || '-'}</div>
+                            </td>
+                            <td className="text-end">{numberFormatter.format(Number(quantity) || 0)}</td>
+                            <td>{uom || '-'}</td>
+                            <td>{issueMethod}</td>
+                            <td>{distributionRule}</td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan={7} className="text-center text-muted py-4">
+                          No component data found.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </Table>
+              </div>
+            </Stack>
+          ) : null}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDetailModal(false)} disabled={loadingDetail}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal
         show={showCreateModal}
         onHide={() => {
-          if (!loadingOptions && !saving) setShowCreateModal(false);
+          if (!loadingOptions && !saving && duplicatingId === null) setShowCreateModal(false);
         }}
         size="xl"
         centered
         scrollable
         fullscreen
       >
-        <Modal.Header closeButton={!loadingOptions}>
-          <Modal.Title>Create Bill of Material</Modal.Title>
+        <Modal.Header closeButton={!loadingOptions && duplicatingId === null}>
+          <Modal.Title>{isDuplicate ? 'Duplicate Bill of Material' : 'Create Bill of Material'}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Row className="g-3">
@@ -452,7 +787,12 @@ export default function BillOfMaterial() {
                   min="0"
                   step="any"
                   value={form.quantity}
-                  onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      quantity: event.target.value === '' ? '' : Number(event.target.value)
+                    }))
+                  }
                   placeholder="Enter quantity"
                 />
               </Form.Group>
@@ -513,12 +853,39 @@ export default function BillOfMaterial() {
             </Col>
             <Col md={6}>
               <Form.Group>
-                <Form.Label>Alternate</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={form.alternate}
-                  onChange={(event) => setForm((current) => ({ ...current, alternate: event.target.value }))}
-                  placeholder="Enter alternate"
+                <Form.Label>Business Unit</Form.Label>
+                <Select
+                  value={form.businessUnit}
+                  options={businessUnitOptions}
+                  onChange={(businessUnit) => setForm((current) => ({ ...current, businessUnit }))}
+                  styles={selectStyles}
+                  menuPortalTarget={document.body}
+                  menuPosition="fixed"
+                  placeholder="Select business unit"
+                  isSearchable
+                  isClearable
+                  isLoading={loadingOptions}
+                  isDisabled={loadingOptions}
+                  noOptionsMessage={() => 'Business unit not found'}
+                />
+              </Form.Group>
+            </Col>
+            <Col md={6}>
+              <Form.Group>
+                <Form.Label>Department</Form.Label>
+                <Select
+                  value={form.department}
+                  options={departmentOptions}
+                  onChange={(department) => setForm((current) => ({ ...current, department }))}
+                  styles={selectStyles}
+                  menuPortalTarget={document.body}
+                  menuPosition="fixed"
+                  placeholder="Select department"
+                  isSearchable
+                  isClearable
+                  isLoading={loadingOptions}
+                  isDisabled={loadingOptions}
+                  noOptionsMessage={() => 'Department not found'}
                 />
               </Form.Group>
             </Col>
@@ -607,7 +974,11 @@ export default function BillOfMaterial() {
                                 step="any"
                                 inputMode="decimal"
                                 value={detail.quantity}
-                                onChange={(event) => updateDetailRow(detail.id, { quantity: event.target.value })}
+                                onChange={(event) =>
+                                  updateDetailRow(detail.id, {
+                                    quantity: event.target.value === '' ? '' : Number(event.target.value)
+                                  })
+                                }
                                 placeholder="Qty"
                               />
                             </td>
@@ -649,11 +1020,15 @@ export default function BillOfMaterial() {
           </Row>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="light-secondary" onClick={() => setShowCreateModal(false)} disabled={loadingOptions || saving}>
+          <Button
+            variant="light-secondary"
+            onClick={() => setShowCreateModal(false)}
+            disabled={loadingOptions || saving || duplicatingId !== null}
+          >
             Close
           </Button>
-          <Button variant="primary" onClick={handleSubmit} disabled={loadingOptions || saving}>
-            {saving ? 'Saving...' : 'Save'}
+          <Button variant="primary" onClick={handleSubmit} disabled={loadingOptions || saving || duplicatingId !== null}>
+            {saving ? 'Saving...' : isDuplicate ? 'Save as New' : 'Save'}
           </Button>
         </Modal.Footer>
       </Modal>

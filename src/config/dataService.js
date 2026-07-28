@@ -140,6 +140,10 @@ client.interceptors.response.use(
         Cookies.remove('systems');
         Cookies.remove('system');
         Cookies.remove('expedition_code');
+        Cookies.remove('whs_code');
+        Cookies.remove('ocr_code');
+        Cookies.remove('ocr_code2');
+        Cookies.remove('ocr_code3');
         store.dispatch(destroyAuthState());
         window.location.replace('/');
       } else if (response.status === 400) {

@@ -14,6 +14,7 @@ import Card from 'react-bootstrap/Card';
 import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
 import Modal from 'react-bootstrap/Modal';
+import Overlay from 'react-bootstrap/Overlay';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
@@ -46,6 +47,13 @@ const currentComparisonYear = moment().year();
 const comparisonYearOptions = Array.from({ length: 7 }, (_, index) => currentComparisonYear + 1 - index);
 const MAX_RETURN_ATTACHMENTS = 5;
 const MAX_RETURN_ATTACHMENT_SIZE = 1024 * 1024;
+const completeOrderActionPopperConfig = {
+  modifiers: [
+    { name: 'offset', options: { offset: [0, 8] } },
+    { name: 'preventOverflow', options: { boundary: 'viewport', padding: 8 } },
+    { name: 'flip', options: { fallbackPlacements: ['top-end', 'bottom-end'] } }
+  ]
+};
 
 const compressReturnImage = (file) =>
   new Promise((resolve, reject) => {
@@ -713,6 +721,7 @@ export default function Dashboard() {
   const [orderToComplete, setOrderToComplete] = useState(null);
   const [viewOrder, setViewOrder] = useState(null);
   const [loadingViewOrderId, setLoadingViewOrderId] = useState(null);
+  const [completeOrderActionMenu, setCompleteOrderActionMenu] = useState(null);
   const [expandedDoOrderId, setExpandedDoOrderId] = useState(null);
   const [loadingDoOrderId, setLoadingDoOrderId] = useState(null);
   const [doDetailsByOrderId, setDoDetailsByOrderId] = useState({});
@@ -1661,6 +1670,7 @@ export default function Dashboard() {
           <Table className="mb-0 align-middle" responsive hover>
             <thead>
               <tr>
+                <th className="text-center complete-order-expand-column" aria-label="Delivery Order details" />
                 <th>No. SO</th>
                 <th>Depo</th>
                 <th>Date</th>
@@ -1672,7 +1682,7 @@ export default function Dashboard() {
             <tbody>
               {isLoadingOrders ? (
                 <tr>
-                  <td colSpan={6}>
+                  <td colSpan={7}>
                     <div className="text-center text-muted py-4">Loading delivery sales orders...</div>
                   </td>
                 </tr>
@@ -1688,6 +1698,22 @@ export default function Dashboard() {
                   return (
                     <Fragment key={order.id}>
                       <tr>
+                        <td className="text-center complete-order-expand-column">
+                          <Button
+                            className="complete-order-expand-btn"
+                            variant="warning"
+                            size="sm"
+                            disabled={isLoadingDo}
+                            onClick={() => toggleDoDetails(order)}
+                            aria-expanded={isDoExpanded}
+                            title={isDoExpanded ? 'Hide Delivery Order details' : 'Show Delivery Order details'}
+                            aria-label={isDoExpanded ? 'Hide Delivery Order details' : 'Show Delivery Order details'}
+                          >
+                            <i
+                              className={`ti ${isLoadingDo ? 'ti-loader-2' : isDoExpanded ? 'ti-chevron-up' : 'ti-chevron-down'}`}
+                            />
+                          </Button>
+                        </td>
                         <td className="fw-semibold">
                           {getOrderValue(order, ['sap_doc_num', 'sapDocNum', 'doc_num', 'docNum', 'order_no', 'orderNo'])}
                         </td>
@@ -1701,55 +1727,30 @@ export default function Dashboard() {
                           <Badge bg="info">Delivery</Badge>
                         </td>
                         <td className="text-center complete-order-actions-column">
-                          <div className="complete-order-actions">
-                            <Button
-                              className="complete-order-action-btn"
-                              variant="outline-primary"
-                              size="sm"
-                              disabled={String(loadingViewOrderId) === String(order.id)}
-                              onClick={() => openOrderDetail(order)}
-                              title="View order"
-                              aria-label="View order"
-                            >
-                              <i className={String(loadingViewOrderId) === String(order.id) ? 'ti ti-loader-2' : 'ti ti-eye'} />
-                            </Button>
-                            <Button
-                              className="complete-order-action-btn"
-                              variant="warning"
-                              size="sm"
-                              disabled={isLoadingDo}
-                              onClick={() => toggleDoDetails(order)}
-                              aria-expanded={isDoExpanded}
-                              title={isDoExpanded ? 'Hide return options' : 'Return order'}
-                              aria-label={isDoExpanded ? 'Hide return options' : 'Return order'}
-                            >
-                              <i
-                                className={`ti ${
-                                  isLoadingDo ? 'ti-loader-2' : isDoExpanded ? 'ti-chevron-up' : 'ti-chevron-down'
-                                }`}
-                              />
-                            </Button>
-                            <Button
-                              className="complete-order-action-btn"
-                              variant="success"
-                              size="sm"
-                              disabled={String(receivingOrderId) === String(order.id)}
-                              onClick={() => setOrderToComplete(order)}
-                              title="Complete order"
-                              aria-label="Complete order"
-                            >
-                              <i
-                                className={
-                                  String(receivingOrderId) === String(order.id) ? 'ti ti-loader-2' : 'ti ti-circle-check'
-                                }
-                              />
-                            </Button>
-                          </div>
+                          <Button
+                            size="sm"
+                            variant={
+                              String(completeOrderActionMenu?.order?.id) === String(order.id) ? 'primary' : 'outline-primary'
+                            }
+                            aria-label="Open complete order actions"
+                            aria-expanded={String(completeOrderActionMenu?.order?.id) === String(order.id)}
+                            onClick={(event) =>
+                              setCompleteOrderActionMenu((current) =>
+                                String(current?.order?.id) === String(order.id)
+                                  ? null
+                                  : { order, target: event.currentTarget }
+                              )
+                            }
+                          >
+                            <i className="ti ti-dots-vertical me-1" />
+                            Actions
+                            <i className="ti ti-chevron-down ms-1" />
+                          </Button>
                         </td>
                       </tr>
                       {isDoExpanded ? (
                         <tr className="bg-light">
-                          <td colSpan={6} className="p-3">
+                          <td colSpan={7} className="p-3">
                             <div className="border rounded bg-white overflow-hidden">
                               {isLoadingDo ? (
                                 <div className="text-center text-muted py-4">Loading Delivery Order details...</div>
@@ -1869,7 +1870,7 @@ export default function Dashboard() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={6}>
+                  <td colSpan={7}>
                     <div className="text-center text-muted py-4">No delivery sales orders.</div>
                   </td>
                 </tr>
@@ -2019,6 +2020,58 @@ export default function Dashboard() {
           </div>
         </MainCard>
       </Stack>
+
+      <Overlay
+        show={Boolean(completeOrderActionMenu)}
+        target={completeOrderActionMenu?.target}
+        placement="top-end"
+        container={typeof document !== 'undefined' ? document.body : null}
+        containerPadding={8}
+        popperConfig={completeOrderActionPopperConfig}
+        rootClose
+        rootCloseEvent="mousedown"
+        onHide={() => setCompleteOrderActionMenu(null)}
+      >
+        {({ ref, style, placement }) => {
+          const order = completeOrderActionMenu?.order;
+          const isLoadingDetail = String(loadingViewOrderId) === String(order?.id);
+          const isCompleting = String(receivingOrderId) === String(order?.id);
+
+          return (
+            <div
+              ref={ref}
+              className="dropdown-menu show"
+              data-popper-placement={placement}
+              style={{ ...style, zIndex: 1080, minWidth: 190 }}
+            >
+              <button
+                type="button"
+                className="dropdown-item"
+                disabled={isLoadingDetail}
+                onClick={() => {
+                  setCompleteOrderActionMenu(null);
+                  if (order) openOrderDetail(order);
+                }}
+              >
+                <i className={isLoadingDetail ? 'ti ti-loader-2 text-primary me-2' : 'ti ti-eye text-primary me-2'} />
+                Detail
+              </button>
+              <button
+                type="button"
+                className="dropdown-item text-success"
+                disabled={isCompleting}
+                onClick={() => {
+                  setCompleteOrderActionMenu(null);
+                  if (order) setOrderToComplete(order);
+                }}
+              >
+                <i className={isCompleting ? 'ti ti-loader-2 me-2' : 'ti ti-circle-check me-2'} />
+                Complete Order
+              </button>
+            </div>
+          );
+        }}
+      </Overlay>
 
       <Modal
         show={Boolean(viewOrder)}

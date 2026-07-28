@@ -36,7 +36,7 @@ export default function SystemSelector() {
             {availableSystems.map((system) => (
               <Col xs={12} sm={6} key={system.key}>
                 <Card
-                  className="system-selector__card border mb-0 h-100"
+                  className={`system-selector__card system-selector__card--${system.key} border mb-0 h-100`}
                   role="button"
                   tabIndex={0}
                   onClick={() => navigate(system.defaultPath)}
@@ -48,14 +48,12 @@ export default function SystemSelector() {
                   }}
                 >
                   <Card.Body className="d-flex flex-column align-items-center text-center">
-                    <span className="system-selector__icon bg-light-primary text-primary">
+                    <span className="system-selector__icon">
                       <i className={system.icon} />
                     </span>
                     <h5 className="mb-2">{system.title}</h5>
                     <p className="text-muted mb-4">{system.description}</p>
-                    <span className="btn btn-primary mt-auto">
-                      Open {system.title}
-                    </span>
+                    <span className="system-selector__button btn mt-auto">Open {system.title}</span>
                   </Card.Body>
                 </Card>
               </Col>

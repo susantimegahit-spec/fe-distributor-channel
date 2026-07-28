@@ -8,7 +8,15 @@ import Stack from 'react-bootstrap/Stack';
 // project-imports
 import MainCard from 'components/MainCard';
 
-export default function ProductionModulePage({ title, description, icon }) {
+export default function ProductionModulePage({
+  title,
+  description,
+  icon,
+  actionLabel,
+  actionVariant = 'primary',
+  actionDisabled = true,
+  onAction
+}) {
   return (
     <MainCard
       title={
@@ -18,9 +26,9 @@ export default function ProductionModulePage({ title, description, icon }) {
         </Stack>
       }
       secondary={
-        <Button disabled>
+        <Button variant={actionVariant} disabled={actionDisabled} onClick={onAction}>
           <i className="ti ti-plus me-1" />
-          Add {title}
+          {actionLabel || `Add ${title}`}
         </Button>
       }
     >
@@ -40,5 +48,9 @@ export default function ProductionModulePage({ title, description, icon }) {
 ProductionModulePage.propTypes = {
   title: PropTypes.string.isRequired,
   description: PropTypes.string.isRequired,
-  icon: PropTypes.string.isRequired
+  icon: PropTypes.string.isRequired,
+  actionLabel: PropTypes.string,
+  actionVariant: PropTypes.string,
+  actionDisabled: PropTypes.bool,
+  onAction: PropTypes.func
 };

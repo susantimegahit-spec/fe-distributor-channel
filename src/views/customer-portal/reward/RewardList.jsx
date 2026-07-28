@@ -8,6 +8,7 @@ import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
 import Modal from 'react-bootstrap/Modal';
 import Nav from 'react-bootstrap/Nav';
+import Overlay from 'react-bootstrap/Overlay';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Tab from 'react-bootstrap/Tab';
@@ -28,6 +29,22 @@ import LoaderData from '../../../components/LoaderData';
 import BalanceLedger from './BalanceLedger';
 
 const pageSize = 10;
+const rewardActionPopperConfig = {
+  modifiers: [
+    {
+      name: 'offset',
+      options: { offset: [0, 8] }
+    },
+    {
+      name: 'preventOverflow',
+      options: { boundary: 'viewport', padding: 8 }
+    },
+    {
+      name: 'flip',
+      options: { fallbackPlacements: ['top-end', 'bottom-end'] }
+    }
+  ]
+};
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat('id-ID', {
@@ -288,6 +305,7 @@ export default function RewardList() {
   const [submittingVerifyWithdraw, setSubmittingVerifyWithdraw] = useState(false);
   const [submittingVerify, setSubmittingVerify] = useState(false);
   const [deletingClaimId, setDeletingClaimId] = useState(null);
+  const [claimActionMenu, setClaimActionMenu] = useState(null);
   const [downloadingTemplate, setDownloadingTemplate] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [withdrawCurrentPage, setWithdrawCurrentPage] = useState(1);
@@ -990,20 +1008,15 @@ export default function RewardList() {
                       <th style={{ minWidth: 170 }}>Total Claim</th>
                       <th style={{ minWidth: 170 }}>Deducted</th>
                       <th style={{ minWidth: 170 }}>Balance</th>
-                      <th className="text-center" style={{ width: 90 }}>
-                        Detail
+                      <th className="text-center" style={{ width: 130 }}>
+                        Action
                       </th>
-                      {isAdministrator ? (
-                        <th className="text-center" style={{ width: 90 }}>
-                          Delete
-                        </th>
-                      ) : null}
                     </tr>
                   </thead>
                   <tbody>
                     {loadingClaims ? (
                       <tr>
-                        <td colSpan={isAdministrator ? 8 : 7}>
+                        <td colSpan={7}>
                           <LoaderData />
                         </td>
                       </tr>
@@ -1020,41 +1033,28 @@ export default function RewardList() {
                           <td className="fw-semibold text-success">{formatCurrency(claim.balance)}</td>
                           <td className="text-center">
                             <Button
-                              className="rounded-circle"
-                              variant="outline-primary"
                               size="sm"
-                              onClick={() => handleViewBatch(claim)}
-                              disabled={loadingDetailId !== null}
+                              variant={String(claimActionMenu?.claim?.id) === String(claim.id) ? 'primary' : 'outline-primary'}
+                              aria-label="Open claim actions"
+                              aria-expanded={String(claimActionMenu?.claim?.id) === String(claim.id)}
+                              onClick={(event) =>
+                                setClaimActionMenu((current) =>
+                                  String(current?.claim?.id) === String(claim.id)
+                                    ? null
+                                    : { claim, target: event.currentTarget }
+                                )
+                              }
                             >
-                              {String(loadingDetailId) === String(claim.id) ? (
-                                <span className="spinner-border spinner-border-sm" aria-hidden="true" />
-                              ) : (
-                                <i className="ti ti-list-search" />
-                              )}
+                              <i className="ti ti-dots-vertical me-1" />
+                              Actions
+                              <i className="ti ti-chevron-down ms-1" />
                             </Button>
                           </td>
-                          {isAdministrator ? (
-                            <td className="text-center">
-                              <Button
-                                className="rounded-circle"
-                                variant="outline-danger"
-                                size="sm"
-                                onClick={() => setClaimToDelete(claim)}
-                                disabled={deletingClaimId !== null}
-                              >
-                                {String(deletingClaimId) === String(claim.id) ? (
-                                  <span className="spinner-border spinner-border-sm" aria-hidden="true" />
-                                ) : (
-                                  <i className="ti ti-trash" />
-                                )}
-                              </Button>
-                            </td>
-                          ) : null}
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={isAdministrator ? 8 : 7}>
+                        <td colSpan={7}>
                           <div className="text-center py-5">
                             <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                               <i className="ti ti-gift f-24" />
@@ -1188,6 +1188,69 @@ export default function RewardList() {
           </Tab.Content>
         </Tab.Container>
       </Stack>
+
+      <Overlay
+        show={Boolean(claimActionMenu)}
+        target={claimActionMenu?.target}
+        placement="top-end"
+        container={typeof document !== 'undefined' ? document.body : null}
+        containerPadding={8}
+        popperConfig={rewardActionPopperConfig}
+        rootClose
+        rootCloseEvent="mousedown"
+        onHide={() => setClaimActionMenu(null)}
+      >
+        {({ ref, style, placement }) => {
+          const claim = claimActionMenu?.claim;
+
+          return (
+            <div
+              ref={ref}
+              className="dropdown-menu show"
+              data-popper-placement={placement}
+              style={{ ...style, zIndex: 1080, minWidth: 190 }}
+            >
+              <button
+                type="button"
+                className="dropdown-item"
+                disabled={loadingDetailId !== null}
+                onClick={() => {
+                  setClaimActionMenu(null);
+                  if (claim) handleViewBatch(claim);
+                }}
+              >
+                {String(loadingDetailId) === String(claim?.id) ? (
+                  <span className="spinner-border spinner-border-sm text-primary me-2" aria-hidden="true" />
+                ) : (
+                  <i className="ti ti-list-search text-primary me-2" />
+                )}
+                Detail
+              </button>
+              {isAdministrator ? (
+                <>
+                  <div className="dropdown-divider" />
+                  <button
+                    type="button"
+                    className="dropdown-item text-danger"
+                    disabled={deletingClaimId !== null}
+                    onClick={() => {
+                      setClaimActionMenu(null);
+                      if (claim) setClaimToDelete(claim);
+                    }}
+                  >
+                    {String(deletingClaimId) === String(claim?.id) ? (
+                      <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />
+                    ) : (
+                      <i className="ti ti-trash me-2" />
+                    )}
+                    Delete
+                  </button>
+                </>
+              ) : null}
+            </div>
+          );
+        }}
+      </Overlay>
 
       <Modal
         show={showClaimModal}

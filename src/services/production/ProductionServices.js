@@ -15,6 +15,24 @@ class ProductionServices {
     return DataService.get(`/production/boms/${id}`);
   }
 
+  getSeries(date) {
+    const query = new URLSearchParams({ CustomQuery: date || '' }).toString();
+
+    return DataService.get(`/sales-orders/series?${query}`);
+  }
+
+  postProductionOrder(payload) {
+    return DataService.post('/production/orders', payload);
+  }
+
+  getProductionOrder(payload = {}) {
+    return DataService.get('/production/orders', payload);
+  }
+
+  getProductionOrderById(id) {
+    return DataService.get(`/production/orders/${id}`);
+  }
+
   putBoms(id, payload) {
     return DataService.put(`/production/boms/${id}`, payload);
   }

@@ -118,7 +118,7 @@ export default function NavGroup(props) {
   };
 
   const groupLabel = findGroupLabel(item);
-  const isDashboardGroup = item.id === 'dashboard';
+  const isDashboardGroup = item.id === 'dashboard' || item.id?.endsWith('-dashboard');
 
   return (
     <Fragment>

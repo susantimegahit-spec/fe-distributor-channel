@@ -8,22 +8,54 @@
   }
 
   &__card {
+    --system-rgb: 13, 110, 253;
+    --system-color: rgb(var(--system-rgb));
+
     cursor: pointer;
+    overflow: hidden;
+    position: relative;
     transition:
       border-color 0.2s ease,
       box-shadow 0.2s ease,
       transform 0.2s ease;
 
+    &::before {
+      position: absolute;
+      top: 0;
+      right: 0;
+      left: 0;
+      height: 4px;
+      background: var(--system-color);
+      content: '';
+    }
+
     .card-body {
+      background: linear-gradient(180deg, rgba(var(--system-rgb), 0.07), transparent 42%);
       padding: 1.5rem;
     }
 
     &:hover,
     &:focus-visible {
-      border-color: var(--bs-primary) !important;
-      box-shadow: 0 8px 24px rgba(var(--bs-primary-rgb), 0.12);
+      border-color: var(--system-color) !important;
+      box-shadow: 0 8px 24px rgba(var(--system-rgb), 0.18);
       outline: none;
       transform: translateY(-2px);
+    }
+
+    &--customer-portal {
+      --system-rgb: 13, 110, 253;
+    }
+
+    &--expedition {
+      --system-rgb: 253, 126, 20;
+    }
+
+    &--picking-list {
+      --system-rgb: 111, 66, 193;
+    }
+
+    &--production {
+      --system-rgb: 25, 135, 84;
     }
   }
 
@@ -35,8 +67,23 @@
     justify-content: center;
     border-radius: 16px;
     margin-bottom: 1rem;
+    background: rgba(var(--system-rgb), 0.13);
+    color: var(--system-color);
     font-size: 32px;
     line-height: 1;
+  }
+
+  &__button {
+    border-color: var(--system-color);
+    background: var(--system-color);
+    color: #fff;
+
+    &:hover,
+    &:focus {
+      border-color: var(--system-color);
+      background: var(--system-color);
+      color: #fff;
+    }
   }
 }
 

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 
 // project-imports
@@ -26,6 +27,18 @@ export default function MainLayout() {
     pathname.startsWith('/setting/') ||
     pathname.startsWith('/customer-portal/setting');
   const showSidebar = !isSharedUtilityPath;
+
+  useEffect(() => {
+    if (activeSystem?.key) {
+      document.documentElement.dataset.systemTheme = activeSystem.key;
+    } else {
+      delete document.documentElement.dataset.systemTheme;
+    }
+
+    return () => {
+      delete document.documentElement.dataset.systemTheme;
+    };
+  }, [activeSystem?.key]);
 
   if (activeSystem && !allowedSystemKeys.has(activeSystem.key)) {
     return (

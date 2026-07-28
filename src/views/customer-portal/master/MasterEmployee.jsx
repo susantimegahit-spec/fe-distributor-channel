@@ -8,6 +8,7 @@ import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
 import InputGroup from 'react-bootstrap/InputGroup';
 import Modal from 'react-bootstrap/Modal';
+import Overlay from 'react-bootstrap/Overlay';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
@@ -21,6 +22,14 @@ import DistributorServices from '../../../services/customer-portal/DistributorSe
 import EmployeeServices from '../../../services/customer-portal/EmployeeServices';
 import { useAlert } from '../../../utils/alertContext';
 import { useConfirm } from '../../../utils/confirmContext';
+
+const employeeActionPopperConfig = {
+  modifiers: [
+    { name: 'offset', options: { offset: [0, 8] } },
+    { name: 'preventOverflow', options: { boundary: 'viewport', padding: 8 } },
+    { name: 'flip', options: { fallbackPlacements: ['top-end', 'bottom-end'] } }
+  ]
+};
 
 const initialSalesInput = {
   slpCode: [],
@@ -79,6 +88,7 @@ export default function MasterEmployee() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingSalesId, setEditingSalesId] = useState(null);
   const [deletingSalesId, setDeletingSalesId] = useState(null);
+  const [employeeActionMenu, setEmployeeActionMenu] = useState(null);
   const [submittingSales, setSubmittingSales] = useState(false);
   const [salesInput, setSalesInput] = useState(initialSalesInput);
   const [listSales, setListSales] = useState([]);
@@ -576,7 +586,7 @@ export default function MasterEmployee() {
                     <th style={{ minWidth: 260 }}>Depo</th>
                     {/* <th style={{ minWidth: 120 }}>Status</th> */}
                     <th className="text-center" style={{ minWidth: 150 }}>
-                      Actions
+                      Action
                     </th>
                   </tr>
                 </thead>
@@ -584,10 +594,10 @@ export default function MasterEmployee() {
                   {filteredData.length > 0 ? (
                     paginatedData.map((item, index) => {
                       const salesDistributorId = getSalesDistributorId(item);
-                      const isDeleting = String(deletingSalesId) === String(salesDistributorId);
+                      const actionKey = salesDistributorId || item.slp_code || index;
 
                       return (
-                        <tr key={salesDistributorId || item.slp_code || index}>
+                        <tr key={actionKey}>
                           <td className="fw-semibold">{getSalesCode(item) || '-'}</td>
                           <td style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>{getSalesName(item) || '-'}</td>
                           <td className="fw-semibold">{getDistributorCode(item) || '-'}</td>
@@ -595,29 +605,23 @@ export default function MasterEmployee() {
                           <td className="fw-semibold">{item?.depo || ''}</td>
                           {/* <td>{item.status === 1 ? <Badge bg="success">Active</Badge> : <Badge bg="secondary">Inactive</Badge>}</td> */}
                           <td className="text-center">
-                            <Stack direction="horizontal" gap={1} className="justify-content-center flex-nowrap">
-                              <Button className="rounded-circle" variant="outline-primary" size="sm" onClick={() => setSelectedEmployee(item)}>
-                                <i className="ti ti-eye" />
-                              </Button>
-                              <Button
-                                className="rounded-circle"
-                                variant="outline-warning"
-                                size="sm"
-                                onClick={() => openEditModal(item)}
-                                disabled={submittingSales || Boolean(deletingSalesId)}
-                              >
-                                <i className="ti ti-edit" />
-                              </Button>
-                              <Button
-                                className="rounded-circle"
-                                variant="outline-danger"
-                                size="sm"
-                                onClick={() => confirmDeleteSales(item)}
-                                disabled={Boolean(deletingSalesId)}
-                              >
-                                {isDeleting ? <span className="spinner-border spinner-border-sm" /> : <i className="ti ti-trash" />}
-                              </Button>
-                            </Stack>
+                            <Button
+                              size="sm"
+                              variant={String(employeeActionMenu?.actionKey) === String(actionKey) ? 'primary' : 'outline-primary'}
+                              aria-label="Open sales employee actions"
+                              aria-expanded={String(employeeActionMenu?.actionKey) === String(actionKey)}
+                              onClick={(event) =>
+                                setEmployeeActionMenu((current) =>
+                                  String(current?.actionKey) === String(actionKey)
+                                    ? null
+                                    : { item, itemId: salesDistributorId, actionKey, target: event.currentTarget }
+                                )
+                              }
+                            >
+                              <i className="ti ti-dots-vertical me-1" />
+                              Actions
+                              <i className="ti ti-chevron-down ms-1" />
+                            </Button>
                           </td>
                         </tr>
                       );
@@ -669,6 +673,73 @@ export default function MasterEmployee() {
           />
         </MainCard>
       </Stack>
+
+      <Overlay
+        show={Boolean(employeeActionMenu)}
+        target={employeeActionMenu?.target}
+        placement="top-end"
+        container={typeof document !== 'undefined' ? document.body : null}
+        containerPadding={8}
+        popperConfig={employeeActionPopperConfig}
+        rootClose
+        rootCloseEvent="mousedown"
+        onHide={() => setEmployeeActionMenu(null)}
+      >
+        {({ ref, style, placement }) => {
+          const item = employeeActionMenu?.item;
+          const isDeleting = String(deletingSalesId) === String(employeeActionMenu?.itemId);
+
+          return (
+            <div
+              ref={ref}
+              className="dropdown-menu show"
+              data-popper-placement={placement}
+              style={{ ...style, zIndex: 1080, minWidth: 190 }}
+            >
+              <button
+                type="button"
+                className="dropdown-item"
+                onClick={() => {
+                  setEmployeeActionMenu(null);
+                  if (item) setSelectedEmployee(item);
+                }}
+              >
+                <i className="ti ti-eye text-primary me-2" />
+                Detail
+              </button>
+              <button
+                type="button"
+                className="dropdown-item"
+                disabled={submittingSales || Boolean(deletingSalesId)}
+                onClick={() => {
+                  setEmployeeActionMenu(null);
+                  if (item) openEditModal(item);
+                }}
+              >
+                <i className="ti ti-edit text-warning me-2" />
+                Edit
+              </button>
+              <div className="dropdown-divider" />
+              <button
+                type="button"
+                className="dropdown-item text-danger"
+                disabled={Boolean(deletingSalesId)}
+                onClick={() => {
+                  setEmployeeActionMenu(null);
+                  if (item) confirmDeleteSales(item);
+                }}
+              >
+                {isDeleting ? (
+                  <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />
+                ) : (
+                  <i className="ti ti-trash me-2" />
+                )}
+                Delete
+              </button>
+            </div>
+          );
+        }}
+      </Overlay>
 
       <Modal show={Boolean(selectedEmployee)} onHide={() => setSelectedEmployee(null)} centered>
         <Modal.Header closeButton>

@@ -11,6 +11,7 @@ import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
 import InputGroup from 'react-bootstrap/InputGroup';
 import Modal from 'react-bootstrap/Modal';
+import Overlay from 'react-bootstrap/Overlay';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
@@ -60,6 +61,22 @@ const statusVariant = {
 
 const pageSize = 10;
 const commitmentPageSize = 5;
+const cmoActionPopperConfig = {
+  modifiers: [
+    {
+      name: 'offset',
+      options: { offset: [0, 8] }
+    },
+    {
+      name: 'preventOverflow',
+      options: { boundary: 'viewport', padding: 8 }
+    },
+    {
+      name: 'flip',
+      options: { fallbackPlacements: ['top-end', 'bottom-end'] }
+    }
+  ]
+};
 
 const actionAliases = {
   view: ['view', 'read', 'show', 'detail', 'lihat'],
@@ -204,6 +221,12 @@ export default function OrderList({ showOnlyCommitment = false }) {
   const [processingCmoId, setProcessingCmoId] = useState(null);
   const [commitmentOrderToDelete, setCommitmentOrderToDelete] = useState(null);
   const [deletingCmoId, setDeletingCmoId] = useState(null);
+  const [cmoActionMenu, setCmoActionMenu] = useState(null);
+  const [orderActionMenu, setOrderActionMenu] = useState(null);
+  const [duplicateCmoSource, setDuplicateCmoSource] = useState(null);
+  const [duplicateCmoForm, setDuplicateCmoForm] = useState(null);
+  const [loadingDuplicateCmo, setLoadingDuplicateCmo] = useState(false);
+  const [savingDuplicateCmo, setSavingDuplicateCmo] = useState(false);
   const [expandedCommitmentOrderId, setExpandedCommitmentOrderId] = useState(null);
   const [commitmentStartDate, setCommitmentStartDate] = useState('');
   const [commitmentEndDate, setCommitmentEndDate] = useState('');
@@ -592,6 +615,144 @@ export default function OrderList({ showOnlyCommitment = false }) {
     }, 0);
 
   const formatKg = (value) => `${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 }).format(Number(value) || 0)} Kg`;
+
+  const createDuplicateCmoForm = (order = {}) => ({
+    customerCode: getOrderCustomerCode(order),
+    customerName: getOrderValue(order, ['customer_name', 'customerName', 'card_name', 'CardName', 'cntct'], ''),
+    poNumber: getOrderValue(order, ['po_number', 'num_at_card', 'numAtCard', 'NumAtCard'], ''),
+    docDate: moment(getOrderValue(order, ['doc_date', 'docDate', 'DocDate'], new Date())).format('YYYY-MM-DD'),
+    etaDate: moment(getOrderValue(order, ['eta_date', 'etaDate', 'doc_due_date', 'docDueDate', 'DocDueDate'], new Date())).format(
+      'YYYY-MM-DD'
+    ),
+    comments: getOrderValue(order, ['comments', 'Comments'], ''),
+    source: order,
+    lines: getOrderLines(order).map((line, index) => ({
+      id: getOrderValue(line, ['id', 'detail_id', 'line_num', 'LineNum'], index),
+      itemCode: getOrderValue(line, ['item_code', 'itemCode', 'ItemCode', 'item.code', 'item.item_code'], ''),
+      itemName: getProductName(line),
+      quantity: Number(getOrderValue(line, ['quantity', 'qty', 'Quantity'], 0)) || 0,
+      unitMsr: getOrderValue(line, ['unit_msr', 'unitMsr', 'UomCode'], ''),
+      uomEntry: getOrderValue(line, ['uom_entry', 'uomEntry', 'UomEntry'], ''),
+      whsCode: getOrderValue(line, ['whs_code', 'warehouse_code', 'WhsCode'], ''),
+      unitPrice: Number(getOrderValue(line, ['unit_price', 'unitPrice', 'price', 'Price'], 0)) || 0,
+      freeText: getOrderValue(line, ['free_text', 'freeText', 'FreeTxt'], ''),
+      ocrCode: getOrderValue(line, ['ocr_code', 'ocrCode', 'OcrCode'], ''),
+      ocrCode2: getOrderValue(line, ['ocr_code2', 'ocrCode2', 'OcrCode2'], ''),
+      ocrCode3: getOrderValue(line, ['ocr_code3', 'ocrCode3', 'OcrCode3'], '')
+    }))
+  });
+
+  const openDuplicateCmoModal = async (order) => {
+    setDuplicateCmoSource(order);
+    setDuplicateCmoForm(createDuplicateCmoForm(order));
+    setLoadingDuplicateCmo(true);
+
+    try {
+      const response = await OrderServices.getCmoById(order.id);
+      if (response?.data?.success === false) {
+        throw new Error(response.data.message || 'Failed to fetch CMO detail');
+      }
+
+      setDuplicateCmoForm(createDuplicateCmoForm(getResponsePayload(response)));
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch CMO detail', 'danger');
+    } finally {
+      setLoadingDuplicateCmo(false);
+    }
+  };
+
+  const closeDuplicateCmoModal = () => {
+    if (savingDuplicateCmo) return;
+
+    setDuplicateCmoSource(null);
+    setDuplicateCmoForm(null);
+    setLoadingDuplicateCmo(false);
+  };
+
+  const handleDuplicateCmoChange = (field) => (event) => {
+    setDuplicateCmoForm((current) => ({ ...current, [field]: event.target.value }));
+  };
+
+  const handleDuplicateCmoQuantityChange = (index, value) => {
+    setDuplicateCmoForm((current) => ({
+      ...current,
+      lines: current.lines.map((line, lineIndex) =>
+        (lineIndex === index ? { ...line, quantity: value === '' ? '' : Number(value) } : line)
+      )
+    }));
+  };
+
+  const handleSaveDuplicateCmo = async () => {
+    if (
+      !duplicateCmoForm?.customerCode ||
+      !duplicateCmoForm.docDate ||
+      !duplicateCmoForm.etaDate ||
+      !duplicateCmoForm.lines.length ||
+      duplicateCmoForm.lines.some((line) => !(Number(line.quantity) > 0))
+    ) {
+      showAlert('Customer, dates, and valid item quantities are required', 'warning');
+      return;
+    }
+
+    const source = duplicateCmoForm.source || duplicateCmoSource || {};
+    const docTotal = duplicateCmoForm.lines.reduce(
+      (total, line) => total + (Number(line.quantity) || 0) * (Number(line.unitPrice) || 0),
+      0
+    );
+    const payload = {
+      card_code: duplicateCmoForm.customerCode,
+      customer_code: duplicateCmoForm.customerCode,
+      po_number: duplicateCmoForm.poNumber,
+      doc_date: duplicateCmoForm.docDate,
+      doc_due_date: duplicateCmoForm.docDate,
+      eta_date: duplicateCmoForm.etaDate,
+      use_balance: getOrderValue(source, ['use_balance', 'useBalance'], false),
+      Series: getOrderValue(source, seriesValueKeys, ''),
+      series_name: getOrderValue(source, seriesNameKeys, ''),
+      cntct: getOrderValue(source, ['cntct', 'cnctCode', 'contact_name', 'customer_name', 'CardName'], ''),
+      pay_to_code: getOrderValue(source, ['pay_to_code', 'payToCode', 'address_code', 'PayToCode'], ''),
+      address: getOrderValue(source, ['address', 'bill_to_address', 'Address'], ''),
+      ship_to_code: getOrderValue(source, ['ship_to_code', 'shipToCode', 'address2_code', 'ShipToCode'], ''),
+      address2: getOrderValue(source, ['address2', 'ship_to_address', 'Address2'], ''),
+      comments: duplicateCmoForm.comments,
+      status: 'DRAFT',
+      doc_total: docTotal,
+      DocTotal: docTotal,
+      id_discount: getOrderValue(source, ['id_discount', 'idDiscount'], ''),
+      action: '',
+      lines: duplicateCmoForm.lines.map((line) => ({
+        item_code: line.itemCode,
+        quantity: Number(line.quantity),
+        unit_msr: line.unitMsr,
+        uom_entry: line.uomEntry,
+        whs_code: line.whsCode,
+        unit_price: line.unitPrice,
+        line_total: Number(line.quantity) * Number(line.unitPrice),
+        free_text: line.freeText,
+        ocr_code: line.ocrCode,
+        ocr_code2: line.ocrCode2,
+        ocr_code3: line.ocrCode3
+      }))
+    };
+
+    setSavingDuplicateCmo(true);
+
+    try {
+      const response = await OrderServices.postCmo(payload);
+      if (response?.data?.success === false) {
+        throw new Error(response.data.message || 'Failed to duplicate CMO');
+      }
+
+      setDuplicateCmoSource(null);
+      setDuplicateCmoForm(null);
+      showAlert(response?.data?.message || 'CMO duplicated successfully', 'success');
+      await fetchCommitmentOrders();
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to duplicate CMO', 'danger');
+    } finally {
+      setSavingDuplicateCmo(false);
+    }
+  };
 
   const getSapDiscounts = (order = {}) => {
     let discounts = order.sap_dicount ?? order.sap_discount ?? [];
@@ -1118,80 +1279,30 @@ export default function OrderList({ showOnlyCommitment = false }) {
   const getAccessAction = (order) => {
     const button = getButtonVisibility(order);
     const canCancel = isAdminSales && ['ORDER_APPROVED', 'APPROVED'].includes(normalizeStatus(order.status));
+    const canDownloadPdf = ['ORDER_APPROVED', 'APPROVED', 'DELIVERY', 'ARRIVED'].includes(normalizeStatus(order.status));
 
-    const hasVisibleButton = button.view || button.download || button.edit || button.delete || canCancel;
+    const hasVisibleButton = button.view || canDownloadPdf || button.edit || canCancel;
 
     if (!hasVisibleButton) {
       return <span className="text-muted">-</span>;
     }
 
     return (
-      <>
-        {button.view ? (
-          <>
-            <Button
-              className="rounded-circle"
-              variant="outline-primary"
-              size="sm"
-              title="View order"
-              aria-label="View order"
-              disabled={loadingDetailId === order.id}
-              onClick={() => handleViewOrder(order)}
-            >
-              <i className={loadingDetailId === order.id ? 'ti ti-loader-2' : 'ti ti-eye'} />
-            </Button>
-            &nbsp;
-          </>
-        ) : null}
-        {['ORDER_APPROVED', 'APPROVED', 'DELIVERY', 'ARRIVED'].includes(normalizeStatus(order.status)) ? (
-          <>
-            <Button
-              className="rounded-circle"
-              variant="outline-secondary"
-              size="sm"
-              title="Download PI"
-              aria-label="Download PI"
-              disabled={downloadingPdfId === order.id}
-              onClick={() => handleDownloadPdf(order)}
-            >
-              <i className={downloadingPdfId === order.id ? 'ti ti-loader-2' : 'ti ti-file-type-pdf'} />
-            </Button>
-            &nbsp;
-          </>
-        ) : null}
-        {button.edit ? (
-          <>
-            <Button
-              as={Link}
-              to={`/customer-portal/order/order-create/${order.id}`}
-              className="rounded-circle"
-              variant="outline-success"
-              size="sm"
-            >
-              <i className="ti ti-pencil" />
-            </Button>
-            &nbsp;
-          </>
-        ) : null}
-        {canCancel ? (
-          <Button
-            className="rounded-circle"
-            variant="danger"
-            size="sm"
-            title="Cancel sales order"
-            aria-label="Cancel sales order"
-            disabled={String(cancellingOrderId) === String(order.id)}
-            onClick={() => setOrderToCancel(order)}
-          >
-            <i className={String(cancellingOrderId) === String(order.id) ? 'ti ti-loader-2' : 'ti ti-x'} />
-          </Button>
-        ) : null}
-        {/* {button.delete ? (
-          <Button className="rounded-circle" variant="outline-danger" size="sm">
-            <i className="ti ti-trash" />
-          </Button>
-        ) : null} */}
-      </>
+      <Button
+        size="sm"
+        variant={String(orderActionMenu?.order?.id) === String(order.id) ? 'primary' : 'outline-primary'}
+        aria-label="Open order actions"
+        aria-expanded={String(orderActionMenu?.order?.id) === String(order.id)}
+        onClick={(event) =>
+          setOrderActionMenu((current) =>
+            String(current?.order?.id) === String(order.id) ? null : { order, target: event.currentTarget }
+          )
+        }
+      >
+        <i className="ti ti-dots-vertical me-1" />
+        Actions
+        <i className="ti ti-chevron-down ms-1" />
+      </Button>
     );
   };
 
@@ -1357,57 +1468,23 @@ export default function OrderList({ showOnlyCommitment = false }) {
                             <td>{currency(order?.doc_total)}</td>
                             {/* <td>
                             <Badge bg={statusVariant[order.status] || 'secondary'}>{getStatusLabel(order.status)}</Badge>
-                          </td> */}
+                            </td> */}
                             <td className="text-center">
-                              <Stack direction="horizontal" gap={2} className="justify-content-center">
-                                <Button
-                                  className="rounded-circle p-0"
-                                  size="sm"
-                                  variant="outline-primary"
-                                  title="Detail"
-                                  aria-label="View CMO detail"
-                                  style={{ width: 32, height: 32 }}
-                                  onClick={() => handleViewOrder(order)}
-                                >
-                                  <i className="ti ti-eye" />
-                                </Button>
-                                <Button
-                                  as={Link}
-                                  to={`/customer-portal/order/cmo-create/${order.id}`}
-                                  className="rounded-circle p-0"
-                                  size="sm"
-                                  variant="outline-success"
-                                  title="Edit"
-                                  aria-label="Edit CMO"
-                                  style={{ width: 32, height: 32 }}
-                                >
-                                  <i className="ti ti-pencil" />
-                                </Button>
-                                <Button
-                                  className="rounded-circle p-0"
-                                  size="sm"
-                                  variant="success"
-                                  title="Process"
-                                  aria-label="Process CMO"
-                                  style={{ width: 32, height: 32 }}
-                                  disabled={String(processingCmoId) === String(order.id)}
-                                  onClick={() => openProcessCmoModal(order)}
-                                >
-                                  <i className={String(processingCmoId) === String(order.id) ? 'ti ti-loader-2' : 'ti ti-send'} />
-                                </Button>
-                                <Button
-                                  className="rounded-circle p-0"
-                                  size="sm"
-                                  variant="outline-danger"
-                                  title="Delete"
-                                  aria-label="Delete CMO"
-                                  style={{ width: 32, height: 32 }}
-                                  disabled={String(deletingCmoId) === String(order.id)}
-                                  onClick={() => setCommitmentOrderToDelete(order)}
-                                >
-                                  <i className={String(deletingCmoId) === String(order.id) ? 'ti ti-loader-2' : 'ti ti-trash'} />
-                                </Button>
-                              </Stack>
+                              <Button
+                                size="sm"
+                                variant={String(cmoActionMenu?.order?.id) === String(order.id) ? 'primary' : 'outline-primary'}
+                                aria-label="Open CMO actions"
+                                aria-expanded={String(cmoActionMenu?.order?.id) === String(order.id)}
+                                onClick={(event) =>
+                                  setCmoActionMenu((current) =>
+                                    String(current?.order?.id) === String(order.id) ? null : { order, target: event.currentTarget }
+                                  )
+                                }
+                              >
+                                <i className="ti ti-dots-vertical me-1" />
+                                Actions
+                                <i className="ti ti-chevron-down ms-1" />
+                              </Button>
                             </td>
                           </tr>
                           {isExpanded ? (
@@ -1530,7 +1607,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                     <th>Total Order</th>
                     <th>Status</th>
                     <th>Attachment</th>
-                    <th className="text-center">#</th>
+                    <th className="text-center">Action</th>
                   </tr>
                 </thead>
                 {isLoading ? (
@@ -1630,8 +1707,327 @@ export default function OrderList({ showOnlyCommitment = false }) {
           </>
         )}
       </Stack>
+      <Overlay
+        show={Boolean(orderActionMenu)}
+        target={orderActionMenu?.target}
+        placement="top-end"
+        container={typeof document !== 'undefined' ? document.body : null}
+        containerPadding={8}
+        popperConfig={cmoActionPopperConfig}
+        rootClose
+        rootCloseEvent="mousedown"
+        onHide={() => setOrderActionMenu(null)}
+      >
+        {({ ref, style, placement }) => {
+          const order = orderActionMenu?.order;
+          const button = order ? getButtonVisibility(order) : {};
+          const normalizedOrderStatus = normalizeStatus(order?.status);
+          const canDownloadPdf = ['ORDER_APPROVED', 'APPROVED', 'DELIVERY', 'ARRIVED'].includes(normalizedOrderStatus);
+          const canCancel = isAdminSales && ['ORDER_APPROVED', 'APPROVED'].includes(normalizedOrderStatus);
+
+          return (
+            <div
+              ref={ref}
+              className="dropdown-menu show"
+              data-popper-placement={placement}
+              style={{ ...style, zIndex: 1080, minWidth: 190 }}
+            >
+              {button.view ? (
+                <button
+                  type="button"
+                  className="dropdown-item"
+                  disabled={loadingDetailId === order?.id}
+                  onClick={() => {
+                    setOrderActionMenu(null);
+                    if (order) handleViewOrder(order);
+                  }}
+                >
+                  <i className={loadingDetailId === order?.id ? 'ti ti-loader-2 text-primary me-2' : 'ti ti-eye text-primary me-2'} />
+                  Detail
+                </button>
+              ) : null}
+              {canDownloadPdf ? (
+                <button
+                  type="button"
+                  className="dropdown-item"
+                  disabled={downloadingPdfId === order?.id}
+                  onClick={() => {
+                    setOrderActionMenu(null);
+                    if (order) handleDownloadPdf(order);
+                  }}
+                >
+                  <i
+                    className={
+                      downloadingPdfId === order?.id
+                        ? 'ti ti-loader-2 text-secondary me-2'
+                        : 'ti ti-file-type-pdf text-secondary me-2'
+                    }
+                  />
+                  Download PI
+                </button>
+              ) : null}
+              {button.edit ? (
+                <Link
+                  className="dropdown-item"
+                  to={`/customer-portal/order/order-create/${order?.id}`}
+                  onClick={() => setOrderActionMenu(null)}
+                >
+                  <i className="ti ti-pencil text-success me-2" />
+                  Edit
+                </Link>
+              ) : null}
+              {canCancel ? (
+                <>
+                  <div className="dropdown-divider" />
+                  <button
+                    type="button"
+                    className="dropdown-item text-danger"
+                    disabled={String(cancellingOrderId) === String(order?.id)}
+                    onClick={() => {
+                      setOrderActionMenu(null);
+                      if (order) setOrderToCancel(order);
+                    }}
+                  >
+                    <i className={String(cancellingOrderId) === String(order?.id) ? 'ti ti-loader-2 me-2' : 'ti ti-x me-2'} />
+                    Cancel Order
+                  </button>
+                </>
+              ) : null}
+            </div>
+          );
+        }}
+      </Overlay>
+      <Overlay
+        show={Boolean(cmoActionMenu)}
+        target={cmoActionMenu?.target}
+        placement="top-end"
+        container={typeof document !== 'undefined' ? document.body : null}
+        containerPadding={8}
+        popperConfig={cmoActionPopperConfig}
+        rootClose
+        rootCloseEvent="mousedown"
+        onHide={() => setCmoActionMenu(null)}
+      >
+        {({ ref, style, placement }) => (
+          <div
+            ref={ref}
+            className="dropdown-menu show"
+            data-popper-placement={placement}
+            style={{ ...style, zIndex: 1080, minWidth: 190 }}
+          >
+            <button
+              type="button"
+              className="dropdown-item"
+              onClick={() => {
+                const order = cmoActionMenu?.order;
+                setCmoActionMenu(null);
+                if (order) handleViewOrder(order);
+              }}
+            >
+              <i className="ti ti-eye text-primary me-2" />
+              Detail
+            </button>
+            <Link
+              className="dropdown-item"
+              to={`/customer-portal/order/cmo-create/${cmoActionMenu?.order?.id}`}
+              onClick={() => setCmoActionMenu(null)}
+            >
+              <i className="ti ti-pencil text-success me-2" />
+              Edit
+            </Link>
+            <button
+              type="button"
+              className="dropdown-item"
+              onClick={() => {
+                const order = cmoActionMenu?.order;
+                setCmoActionMenu(null);
+                if (order) openDuplicateCmoModal(order);
+              }}
+            >
+              <i className="ti ti-copy text-info me-2" />
+              Duplicate
+            </button>
+            <button
+              type="button"
+              className="dropdown-item"
+              disabled={String(processingCmoId) === String(cmoActionMenu?.order?.id)}
+              onClick={() => {
+                const order = cmoActionMenu?.order;
+                setCmoActionMenu(null);
+                if (order) openProcessCmoModal(order);
+              }}
+            >
+              <i
+                className={
+                  String(processingCmoId) === String(cmoActionMenu?.order?.id)
+                    ? 'ti ti-loader-2 text-success me-2'
+                    : 'ti ti-send text-success me-2'
+                }
+              />
+              Process
+            </button>
+            <div className="dropdown-divider" />
+            <button
+              type="button"
+              className="dropdown-item text-danger"
+              disabled={String(deletingCmoId) === String(cmoActionMenu?.order?.id)}
+              onClick={() => {
+                const order = cmoActionMenu?.order;
+                setCmoActionMenu(null);
+                if (order) setCommitmentOrderToDelete(order);
+              }}
+            >
+              <i
+                className={
+                  String(deletingCmoId) === String(cmoActionMenu?.order?.id) ? 'ti ti-loader-2 me-2' : 'ti ti-trash me-2'
+                }
+              />
+              Delete
+            </button>
+          </div>
+        )}
+      </Overlay>
       {showOnlyCommitment && (
         <>
+          <Modal show={Boolean(duplicateCmoSource)} onHide={closeDuplicateCmoModal} size="xl" centered scrollable>
+            <Modal.Header closeButton={!loadingDuplicateCmo && !savingDuplicateCmo}>
+              <Modal.Title>Duplicate Commitment Monthly Order</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              {loadingDuplicateCmo ? (
+                <LoaderData />
+              ) : duplicateCmoForm ? (
+                <>
+                  <Row className="g-3 mb-4">
+                    <Col md={6}>
+                      <Form.Label className="f-12 text-muted">Customer</Form.Label>
+                      <Form.Control
+                        readOnly
+                        value={[duplicateCmoForm.customerCode, duplicateCmoForm.customerName].filter(Boolean).join(' - ')}
+                      />
+                    </Col>
+                    <Col md={6}>
+                      <Form.Label className="f-12 text-muted">PO Number</Form.Label>
+                      <Form.Control
+                        value={duplicateCmoForm.poNumber}
+                        onChange={handleDuplicateCmoChange('poNumber')}
+                        placeholder="Enter a new PO number"
+                      />
+                    </Col>
+                    <Col md={6}>
+                      <Form.Label className="f-12 text-muted">Document Date</Form.Label>
+                      <Form.Control type="date" value={duplicateCmoForm.docDate} onChange={handleDuplicateCmoChange('docDate')} />
+                    </Col>
+                    <Col md={6}>
+                      <Form.Label className="f-12 text-muted">ETA Date</Form.Label>
+                      <Form.Control
+                        type="date"
+                        min={duplicateCmoForm.docDate || undefined}
+                        value={duplicateCmoForm.etaDate}
+                        onChange={handleDuplicateCmoChange('etaDate')}
+                      />
+                    </Col>
+                    <Col xs={12}>
+                      <Form.Label className="f-12 text-muted">Comments</Form.Label>
+                      <Form.Control
+                        as="textarea"
+                        rows={2}
+                        value={duplicateCmoForm.comments}
+                        onChange={handleDuplicateCmoChange('comments')}
+                        placeholder="Enter comments"
+                      />
+                    </Col>
+                  </Row>
+
+                  <h6 className="mb-3">CMO Items</h6>
+                  <Table className="mb-0 align-middle" responsive bordered hover>
+                    <thead>
+                      <tr>
+                        <th style={{ width: 60 }}>#</th>
+                        <th>Product</th>
+                        <th style={{ minWidth: 130 }}>Quantity</th>
+                        <th>UOM</th>
+                        <th>Warehouse</th>
+                        <th className="text-end">Unit Price</th>
+                        <th className="text-end">Line Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {duplicateCmoForm.lines.length ? (
+                        duplicateCmoForm.lines.map((line, index) => (
+                          <tr key={`${line.id}-${line.itemCode}-${index}`}>
+                            <td>{index + 1}</td>
+                            <td>
+                              <div className="fw-semibold">{line.itemCode || '-'}</div>
+                              <div className="text-muted f-12">{line.itemName || '-'}</div>
+                            </td>
+                            <td>
+                              <Form.Control
+                                type="number"
+                                min={0.0001}
+                                step="any"
+                                value={line.quantity}
+                                onChange={(event) => handleDuplicateCmoQuantityChange(index, event.target.value)}
+                              />
+                            </td>
+                            <td>{line.unitMsr || '-'}</td>
+                            <td>{line.whsCode || '-'}</td>
+                            <td className="text-end">{currency(line.unitPrice)}</td>
+                            <td className="text-end fw-semibold">
+                              {currency((Number(line.quantity) || 0) * (Number(line.unitPrice) || 0))}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={7} className="text-center text-muted py-4">
+                            No CMO item data found.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <th colSpan={6} className="text-end">
+                          Total
+                        </th>
+                        <th className="text-end">
+                          {currency(
+                            duplicateCmoForm.lines.reduce(
+                              (total, line) => total + (Number(line.quantity) || 0) * (Number(line.unitPrice) || 0),
+                              0
+                            )
+                          )}
+                        </th>
+                      </tr>
+                    </tfoot>
+                  </Table>
+                </>
+              ) : null}
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="light-secondary" disabled={savingDuplicateCmo} onClick={closeDuplicateCmoModal}>
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                disabled={loadingDuplicateCmo || savingDuplicateCmo || !duplicateCmoForm?.lines.length}
+                onClick={handleSaveDuplicateCmo}
+              >
+                {savingDuplicateCmo ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <i className="ti ti-copy-plus me-1" />
+                    Save as New CMO
+                  </>
+                )}
+              </Button>
+            </Modal.Footer>
+          </Modal>
           <Modal show={Boolean(commitmentOrderToSend)} onHide={closeProcessCmoModal} centered>
             <Modal.Header closeButton={processingCmoId === null}>
               <Modal.Title>Process Commitment Monthly Order</Modal.Title>

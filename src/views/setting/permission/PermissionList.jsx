@@ -672,9 +672,6 @@ export default function PermissionList() {
           <Button
             variant="primary"
             onClick={() => (roleId ? handleEdit() : handleCreate())}
-            disabled={
-              loadingSubmit || (!roleId && (!menuName || !masterApprovalId || !accessibleSystems.length || !selectedCheckedMenus.length))
-            }
           >
             {loadingSubmit ? <LoaderButton /> : 'Save'}
           </Button>

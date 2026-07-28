@@ -208,7 +208,7 @@ export default function MasterOrigin() {
   return (
     <>
       <MainCard
-        content={false}
+        bodyClassName="p-3 p-md-4"
         title={
           <Stack direction="horizontal" className="justify-content-between flex-wrap gap-3">
             <div>
@@ -224,7 +224,7 @@ export default function MasterOrigin() {
           </Stack>
         }
       >
-        <div className="p-3 border-bottom">
+        <div className="mb-4">
           <Row className="g-2">
             <Col md={8}>
               <Form.Control
@@ -253,7 +253,7 @@ export default function MasterOrigin() {
           </Row>
         </div>
 
-        <Table responsive hover className="mb-0 align-middle">
+        <Table responsive hover className="mb-3 align-middle">
           <thead>
             <tr>
               <th>Origin Name</th>

@@ -211,6 +211,10 @@ export default function Header({ showSidebar = true }) {
       Cookies.remove('systems');
       Cookies.remove('system');
       Cookies.remove('expedition_code');
+      Cookies.remove('whs_code');
+      Cookies.remove('ocr_code');
+      Cookies.remove('ocr_code2');
+      Cookies.remove('ocr_code3');
       dispatch(destroyAuthState());
       Cookies.remove('customerCode');
       Cookies.remove('distributorName');
