@@ -422,7 +422,7 @@ export default function OrderPost({ cmoMode = false }) {
 
     setLoadingSeries(true);
     try {
-      const response = await OrderServices.getSalesOrderSeries(formattedDate);
+      const response = await OrderServices.getSalesOrderSeries(formattedDate, orderInput.cardCode);
       if (response?.data?.success) {
         const seriesData = response.data.data || response.data.series || [];
         const normalizedSeries = (Array.isArray(seriesData) ? seriesData : [seriesData]).map(mapSeriesOption).filter(Boolean);

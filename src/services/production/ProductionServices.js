@@ -15,8 +15,8 @@ class ProductionServices {
     return DataService.get(`/production/boms/${id}`);
   }
 
-  getSeries(date) {
-    const query = new URLSearchParams({ CustomQuery: date || '' }).toString();
+  getSeries(date, CardCode = '') {
+    const query = new URLSearchParams({ CustomQuery: date || '', CardCode: CardCode || '' }).toString();
 
     return DataService.get(`/sales-orders/series?${query}`);
   }

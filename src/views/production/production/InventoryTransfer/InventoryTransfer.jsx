@@ -1,13 +1,1020 @@
+import { useState } from 'react';
+
+// react-bootstrap
+import Badge from 'react-bootstrap/Badge';
+import Button from 'react-bootstrap/Button';
+import Card from 'react-bootstrap/Card';
+import Col from 'react-bootstrap/Col';
+import Form from 'react-bootstrap/Form';
+import InputGroup from 'react-bootstrap/InputGroup';
+import Modal from 'react-bootstrap/Modal';
+import Row from 'react-bootstrap/Row';
+import Stack from 'react-bootstrap/Stack';
+import Table from 'react-bootstrap/Table';
+import Select from 'react-select';
+
 // project-imports
-import ProductionModulePage from '../../ProductionModulePage';
+import MainCard from 'components/MainCard';
+import DistributorServices from '../../../../services/customer-portal/DistributorServices';
+import WarehouseServices from '../../../../services/customer-portal/WarehouseServices';
+import MaterialServices from '../../../../services/production/MaterialServices';
+import ProductionServices from '../../../../services/production/ProductionServices';
+import ProductionWarehouseServices from '../../../../services/production/WarehouseServices';
+import { useAlert } from '../../../../utils/alertContext';
+
+const today = new Date().toISOString().slice(0, 10);
+const numberFormatter = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 6 });
+const selectStyles = {
+  menuPortal: (base) => ({ ...base, zIndex: 1080 }),
+  menu: (base) => ({ ...base, zIndex: 1080 })
+};
+const compactSelectStyles = {
+  ...selectStyles,
+  control: (base) => ({ ...base, minHeight: 31, fontSize: '0.75rem' }),
+  valueContainer: (base) => ({ ...base, paddingTop: 0, paddingBottom: 0 }),
+  input: (base) => ({ ...base, fontSize: '0.75rem' }),
+  option: (base) => ({ ...base, fontSize: '0.75rem', paddingTop: 6, paddingBottom: 6 })
+};
+
+const getResponseList = (response) => {
+  const payload = response?.data?.data;
+
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.rows)) return payload.rows;
+  if (Array.isArray(payload?.bins)) return payload.bins;
+  if (Array.isArray(payload?.value)) return payload.value;
+  if (Array.isArray(payload?.results)) return payload.results;
+
+  return [];
+};
+
+const createLine = () => ({
+  item: null,
+  description: '',
+  quantity: '',
+  uom: '',
+  uomEntry: 0,
+  ocrCode: null,
+  ocrCode2: null,
+  ocrCode3: null,
+  fromBinQuantity: '',
+  toBinQuantity: '',
+  binAllocations: [],
+  toBinAllocations: []
+});
+
+const createInitialForm = () => ({
+  postingDate: today,
+  documentDate: today,
+  series: null,
+  fromWarehouse: null,
+  toWarehouse: null,
+  toBinLocation: null,
+  comments: '',
+  lines: [createLine()]
+});
+
+const normalizeProduct = (item) => {
+  const code = item.item_code || item.product_code || item.code || item.ItemCode || '';
+  const name = item.item_name || item.product_name || item.name || item.ItemName || '';
+  const uom = item.invntry_uom || item.inventory_uom || item.sal_unit_msr || item.uom || item.unit || item.unit_msr || '';
+  const uomEntry =
+    item.uom_entry ?? item.uomEntry ?? item.UomEntry ?? item.iuom_entry ?? item.inventory_uom_entry ?? item.suom_entry ?? 0;
+
+  return {
+    value: code,
+    label: [code, name].filter(Boolean).join(' - ') || '-',
+    name,
+    uom,
+    uomEntry,
+    raw: item
+  };
+};
+
+const normalizeWarehouse = (item) => {
+  const code = item.whs_code || item.warehouse_code || item.code || item.WhsCode || '';
+  const name = item.whs_name || item.warehouse_name || item.name || item.WhsName || '';
+
+  return {
+    value: code,
+    label: [code, name].filter(Boolean).join(' - ') || '-',
+    name,
+    raw: item
+  };
+};
+
+const normalizeOcr = (item) => {
+  const code = item.ocr_code || item.ocrCode || item.OcrCode || item.code || '';
+  const name = item.ocr_name || item.ocrName || item.OcrName || item.name || '';
+
+  return {
+    value: code,
+    label: [code, name].filter(Boolean).join(' - ') || '-',
+    name,
+    raw: item
+  };
+};
+
+const normalizeBin = (item, index) => {
+  const code = item.bin_code || item.binCode || item.BinCode || item.code || '';
+  const name = item.bin_name || item.binName || item.BinName || item.name || item.description || item.Description || item.Descr || '';
+  const itemName = item.item_name || item.itemName || item.ItemName || item.product_name || item.productName || '';
+  const itemCode = item.item_code || item.itemCode || item.ItemCode || item.product_code || item.productCode || '';
+  const absEntry =
+    item.AbsEntry ?? item.absEntry ?? item.abs_entry ?? item.BinAbsEntry ?? item.bin_abs_entry ?? item.id ?? code ?? index;
+  const availableQty = Number(
+    item.available_qty ??
+      item.availableQty ??
+      item.SisaQty ??
+      item.sisa_qty ??
+      item.sisaQty ??
+      item.on_hand_qty ??
+      item.onHandQty ??
+      item.OnHandQty ??
+      item.OnHand ??
+      item.quantity ??
+      item.Quantity ??
+      item.qty ??
+      item.Qty ??
+      0
+  );
+
+  return { id: absEntry, absEntry, code, name, itemName, itemCode, availableQty, quantity: '', raw: item };
+};
+
+const normalizeBinHeader = (item, index) => {
+  const code = item.bin_code || item.binCode || item.BinCode || item.code || '';
+  const description =
+    item.description ||
+    item.Description ||
+    item.Descr ||
+    item.bin_description ||
+    item.binDescription ||
+    item.BinDescription ||
+    item.bin_name ||
+    item.binName ||
+    item.BinName ||
+    item.name ||
+    '';
+  const id = item.id || item.abs_entry || item.absEntry || item.AbsEntry || code || index;
+
+  return {
+    value: id,
+    code,
+    description,
+    label: [code, description].filter(Boolean).join(' - ') || String(id),
+    raw: item
+  };
+};
+
+const getAllocatedQuantity = (line, allocationKey = 'binAllocations') =>
+  (line[allocationKey] || []).reduce((total, allocation) => total + (Number(allocation.quantity) || 0), 0);
+
+const isQuantityEqual = (first, second) => Math.abs((Number(first) || 0) - (Number(second) || 0)) < 0.000001;
 
 export default function InventoryTransfer() {
+  const { showAlert } = useAlert();
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [form, setForm] = useState(createInitialForm);
+  const [productOptions, setProductOptions] = useState([]);
+  const [warehouseOptions, setWarehouseOptions] = useState([]);
+  const [ocrOptions, setOcrOptions] = useState({ branch: [], businessUnit: [], department: [] });
+  const [toBinHeaderOptions, setToBinHeaderOptions] = useState([]);
+  const [seriesOptions, setSeriesOptions] = useState([]);
+  const [loadingOptions, setLoadingOptions] = useState(false);
+  const [loadingSeries, setLoadingSeries] = useState(false);
+  const [loadingToBinHeaders, setLoadingToBinHeaders] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [activeBinLineIndex, setActiveBinLineIndex] = useState(null);
+  const [activeBinType, setActiveBinType] = useState('from');
+  const [binRows, setBinRows] = useState([]);
+  const [loadingBins, setLoadingBins] = useState(false);
+
+  const activeBinLine = activeBinLineIndex === null ? null : form.lines[activeBinLineIndex];
+  const activeBinWarehouse = activeBinType === 'from' ? form.fromWarehouse : form.toWarehouse;
+  const allocatedBinQuantity = binRows.reduce((total, bin) => total + (Number(bin.quantity) || 0), 0);
+  const hasInvalidBinQuantity = binRows.some(
+    (bin) => Number(bin.quantity) < 0 || (bin.availableQty > 0 && Number(bin.quantity) > bin.availableQty)
+  );
+
+  const fetchSeries = async (documentDate) => {
+    if (!documentDate) {
+      setSeriesOptions([]);
+      return;
+    }
+
+    setLoadingSeries(true);
+
+    try {
+      const response = await ProductionServices.getSeries(documentDate.replace(/-/g, ''), 67);
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch series');
+
+      const seriesData = response?.data?.data || response?.data?.series || [];
+      setSeriesOptions(
+        (Array.isArray(seriesData) ? seriesData : [seriesData])
+          .map((item) => {
+            const value =
+              typeof item === 'object'
+                ? item.series ?? item.Series ?? item.series_code ?? item.seriesCode ?? item.value ?? item.code ?? item.id
+                : item;
+            const label =
+              typeof item === 'object'
+                ? item.label ?? item.series_name ?? item.seriesName ?? item.SeriesName ?? item.name ?? item.description ?? value
+                : item;
+
+            return value == null ? null : { value, label: String(label || value), raw: item };
+          })
+          .filter(Boolean)
+      );
+    } catch (error) {
+      setSeriesOptions([]);
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch series', 'danger');
+    } finally {
+      setLoadingSeries(false);
+    }
+  };
+
+  const fetchFormOptions = async () => {
+    setLoadingOptions(true);
+
+    try {
+      const [productResponse, warehouseResponse, branchResponse, businessUnitResponse, departmentResponse] = await Promise.all([
+        MaterialServices.getMaterial(''),
+        WarehouseServices.getAllWarehouse(''),
+        DistributorServices.getOcrByType(1),
+        DistributorServices.getOcrByType(2),
+        DistributorServices.getOcrByType(3)
+      ]);
+
+      if (
+        [productResponse, warehouseResponse, branchResponse, businessUnitResponse, departmentResponse].some(
+          (response) => response?.data?.success === false
+        )
+      ) {
+        throw new Error('Failed to fetch material, warehouse, or OCR data');
+      }
+
+      setProductOptions(getResponseList(productResponse).map(normalizeProduct).filter((option) => option.value));
+      setWarehouseOptions(getResponseList(warehouseResponse).map(normalizeWarehouse).filter((option) => option.value));
+      setOcrOptions({
+        branch: getResponseList(branchResponse).map(normalizeOcr).filter((option) => option.value),
+        businessUnit: getResponseList(businessUnitResponse).map(normalizeOcr).filter((option) => option.value),
+        department: getResponseList(departmentResponse).map(normalizeOcr).filter((option) => option.value)
+      });
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch form options', 'danger');
+    } finally {
+      setLoadingOptions(false);
+    }
+  };
+
+  const fetchToBinHeaders = async (warehouseCode) => {
+    if (!warehouseCode) {
+      setToBinHeaderOptions([]);
+      return;
+    }
+
+    setLoadingToBinHeaders(true);
+
+    try {
+      const response = await ProductionWarehouseServices.getBinHeader(warehouseCode);
+      if (response?.data?.success === false) {
+        throw new Error(response.data.message || 'Failed to fetch destination bin locations');
+      }
+
+      setToBinHeaderOptions(
+        getResponseList(response)
+          .map(normalizeBinHeader)
+          .filter((option) => option.value !== '' && option.value !== null)
+      );
+    } catch (error) {
+      setToBinHeaderOptions([]);
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch destination bin locations', 'danger');
+    } finally {
+      setLoadingToBinHeaders(false);
+    }
+  };
+
+  const openCreateModal = () => {
+    setForm(createInitialForm());
+    setToBinHeaderOptions([]);
+    setShowCreateModal(true);
+    fetchFormOptions();
+    fetchSeries(today);
+  };
+
+  const closeCreateModal = () => {
+    if (submitting) return;
+
+    setShowCreateModal(false);
+    setActiveBinLineIndex(null);
+    setBinRows([]);
+  };
+
+  const updateLine = (lineIndex, changes) => {
+    setForm((current) => ({
+      ...current,
+      lines: current.lines.map((line, index) => (index === lineIndex ? { ...line, ...changes } : line))
+    }));
+  };
+
+  const selectProduct = (lineIndex, product) => {
+    updateLine(lineIndex, {
+      item: product,
+      description: product?.name || '',
+      uom: product?.uom || '',
+      uomEntry: product?.uomEntry ?? 0,
+      fromBinQuantity: '',
+      toBinQuantity: '',
+      binAllocations: [],
+      toBinAllocations: []
+    });
+  };
+
+  const addLine = () => {
+    setForm((current) => ({ ...current, lines: [...current.lines, createLine()] }));
+  };
+
+  const removeLine = (lineIndex) => {
+    setForm((current) => ({
+      ...current,
+      lines: current.lines.length === 1 ? current.lines : current.lines.filter((_, index) => index !== lineIndex)
+    }));
+  };
+
+  const setDirectFromBinQuantity = (lineIndex, value) => {
+    const quantity = value === '' ? '' : value;
+
+    setForm((current) => ({
+      ...current,
+      lines: current.lines.map((line, index) => {
+        if (index !== lineIndex) return line;
+        if (quantity === '') return { ...line, fromBinQuantity: '', binAllocations: [] };
+
+        return {
+          ...line,
+          fromBinQuantity: quantity,
+          binAllocations: line.binAllocations.length
+            ? [{ ...line.binAllocations[0], quantity }]
+            : []
+        };
+      })
+    }));
+  };
+
+  const setDirectToBinQuantity = (lineIndex, value) => {
+    const quantity = value === '' ? '' : value;
+
+    setForm((current) => ({
+      ...current,
+      lines: current.lines.map((line, index) => {
+        if (index !== lineIndex) return line;
+        if (quantity === '') return { ...line, toBinQuantity: '', toBinAllocations: [] };
+
+        return {
+          ...line,
+          toBinQuantity: quantity,
+          toBinAllocations: line.toBinAllocations.length
+            ? [{ ...line.toBinAllocations[0], quantity }]
+            : []
+        };
+      })
+    }));
+  };
+
+  const openBinLocations = async (lineIndex, binType) => {
+    const line = form.lines[lineIndex];
+    const warehouse = binType === 'from' ? form.fromWarehouse : form.toWarehouse;
+    const allocationKey = binType === 'from' ? 'binAllocations' : 'toBinAllocations';
+    const inputQuantity = binType === 'from' ? line.fromBinQuantity : line.toBinQuantity;
+
+    if (!warehouse?.value) {
+      showAlert(`Please select ${binType === 'from' ? 'From' : 'To'} Warehouse first`, 'warning');
+      return;
+    }
+
+    if (!line.item?.value || !(Number(line.quantity) > 0)) {
+      showAlert('Please select an item and enter its quantity first', 'warning');
+      return;
+    }
+
+    setActiveBinLineIndex(lineIndex);
+    setActiveBinType(binType);
+    setLoadingBins(true);
+    setBinRows([]);
+
+    try {
+      const response = await ProductionWarehouseServices.getBinDetails(line.item.value, warehouse.value);
+      if (response?.data?.success === false) {
+        throw new Error(response.data.message || 'Failed to fetch bin location quantities');
+      }
+
+      const existingAllocations = new Map((line[allocationKey] || []).map((allocation) => [String(allocation.id), allocation.quantity]));
+      const nextBins = getResponseList(response).map((item, index) => {
+        const bin = normalizeBin(item, index);
+        return { ...bin, quantity: existingAllocations.get(String(bin.id)) ?? '' };
+      });
+
+      if (!existingAllocations.size && Number(inputQuantity) > 0 && nextBins.length) {
+        nextBins[0] = { ...nextBins[0], quantity: inputQuantity };
+      }
+
+      setBinRows(nextBins);
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch bin location quantities', 'danger');
+    } finally {
+      setLoadingBins(false);
+    }
+  };
+
+  const closeBinModal = () => {
+    setActiveBinLineIndex(null);
+    setActiveBinType('from');
+    setBinRows([]);
+  };
+
+  const saveBinAllocations = () => {
+    const requiredQuantity = Number(activeBinLine?.quantity) || 0;
+
+    if (hasInvalidBinQuantity) {
+      showAlert('Bin transfer quantity cannot exceed its available quantity', 'warning');
+      return;
+    }
+
+    if (!isQuantityEqual(allocatedBinQuantity, requiredQuantity)) {
+      showAlert(
+        `Total bin quantity must equal item quantity (${numberFormatter.format(requiredQuantity)}). Current allocation: ${numberFormatter.format(
+          allocatedBinQuantity
+        )}`,
+        'warning'
+      );
+      return;
+    }
+
+    updateLine(activeBinLineIndex, {
+      [activeBinType === 'from' ? 'binAllocations' : 'toBinAllocations']: binRows.filter((bin) => Number(bin.quantity) > 0),
+      [activeBinType === 'from' ? 'fromBinQuantity' : 'toBinQuantity']: allocatedBinQuantity
+    });
+    closeBinModal();
+  };
+
+  const submitInventoryTransfer = async () => {
+    const invalidLine = form.lines.find(
+      (line) =>
+        !line.item?.value ||
+        !(Number(line.quantity) > 0) ||
+        !line.uom ||
+        !line.binAllocations.length ||
+        !line.toBinAllocations.length ||
+        !isQuantityEqual(getAllocatedQuantity(line), line.quantity) ||
+        !isQuantityEqual(getAllocatedQuantity(line, 'toBinAllocations'), line.quantity) ||
+        [...line.binAllocations, ...line.toBinAllocations].some(
+          (bin) => Number(bin.quantity) < 0 || (bin.availableQty > 0 && Number(bin.quantity) > bin.availableQty)
+        )
+    );
+
+    if (
+      !form.postingDate ||
+      !form.documentDate ||
+      !form.series?.value ||
+      !form.fromWarehouse?.value ||
+      !form.toWarehouse?.value ||
+      !form.toBinLocation?.value
+    ) {
+      showAlert('Please complete all inventory transfer header fields', 'warning');
+      return;
+    }
+
+    if (invalidLine) {
+      showAlert('Please complete every item and ensure each bin allocation equals its item quantity', 'warning');
+      return;
+    }
+
+    const payload = {
+      DocDate: form.postingDate,
+      DocDueDate: form.documentDate,
+      Comments: form.comments,
+      Filler: form.fromWarehouse.value,
+      ToWhsCode: form.toWarehouse.value,
+      Lines: form.lines.map((line) => ({
+        ItemCode: line.item.value,
+        Quantity: Number(line.quantity),
+        UomEntry: Number(line.uomEntry) || 0,
+        Filler: form.fromWarehouse.value,
+        ToWhsCode: form.toWarehouse.value,
+        UseBaseUn: 'y',
+        OcrCode: line.ocrCode?.value || '',
+        OcrCode2: line.ocrCode2?.value || '',
+        OcrCode3: line.ocrCode3?.value || '',
+        Lines_BinFROM: line.binAllocations.map((bin) => ({
+          AbsEntry: Number.isNaN(Number(bin.id)) ? bin.id : Number(bin.id),
+          Quantity: Number(bin.quantity)
+        })),
+        Lines_BinTO: line.toBinAllocations.map((bin) => ({
+          AbsEntry: Number.isNaN(Number(bin.id)) ? bin.id : Number(bin.id),
+          Quantity: Number(bin.quantity)
+        }))
+      }))
+    };
+
+    setSubmitting(true);
+
+    try {
+      const response = await ProductionWarehouseServices.postInventory(payload);
+      if (response?.data?.success === false) {
+        throw new Error(response.data.message || 'Failed to create inventory transfer');
+      }
+
+      showAlert(response?.data?.message || 'Inventory transfer created successfully', 'success');
+      setShowCreateModal(false);
+      setForm(createInitialForm());
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to create inventory transfer', 'danger');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
-    <ProductionModulePage
-      title="Inventory Transfer"
-      description="Manage inventory movements between production warehouses."
-      icon="ti ti-transfer"
-      actionLabel="Create Inventory Transfer"
-    />
+    <>
+      <MainCard
+        title={
+          <Stack gap={1}>
+            <h5 className="mb-0">Inventory Transfer</h5>
+            <span className="text-muted f-12">Manage inventory movements between production warehouses.</span>
+          </Stack>
+        }
+        secondary={
+          <Button variant="primary" onClick={openCreateModal}>
+            <i className="ti ti-plus me-1" />
+            Create Inventory Transfer
+          </Button>
+        }
+      >
+        <Card className="border border-dashed mb-0">
+          <Card.Body className="text-center py-5">
+            <span className="avtar avtar-xl bg-light-primary text-primary mb-3">
+              <i className="ti ti-transfer f-32" />
+            </span>
+            <h5 className="mb-2">Inventory Transfer</h5>
+            <p className="text-muted mb-0">Create a transfer to move item quantities between warehouses.</p>
+          </Card.Body>
+        </Card>
+      </MainCard>
+
+      <Modal show={showCreateModal} onHide={closeCreateModal} fullscreen>
+        <Modal.Header closeButton={!submitting}>
+          <Modal.Title>Create Inventory Transfer</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Stack gap={4}>
+            <Card className="border mb-0">
+              <Card.Header>
+                <h6 className="mb-0">Document Information</h6>
+              </Card.Header>
+              <Card.Body>
+                <Row className="g-3">
+                  <Col lg={6}>
+                    <div className="border rounded p-3 h-100">
+                      <h6 className="mb-3">Document Details</h6>
+                      <Row className="g-3">
+                        <Col md={6}>
+                          <Form.Label>Posting Date</Form.Label>
+                          <Form.Control
+                            type="date"
+                            value={form.postingDate}
+                            onChange={(event) => setForm((current) => ({ ...current, postingDate: event.target.value }))}
+                          />
+                        </Col>
+                        <Col md={6}>
+                          <Form.Label>Document Date</Form.Label>
+                          <Form.Control
+                            type="date"
+                            value={form.documentDate}
+                            onChange={(event) => {
+                              const documentDate = event.target.value;
+                              setForm((current) => ({ ...current, documentDate, series: null }));
+                              fetchSeries(documentDate);
+                            }}
+                          />
+                        </Col>
+                        <Col xs={12}>
+                          <Form.Label>Series</Form.Label>
+                          <Select
+                            styles={selectStyles}
+                            menuPortalTarget={document.body}
+                            value={form.series}
+                            options={seriesOptions}
+                            isLoading={loadingSeries}
+                            isDisabled={!form.documentDate || loadingSeries}
+                            onChange={(series) => setForm((current) => ({ ...current, series }))}
+                            placeholder="Select series"
+                            noOptionsMessage={() => (loadingSeries ? 'Loading series...' : 'Series not found')}
+                          />
+                        </Col>
+                        <Col xs={12}>
+                          <Form.Label>Comments</Form.Label>
+                          <Form.Control
+                            as="textarea"
+                            rows={2}
+                            value={form.comments}
+                            onChange={(event) => setForm((current) => ({ ...current, comments: event.target.value }))}
+                            placeholder="Enter inventory transfer comments"
+                          />
+                        </Col>
+                      </Row>
+                    </div>
+                  </Col>
+                  <Col lg={6}>
+                    <div className="border rounded p-3 h-100">
+                      <h6 className="mb-3">Warehouse Information</h6>
+                      <Row className="g-3">
+                        <Col xs={12}>
+                          <Form.Label>From Warehouse</Form.Label>
+                          <Select
+                            styles={selectStyles}
+                            menuPortalTarget={document.body}
+                            value={form.fromWarehouse}
+                            options={warehouseOptions}
+                            isLoading={loadingOptions}
+                            onChange={(fromWarehouse) =>
+                              setForm((current) => ({
+                                ...current,
+                                fromWarehouse,
+                                lines: current.lines.map((line) => ({ ...line, fromBinQuantity: '', binAllocations: [] }))
+                              }))
+                            }
+                            placeholder="Select source warehouse"
+                            isSearchable
+                          />
+                        </Col>
+                        <Col xs={12}>
+                          <Form.Label>To Warehouse</Form.Label>
+                          <Select
+                            styles={selectStyles}
+                            menuPortalTarget={document.body}
+                            value={form.toWarehouse}
+                            options={warehouseOptions}
+                            isLoading={loadingOptions}
+                            onChange={(toWarehouse) => {
+                              setForm((current) => ({
+                                ...current,
+                                toWarehouse,
+                                toBinLocation: null,
+                                lines: current.lines.map((line) => ({ ...line, toBinQuantity: '', toBinAllocations: [] }))
+                              }));
+                              setToBinHeaderOptions([]);
+                              fetchToBinHeaders(toWarehouse?.value || '');
+                            }}
+                            placeholder="Select destination warehouse"
+                            isSearchable
+                          />
+                        </Col>
+                        <Col xs={12}>
+                          <Form.Label>To Bin Location</Form.Label>
+                          <Select
+                            styles={selectStyles}
+                            menuPortalTarget={document.body}
+                            value={form.toBinLocation}
+                            options={toBinHeaderOptions}
+                            isLoading={loadingToBinHeaders}
+                            isDisabled={!form.toWarehouse?.value || loadingToBinHeaders}
+                            onChange={(toBinLocation) => setForm((current) => ({ ...current, toBinLocation }))}
+                            placeholder={form.toWarehouse?.value ? 'Select destination bin' : 'Select To Warehouse first'}
+                            noOptionsMessage={() =>
+                              loadingToBinHeaders ? 'Loading bin locations...' : 'Destination bin location not found'
+                            }
+                            isSearchable
+                          />
+                        </Col>
+                      </Row>
+                    </div>
+                  </Col>
+                </Row>
+              </Card.Body>
+            </Card>
+
+            <Card className="border mb-0">
+              <Card.Header>
+                <Stack direction="horizontal" className="justify-content-between">
+                  <h6 className="mb-0">Items</h6>
+                  <Button variant="light-primary" size="sm" onClick={addLine}>
+                    <i className="ti ti-plus me-1" />
+                    Add Item
+                  </Button>
+                </Stack>
+              </Card.Header>
+              <Card.Body className="p-0 f-12">
+                <Table className="mb-0 align-middle f-12" responsive bordered size="sm">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 45 }}>#</th>
+                      <th style={{ minWidth: 250 }}>Item</th>
+                      <th style={{ minWidth: 210 }}>Item Description</th>
+                      <th style={{ minWidth: 105 }}>Qty</th>
+                      <th style={{ minWidth: 90 }}>UOM</th>
+                      <th style={{ minWidth: 190 }}>Branch</th>
+                      <th style={{ minWidth: 190 }}>Business Unit</th>
+                      <th style={{ minWidth: 190 }}>Department</th>
+                      <th style={{ minWidth: 180 }}>From Bin Locations</th>
+                      <th style={{ minWidth: 180 }}>To Bin Locations</th>
+                      <th style={{ width: 55 }} />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {form.lines.map((line, lineIndex) => {
+                      const fromAllocatedQuantity = getAllocatedQuantity(line);
+                      const toAllocatedQuantity = getAllocatedQuantity(line, 'toBinAllocations');
+                      const fromAllocationValid =
+                        Number(line.quantity) > 0 &&
+                        line.binAllocations.length > 0 &&
+                        isQuantityEqual(fromAllocatedQuantity, line.quantity);
+                      const toAllocationValid =
+                        Number(line.quantity) > 0 &&
+                        line.toBinAllocations.length > 0 &&
+                        isQuantityEqual(toAllocatedQuantity, line.quantity);
+
+                      return (
+                        <tr key={lineIndex}>
+                          <td>{lineIndex + 1}</td>
+                          <td>
+                            <Select
+                              styles={compactSelectStyles}
+                              menuPortalTarget={document.body}
+                              menuPlacement="top"
+                              value={line.item}
+                              options={productOptions}
+                              isLoading={loadingOptions}
+                              onChange={(product) => selectProduct(lineIndex, product)}
+                              placeholder="Search item..."
+                              noOptionsMessage={() => 'Item not found'}
+                              isSearchable
+                            />
+                          </td>
+                          <td>
+                            <Form.Control size="sm" value={line.description} readOnly placeholder="Filled from selected item" />
+                          </td>
+                          <td>
+                            <Form.Control
+                              size="sm"
+                              type="number"
+                              min="0.000001"
+                              step="any"
+                              value={line.quantity}
+                              onChange={(event) => updateLine(lineIndex, { quantity: event.target.value })}
+                              placeholder="0"
+                            />
+                          </td>
+                          <td>
+                            <Form.Control size="sm" value={line.uom} readOnly placeholder="UOM" />
+                          </td>
+                          <td>
+                            <Select
+                              styles={compactSelectStyles}
+                              menuPortalTarget={document.body}
+                              menuPlacement="top"
+                              value={line.ocrCode}
+                              options={ocrOptions.branch}
+                              isLoading={loadingOptions}
+                              onChange={(ocrCode) => updateLine(lineIndex, { ocrCode })}
+                              placeholder="Select branch"
+                              isClearable
+                              isSearchable
+                            />
+                          </td>
+                          <td>
+                            <Select
+                              styles={compactSelectStyles}
+                              menuPortalTarget={document.body}
+                              menuPlacement="top"
+                              value={line.ocrCode2}
+                              options={ocrOptions.businessUnit}
+                              isLoading={loadingOptions}
+                              onChange={(ocrCode2) => updateLine(lineIndex, { ocrCode2 })}
+                              placeholder="Select unit"
+                              isClearable
+                              isSearchable
+                            />
+                          </td>
+                          <td>
+                            <Select
+                              styles={compactSelectStyles}
+                              menuPortalTarget={document.body}
+                              menuPlacement="top"
+                              value={line.ocrCode3}
+                              options={ocrOptions.department}
+                              isLoading={loadingOptions}
+                              onChange={(ocrCode3) => updateLine(lineIndex, { ocrCode3 })}
+                              placeholder="Select department"
+                              isClearable
+                              isSearchable
+                            />
+                          </td>
+                          <td>
+                            <InputGroup size="sm">
+                              <Form.Control
+                                type="number"
+                                min="0"
+                                step="any"
+                                value={line.fromBinQuantity}
+                                onChange={(event) => setDirectFromBinQuantity(lineIndex, event.target.value)}
+                                isValid={fromAllocationValid}
+                                isInvalid={line.binAllocations.some(
+                                  (bin) => bin.availableQty > 0 && Number(bin.quantity) > bin.availableQty
+                                )}
+                                placeholder="Input qty"
+                                aria-label="From bin allocated quantity"
+                              />
+                              <Button
+                                size="sm"
+                                variant={fromAllocationValid ? 'success' : 'outline-warning'}
+                                onClick={() => openBinLocations(lineIndex, 'from')}
+                                title="Select From Bin Locations"
+                                aria-label="Select From Bin Locations"
+                              >
+                                <i className="ti ti-list-search" />
+                              </Button>
+                            </InputGroup>
+                          </td>
+                          <td>
+                            <InputGroup size="sm">
+                              <Form.Control
+                                type="number"
+                                min="0"
+                                step="any"
+                                value={line.toBinQuantity}
+                                onChange={(event) => setDirectToBinQuantity(lineIndex, event.target.value)}
+                                isValid={toAllocationValid}
+                                isInvalid={line.toBinAllocations.some(
+                                  (bin) => bin.availableQty > 0 && Number(bin.quantity) > bin.availableQty
+                                )}
+                                placeholder="Input qty"
+                                aria-label="To bin allocated quantity"
+                              />
+                              <Button
+                                size="sm"
+                                variant={toAllocationValid ? 'success' : 'outline-info'}
+                                onClick={() => openBinLocations(lineIndex, 'to')}
+                                title="Select To Bin Locations"
+                                aria-label="Select To Bin Locations"
+                              >
+                                <i className="ti ti-list-search" />
+                              </Button>
+                            </InputGroup>
+                          </td>
+                          <td className="text-center">
+                            <Button
+                              className="rounded-circle"
+                              variant="outline-danger"
+                              size="sm"
+                              disabled={form.lines.length === 1}
+                              onClick={() => removeLine(lineIndex)}
+                              aria-label="Remove item"
+                            >
+                              <i className="ti ti-trash" />
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </Table>
+              </Card.Body>
+            </Card>
+          </Stack>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" disabled={submitting} onClick={closeCreateModal}>
+            Cancel
+          </Button>
+          <Button variant="primary" disabled={submitting} onClick={submitInventoryTransfer}>
+            {submitting ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <i className="ti ti-device-floppy me-1" />
+                Create Inventory Transfer
+              </>
+            )}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={activeBinLineIndex !== null} onHide={closeBinModal} size="xl" centered scrollable>
+        <Modal.Header closeButton>
+          <Modal.Title>{activeBinType === 'from' ? 'From' : 'To'} Bin Locations</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Row className="g-3 mb-3">
+            <Col md={4}>
+              <small className="text-muted d-block">Item</small>
+              <span className="fw-semibold">{activeBinLine?.item?.label || '-'}</span>
+            </Col>
+            <Col md={3}>
+              <small className="text-muted d-block">{activeBinType === 'from' ? 'From' : 'To'} Warehouse</small>
+              <span className="fw-semibold">{activeBinWarehouse?.label || '-'}</span>
+            </Col>
+            <Col md={2}>
+              <small className="text-muted d-block">Required Qty</small>
+              <span className="fw-semibold">{numberFormatter.format(Number(activeBinLine?.quantity) || 0)}</span>
+            </Col>
+            <Col md={3}>
+              <small className="text-muted d-block">Allocated Qty</small>
+              <Badge bg={isQuantityEqual(allocatedBinQuantity, activeBinLine?.quantity) ? 'success' : 'warning'}>
+                {numberFormatter.format(allocatedBinQuantity)}
+              </Badge>
+            </Col>
+          </Row>
+
+          <Table className="mb-0 align-middle" responsive bordered hover>
+            <thead>
+              <tr>
+                <th style={{ width: 55 }}>#</th>
+                <th>AbsEntry</th>
+                <th>Item</th>
+                <th className="text-end">Available Qty</th>
+                <th style={{ minWidth: 180 }}>Transfer Qty</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loadingBins ? (
+                <tr>
+                  <td colSpan={5} className="text-center py-4">
+                    <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />
+                    Loading bin locations...
+                  </td>
+                </tr>
+              ) : binRows.length ? (
+                binRows.map((bin, index) => (
+                  <tr key={bin.id}>
+                    <td>{index + 1}</td>
+                    <td className="fw-semibold">{bin.absEntry ?? '-'}</td>
+                    <td>
+                      <div className="fw-semibold">{bin.itemName || '-'}</div>
+                      <small className="text-muted">{bin.itemCode || '-'}</small>
+                    </td>
+                    <td className="text-end">{numberFormatter.format(bin.availableQty)}</td>
+                    <td>
+                      <Form.Control
+                        type="number"
+                        min="0"
+                        max={bin.availableQty || undefined}
+                        step="any"
+                        value={bin.quantity}
+                        onChange={(event) =>
+                          setBinRows((current) =>
+                            current.map((row, rowIndex) =>
+                              rowIndex === index ? { ...row, quantity: event.target.value } : row
+                            )
+                          )
+                        }
+                        isInvalid={Number(bin.quantity) < 0 || (bin.availableQty > 0 && Number(bin.quantity) > bin.availableQty)}
+                        placeholder="0"
+                      />
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="text-center text-muted py-4">
+                    No bin locations found for the selected warehouse and item.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+            <tfoot>
+              <tr>
+                <th colSpan={4} className="text-end">
+                  Total Allocated
+                </th>
+                <th>{numberFormatter.format(allocatedBinQuantity)}</th>
+              </tr>
+            </tfoot>
+          </Table>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" onClick={closeBinModal}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            disabled={
+              loadingBins ||
+              !binRows.length ||
+              hasInvalidBinQuantity ||
+              !isQuantityEqual(allocatedBinQuantity, activeBinLine?.quantity)
+            }
+            onClick={saveBinAllocations}
+          >
+            Save Bin Allocation
+          </Button>
+        </Modal.Footer>
+      </Modal>
+    </>
   );
 }

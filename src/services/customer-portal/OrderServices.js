@@ -64,8 +64,8 @@ class OrderServices {
     return DataService.post('/sales-orders/sync-all');
   }
 
-  getSalesOrderSeries(date) {
-    const query = new URLSearchParams({ CustomQuery: date || '' }).toString();
+  getSalesOrderSeries(date, CardCode = '') {
+    const query = new URLSearchParams({ CustomQuery: date || '', CardCode: CardCode || '' }).toString();
 
     return DataService.get(`/sales-orders/series?${query}`);
   }
