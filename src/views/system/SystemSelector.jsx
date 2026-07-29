@@ -8,7 +8,7 @@ import Row from 'react-bootstrap/Row';
 
 // project-imports
 import { getCookies } from '../../utils/cookies';
-import { normalizeAccessibleSystems, systems } from '../../systems';
+import { getFirstAccessibleMenuPath, normalizeAccessibleSystems, systems } from '../../systems';
 import './system-selector.scss';
 
 export default function SystemSelector() {
@@ -16,6 +16,10 @@ export default function SystemSelector() {
   const availableSystemKeys = new Set(normalizeAccessibleSystems(getCookies('system')));
   const availableSystems = systems.filter((system) => availableSystemKeys.has(system.key));
   const defaultSystem = availableSystems[0];
+  const roleId = getCookies('role');
+  const permissionMenu = getCookies('menu') || [];
+  const getSystemEntryPath = (system) =>
+    getFirstAccessibleMenuPath(system, permissionMenu, roleId) || system.defaultPath;
 
   if (!availableSystems.length) {
     return (
@@ -44,11 +48,11 @@ export default function SystemSelector() {
                   className={`system-selector__card system-selector__card--${system.key} border mb-0 h-100`}
                   role="button"
                   tabIndex={0}
-                  onClick={() => navigate(system.defaultPath)}
+                  onClick={() => navigate(getSystemEntryPath(system))}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' || event.key === ' ') {
                       event.preventDefault();
-                      navigate(system.defaultPath);
+                      navigate(getSystemEntryPath(system));
                     }
                   }}
                 >
@@ -69,5 +73,5 @@ export default function SystemSelector() {
     );
   }
 
-  return <Navigate to={defaultSystem.defaultPath} replace />;
+  return <Navigate to={getSystemEntryPath(defaultSystem)} replace />;
 }

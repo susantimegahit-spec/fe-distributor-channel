@@ -286,6 +286,7 @@ export default function ExpeditionDashboard() {
                 <option value="">Select service</option>
                 <option value="RIT">RIT</option>
                 <option value="TONASE">TONASE</option>
+                <option value="FEET">FEET</option>
               </Form.Select>
             </Form.Group>
           </Col>

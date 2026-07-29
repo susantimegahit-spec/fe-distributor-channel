@@ -151,6 +151,17 @@ export const canAccessMenuItem = (menuItem, permissionMenu = [], roleId) => {
   return normalizePermissionMenu(permissionMenu).includes(menuItem.id);
 };
 
+export const getAccessibleMenuItems = (system, permissionMenu = [], roleId) => {
+  if (!system?.menu) return [];
+
+  return flattenMenuItems(system.menu).filter(
+    (item) => item.type === 'item' && item.url && canAccessMenuItem(item, permissionMenu, roleId)
+  );
+};
+
+export const getFirstAccessibleMenuPath = (system, permissionMenu = [], roleId) =>
+  getAccessibleMenuItems(system, permissionMenu, roleId)[0]?.url || null;
+
 export const canAccessSystem = (system, permissionMenu = [], roleId) => {
   if (isAdministratorRole(roleId)) return true;
 

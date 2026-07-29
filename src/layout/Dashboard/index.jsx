@@ -10,6 +10,7 @@ import FloatingFaq from 'components/FloatingFaq';
 import NavigationScroll from 'components/NavigationScroll';
 import {
   canAccessMenuItem,
+  getFirstAccessibleMenuPath,
   getMenuItemByPathname,
   getSystemByPathname,
   isAdministratorRole,
@@ -38,6 +39,9 @@ export default function MainLayout() {
     pathname === '/customer-portal/master/signature';
   const showSidebar = !isSharedUtilityPath;
   const requestedMenu = activeSystem && !isSharedUtilityPath ? getMenuItemByPathname(activeSystem, pathname) : null;
+  const firstAccessibleMenuPath = activeSystem
+    ? getFirstAccessibleMenuPath(activeSystem, permissionMenu, roleId)
+    : null;
 
   useEffect(() => {
     if (activeSystem?.key) {
@@ -62,6 +66,12 @@ export default function MainLayout() {
   }
 
   if (activeSystem && !isSharedUtilityPath && !canAccessMenuItem(requestedMenu, permissionMenu, roleId)) {
+    const isDashboardPath = pathname === activeSystem.defaultPath;
+
+    if (isDashboardPath && firstAccessibleMenuPath && firstAccessibleMenuPath !== pathname) {
+      return <Navigate to={firstAccessibleMenuPath} replace />;
+    }
+
     return (
       <Navigate
         to="/access-denied"
