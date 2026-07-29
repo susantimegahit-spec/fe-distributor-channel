@@ -9,6 +9,21 @@ class WarehouseServices {
     return DataService.post('/warehouses/search-qty-bin', { CustomQuery, WhsCode });
   }
 
+  getInventoryTransfer(From = '', To = '', WhsCode = '', ToWhsCode = '') {
+    return DataService.get('/warehouses/inventory-transfer', {
+      From,
+      To,
+      WhsCode,
+      ToWhsCode
+    });
+  }
+
+  getDetailInventoryTransfer(CustomQuery = '') {
+    return DataService.post('/warehouses/inventory-transfer/get-by-id', {
+      CustomQuery
+    });
+  }
+
   postInventory(payload) {
     return DataService.post('/warehouses/inventory-transfer', payload);
   }

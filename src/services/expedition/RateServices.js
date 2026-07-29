@@ -22,6 +22,10 @@ class RateServices {
     return DataService.post('ekspedisi/rates/upload', formData);
   }
 
+  updateRate(id, payload) {
+    return DataService.put(`ekspedisi/rates/${id}`, payload);
+  }
+
   deleteRate(id) {
     return DataService.delete(`ekspedisi/rates/${id}`);
   }

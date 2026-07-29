@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 // react-bootstrap
 import Badge from 'react-bootstrap/Badge';
@@ -23,6 +23,7 @@ import ProductionWarehouseServices from '../../../../services/production/Warehou
 import { useAlert } from '../../../../utils/alertContext';
 
 const today = new Date().toISOString().slice(0, 10);
+const firstDayOfMonth = `${today.slice(0, 8)}01`;
 const numberFormatter = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 6 });
 const selectStyles = {
   menuPortal: (base) => ({ ...base, zIndex: 1080 }),
@@ -37,18 +38,81 @@ const compactSelectStyles = {
 };
 
 const getResponseList = (response) => {
-  const payload = response?.data?.data;
+  const payload = response?.data?.data ?? response?.data;
 
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.data)) return payload.data;
   if (Array.isArray(payload?.items)) return payload.items;
   if (Array.isArray(payload?.rows)) return payload.rows;
+  if (Array.isArray(payload?.transfers)) return payload.transfers;
+  if (Array.isArray(payload?.inventory_transfers)) return payload.inventory_transfers;
+  if (Array.isArray(payload?.documents)) return payload.documents;
   if (Array.isArray(payload?.bins)) return payload.bins;
   if (Array.isArray(payload?.value)) return payload.value;
   if (Array.isArray(payload?.results)) return payload.results;
 
   return [];
 };
+
+const getResponseDetail = (response) => {
+  const payload = response?.data?.data ?? response?.data;
+
+  if (Array.isArray(payload)) return payload[0] || null;
+  if (Array.isArray(payload?.data)) return payload.data[0] || null;
+  if (Array.isArray(payload?.items)) return payload.items[0] || null;
+
+  return payload?.inventory_transfer || payload?.transfer || payload?.document || payload || null;
+};
+
+const formatTransferDate = (value) => {
+  if (!value) return '-';
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? String(value)
+    : date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
+const getTransferValue = (item, keys, fallback = '') =>
+  keys.map((key) => item?.[key]).find((value) => value !== undefined && value !== null && String(value).trim() !== '') ?? fallback;
+
+const normalizeInventoryTransfer = (item, index) => {
+  const lines = getTransferValue(item, ['Lines', 'lines', 'DocumentLines', 'document_lines'], []);
+  const lineList = Array.isArray(lines) ? lines : [];
+  const fromWarehouse = getTransferValue(item, [
+    'Filler',
+    'filler',
+    'FromWhsCode',
+    'from_whs_code',
+    'WhsCode',
+    'whs_code',
+    'fromWarehouse'
+  ]);
+  const toWarehouse = getTransferValue(item, ['ToWhsCode', 'to_whs_code', 'toWarehouse', 'to_warehouse']);
+
+  return {
+    id: getTransferValue(item, ['DocEntry', 'doc_entry', 'id'], index),
+    documentNumber: getTransferValue(item, ['DocNum', 'doc_num', 'document_number', 'number'], '-'),
+    postingDate: getTransferValue(item, ['DocDate', 'doc_date', 'posting_date', 'postingDate']),
+    documentDate: getTransferValue(item, ['DocDueDate', 'doc_due_date', 'document_date', 'documentDate']),
+    fromWarehouse,
+    toWarehouse,
+    comments: getTransferValue(item, ['Comments', 'comments', 'remark', 'remarks'], '-'),
+    status: getTransferValue(item, ['DocumentStatus', 'document_status', 'Status', 'status'], '-'),
+    totalItems: lineList.length || Number(getTransferValue(item, ['total_items', 'line_count', 'totalLines'], 0)) || 0,
+    raw: item
+  };
+};
+
+const normalizeTransferLine = (line, index) => ({
+  id: getTransferValue(line, ['LineNum', 'line_num', 'id'], index),
+  itemCode: getTransferValue(line, ['ItemCode', 'item_code', 'code'], '-'),
+  description: getTransferValue(line, ['Dscription', 'Description', 'description', 'item_name', 'ItemName'], '-'),
+  quantity: Number(getTransferValue(line, ['Quantity', 'quantity', 'qty'], 0)) || 0,
+  uom: getTransferValue(line, ['Uom', 'UomCode', 'UomName', 'uom', 'unit'], '-'),
+  fromWarehouse: getTransferValue(line, ['FromWhsCod', 'Filler', 'from_whs_code', 'WhsCode'], '-'),
+  toWarehouse: getTransferValue(line, ['WhsCode', 'ToWhsCode', 'to_whs_code'], '-')
+});
 
 const createLine = () => ({
   item: null,
@@ -191,6 +255,16 @@ export default function InventoryTransfer() {
   const [activeBinType, setActiveBinType] = useState('from');
   const [binRows, setBinRows] = useState([]);
   const [loadingBins, setLoadingBins] = useState(false);
+  const [inventoryTransfers, setInventoryTransfers] = useState([]);
+  const [loadingInventoryTransfers, setLoadingInventoryTransfers] = useState(false);
+  const [transferFilters, setTransferFilters] = useState({
+    From: firstDayOfMonth,
+    To: today,
+    WhsCode: null,
+    ToWhsCode: null
+  });
+  const [selectedTransferDetail, setSelectedTransferDetail] = useState(null);
+  const [loadingTransferDetailId, setLoadingTransferDetailId] = useState(null);
 
   const activeBinLine = activeBinLineIndex === null ? null : form.lines[activeBinLineIndex];
   const activeBinWarehouse = activeBinType === 'from' ? form.fromWarehouse : form.toWarehouse;
@@ -198,6 +272,82 @@ export default function InventoryTransfer() {
   const hasInvalidBinQuantity = binRows.some(
     (bin) => Number(bin.quantity) < 0 || (bin.availableQty > 0 && Number(bin.quantity) > bin.availableQty)
   );
+
+  const fetchInventoryTransfers = useCallback(
+    async (filters = transferFilters) => {
+      if (filters.From && filters.To && new Date(filters.From) > new Date(filters.To)) {
+        showAlert('From date cannot be after To date', 'warning');
+        return;
+      }
+
+      setLoadingInventoryTransfers(true);
+
+      try {
+        const response = await ProductionWarehouseServices.getInventoryTransfer(
+          filters.From || '',
+          filters.To || '',
+          filters.WhsCode?.value || '',
+          filters.ToWhsCode?.value || ''
+        );
+        if (response?.data?.success === false) {
+          throw new Error(response.data.message || 'Failed to fetch inventory transfers');
+        }
+
+        setInventoryTransfers(getResponseList(response).map(normalizeInventoryTransfer));
+      } catch (error) {
+        setInventoryTransfers([]);
+        showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch inventory transfers', 'danger');
+      } finally {
+        setLoadingInventoryTransfers(false);
+      }
+    },
+    [showAlert, transferFilters]
+  );
+
+  const fetchTransferWarehouseOptions = useCallback(async () => {
+    try {
+      const response = await WarehouseServices.getAllWarehouse('');
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch warehouses');
+
+      setWarehouseOptions(getResponseList(response).map(normalizeWarehouse).filter((option) => option.value));
+    } catch (error) {
+      setWarehouseOptions([]);
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch warehouses', 'danger');
+    }
+  }, [showAlert]);
+
+  useEffect(() => {
+    fetchTransferWarehouseOptions();
+    fetchInventoryTransfers();
+    // Initial page load uses the default current-month filters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleViewInventoryTransfer = async (transfer) => {
+    const docEntry = transfer?.id;
+    if (docEntry === undefined || docEntry === null || docEntry === '') {
+      showAlert('DocEntry was not found', 'danger');
+      return;
+    }
+
+    setLoadingTransferDetailId(docEntry);
+
+    try {
+      const response = await ProductionWarehouseServices.getDetailInventoryTransfer(docEntry);
+      if (response?.data?.success === false) {
+        throw new Error(response.data.message || 'Failed to fetch inventory transfer detail');
+      }
+
+      const detail = getResponseDetail(response);
+      if (!detail) throw new Error('Inventory transfer detail was not found');
+
+      setSelectedTransferDetail(detail);
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch inventory transfer detail', 'danger');
+    } finally {
+      setLoadingTransferDetailId(null);
+    }
+  };
 
   const fetchSeries = async (documentDate) => {
     if (!documentDate) {
@@ -530,6 +680,7 @@ export default function InventoryTransfer() {
       showAlert(response?.data?.message || 'Inventory transfer created successfully', 'success');
       setShowCreateModal(false);
       setForm(createInitialForm());
+      await fetchInventoryTransfers();
     } catch (error) {
       showAlert(error?.response?.data?.message || error?.message || 'Failed to create inventory transfer', 'danger');
     } finally {
@@ -553,16 +704,253 @@ export default function InventoryTransfer() {
           </Button>
         }
       >
-        <Card className="border border-dashed mb-0">
-          <Card.Body className="text-center py-5">
-            <span className="avtar avtar-xl bg-light-primary text-primary mb-3">
-              <i className="ti ti-transfer f-32" />
-            </span>
-            <h5 className="mb-2">Inventory Transfer</h5>
-            <p className="text-muted mb-0">Create a transfer to move item quantities between warehouses.</p>
+        <Card className="border mb-3">
+          <Card.Body>
+            <Row className="g-3 align-items-end">
+              <Col md={6} lg={2}>
+                <Form.Label>From</Form.Label>
+                <Form.Control
+                  type="date"
+                  value={transferFilters.From}
+                  onChange={(event) => setTransferFilters((current) => ({ ...current, From: event.target.value }))}
+                />
+              </Col>
+              <Col md={6} lg={2}>
+                <Form.Label>To</Form.Label>
+                <Form.Control
+                  type="date"
+                  value={transferFilters.To}
+                  onChange={(event) => setTransferFilters((current) => ({ ...current, To: event.target.value }))}
+                />
+              </Col>
+              <Col md={6} lg={3}>
+                <Form.Label>From Warehouse</Form.Label>
+                <Select
+                  styles={selectStyles}
+                  menuPortalTarget={document.body}
+                  value={transferFilters.WhsCode}
+                  options={warehouseOptions}
+                  onChange={(WhsCode) => setTransferFilters((current) => ({ ...current, WhsCode }))}
+                  placeholder="All source warehouses"
+                  isClearable
+                  isSearchable
+                />
+              </Col>
+              <Col md={6} lg={3}>
+                <Form.Label>To Warehouse</Form.Label>
+                <Select
+                  styles={selectStyles}
+                  menuPortalTarget={document.body}
+                  value={transferFilters.ToWhsCode}
+                  options={warehouseOptions}
+                  onChange={(ToWhsCode) => setTransferFilters((current) => ({ ...current, ToWhsCode }))}
+                  placeholder="All destination warehouses"
+                  isClearable
+                  isSearchable
+                />
+              </Col>
+              <Col lg={2}>
+                <Stack direction="horizontal" gap={2}>
+                  <Button
+                    className="flex-grow-1"
+                    disabled={loadingInventoryTransfers}
+                    onClick={() => fetchInventoryTransfers()}
+                  >
+                    <i className={loadingInventoryTransfers ? 'ti ti-loader-2 me-1' : 'ti ti-search me-1'} />
+                    {loadingInventoryTransfers ? 'Loading...' : 'Search'}
+                  </Button>
+                  <Button
+                    variant="light-secondary"
+                    disabled={loadingInventoryTransfers}
+                    aria-label="Reset inventory transfer filters"
+                    onClick={() => {
+                      const defaultFilters = { From: firstDayOfMonth, To: today, WhsCode: null, ToWhsCode: null };
+                      setTransferFilters(defaultFilters);
+                      fetchInventoryTransfers(defaultFilters);
+                    }}
+                  >
+                    <i className="ti ti-refresh" />
+                  </Button>
+                </Stack>
+              </Col>
+            </Row>
           </Card.Body>
         </Card>
+
+        <Table responsive hover className="mb-0 align-middle">
+          <thead>
+            <tr>
+              <th>Document No.</th>
+              <th>Document Date</th>
+              <th>From Warehouse</th>
+              <th>To Warehouse</th>
+              <th>Status</th>
+              <th className="text-end">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loadingInventoryTransfers ? (
+              <tr>
+                <td colSpan={6} className="text-center py-5">
+                  <span className="spinner-border spinner-border-sm text-primary me-2" role="status" />
+                  Loading inventory transfers...
+                </td>
+              </tr>
+            ) : inventoryTransfers.length ? (
+              inventoryTransfers.map((transfer, index) => {
+                const normalizedStatus = String(transfer.status).toUpperCase();
+                const statusVariant =
+                  normalizedStatus === 'O' || normalizedStatus === 'OPEN'
+                    ? 'success'
+                    : normalizedStatus === 'C' || normalizedStatus === 'CLOSED'
+                      ? 'secondary'
+                      : 'light';
+
+                return (
+                  <tr key={transfer.id || `${transfer.documentNumber}-${index}`}>
+                    <td className="fw-semibold">{transfer.documentNumber}</td>
+                    <td>{formatTransferDate(transfer.postingDate)}</td>
+                    <td>{transfer.fromWarehouse || '-'}</td>
+                    <td>{transfer.toWarehouse || '-'}</td>
+                    <td>
+                      <Badge bg={statusVariant} text={statusVariant === 'light' ? 'dark' : undefined}>
+                        {transfer.status}
+                      </Badge>
+                    </td>
+                    <td className="text-end">
+                      <Button
+                        size="sm"
+                        variant="outline-primary"
+                        disabled={loadingTransferDetailId !== null}
+                        onClick={() => handleViewInventoryTransfer(transfer)}
+                        aria-label={`View inventory transfer ${transfer.documentNumber}`}
+                      >
+                        <i
+                          className={
+                            String(loadingTransferDetailId) === String(transfer.id) ? 'ti ti-loader-2' : 'ti ti-eye'
+                          }
+                        />
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })
+            ) : (
+              <tr>
+                <td colSpan={6} className="text-center text-muted py-5">
+                  No inventory transfer data found for the selected filters.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </Table>
       </MainCard>
+
+      <Modal show={Boolean(selectedTransferDetail)} onHide={() => setSelectedTransferDetail(null)} centered size="xl">
+        <Modal.Header closeButton>
+          <Modal.Title>Inventory Transfer Detail</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedTransferDetail
+            ? (() => {
+                const detail = normalizeInventoryTransfer(selectedTransferDetail, 0);
+                const rawLines =
+                  selectedTransferDetail?.Lines ||
+                  selectedTransferDetail?.lines ||
+                  selectedTransferDetail?.DocumentLines ||
+                  selectedTransferDetail?.document_lines ||
+                  [];
+                const lines = (Array.isArray(rawLines) ? rawLines : []).map(normalizeTransferLine);
+
+                return (
+                  <Stack gap={4}>
+                    <Card className="border mb-0">
+                      <Card.Body>
+                        <Row className="g-3">
+                          <Col md={4}>
+                            <Form.Label className="f-12 text-muted">Document No.</Form.Label>
+                            <div className="fw-semibold">{detail.documentNumber}</div>
+                          </Col>
+                          <Col md={4}>
+                            <Form.Label className="f-12 text-muted">Document Date</Form.Label>
+                            <div>{formatTransferDate(detail.postingDate)}</div>
+                          </Col>
+                          <Col md={4}>
+                            <Form.Label className="f-12 text-muted">Status</Form.Label>
+                            <div>
+                              <Badge bg="light" text="dark">
+                                {detail.status}
+                              </Badge>
+                            </div>
+                          </Col>
+                          <Col md={4}>
+                            <Form.Label className="f-12 text-muted">From Warehouse</Form.Label>
+                            <div>{detail.fromWarehouse || '-'}</div>
+                          </Col>
+                          <Col md={4}>
+                            <Form.Label className="f-12 text-muted">To Warehouse</Form.Label>
+                            <div>{detail.toWarehouse || '-'}</div>
+                          </Col>
+                          <Col md={4}>
+                            <Form.Label className="f-12 text-muted">DocEntry</Form.Label>
+                            <div>{detail.id}</div>
+                          </Col>
+                        </Row>
+                      </Card.Body>
+                    </Card>
+
+                    <Card className="border mb-0">
+                      <Card.Header>
+                        <h6 className="mb-0">Items</h6>
+                      </Card.Header>
+                      <Card.Body className="p-0">
+                        <Table responsive hover className="mb-0 align-middle">
+                          <thead>
+                            <tr>
+                              <th>#</th>
+                              <th>Item Code</th>
+                              <th>Description</th>
+                              <th className="text-end">Quantity</th>
+                              <th>UOM</th>
+                              <th>From Warehouse</th>
+                              <th>To Warehouse</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {lines.length ? (
+                              lines.map((line, index) => (
+                                <tr key={line.id ?? index}>
+                                  <td>{index + 1}</td>
+                                  <td className="fw-semibold">{line.itemCode}</td>
+                                  <td>{line.description}</td>
+                                  <td className="text-end">{numberFormatter.format(line.quantity)}</td>
+                                  <td>{line.uom}</td>
+                                  <td>{line.fromWarehouse}</td>
+                                  <td>{line.toWarehouse}</td>
+                                </tr>
+                              ))
+                            ) : (
+                              <tr>
+                                <td colSpan={7} className="text-center text-muted py-4">
+                                  No item detail found.
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </Table>
+                      </Card.Body>
+                    </Card>
+                  </Stack>
+                );
+              })()
+            : null}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" onClick={() => setSelectedTransferDetail(null)}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       <Modal show={showCreateModal} onHide={closeCreateModal} fullscreen>
         <Modal.Header closeButton={!submitting}>

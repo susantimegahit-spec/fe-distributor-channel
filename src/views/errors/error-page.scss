@@ -79,6 +79,11 @@
   line-height: 0.8;
 }
 
+.app-error-card__status--wide {
+  font-size: clamp(54px, 10vw, 82px);
+  letter-spacing: -0.04em;
+}
+
 .app-error-card__icon {
   align-items: center;
   background: #fff;
@@ -168,6 +173,16 @@
   text-decoration: none;
 }
 
+.app-error-card__spin {
+  animation: app-error-spin 0.8s linear infinite;
+}
+
+@keyframes app-error-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .app-error-card__help {
   border-top: 1px solid #edf0f5;
   color: #8992a5;
@@ -199,4 +214,3 @@
     width: 100%;
   }
 }
-

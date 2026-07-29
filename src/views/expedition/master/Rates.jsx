@@ -9,6 +9,7 @@ import Card from 'react-bootstrap/Card';
 import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
 import Modal from 'react-bootstrap/Modal';
+import Overlay from 'react-bootstrap/Overlay';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
@@ -59,6 +60,64 @@ const formatNumber = (value) => {
   const number = Number(value);
 
   return Number.isFinite(number) ? number.toLocaleString('id-ID') : value;
+};
+
+const formatDateInput = (value) => {
+  if (!value) return '';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
+
+  return date.toISOString().slice(0, 10);
+};
+
+const emptyEditForm = {
+  origin: '',
+  destination: '',
+  expedition: '',
+  valid_from: '',
+  valid_until: '',
+  min_kg: '',
+  max_kg: '',
+  service_type: '',
+  rate: ''
+};
+
+const formatNumberInput = (value) => {
+  const digits = String(value ?? '').replace(/\D/g, '');
+  return digits ? Number(digits).toLocaleString('id-ID') : '';
+};
+
+const getRateDetails = (rate) => {
+  const warehouseCode =
+    getRateValue(rate?.warehouse, ['whs_code', 'warehouse_code', 'code']) ||
+    getRateValue(rate, ['origin', 'origin_code', 'warehouse_code', 'whs_code']);
+  const warehouseName =
+    getRateValue(rate?.warehouse, ['whs_name', 'warehouse_name', 'name']) ||
+    getRateValue(rate, ['warehouse_name', 'whs_name']);
+  const destination =
+    getRateValue(rate, ['destination', 'destination_code', 'destination_name']) ||
+    getRateValue(rate?.destination_data || rate?.destination, ['code', 'name', 'destination_name']);
+  const destinationCity =
+    getRateValue(rate, ['city', 'destination_city']) ||
+    getRateValue(rate?.destination_data || rate?.destination, ['city']);
+  const expedition =
+    getRateValue(rate, ['expedition_code', 'expedition']) ||
+    getRateValue(rate?.expedition_data || rate?.expedition, ['code', 'expedition_code']);
+
+  return {
+    warehouseCode,
+    warehouseName,
+    destination,
+    destinationCity,
+    expedition,
+    validFrom: formatDateInput(getRateValue(rate, ['valid_from', 'start_date', 'effective_from'])),
+    validUntil: formatDateInput(getRateValue(rate, ['valid_until', 'end_date', 'effective_until'])),
+    minKg: getRateValue(rate, ['min_kg', 'min_tonnage']),
+    maxKg: getRateValue(rate, ['max_kg', 'max_tonnage']),
+    serviceType: String(getRateValue(rate, ['service_type', 'service'])).toUpperCase(),
+    rate: getRateValue(rate, ['rate', 'amount', 'price'])
+  };
 };
 
 const parseExcelDate = (value) => {
@@ -207,6 +266,11 @@ export default function Rates() {
   const [loadingRates, setLoadingRates] = useState(true);
   const [rateToDelete, setRateToDelete] = useState(null);
   const [deletingRateId, setDeletingRateId] = useState(null);
+  const [rateToEdit, setRateToEdit] = useState(null);
+  const [rateToView, setRateToView] = useState(null);
+  const [rateActionMenu, setRateActionMenu] = useState(null);
+  const [editForm, setEditForm] = useState(emptyEditForm);
+  const [updatingRateId, setUpdatingRateId] = useState(null);
   const [expeditionOptions, setExpeditionOptions] = useState([]);
   const [loadingExpeditions, setLoadingExpeditions] = useState(false);
   const [selectedExpeditionCode, setSelectedExpeditionCode] = useState(() =>
@@ -481,6 +545,97 @@ export default function Rates() {
     }
   };
 
+  const openEditRate = (rate) => {
+    const details = getRateDetails(rate);
+
+    setRateToEdit(rate);
+    setEditForm({
+      origin: details.warehouseCode,
+      destination: details.destination,
+      expedition: details.expedition,
+      valid_from: details.validFrom,
+      valid_until: details.validUntil,
+      min_kg: details.minKg,
+      max_kg: details.maxKg,
+      service_type: details.serviceType,
+      rate: details.rate
+    });
+  };
+
+  const closeEditRate = () => {
+    if (updatingRateId) return;
+    setRateToEdit(null);
+    setEditForm(emptyEditForm);
+  };
+
+  const handleEditChange = (field) => (event) => {
+    setEditForm((current) => ({ ...current, [field]: event.target.value }));
+  };
+
+  const handleNumberEditChange = (field) => (event) => {
+    setEditForm((current) => ({ ...current, [field]: event.target.value.replace(/\D/g, '') }));
+  };
+
+  const handleUpdateRate = async (event) => {
+    event.preventDefault();
+
+    const rateId = rateToEdit?.id ?? rateToEdit?.rate_id;
+    if (!rateId) {
+      showAlert('Rate ID was not found', 'danger');
+      return;
+    }
+
+    const requiredFields = Object.entries(editForm).filter(([, value]) => String(value).trim() === '');
+    if (requiredFields.length) {
+      showAlert(`Please complete: ${requiredFields.map(([field]) => field.replaceAll('_', ' ')).join(', ')}`, 'danger');
+      return;
+    }
+
+    const minKg = Number(editForm.min_kg);
+    const maxKg = Number(editForm.max_kg);
+    const rateValue = Number(editForm.rate);
+    if (![minKg, maxKg, rateValue].every(Number.isFinite) || minKg < 0 || maxKg < minKg || rateValue < 0) {
+      showAlert('Check the weight range and rate values', 'danger');
+      return;
+    }
+
+    if (new Date(editForm.valid_until) < new Date(editForm.valid_from)) {
+      showAlert('Valid until must be on or after valid from', 'danger');
+      return;
+    }
+
+    setUpdatingRateId(rateId);
+
+    try {
+      const payload = {
+        origin: editForm.origin.trim(),
+        destination: editForm.destination.trim(),
+        expedition: editForm.expedition.trim(),
+        valid_from: editForm.valid_from,
+        valid_until: editForm.valid_until,
+        min_kg: minKg,
+        max_kg: maxKg,
+        service_type: editForm.service_type,
+        rate: rateValue
+      };
+      const response = await RateServices.updateRate(rateId, payload);
+      const isSuccessful = response?.status < 400 && response?.data?.success !== false;
+
+      if (!isSuccessful) {
+        throw new Error(response?.data?.message || 'Failed to update rate');
+      }
+
+      showAlert(response?.data?.message || 'Rate updated successfully', 'success');
+      setRateToEdit(null);
+      setEditForm(emptyEditForm);
+      await fetchRates();
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to update rate', 'danger');
+    } finally {
+      setUpdatingRateId(null);
+    }
+  };
+
   return (
     <>
       <MainCard
@@ -602,12 +757,29 @@ export default function Rates() {
                     <td className="text-end">
                       <Button
                         size="sm"
-                        variant="outline-danger"
-                        disabled={Boolean(deletingRateId)}
-                        onClick={() => setRateToDelete(rate)}
-                        aria-label={`Delete rate ${warehouseCode || ''} ${destination || ''}`.trim()}
+                        variant={
+                          String(rateActionMenu?.rate?.id ?? rateActionMenu?.rate?.rate_id) ===
+                          String(rate?.id ?? rate?.rate_id)
+                            ? 'primary'
+                            : 'outline-primary'
+                        }
+                        disabled={Boolean(deletingRateId || updatingRateId)}
+                        aria-label={`Open actions for rate ${warehouseCode || ''} ${destination || ''}`.trim()}
+                        aria-expanded={
+                          String(rateActionMenu?.rate?.id ?? rateActionMenu?.rate?.rate_id) ===
+                          String(rate?.id ?? rate?.rate_id)
+                        }
+                        onClick={(event) =>
+                          setRateActionMenu((current) =>
+                            String(current?.rate?.id ?? current?.rate?.rate_id) === String(rate?.id ?? rate?.rate_id)
+                              ? null
+                              : { rate, target: event.currentTarget }
+                          )
+                        }
                       >
-                        <i className="ti ti-trash" />
+                        <i className="ti ti-dots-vertical me-1" />
+                        Actions
+                        <i className="ti ti-chevron-down ms-1" />
                       </Button>
                     </td>
                   </tr>
@@ -623,6 +795,64 @@ export default function Rates() {
           </tbody>
         </Table>
       </MainCard>
+
+      <Overlay
+        show={Boolean(rateActionMenu)}
+        target={rateActionMenu?.target}
+        placement="top-end"
+        container={typeof document !== 'undefined' ? document.body : null}
+        containerPadding={8}
+        rootClose
+        rootCloseEvent="mousedown"
+        onHide={() => setRateActionMenu(null)}
+      >
+        {({ ref, style, placement }) => {
+          const rate = rateActionMenu?.rate;
+
+          return (
+            <div
+              ref={ref}
+              className="dropdown-menu show"
+              data-popper-placement={placement}
+              style={{ ...style, zIndex: 1080, minWidth: 180 }}
+            >
+              <button
+                type="button"
+                className="dropdown-item"
+                onClick={() => {
+                  setRateActionMenu(null);
+                  setRateToView(rate);
+                }}
+              >
+                <i className="ti ti-eye text-primary me-2" />
+                View
+              </button>
+              <button
+                type="button"
+                className="dropdown-item"
+                onClick={() => {
+                  setRateActionMenu(null);
+                  openEditRate(rate);
+                }}
+              >
+                <i className="ti ti-edit text-warning me-2" />
+                Edit
+              </button>
+              <button
+                type="button"
+                className="dropdown-item text-danger"
+                onClick={() => {
+                  setRateActionMenu(null);
+                  setRateToDelete(rate);
+                }}
+              >
+                <i className="ti ti-trash me-2" />
+                Delete
+              </button>
+            </div>
+          );
+        }}
+      </Overlay>
 
       <Modal show={showUpload} onHide={() => !uploadingExcel && setShowUpload(false)} centered>
         <Modal.Header closeButton={!uploadingExcel}>
@@ -666,6 +896,190 @@ export default function Rates() {
             Close
           </Button>
         </Modal.Footer>
+      </Modal>
+
+      <Modal show={Boolean(rateToView)} onHide={() => setRateToView(null)} centered size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>Rate Detail</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {rateToView ? (
+            <Row className="g-3">
+              {(() => {
+                const details = getRateDetails(rateToView);
+                const expeditionOption = expeditionOptions.find((option) => option.value === details.expedition);
+
+                return (
+                  <>
+                    <Col md={6}>
+                      <Form.Label className="f-12 text-muted">Origin</Form.Label>
+                      <div className="fw-semibold">{details.warehouseName || details.warehouseCode || '-'}</div>
+                      {details.warehouseName && details.warehouseCode ? (
+                        <small className="text-muted">{details.warehouseCode}</small>
+                      ) : null}
+                    </Col>
+                    <Col md={6}>
+                      <Form.Label className="f-12 text-muted">Destination</Form.Label>
+                      <div className="fw-semibold">{details.destination || '-'}</div>
+                      {details.destinationCity ? <small className="text-muted">{details.destinationCity}</small> : null}
+                    </Col>
+                    <Col md={6}>
+                      <Form.Label className="f-12 text-muted">Expedition</Form.Label>
+                      <div>{expeditionOption?.label || details.expedition || '-'}</div>
+                    </Col>
+                    <Col md={6}>
+                      <Form.Label className="f-12 text-muted">Service Type</Form.Label>
+                      <div>{details.serviceType || '-'}</div>
+                    </Col>
+                    <Col md={6}>
+                      <Form.Label className="f-12 text-muted">Valid From</Form.Label>
+                      <div>{details.validFrom || '-'}</div>
+                    </Col>
+                    <Col md={6}>
+                      <Form.Label className="f-12 text-muted">Valid Until</Form.Label>
+                      <div>{details.validUntil || '-'}</div>
+                    </Col>
+                    <Col md={4}>
+                      <Form.Label className="f-12 text-muted">Minimum Weight</Form.Label>
+                      <div>{details.minKg === '' ? '-' : `${formatNumber(details.minKg)} Kg`}</div>
+                    </Col>
+                    <Col md={4}>
+                      <Form.Label className="f-12 text-muted">Maximum Weight</Form.Label>
+                      <div>{details.maxKg === '' ? '-' : `${formatNumber(details.maxKg)} Kg`}</div>
+                    </Col>
+                    <Col md={4}>
+                      <Form.Label className="f-12 text-muted">Rate</Form.Label>
+                      <div className="fw-semibold text-primary">
+                        {details.rate === '' ? '-' : `Rp ${formatNumber(details.rate)}`}
+                      </div>
+                    </Col>
+                  </>
+                );
+              })()}
+            </Row>
+          ) : null}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" onClick={() => setRateToView(null)}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={Boolean(rateToEdit)} onHide={closeEditRate} centered size="lg">
+        <Form onSubmit={handleUpdateRate}>
+          <Modal.Header closeButton={!updatingRateId}>
+            <Modal.Title>Edit Rate</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <Row className="g-3">
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label>Origin</Form.Label>
+                  <Form.Control value={editForm.origin} onChange={handleEditChange('origin')} placeholder="Origin code" required />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label>Destination</Form.Label>
+                  <Form.Control
+                    value={editForm.destination}
+                    onChange={handleEditChange('destination')}
+                    placeholder="Destination"
+                    required
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label>Expedition</Form.Label>
+                  <Form.Select value={editForm.expedition} onChange={handleEditChange('expedition')} required>
+                    <option value="">Select expedition</option>
+                    {expeditionOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                    {editForm.expedition && !expeditionOptions.some((option) => option.value === editForm.expedition) ? (
+                      <option value={editForm.expedition}>{editForm.expedition}</option>
+                    ) : null}
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label>Service Type</Form.Label>
+                  <Form.Select value={editForm.service_type} onChange={handleEditChange('service_type')} required>
+                    <option value="">Select service type</option>
+                    <option value="RIT">RIT</option>
+                    <option value="TONASE">TONASE</option>
+                    <option value="FEET">FEET</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label>Valid From</Form.Label>
+                  <Form.Control type="date" value={editForm.valid_from} onChange={handleEditChange('valid_from')} required />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label>Valid Until</Form.Label>
+                  <Form.Control type="date" value={editForm.valid_until} onChange={handleEditChange('valid_until')} required />
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group>
+                  <Form.Label>Minimum Weight (Kg)</Form.Label>
+                  <Form.Control
+                    type="text"
+                    inputMode="numeric"
+                    value={formatNumberInput(editForm.min_kg)}
+                    onChange={handleNumberEditChange('min_kg')}
+                    placeholder="0"
+                    required
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group>
+                  <Form.Label>Maximum Weight (Kg)</Form.Label>
+                  <Form.Control
+                    type="text"
+                    inputMode="numeric"
+                    value={formatNumberInput(editForm.max_kg)}
+                    onChange={handleNumberEditChange('max_kg')}
+                    placeholder="0"
+                    required
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group>
+                  <Form.Label>Rate</Form.Label>
+                  <Form.Control
+                    type="text"
+                    inputMode="numeric"
+                    value={formatNumberInput(editForm.rate)}
+                    onChange={handleNumberEditChange('rate')}
+                    placeholder="0"
+                    required
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="light-secondary" disabled={Boolean(updatingRateId)} onClick={closeEditRate}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={Boolean(updatingRateId)}>
+              <i className={updatingRateId ? 'ti ti-loader-2 me-1' : 'ti ti-device-floppy me-1'} />
+              {updatingRateId ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </Modal.Footer>
+        </Form>
       </Modal>
 
       <Modal show={Boolean(rateToDelete)} onHide={() => !deletingRateId && setRateToDelete(null)} centered>

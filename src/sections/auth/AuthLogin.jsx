@@ -220,7 +220,7 @@ export default function AuthLoginForm({ className }) {
           <div className="sm-login-logo-wrap">
             <Image src={SusantiMegahLogo} alt="Susanti Megah" className="sm-login-logo" />
           </div>
-          <h4>Sign in to Customer Portal</h4>
+          <h4>Sign in to SM-Connect</h4>
         </div>
         {/* <span className="sm-login-access">OPERATOR ACCESS</span> */}
         <p>Enter your account credentials to continue to the workspace assigned to your role.</p>

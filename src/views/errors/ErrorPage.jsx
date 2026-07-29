@@ -4,6 +4,13 @@ import Button from 'react-bootstrap/Button';
 import './error-page.scss';
 
 const ERROR_CONTENT = {
+  NETWORK: {
+    icon: 'ti-wifi-off',
+    displayStatus: 'OFFLINE',
+    eyebrow: 'Koneksi terputus',
+    title: 'Ups, jaringan sedang bermasalah',
+    description: 'Periksa koneksi internet Anda, lalu coba muat halaman kembali.'
+  },
   400: {
     icon: 'ti-alert-triangle',
     eyebrow: 'Permintaan tidak valid',
@@ -77,7 +84,7 @@ const joinBasePath = (path) => {
   return `${normalizedBase}${normalizedPath}` || '/';
 };
 
-export const getErrorContent = (status) => ERROR_CONTENT[Number(status)] || ERROR_CONTENT[500];
+export const getErrorContent = (status) => ERROR_CONTENT[String(status).toUpperCase()] || ERROR_CONTENT[Number(status)] || ERROR_CONTENT[500];
 
 export default function ErrorPage({
   status = 500,
@@ -88,9 +95,13 @@ export default function ErrorPage({
   actionHref,
   showPrimaryAction = true,
   showBackAction = true,
-  showRetryAction
+  showRetryAction,
+  onRetry,
+  isRetrying = false,
+  retryLabel
 }) {
   const content = getErrorContent(status);
+  const displayStatus = content.displayStatus ?? status;
   const resolvedActionLabel = actionLabel ?? content.actionLabel ?? 'Kembali ke beranda';
   const resolvedActionHref = actionHref ?? content.actionHref ?? '/';
   const canGoBack = typeof window !== 'undefined' && window.history.length > 1;
@@ -109,7 +120,9 @@ export default function ErrorPage({
         />
 
         <div className="app-error-card__visual" aria-hidden="true">
-          <span className="app-error-card__status">{status}</span>
+          <span className={`app-error-card__status ${String(displayStatus).length > 3 ? 'app-error-card__status--wide' : ''}`}>
+            {displayStatus}
+          </span>
           <span className="app-error-card__icon">
             <i className={`ti ${content.icon}`} />
           </span>
@@ -135,9 +148,13 @@ export default function ErrorPage({
           )}
 
           {shouldShowRetry && (
-            <Button variant="outline-secondary" onClick={() => window.location.reload()}>
-              <i className="ti ti-refresh me-2" aria-hidden="true" />
-              Muat ulang
+            <Button
+              variant="outline-secondary"
+              disabled={isRetrying}
+              onClick={onRetry || (() => window.location.reload())}
+            >
+              <i className={`ti ${isRetrying ? 'ti-loader-2 app-error-card__spin' : 'ti-refresh'} me-2`} aria-hidden="true" />
+              {isRetrying ? 'Memeriksa koneksi...' : retryLabel || 'Muat ulang'}
             </Button>
           )}
 
@@ -166,5 +183,8 @@ ErrorPage.propTypes = {
   actionHref: PropTypes.string,
   showPrimaryAction: PropTypes.bool,
   showBackAction: PropTypes.bool,
-  showRetryAction: PropTypes.bool
+  showRetryAction: PropTypes.bool,
+  onRetry: PropTypes.func,
+  isRetrying: PropTypes.bool,
+  retryLabel: PropTypes.string
 };

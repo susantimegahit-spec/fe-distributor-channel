@@ -16,7 +16,7 @@ const customerPortalMenu = [
         value: 'dashboard-overview',
         label: 'Dashboard',
         selected: true,
-        icon: 'ti ti-dashboard',
+        icon: 'ti ti-building-store',
         url: withBasePath('/dashboard')
       }
     ]

@@ -40,7 +40,9 @@ export default function LoginPage() {
               {/* <h1>
                 Distributor <span>operations</span> control room.
               </h1> */}
-              <p>Secure access to manage sales orders, inventory, customers, and daily reports from one workspace.</p>
+              <p>
+                One secure workspace for Customer Portal, Expedition, Picking List, and Production operations.
+              </p>
             </div>
             <div className="sm-auth-products" aria-label="Product brands">
               {productLogos.map((product) => (
@@ -51,24 +53,31 @@ export default function LoginPage() {
             </div>
             <div className="sm-auth-highlights" aria-label="Dashboard features">
               <div>
+                <i className="ti ti-building-store" />
+                <span>
+                  <strong>Customer Portal</strong>
+                  <small>Orders and customer data</small>
+                </span>
+              </div>
+              <div>
+                <i className="ti ti-truck-delivery" />
+                <span>
+                  <strong>Expedition</strong>
+                  <small>Routes and shipping rates</small>
+                </span>
+              </div>
+              <div>
                 <i className="ti ti-clipboard-list" />
                 <span>
-                  <strong>Sales Order</strong>
-                  <small>Order processing</small>
+                  <strong>Picking List</strong>
+                  <small>Warehouse fulfillment</small>
                 </span>
               </div>
               <div>
-                <i className="ti ti-building-warehouse" />
+                <i className="ti ti-building-factory-2" />
                 <span>
-                  <strong>Inventory</strong>
-                  <small>Stock and warehouse</small>
-                </span>
-              </div>
-              <div>
-                <i className="ti ti-shield-check" />
-                <span>
-                  <strong>Secure Access</strong>
-                  <small>Role based</small>
+                  <strong>Production</strong>
+                  <small>Planning and operations</small>
                 </span>
               </div>
             </div>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
-import SaltyImage from 'assets/images/salty2.png';
 import { NETWORK_UNAVAILABLE_EVENT } from 'utils/networkEvents';
+import ErrorPage from 'views/errors/ErrorPage';
 
 export default function NetworkStatusGuard({ children }) {
   const [networkIssue, setNetworkIssue] = useState(() => !navigator.onLine);
@@ -34,28 +34,19 @@ export default function NetworkStatusGuard({ children }) {
     window.location.reload();
   };
 
-  return (
-    <>
-      {children}
-      {networkIssue && (
-        <div className="sm-network-status" role="alert" aria-live="assertive">
-          <div className="sm-network-status-card">
-            <div className="sm-network-status-visual" aria-hidden="true">
-              <span className="sm-network-status-signal signal-one" />
-              <span className="sm-network-status-signal signal-two" />
-              <span className="sm-network-status-signal signal-three" />
-              <img src={SaltyImage} alt="" />
-            </div>
-            <span className="sm-network-status-label">Koneksi terputus</span>
-            <h1>Ups, jaringan sedang bermasalah</h1>
-            <p>Periksa koneksi internet Anda, lalu tekan tombol di bawah untuk mencoba memuat halaman kembali.</p>
-            <button type="button" onClick={handleRetry} disabled={isRetrying}>
-              <i className={`ti ${isRetrying ? 'ti-loader-2 sm-network-status-spin' : 'ti-refresh'}`} />
-              {isRetrying ? 'Memeriksa koneksi...' : 'Coba lagi'}
-            </button>
-          </div>
-        </div>
-      )}
-    </>
-  );
+  if (networkIssue) {
+    return (
+      <ErrorPage
+        status="NETWORK"
+        showPrimaryAction={false}
+        showBackAction={false}
+        showRetryAction
+        onRetry={handleRetry}
+        isRetrying={isRetrying}
+        retryLabel="Coba lagi"
+      />
+    );
+  }
+
+  return children;
 }

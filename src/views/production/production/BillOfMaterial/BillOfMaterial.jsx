@@ -8,6 +8,7 @@ import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
 import InputGroup from 'react-bootstrap/InputGroup';
 import Modal from 'react-bootstrap/Modal';
+import Overlay from 'react-bootstrap/Overlay';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
@@ -47,6 +48,14 @@ const createInitialForm = () => ({
 const selectStyles = {
   menu: (base) => ({ ...base, zIndex: 1060 }),
   menuPortal: (base) => ({ ...base, zIndex: 1070 })
+};
+
+const actionPopperConfig = {
+  modifiers: [
+    { name: 'offset', options: { offset: [0, 8] } },
+    { name: 'preventOverflow', options: { boundary: 'viewport', padding: 8 } },
+    { name: 'flip', options: { fallbackPlacements: ['top-end', 'bottom-end'] } }
+  ]
 };
 
 const COMPONENT_TYPE_ITEM = '4';
@@ -137,6 +146,7 @@ export default function BillOfMaterial() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [selectedBom, setSelectedBom] = useState(null);
   const [duplicatingId, setDuplicatingId] = useState(null);
+  const [actionMenu, setActionMenu] = useState(null);
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [productOptions, setProductOptions] = useState([]);
   const [warehouseOptions, setWarehouseOptions] = useState([]);
@@ -539,43 +549,21 @@ export default function BillOfMaterial() {
                   <td>{item.warehouse}</td>
                   <td>{item.alternate || '-'}</td>
                   <td className="text-center">
-                    <Stack direction="horizontal" gap={1} className="justify-content-center">
-                      <Button
-                        variant="outline-info"
-                        size="sm"
-                        className="rounded-circle p-0 d-inline-flex align-items-center justify-content-center"
-                        style={{ width: 32, height: 32 }}
-                        onClick={() => handleDuplicate(item)}
-                        disabled={duplicatingId !== null}
-                        aria-label="Duplicate Bill of Material"
-                      >
-                        {duplicatingId === item.id ? (
-                          <span className="spinner-border spinner-border-sm" aria-hidden="true" />
-                        ) : (
-                          <i className="ti ti-copy" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="outline-primary"
-                        size="sm"
-                        className="rounded-circle p-0 d-inline-flex align-items-center justify-content-center"
-                        style={{ width: 32, height: 32 }}
-                        onClick={() => handleOpenDetail(item)}
-                        aria-label="View Bill of Material detail"
-                      >
-                        <i className="ti ti-eye" />
-                      </Button>
-                      <Button
-                        variant="outline-danger"
-                        size="sm"
-                        className="rounded-circle p-0 d-inline-flex align-items-center justify-content-center"
-                        style={{ width: 32, height: 32 }}
-                        onClick={() => handleDelete(item)}
-                        aria-label="Delete Bill of Material"
-                      >
-                        <i className="ti ti-trash" />
-                      </Button>
-                    </Stack>
+                    <Button
+                      size="sm"
+                      variant={String(actionMenu?.item?.id) === String(item.id) ? 'primary' : 'outline-primary'}
+                      aria-label={`Open actions for Bill of Material ${item.productNo || ''}`}
+                      aria-expanded={String(actionMenu?.item?.id) === String(item.id)}
+                      onClick={(event) =>
+                        setActionMenu((current) =>
+                          String(current?.item?.id) === String(item.id) ? null : { item, target: event.currentTarget }
+                        )
+                      }
+                    >
+                      <i className="ti ti-dots-vertical me-1" />
+                      Actions
+                      <i className="ti ti-chevron-down ms-1" />
+                    </Button>
                   </td>
                 </tr>
               ))
@@ -599,6 +587,74 @@ export default function BillOfMaterial() {
           </tbody>
         </Table>
       </MainCard>
+
+      <Overlay
+        show={Boolean(actionMenu)}
+        target={actionMenu?.target}
+        placement="top-end"
+        container={typeof document !== 'undefined' ? document.body : null}
+        containerPadding={8}
+        popperConfig={actionPopperConfig}
+        rootClose
+        rootCloseEvent="mousedown"
+        onHide={() => setActionMenu(null)}
+      >
+        {({ ref, style, placement }) => {
+          const item = actionMenu?.item;
+
+          return (
+            <div
+              ref={ref}
+              className="dropdown-menu show"
+              data-popper-placement={placement}
+              style={{ ...style, zIndex: 1080, minWidth: 190 }}
+            >
+              <button
+                type="button"
+                className="dropdown-item"
+                disabled={loadingDetail}
+                onClick={() => {
+                  setActionMenu(null);
+                  if (item) handleOpenDetail(item);
+                }}
+              >
+                <i className="ti ti-eye text-primary me-2" />
+                Detail
+              </button>
+              <button
+                type="button"
+                className="dropdown-item"
+                disabled={duplicatingId !== null}
+                onClick={() => {
+                  setActionMenu(null);
+                  if (item) handleDuplicate(item);
+                }}
+              >
+                <i
+                  className={
+                    duplicatingId === item?.id
+                      ? 'ti ti-loader-2 text-info me-2'
+                      : 'ti ti-copy text-info me-2'
+                  }
+                />
+                Duplicate
+              </button>
+              <div className="dropdown-divider" />
+              <button
+                type="button"
+                className="dropdown-item text-danger"
+                onClick={() => {
+                  setActionMenu(null);
+                  if (item) handleDelete(item);
+                }}
+              >
+                <i className="ti ti-trash me-2" />
+                Delete
+              </button>
+            </div>
+          );
+        }}
+      </Overlay>
 
       <Modal
         show={showDetailModal}
