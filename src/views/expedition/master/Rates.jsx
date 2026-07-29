@@ -205,6 +205,8 @@ export default function Rates() {
   const [uploadingExcel, setUploadingExcel] = useState(false);
   const [rates, setRates] = useState([]);
   const [loadingRates, setLoadingRates] = useState(true);
+  const [rateToDelete, setRateToDelete] = useState(null);
+  const [deletingRateId, setDeletingRateId] = useState(null);
   const [expeditionOptions, setExpeditionOptions] = useState([]);
   const [loadingExpeditions, setLoadingExpeditions] = useState(false);
   const [selectedExpeditionCode, setSelectedExpeditionCode] = useState(() =>
@@ -452,6 +454,33 @@ export default function Rates() {
     }
   };
 
+  const handleDeleteRate = async () => {
+    const rateId = rateToDelete?.id ?? rateToDelete?.rate_id;
+    if (!rateId) {
+      showAlert('Rate ID was not found', 'danger');
+      return;
+    }
+
+    setDeletingRateId(rateId);
+
+    try {
+      const response = await RateServices.deleteRate(rateId);
+      const isSuccessful = response?.status < 400 && response?.data?.success !== false;
+
+      if (!isSuccessful) {
+        throw new Error(response?.data?.message || 'Failed to delete rate');
+      }
+
+      showAlert(response?.data?.message || 'Rate deleted successfully', 'success');
+      setRateToDelete(null);
+      await fetchRates();
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to delete rate', 'danger');
+    } finally {
+      setDeletingRateId(null);
+    }
+  };
+
   return (
     <>
       <MainCard
@@ -500,12 +529,13 @@ export default function Rates() {
               <th>Weight Range (Kg)</th>
               <th>Service Type</th>
               <th className="text-end">Rate</th>
+              <th className="text-end">Action</th>
             </tr>
           </thead>
           <tbody>
             {loadingRates ? (
               <tr>
-                <td colSpan={6}>
+                <td colSpan={7}>
                   <LoaderData />
                 </td>
               </tr>
@@ -569,12 +599,23 @@ export default function Rates() {
                     <td>{weightRange === '' ? '-' : weightRange}</td>
                     <td>{serviceType || '-'}</td>
                     <td className="text-end">{rateValue === '' ? '-' : `Rp ${formatNumber(rateValue)}`}</td>
+                    <td className="text-end">
+                      <Button
+                        size="sm"
+                        variant="outline-danger"
+                        disabled={Boolean(deletingRateId)}
+                        onClick={() => setRateToDelete(rate)}
+                        aria-label={`Delete rate ${warehouseCode || ''} ${destination || ''}`.trim()}
+                      >
+                        <i className="ti ti-trash" />
+                      </Button>
+                    </td>
                   </tr>
                 );
               })
             ) : (
               <tr>
-                <td colSpan={6} className="text-center text-muted py-5">
+                <td colSpan={7} className="text-center text-muted py-5">
                   No rates data found.
                 </td>
               </tr>
@@ -623,6 +664,37 @@ export default function Rates() {
         <Modal.Footer>
           <Button variant="light-secondary" onClick={() => setShowUpload(false)} disabled={uploadingExcel}>
             Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={Boolean(rateToDelete)} onHide={() => !deletingRateId && setRateToDelete(null)} centered>
+        <Modal.Header closeButton={!deletingRateId}>
+          <Modal.Title>Delete Rate</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="mb-2">Are you sure you want to delete this shipping rate?</p>
+          <div className="rounded border bg-light p-3">
+            <div className="fw-semibold">
+              {getRateValue(rateToDelete, ['origin', 'warehouse_name', 'whs_name']) || 'Origin'}
+              {' → '}
+              {getRateValue(rateToDelete, ['destination', 'destination_name']) || 'Destination'}
+            </div>
+            <small className="text-muted">
+              {getRateValue(rateToDelete, ['service_type', 'service']) || 'Service'}
+              {' · '}
+              Rp {formatNumber(getRateValue(rateToDelete, ['rate', 'amount', 'price']) || 0)}
+            </small>
+          </div>
+          <p className="text-danger f-12 mt-3 mb-0">This action cannot be undone.</p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" disabled={Boolean(deletingRateId)} onClick={() => setRateToDelete(null)}>
+            Cancel
+          </Button>
+          <Button variant="danger" disabled={Boolean(deletingRateId)} onClick={handleDeleteRate}>
+            <i className={deletingRateId ? 'ti ti-loader-2 me-1' : 'ti ti-trash me-1'} />
+            {deletingRateId ? 'Deleting...' : 'Delete Rate'}
           </Button>
         </Modal.Footer>
       </Modal>

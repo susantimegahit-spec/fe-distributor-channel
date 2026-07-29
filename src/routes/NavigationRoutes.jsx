@@ -18,6 +18,10 @@ const NavigationRoutes = {
   ErrorBoundary: NotFound,
   children: [
     {
+      path: 'access-denied',
+      element: <AccessDenied />
+    },
+    {
       path: '/',
       element: <DashboardLayout />,
       children: [
@@ -28,10 +32,6 @@ const NavigationRoutes = {
         {
           path: 'systems',
           element: <SystemSelector />
-        },
-        {
-          path: 'access-denied',
-          element: <AccessDenied />
         },
         {
           path: 'customer-portal/dashboard',

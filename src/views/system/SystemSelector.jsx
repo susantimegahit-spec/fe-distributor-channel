@@ -9,7 +9,6 @@ import Row from 'react-bootstrap/Row';
 // project-imports
 import { getCookies } from '../../utils/cookies';
 import { normalizeAccessibleSystems, systems } from '../../systems';
-import AccessDenied from './AccessDenied';
 import './system-selector.scss';
 
 export default function SystemSelector() {
@@ -19,7 +18,13 @@ export default function SystemSelector() {
   const defaultSystem = availableSystems[0];
 
   if (!availableSystems.length) {
-    return <AccessDenied showSystemSelector={false} />;
+    return (
+      <Navigate
+        to="/access-denied"
+        replace
+        state={{ requestedSystem: 'sistem yang tersedia', noAvailableSystems: true }}
+      />
+    );
   }
 
   if (availableSystems.length > 1) {

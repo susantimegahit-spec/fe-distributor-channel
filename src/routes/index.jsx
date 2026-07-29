@@ -11,6 +11,9 @@ import ExpeditionRoutes from './ExpeditionRoutes';
 import PickingListRoutes from './PickingListRoutes';
 import ProductionRoutes from './ProductionRoutes';
 import { NotFoundPage } from '../views/ErrorBoundary';
+import ErrorPage from '../views/errors/ErrorPage';
+
+const ERROR_STATUSES = [400, 401, 403, 404, 408, 429, 500, 502, 503, 504];
 
 // ==============================|| ROUTING RENDER ||============================== //
 const router = createBrowserRouter(
@@ -30,6 +33,14 @@ const router = createBrowserRouter(
     PickingListRoutes,
     ProductionRoutes,
     OtherRoutes,
+    ...ERROR_STATUSES.map((status) => ({
+      path: `/${status}`,
+      element: <ErrorPage status={status} />
+    })),
+    {
+      path: '/maintenance',
+      element: <ErrorPage status={503} />
+    },
     { path: '*', element: <NotFoundPage /> }
     // MenuRoutes
   ],

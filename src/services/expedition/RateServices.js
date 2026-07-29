@@ -21,6 +21,10 @@ class RateServices {
 
     return DataService.post('ekspedisi/rates/upload', formData);
   }
+
+  deleteRate(id) {
+    return DataService.delete(`ekspedisi/rates/${id}`);
+  }
 }
 
 export default new RateServices();

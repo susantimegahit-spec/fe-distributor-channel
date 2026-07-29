@@ -1,0 +1,202 @@
+.app-error-page {
+  --error-ink: #17233d;
+  --error-muted: #667085;
+  --error-brand: #0d6efd;
+  align-items: center;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(13, 110, 253, 0.1), transparent 30%),
+    radial-gradient(circle at 88% 82%, rgba(33, 193, 166, 0.1), transparent 28%),
+    linear-gradient(145deg, #f8faff 0%, #f4f7fb 52%, #f9fbfd 100%);
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  overflow: hidden;
+  padding: 32px 20px;
+  position: relative;
+}
+
+.app-error-page__glow {
+  border: 1px solid rgba(13, 110, 253, 0.12);
+  border-radius: 50%;
+  height: 340px;
+  position: absolute;
+  width: 340px;
+
+  &::after {
+    border: inherit;
+    border-radius: inherit;
+    content: '';
+    inset: 44px;
+    position: absolute;
+  }
+}
+
+.app-error-page__glow--one {
+  left: -180px;
+  top: -160px;
+}
+
+.app-error-page__glow--two {
+  bottom: -190px;
+  right: -170px;
+}
+
+.app-error-card {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(23, 35, 61, 0.08);
+  border-radius: 24px;
+  box-shadow: 0 24px 70px rgba(39, 55, 85, 0.12);
+  max-width: 660px;
+  padding: 42px 52px 36px;
+  position: relative;
+  text-align: center;
+  width: 100%;
+  z-index: 1;
+}
+
+.app-error-card__brand {
+  display: block;
+  height: 34px;
+  margin: 0 auto 28px;
+  max-width: 180px;
+  object-fit: contain;
+}
+
+.app-error-card__visual {
+  align-items: center;
+  display: inline-flex;
+  justify-content: center;
+  margin-bottom: 20px;
+  min-height: 128px;
+  position: relative;
+}
+
+.app-error-card__status {
+  color: rgba(13, 110, 253, 0.09);
+  font-size: clamp(96px, 18vw, 148px);
+  font-weight: 800;
+  letter-spacing: -0.08em;
+  line-height: 0.8;
+}
+
+.app-error-card__icon {
+  align-items: center;
+  background: #fff;
+  border: 1px solid rgba(13, 110, 253, 0.13);
+  border-radius: 18px;
+  box-shadow: 0 12px 28px rgba(13, 110, 253, 0.16);
+  color: var(--error-brand);
+  display: flex;
+  font-size: 34px;
+  height: 70px;
+  justify-content: center;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%) rotate(-4deg);
+  width: 70px;
+}
+
+.app-error-card__eyebrow {
+  color: var(--error-brand);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  margin: 0 0 10px;
+  text-transform: uppercase;
+}
+
+.app-error-card h1 {
+  color: var(--error-ink);
+  font-size: clamp(26px, 5vw, 36px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin-bottom: 12px;
+}
+
+.app-error-card__description {
+  color: var(--error-muted);
+  font-size: 15px;
+  line-height: 1.7;
+  margin: 0 auto;
+  max-width: 510px;
+}
+
+.app-error-card__detail {
+  align-items: flex-start;
+  background: #f7f9fc;
+  border: 1px solid #e8edf5;
+  border-radius: 12px;
+  color: #596780;
+  display: flex;
+  font-size: 13px;
+  gap: 9px;
+  line-height: 1.55;
+  margin-top: 22px;
+  padding: 12px 14px;
+  text-align: left;
+}
+
+.app-error-card__detail i {
+  color: var(--error-brand);
+  font-size: 18px;
+  margin-top: 1px;
+}
+
+.app-error-card__actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 28px;
+}
+
+.app-error-card__actions .btn {
+  border-radius: 10px;
+  font-weight: 600;
+  min-height: 44px;
+  padding: 10px 18px;
+}
+
+.app-error-card__actions .btn-primary {
+  box-shadow: 0 8px 18px rgba(13, 110, 253, 0.2);
+}
+
+.app-error-card__back {
+  color: #596780;
+  text-decoration: none;
+}
+
+.app-error-card__help {
+  border-top: 1px solid #edf0f5;
+  color: #8992a5;
+  font-size: 12px;
+  margin: 30px 0 0;
+  padding-top: 20px;
+}
+
+@media (max-width: 575.98px) {
+  .app-error-page {
+    padding: 16px;
+  }
+
+  .app-error-card {
+    border-radius: 18px;
+    padding: 32px 20px 26px;
+  }
+
+  .app-error-card__brand {
+    margin-bottom: 24px;
+  }
+
+  .app-error-card__actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .app-error-card__actions .btn {
+    width: 100%;
+  }
+}
+

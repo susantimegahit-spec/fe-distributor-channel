@@ -1,36 +1,24 @@
 import * as React from 'react';
-import { Button } from 'react-bootstrap';
 import { isRouteErrorResponse, useRouteError } from 'react-router-dom';
+import PropTypes from 'prop-types';
+import ErrorPage from './errors/ErrorPage';
 
-function ErrorFallback({ title = 'Something went wrong', message = 'Please try again or return to the dashboard.' }) {
-  return (
-    <div className="text-center">
-      <div className="ti ti-error-404" style={{ fontSize: 200 }}></div>
-      <h2>{title}</h2>
-      <p className="text-muted mb-4">{message}</p>
-      <Button variant="secondary" href="/">
-        Back to Home Page
-      </Button>
-    </div>
-  );
+function ErrorFallback({ status = 500, title, message }) {
+  return <ErrorPage status={status} title={title} description={message} />;
 }
 
 export function RouteErrorBoundary() {
   const error = useRouteError();
 
   if (isRouteErrorResponse(error)) {
-    const title = error.status === 404 ? 'Page not found' : `${error.status} ${error.statusText}`;
-    const message =
-      error.status === 404 ? 'The page you are looking for is not available.' : error.data?.message || 'Unable to load this page.';
-
-    return <ErrorFallback title={title} message={message} />;
+    return <ErrorFallback status={error.status} message={error.data?.message} />;
   }
 
   return <ErrorFallback />;
 }
 
 export function NotFoundPage() {
-  return <ErrorFallback title="Page not found" message="The page you are looking for is not available." />;
+  return <ErrorFallback status={404} />;
 }
 
 class ErrorBoundary extends React.Component {
@@ -40,8 +28,7 @@ class ErrorBoundary extends React.Component {
   }
 
   static getDerivedStateFromError(error) {
-    console.error("Logged Error:", error);
-    // Update state so the next render will show the fallback UI.
+    console.error('Logged Error:', error);
     return { hasError: true };
   }
 
@@ -50,12 +37,21 @@ class ErrorBoundary extends React.Component {
   }
   render() {
     if (this.state.hasError) {
-      // You can render any custom fallback UI
-      return <ErrorFallback />;
+      return <ErrorFallback status={500} />;
     }
 
     return this.props.children;
   }
 }
+
+ErrorFallback.propTypes = {
+  status: PropTypes.oneOfType([PropTypes.number, PropTypes.string]),
+  title: PropTypes.string,
+  message: PropTypes.string
+};
+
+ErrorBoundary.propTypes = {
+  children: PropTypes.node.isRequired
+};
 
 export default ErrorBoundary;
