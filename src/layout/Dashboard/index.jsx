@@ -8,7 +8,13 @@ import Header from './Header';
 import Breadcrumbs from 'components/Breadcrumbs';
 import FloatingFaq from 'components/FloatingFaq';
 import NavigationScroll from 'components/NavigationScroll';
-import { getSystemByPathname, normalizeAccessibleSystems } from '../../systems';
+import {
+  canAccessMenuItem,
+  getMenuItemByPathname,
+  getSystemByPathname,
+  isAdministratorRole,
+  normalizeAccessibleSystems
+} from '../../systems';
 import { getCookies } from '../../utils/cookies';
 
 // ==============================|| MAIN LAYOUT ||============================== //
@@ -16,6 +22,9 @@ import { getCookies } from '../../utils/cookies';
 export default function MainLayout() {
   const { pathname } = useLocation();
   const activeSystem = getSystemByPathname(pathname);
+  const roleId = getCookies('role');
+  const permissionMenu = getCookies('menu') || [];
+  const isAdministrator = isAdministratorRole(roleId);
   const allowedSystemKeys = new Set(normalizeAccessibleSystems(getCookies('system')));
   const isSystemSelectorPath = pathname === '/systems';
   const isAccessDeniedPath = pathname === '/access-denied';
@@ -25,8 +34,10 @@ export default function MainLayout() {
     pathname === '/notifications' ||
     pathname === '/setting' ||
     pathname.startsWith('/setting/') ||
-    pathname.startsWith('/customer-portal/setting');
+    pathname.startsWith('/customer-portal/setting') ||
+    pathname === '/customer-portal/master/signature';
   const showSidebar = !isSharedUtilityPath;
+  const requestedMenu = activeSystem && !isSharedUtilityPath ? getMenuItemByPathname(activeSystem, pathname) : null;
 
   useEffect(() => {
     if (activeSystem?.key) {
@@ -40,12 +51,26 @@ export default function MainLayout() {
     };
   }, [activeSystem?.key]);
 
-  if (activeSystem && !allowedSystemKeys.has(activeSystem.key)) {
+  if (activeSystem && !isAdministrator && !allowedSystemKeys.has(activeSystem.key)) {
     return (
       <Navigate
         to="/access-denied"
         replace
         state={{ requestedPath: pathname, requestedSystem: activeSystem.title }}
+      />
+    );
+  }
+
+  if (activeSystem && !isSharedUtilityPath && !canAccessMenuItem(requestedMenu, permissionMenu, roleId)) {
+    return (
+      <Navigate
+        to="/access-denied"
+        replace
+        state={{
+          requestedPath: pathname,
+          requestedSystem: activeSystem.title,
+          requestedMenu: requestedMenu?.title || 'Requested menu'
+        }}
       />
     );
   }

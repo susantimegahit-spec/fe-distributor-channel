@@ -67,7 +67,8 @@ const expeditionMenu = [
         label: 'Rates',
         selected: true,
         icon: 'ti ti-receipt-2',
-        url: withBasePath('/master/rates')
+        url: withBasePath('/master/rates'),
+        activeUrls: [withBasePath('/master/rates'), withBasePath('/master/tariff')]
       }
     ]
   }

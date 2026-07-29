@@ -2,6 +2,7 @@ import customerPortalMenu from './customer-portal/menu';
 import expeditionMenu from './expedition/menu';
 import pickingListMenu from './picking-list/menu';
 import productionMenu from './production/menu';
+import { matchPath } from 'react-router-dom';
 
 export const SYSTEM_KEYS = {
   CUSTOMER_PORTAL: 'customer-portal',
@@ -70,6 +71,9 @@ const systemAccessAliases = {
 const flattenMenuIds = (menuItems = []) =>
   menuItems.flatMap((item) => [item.id, ...(item.children?.length ? flattenMenuIds(item.children) : [])]).filter(Boolean);
 
+const flattenMenuItems = (menuItems = []) =>
+  menuItems.flatMap((item) => [item, ...(item.children?.length ? flattenMenuItems(item.children) : [])]);
+
 export const normalizePermissionMenu = (menu = []) => {
   if (!Array.isArray(menu)) return [];
 
@@ -126,6 +130,26 @@ export const getSystemByKey = (key) => systems.find((system) => system.key === k
 export const getSystemByPathname = (pathname = '') => systems.find((system) => pathname.startsWith(system.basePath)) || null;
 
 export const getActiveSystem = (pathname = '') => getSystemByPathname(pathname) || systems[0];
+
+export const getMenuItemByPathname = (system, pathname = '') => {
+  if (!system?.menu) return null;
+
+  return (
+    flattenMenuItems(system.menu).find((item) => {
+      if (item.type !== 'item') return false;
+
+      const paths = item.activeUrls || [item.link || item.url];
+      return paths.some((path) => path && matchPath({ path, end: true }, pathname));
+    }) || null
+  );
+};
+
+export const canAccessMenuItem = (menuItem, permissionMenu = [], roleId) => {
+  if (isAdministratorRole(roleId)) return true;
+  if (!menuItem?.id) return false;
+
+  return normalizePermissionMenu(permissionMenu).includes(menuItem.id);
+};
 
 export const canAccessSystem = (system, permissionMenu = [], roleId) => {
   if (isAdministratorRole(roleId)) return true;

@@ -11,6 +11,7 @@ export default function AccessDenied({ showSystemSelector = true }) {
   const navigate = useNavigate();
   const { state } = useLocation();
   const requestedSystem = state?.requestedSystem;
+  const requestedMenu = state?.requestedMenu;
 
   return (
     <div className="d-flex align-items-center justify-content-center py-5">
@@ -20,9 +21,11 @@ export default function AccessDenied({ showSystemSelector = true }) {
             <i className="ti ti-shield-lock f-32" />
           </span>
           <div className="text-danger fw-semibold mb-2">403 — Access Denied</div>
-          <h3 className="mb-2">You don&apos;t have access to this system</h3>
+          <h3 className="mb-2">You don&apos;t have access to this {requestedMenu ? 'menu' : 'system'}</h3>
           <p className="text-muted mb-4">
-            {requestedSystem
+            {requestedMenu
+              ? `Your account is not authorized to open the ${requestedMenu} menu in ${requestedSystem}.`
+              : requestedSystem
               ? `Your account is not authorized to open the ${requestedSystem} system.`
               : 'Your account is not authorized to open the requested system.'}
           </p>

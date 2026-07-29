@@ -57,7 +57,8 @@ const customerPortalMenu = [
         label: 'Price List',
         selected: true,
         icon: 'ti ti-currency-dollar',
-        url: withBasePath('/master/price')
+        url: withBasePath('/master/price'),
+        activeUrls: [withBasePath('/master/price'), withBasePath('/master/buying-price')]
       },
       {
         id: 'master-employee',
@@ -160,7 +161,8 @@ const customerPortalMenu = [
         type: 'item',
         selected: true,
         icon: 'ti ti-tag',
-        url: withBasePath('/finance/reward')
+        url: withBasePath('/finance/reward'),
+        activeUrls: [withBasePath('/finance/reward'), withBasePath('/finance/reward/add')]
       }
     ]
   }

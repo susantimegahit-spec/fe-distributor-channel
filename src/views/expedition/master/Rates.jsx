@@ -23,7 +23,17 @@ import RateServices from '../../../services/expedition/RateServices';
 import { useAlert } from '../../../utils/alertContext';
 import { getCookies } from '../../../utils/cookies';
 
-const rateColumns = ['origin', 'destination', 'expedition', 'min_kg', 'max_kg', 'service_type', 'rate'];
+const rateColumns = [
+  'origin',
+  'destination',
+  'expedition',
+  'valid_from',
+  'valid_until',
+  'min_kg',
+  'max_kg',
+  'service_type',
+  'rate'
+];
 
 const getPayload = (response) => response?.data?.data ?? response?.data ?? {};
 
@@ -49,6 +59,18 @@ const formatNumber = (value) => {
   const number = Number(value);
 
   return Number.isFinite(number) ? number.toLocaleString('id-ID') : value;
+};
+
+const parseExcelDate = (value) => {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+
+  if (typeof value === 'number') {
+    const dateParts = XLSX.SSF.parse_date_code(value);
+    if (dateParts) return new Date(Date.UTC(dateParts.y, dateParts.m - 1, dateParts.d));
+  }
+
+  const date = new Date(String(value).trim());
+  return Number.isNaN(date.getTime()) ? null : date;
 };
 
 const uniqueValues = (values) => [...new Set(values.map((value) => String(value || '').trim()).filter(Boolean))];
@@ -101,7 +123,7 @@ const addDropdownValidations = (workbookBuffer) => {
     '<dataValidations count="3">' +
     '<dataValidation type="list" allowBlank="0" sqref="A2:A1000"><formula1>OriginList</formula1></dataValidation>' +
     '<dataValidation type="list" allowBlank="0" sqref="B2:B1000"><formula1>DestinationList</formula1></dataValidation>' +
-    '<dataValidation type="list" allowBlank="0" sqref="F2:F1000"><formula1>ServiceTypeList</formula1></dataValidation>' +
+    '<dataValidation type="list" allowBlank="0" sqref="H2:H1000"><formula1>ServiceTypeList</formula1></dataValidation>' +
     '</dataValidations>';
   const trailingWorksheetElement = /<(?:hyperlinks|printOptions|pageMargins|pageSetup|headerFooter|rowBreaks|colBreaks|customProperties|cellWatches|ignoredErrors|smartTags|drawing|legacyDrawing|legacyDrawingHF|picture|oleObjects|controls|webPublishItems|tableParts|extLst)\b/;
   const insertionIndex = xml.search(trailingWorksheetElement);
@@ -153,9 +175,18 @@ const validateRatesWorkbook = (workbook, expeditionCode) => {
       throw new Error(`Row ${excelRow}: check the weight range and rate values`);
     }
 
+    const validFrom = parseExcelDate(values.valid_from);
+    const validUntil = parseExcelDate(values.valid_until);
+    if (!validFrom || !validUntil) {
+      throw new Error(`Row ${excelRow}: valid_from and valid_until must contain valid dates`);
+    }
+    if (validUntil < validFrom) {
+      throw new Error(`Row ${excelRow}: valid_until must be on or after valid_from`);
+    }
+
     const serviceType = String(values.service_type).trim().toUpperCase();
-    if (!['RIT', 'TONASE'].includes(serviceType)) {
-      throw new Error(`Row ${excelRow}: service_type must be RIT or TONASE`);
+    if (!['RIT', 'TONASE', 'FEET'].includes(serviceType)) {
+      throw new Error(`Row ${excelRow}: service_type must be RIT, TONASE, or FEET`);
     }
     if (String(values.expedition).trim() !== expeditionCode) {
       throw new Error(`Row ${excelRow}: expedition must match ${expeditionCode}`);
@@ -283,13 +314,27 @@ export default function Rates() {
       if (!expeditionCode) throw new Error('Expedition code for the logged-in user was not found');
 
       const workbook = XLSX.utils.book_new();
+      const validFrom = new Date();
+      const validUntil = new Date(validFrom);
+      validUntil.setFullYear(validUntil.getFullYear() + 1);
+      const formatTemplateDate = (date) => date.toISOString().slice(0, 10);
       const rateRows = [
-        ['origin', 'destination', 'expedition', 'min_kg', 'max_kg', 'service_type', 'rate'],
-        [originValues[0], destinationValues[0], expeditionCode, 0, 1000, 'TONASE', 0]
+        ['origin', 'destination', 'expedition', 'valid_from', 'valid_until', 'min_kg', 'max_kg', 'service_type', 'rate'],
+        [
+          originValues[0],
+          destinationValues[0],
+          expeditionCode,
+          formatTemplateDate(validFrom),
+          formatTemplateDate(validUntil),
+          0,
+          1000,
+          'TONASE',
+          0
+        ]
       ];
 
       for (let row = 3; row <= 200; row += 1) {
-        rateRows.push(['', '', '', '', '', '', '']);
+        rateRows.push(['', '', '', '', '', '', '', '', '']);
       }
 
       const ratesSheet = XLSX.utils.aoa_to_sheet(rateRows);
@@ -303,20 +348,30 @@ export default function Rates() {
         ...destinationValues.map((value) => [value])
       ]);
       const expeditionSheet = XLSX.utils.aoa_to_sheet([['expedition_code'], [expeditionCode]]);
-      const serviceTypeSheet = XLSX.utils.aoa_to_sheet([['service_type'], ['RIT'], ['TONASE']]);
+      const serviceTypeSheet = XLSX.utils.aoa_to_sheet([['service_type'], ['RIT'], ['TONASE'], ['FEET']]);
 
-      ratesSheet['!cols'] = [{ wch: 32 }, { wch: 36 }, { wch: 30 }, { wch: 14 }, { wch: 14 }, { wch: 18 }, { wch: 18 }];
+      ratesSheet['!cols'] = [
+        { wch: 32 },
+        { wch: 36 },
+        { wch: 30 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 14 },
+        { wch: 14 },
+        { wch: 18 },
+        { wch: 18 }
+      ];
       originSheet['!cols'] = [{ wch: 40 }];
       destinationSheet['!cols'] = [{ wch: 40 }, { wch: 40 }, { wch: 70 }];
       dropdownSheet['!cols'] = [{ wch: 80 }];
       expeditionSheet['!cols'] = [{ wch: 22 }];
       serviceTypeSheet['!cols'] = [{ wch: 20 }];
-      ratesSheet['!autofilter'] = { ref: 'A1:G200' };
+      ratesSheet['!autofilter'] = { ref: 'A1:I200' };
       originSheet['!autofilter'] = { ref: `A1:A${originValues.length + 1}` };
       destinationSheet['!autofilter'] = { ref: `A1:C${destinationRows.length + 1}` };
       dropdownSheet['!autofilter'] = { ref: `A1:A${destinationValues.length + 1}` };
       expeditionSheet['!autofilter'] = { ref: 'A1:A2' };
-      serviceTypeSheet['!autofilter'] = { ref: 'A1:A3' };
+      serviceTypeSheet['!autofilter'] = { ref: 'A1:A4' };
 
       XLSX.utils.book_append_sheet(workbook, ratesSheet, 'Rates Upload');
       XLSX.utils.book_append_sheet(workbook, originSheet, 'Master Origin');
@@ -332,7 +387,7 @@ export default function Rates() {
         Names: [
           { Name: 'OriginList', Ref: `'Master Origin'!$A$2:$A$${originValues.length + 1}` },
           { Name: 'DestinationList', Ref: `'Dropdown Lists'!$A$2:$A$${destinationValues.length + 1}` },
-          { Name: 'ServiceTypeList', Ref: "'Master Service Type'!$A$2:$A$3" }
+          { Name: 'ServiceTypeList', Ref: "'Master Service Type'!$A$2:$A$4" }
         ]
       };
 
