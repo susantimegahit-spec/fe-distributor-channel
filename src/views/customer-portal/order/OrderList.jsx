@@ -1270,8 +1270,9 @@ export default function OrderList({ showOnlyCommitment = false }) {
     const button = getButtonVisibility(order);
     const canCancel = isAdminSales && ['ORDER_APPROVED', 'APPROVED'].includes(normalizeStatus(order.status));
     const canDownloadPdf = ['ORDER_APPROVED', 'APPROVED', 'DELIVERY', 'ARRIVED'].includes(normalizeStatus(order.status));
+    const canViewAttachment = getOrderAttachments(order).length > 0;
 
-    const hasVisibleButton = button.view || canDownloadPdf || button.edit || canCancel;
+    const hasVisibleButton = button.view || canViewAttachment || canDownloadPdf || button.edit || canCancel;
 
     if (!hasVisibleButton) {
       return <span className="text-muted">-</span>;
@@ -1594,14 +1595,13 @@ export default function OrderList({ showOnlyCommitment = false }) {
                     <th>Total Item</th>
                     <th>Total Order</th>
                     <th>Status</th>
-                    <th>Attachment</th>
                     <th className="text-center">Action</th>
                   </tr>
                 </thead>
                 {isLoading ? (
                   <tbody>
                     <tr>
-                      <td colSpan={9}>
+                      <td colSpan={8}>
                         <LoaderData />
                       </td>
                     </tr>
@@ -1636,25 +1636,12 @@ export default function OrderList({ showOnlyCommitment = false }) {
                               ) : null}
                             </Badge>
                           </td>
-                          <td>
-                            {getOrderAttachments(order).length > 0 ? (
-                              <Button
-                                variant="light-primary"
-                                size="sm"
-                                disabled={downloadingAttachmentId === order.id}
-                                onClick={() => handleViewAttachment(order)}
-                              >
-                                <i className={downloadingAttachmentId === order.id ? 'ti ti-loader-2 me-1' : 'ti ti-paperclip me-1'} />
-                                View Attachment
-                              </Button>
-                            ) : null}
-                          </td>
                           <td className="text-center">{getAccessAction(order)}</td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={9}>
+                        <td colSpan={8}>
                           <div className="text-center py-5">
                             <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                               <i className="ti ti-clipboard-list f-24" />
@@ -1712,6 +1699,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
           const normalizedOrderStatus = normalizeStatus(order?.status);
           const canDownloadPdf = ['ORDER_APPROVED', 'APPROVED', 'DELIVERY', 'ARRIVED'].includes(normalizedOrderStatus);
           const canCancel = isAdminSales && ['ORDER_APPROVED', 'APPROVED'].includes(normalizedOrderStatus);
+          const canViewAttachment = getOrderAttachments(order).length > 0;
 
           return (
             <div
@@ -1732,6 +1720,26 @@ export default function OrderList({ showOnlyCommitment = false }) {
                 >
                   <i className={loadingDetailId === order?.id ? 'ti ti-loader-2 text-primary me-2' : 'ti ti-eye text-primary me-2'} />
                   Detail
+                </button>
+              ) : null}
+              {canViewAttachment ? (
+                <button
+                  type="button"
+                  className="dropdown-item"
+                  disabled={downloadingAttachmentId === order?.id}
+                  onClick={() => {
+                    setOrderActionMenu(null);
+                    if (order) handleViewAttachment(order);
+                  }}
+                >
+                  <i
+                    className={
+                      downloadingAttachmentId === order?.id
+                        ? 'ti ti-loader-2 text-primary me-2'
+                        : 'ti ti-paperclip text-primary me-2'
+                    }
+                  />
+                  Download Attachment
                 </button>
               ) : null}
               {canDownloadPdf ? (

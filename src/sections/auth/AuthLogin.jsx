@@ -224,8 +224,8 @@ export default function AuthLoginForm({ className }) {
             <i className="ti ti-clock-exclamation" />
           </span>
           <div>
-            <strong>Sesi Anda telah berakhir</strong>
-            <p>Silakan masuk kembali untuk melanjutkan pekerjaan.</p>
+            <strong>Your session has expired</strong>
+            <p>Please sign in again to continue your work.</p>
           </div>
         </div>
       ) : null}
