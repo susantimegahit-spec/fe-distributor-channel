@@ -15,6 +15,42 @@ body {
     auto;
 }
 
+.sm-session-expired-alert {
+  display: flex;
+  width: 100%;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  align-items: center;
+  gap: 11px;
+  border: 1px solid rgba(232, 89, 12, 0.2);
+  border-radius: 10px;
+  background: rgba(255, 176, 32, 0.1);
+  color: #7a3815;
+}
+
+.sm-session-expired-alert > span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  border-radius: 9px;
+  background: rgba(232, 89, 12, 0.12);
+  color: #e8590c;
+  font-size: 1.05rem;
+}
+
+.sm-session-expired-alert strong {
+  display: block;
+  font-size: 0.82rem;
+}
+
+.sm-session-expired-alert p {
+  margin: 2px 0 0;
+  color: #92593b;
+  font-size: 0.72rem;
+}
+
 [data-system-theme='customer-portal'] {
   --system-primary: #315fb4;
   --system-primary-rgb: 49, 95, 180;

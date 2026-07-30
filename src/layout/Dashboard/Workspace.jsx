@@ -237,8 +237,8 @@ export default function Workspace({ activePath, menuTitle, systemTitle, systemKe
             <span>
               <i className="ti ti-browser" />
             </span>
-            <h3>Belum ada tab terbuka</h3>
-            <p>Pilih menu dari sidebar untuk membuka tab baru.</p>
+            <h3>No tabs open</h3>
+            <p>Select a menu from the sidebar to open a new tab.</p>
           </div>
         )}
       </div>

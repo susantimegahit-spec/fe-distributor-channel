@@ -130,8 +130,16 @@ client.interceptors.response.use(
       } else if (response.status === 403) {
         return response;
       } else if (response.status === 401) {
+        const isLoginRequest = String(originalRequest?.url || '').includes('/auth/login');
+        const hadActiveSession = Boolean(Cookies.get('isLoggedIn') || Cookies.get('accessToken'));
+
+        if (isLoginRequest && !hadActiveSession) {
+          return Promise.reject(error);
+        }
+
         Cookies.remove('isLoggedIn');
         Cookies.remove('accessToken');
+        Cookies.remove('session-token');
         Cookies.remove('id');
         Cookies.remove('name');
         Cookies.remove('email');
@@ -144,8 +152,19 @@ client.interceptors.response.use(
         Cookies.remove('ocr_code');
         Cookies.remove('ocr_code2');
         Cookies.remove('ocr_code3');
+        Cookies.remove('customerCode');
+        Cookies.remove('distributorName');
+        Cookies.remove('distributorId');
         store.dispatch(destroyAuthState());
-        window.location.replace('/');
+        sessionStorage.removeItem('dc-browser-workspace-v1');
+
+        if (!sessionStorage.getItem('dc-session-expired-redirecting')) {
+          sessionStorage.setItem('dc-session-expired-redirecting', '1');
+          const baseName = (import.meta.env.VITE_APP_BASE_NAME || '').replace(/\/$/, '');
+          window.top.location.replace(`${baseName}/?reason=session-expired`);
+        }
+
+        return Promise.reject(error);
       } else if (response.status === 400) {
         return response;
       } else {

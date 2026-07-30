@@ -47,6 +47,8 @@ const currentComparisonYear = moment().year();
 const comparisonYearOptions = Array.from({ length: 7 }, (_, index) => currentComparisonYear + 1 - index);
 const MAX_RETURN_ATTACHMENTS = 5;
 const MAX_RETURN_ATTACHMENT_SIZE = 1024 * 1024;
+const SHOW_ORDER_OVERVIEW_CARDS = false;
+const SHOW_TOP_PRODUCTS_CARD = false;
 const completeOrderActionPopperConfig = {
   modifiers: [
     { name: 'offset', options: { offset: [0, 8] } },
@@ -1932,93 +1934,103 @@ export default function Dashboard() {
           </Col>
         </Row>
 
-        <Row className="g-3">
-          <Col xl={8}>
-            <MainCard
-              className="claim-transaction-card dashboard-order-overview-card h-100"
-              bodyClassName="dashboard-order-overview-body"
-              title={
-                <Stack gap={1}>
-                  <h5 className="mb-0">Sales Order Trend</h5>
-                  <span className="text-muted f-12">Sales order count and value in the last 6 months.</span>
-                </Stack>
-              }
-            >
-              <div ref={chartContainerRef} style={{ minHeight: 340, width: '100%' }}>
-                {isLoadingOrders || !isChartReady ? (
-                  <div className="d-flex align-items-center justify-content-center text-muted" style={{ minHeight: 340 }}>
-                    Loading sales order data...
-                  </div>
-                ) : (
-                  <ReactApexChart options={chartOptions} series={chartData.series} type={chartData.type} height={340} width="100%" />
-                )}
-              </div>
-            </MainCard>
-          </Col>
-          <Col xl={4} className="d-flex">
-            <MainCard
-              className="claim-transaction-card dashboard-order-overview-card h-100 w-100"
-              bodyClassName="dashboard-order-overview-body"
-              title={
-                <Stack gap={1}>
-                  <h5 className="mb-0">Status Order</h5>
-                  <span className="text-muted f-12">Status information for created sales orders.</span>
-                </Stack>
-              }
-            >
-              <Stack gap={2} style={{ height: 340, overflowY: 'auto', paddingRight: 4 }}>
-                {isLoadingOrders ? (
-                  <div className="d-flex align-items-center justify-content-center text-muted h-100">Loading order status...</div>
-                ) : statusSummary.length > 0 ? (
-                  statusSummary.map((item) => (
-                    <Card className="border mb-0" key={item.status}>
-                      <Card.Body className="py-2">
-                        <Stack direction="horizontal" className="justify-content-between" gap={3}>
-                          <Stack direction="horizontal" gap={2}>
-                            <span className={`avtar avtar-xs bg-light-${item.color} text-${item.color}`}>
-                              <i className={item.icon} />
-                            </span>
-                            <div>
-                              <div className="fw-semibold">{item.label}</div>
-                              <div className="text-muted f-12">{item.status}</div>
-                            </div>
+        {SHOW_ORDER_OVERVIEW_CARDS && (
+          <Row className="g-3">
+            <Col xl={8}>
+              <MainCard
+                className="claim-transaction-card dashboard-order-overview-card h-100"
+                bodyClassName="dashboard-order-overview-body"
+                title={
+                  <Stack gap={1}>
+                    <h5 className="mb-0">Sales Order Trend</h5>
+                    <span className="text-muted f-12">Sales order count and value in the last 6 months.</span>
+                  </Stack>
+                }
+              >
+                <div ref={chartContainerRef} style={{ minHeight: 340, width: '100%' }}>
+                  {isLoadingOrders || !isChartReady ? (
+                    <div className="d-flex align-items-center justify-content-center text-muted" style={{ minHeight: 340 }}>
+                      Loading sales order data...
+                    </div>
+                  ) : (
+                    <ReactApexChart options={chartOptions} series={chartData.series} type={chartData.type} height={340} width="100%" />
+                  )}
+                </div>
+              </MainCard>
+            </Col>
+            <Col xl={4} className="d-flex">
+              <MainCard
+                className="claim-transaction-card dashboard-order-overview-card h-100 w-100"
+                bodyClassName="dashboard-order-overview-body"
+                title={
+                  <Stack gap={1}>
+                    <h5 className="mb-0">Status Order</h5>
+                    <span className="text-muted f-12">Status information for created sales orders.</span>
+                  </Stack>
+                }
+              >
+                <Stack gap={2} style={{ height: 340, overflowY: 'auto', paddingRight: 4 }}>
+                  {isLoadingOrders ? (
+                    <div className="d-flex align-items-center justify-content-center text-muted h-100">Loading order status...</div>
+                  ) : statusSummary.length > 0 ? (
+                    statusSummary.map((item) => (
+                      <Card className="border mb-0" key={item.status}>
+                        <Card.Body className="py-2">
+                          <Stack direction="horizontal" className="justify-content-between" gap={3}>
+                            <Stack direction="horizontal" gap={2}>
+                              <span className={`avtar avtar-xs bg-light-${item.color} text-${item.color}`}>
+                                <i className={item.icon} />
+                              </span>
+                              <div>
+                                <div className="fw-semibold">{item.label}</div>
+                                <div className="text-muted f-12">{item.status}</div>
+                              </div>
+                            </Stack>
+                            <h5 className="mb-0">{item.total}</h5>
                           </Stack>
-                          <h5 className="mb-0">{item.total}</h5>
-                        </Stack>
-                      </Card.Body>
-                    </Card>
-                  ))
-                ) : (
-                  <div className="d-flex align-items-center justify-content-center text-muted h-100">No sales orders yet.</div>
-                )}
-              </Stack>
-            </MainCard>
-          </Col>
-        </Row>
+                        </Card.Body>
+                      </Card>
+                    ))
+                  ) : (
+                    <div className="d-flex align-items-center justify-content-center text-muted h-100">No sales orders yet.</div>
+                  )}
+                </Stack>
+              </MainCard>
+            </Col>
+          </Row>
+        )}
 
-        <MainCard
-          className="claim-transaction-card"
-          title={
-            <Stack gap={1}>
-              <h5 className="mb-0">Top Products</h5>
-              <span className="text-muted f-12">Product ranking based on total ordered items.</span>
-            </Stack>
-          }
-        >
-          <div style={{ minHeight: 320, width: '100%' }}>
-            {isLoadingOrders || !isChartReady ? (
-              <div className="d-flex align-items-center justify-content-center text-muted" style={{ minHeight: 320 }}>
-                Loading top product data...
-              </div>
-            ) : topProductsChartData.categories.length > 0 ? (
-              <ReactApexChart options={topProductsChartOptions} series={topProductsChartData.series} type="bar" height={320} width="100%" />
-            ) : (
-              <div className="d-flex align-items-center justify-content-center text-muted" style={{ minHeight: 320 }}>
-                No top product data yet.
-              </div>
-            )}
-          </div>
-        </MainCard>
+        {SHOW_TOP_PRODUCTS_CARD && (
+          <MainCard
+            className="claim-transaction-card"
+            title={
+              <Stack gap={1}>
+                <h5 className="mb-0">Top Products</h5>
+                <span className="text-muted f-12">Product ranking based on total ordered items.</span>
+              </Stack>
+            }
+          >
+            <div style={{ minHeight: 320, width: '100%' }}>
+              {isLoadingOrders || !isChartReady ? (
+                <div className="d-flex align-items-center justify-content-center text-muted" style={{ minHeight: 320 }}>
+                  Loading top product data...
+                </div>
+              ) : topProductsChartData.categories.length > 0 ? (
+                <ReactApexChart
+                  options={topProductsChartOptions}
+                  series={topProductsChartData.series}
+                  type="bar"
+                  height={320}
+                  width="100%"
+                />
+              ) : (
+                <div className="d-flex align-items-center justify-content-center text-muted" style={{ minHeight: 320 }}>
+                  No top product data yet.
+                </div>
+              )}
+            </div>
+          </MainCard>
+        )}
       </Stack>
 
       <Overlay

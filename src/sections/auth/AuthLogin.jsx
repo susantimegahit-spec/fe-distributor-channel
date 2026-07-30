@@ -84,6 +84,7 @@ const setAssignmentCookie = (key, values) => {
 };
 
 export default function AuthLoginForm({ className }) {
+  const isSessionExpired = new URLSearchParams(window.location.search).get('reason') === 'session-expired';
   const [showPassword, setShowPassword] = useState(false);
   const dispatch = useDispatch();
   const { showAlert } = useAlert();
@@ -117,6 +118,8 @@ export default function AuthLoginForm({ className }) {
       const response = await DataService.post('/auth/login', payload);
 
       if (response.data.success === true) {
+        sessionStorage.removeItem('dc-session-expired-redirecting');
+        sessionStorage.removeItem('dc-browser-workspace-v1');
         const loginData = response.data.data || {};
         const userData = loginData.user || {};
         const accessibleSystemSource =
@@ -215,6 +218,17 @@ export default function AuthLoginForm({ className }) {
 
   return (
     <MainCard className="sm-login-card mb-0">
+      {isSessionExpired ? (
+        <div className="sm-session-expired-alert" role="alert">
+          <span>
+            <i className="ti ti-clock-exclamation" />
+          </span>
+          <div>
+            <strong>Sesi Anda telah berakhir</strong>
+            <p>Silakan masuk kembali untuk melanjutkan pekerjaan.</p>
+          </div>
+        </div>
+      ) : null}
       <div className="sm-login-header">
         <div className="sm-login-title-group">
           <div className="sm-login-logo-wrap">
