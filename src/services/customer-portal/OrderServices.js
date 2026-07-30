@@ -84,6 +84,10 @@ class OrderServices {
     return DataService.get(`/sales-orders/${id}`);
   }
 
+  getSalesOrderDetail(id) {
+    return this.getDetailOrder(id);
+  }
+
   getVats() {
     return DataService.get('/vats');
   }

@@ -24,7 +24,7 @@ import LoaderData from '../../../components/LoaderData';
 import { currency } from '../../../utils/global';
 import { getCookies } from '../../../utils/cookies';
 import { useAlert } from '../../../utils/alertContext';
-import { downloadSalesOrderPdf } from '../../../utils/orderPdf';
+import { printDocumentTemplate, readDocumentTemplates } from '../../../utils/documentTemplate';
 import RoleServices from '../../../services/setting/RoleServices';
 import DistributorServices from '../../../services/customer-portal/DistributorServices';
 
@@ -242,6 +242,9 @@ export default function OrderList({ showOnlyCommitment = false }) {
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [downloadingPdfId, setDownloadingPdfId] = useState(null);
+  const [orderForDocument, setOrderForDocument] = useState(null);
+  const [documentTemplates, setDocumentTemplates] = useState([]);
+  const [selectedDocumentTemplateId, setSelectedDocumentTemplateId] = useState('');
   const [downloadingAttachmentId, setDownloadingAttachmentId] = useState(null);
   const [loadingDetailId, setLoadingDetailId] = useState(null);
   const [orderToCancel, setOrderToCancel] = useState(null);
@@ -328,19 +331,18 @@ export default function OrderList({ showOnlyCommitment = false }) {
   };
 
   const renderStatusFilterBoxes = () => (
-    <Row className="g-3 mb-3">
-      <Col sm={6} xl={2}>
+    <Row className="g-2 mb-3 order-status-filter-row">
+      <Col xs={12} sm={6} lg={3}>
         <button
           type="button"
           aria-pressed={!status}
           className={`card order-status-filter-box border mb-0 h-100 w-100 text-start bg-body p-0 overflow-hidden ${
             !status ? 'border-primary shadow-sm' : ''
           }`}
-          style={{ minHeight: 120 }}
           onClick={() => setStatus('')}
         >
-          <span className="card-body py-4">
-            <Stack direction="horizontal" gap={3} className="justify-content-between">
+          <span className="card-body py-2 px-3">
+            <Stack direction="horizontal" gap={2} className="justify-content-between">
               <span>
                 <span className="d-block text-muted f-12 order-status-filter-label">Total Order</span>
                 <span className="d-block h4 mb-0 order-status-filter-value">{summary.total}</span>
@@ -353,18 +355,17 @@ export default function OrderList({ showOnlyCommitment = false }) {
         </button>
       </Col>
       {statusSummaryItems.map((item) => (
-        <Col key={item.value} sm={6} xl={2}>
+        <Col key={item.value} xs={12} sm={6} lg={3}>
           <button
             type="button"
             aria-pressed={status === item.value}
             className={`card order-status-filter-box border mb-0 h-100 w-100 text-start bg-body p-0 overflow-hidden ${
               status === item.value ? item.activeClassName : ''
             }`}
-            style={{ minHeight: 120 }}
             onClick={() => handleStatusSummaryClick(item.value)}
           >
-            <span className="card-body py-4">
-              <Stack direction="horizontal" gap={3} className="justify-content-between">
+            <span className="card-body py-2 px-3">
+              <Stack direction="horizontal" gap={2} className="justify-content-between">
                 <span>
                   <span className="d-block text-muted f-12 order-status-filter-label">{item.label}</span>
                   <span className="d-block h4 mb-0 order-status-filter-value">{summary[item.value]}</span>
@@ -676,9 +677,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
   const handleDuplicateCmoQuantityChange = (index, value) => {
     setDuplicateCmoForm((current) => ({
       ...current,
-      lines: current.lines.map((line, lineIndex) =>
-        (lineIndex === index ? { ...line, quantity: value === '' ? '' : Number(value) } : line)
-      )
+      lines: current.lines.map((line, lineIndex) => (lineIndex === index ? { ...line, quantity: value === '' ? '' : Number(value) } : line))
     }));
   };
 
@@ -988,28 +987,35 @@ export default function OrderList({ showOnlyCommitment = false }) {
     }
   };
 
-  const handleDownloadPdf = async (order) => {
-    setDownloadingPdfId(order.id);
+  const handleDownloadPdf = (order) => {
+    const templates = readDocumentTemplates().filter((template) => !template.feature || template.feature === 'sales-order');
+
+    if (!templates.length) {
+      showAlert('Belum ada template. Buat dan simpan template melalui Settings > Document Builder.', 'warning');
+      return;
+    }
+
+    setDocumentTemplates(templates);
+    setSelectedDocumentTemplateId(templates[0].id);
+    setOrderForDocument(order);
+  };
+
+  const handleGenerateDocument = async () => {
+    const selectedTemplate = documentTemplates.find((template) => template.id === selectedDocumentTemplateId);
+    if (!orderForDocument || !selectedTemplate) return;
+
+    const printWindow = window.open('', '_blank');
+    setDownloadingPdfId(orderForDocument.id);
 
     try {
-      const response = await OrderServices.downloadPdf(order.id);
-      if (response && response.data) {
-        const blob = new Blob([response.data], { type: 'application/pdf' });
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        const customerName = (order.customer_name || 'customer').replace(/[\s\\/]+/g, '-');
-        link.download = `PI-${customerName}-${order.order_no || order.id}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-        showAlert('PDF downloaded successfully', 'success');
-      } else {
-        showAlert('Failed to download PDF file', 'danger');
-      }
+      const response = await OrderServices.getSalesOrderDetail(orderForDocument.id);
+      const orderDetail = response?.data?.data || response?.data || orderForDocument;
+      printDocumentTemplate(selectedTemplate, orderDetail, printWindow);
+      setOrderForDocument(null);
+      showAlert('Dokumen berhasil dibuat dari template yang dipilih', 'success');
     } catch (error) {
-      showAlert(error?.message || 'Failed to download order PDF', 'danger');
+      printWindow?.close();
+      showAlert(error?.message || 'Gagal mengambil detail Sales Order', 'danger');
     } finally {
       setDownloadingPdfId(null);
     }
@@ -1209,10 +1215,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
     roleName === 'OM' ||
     roleName.includes('OM_DISTRIBUTOR') ||
     roleName.includes('OPERATIONAL_MANAGER');
-  const isAsm =
-    permissionApprovalName === 'WAITING_ASM' ||
-    roleName === 'ASM' ||
-    roleName.includes('AREA_SALES_MANAGER');
+  const isAsm = permissionApprovalName === 'WAITING_ASM' || roleName === 'ASM' || roleName.includes('AREA_SALES_MANAGER');
   const isAdminSales = permissionApprovalName === 'WAITING_ADMIN_SALES' || roleName.includes('ADMIN_SALES');
 
   const defaultStatusByAccess = useMemo(() => {
@@ -1253,9 +1256,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
       normalizedOrderStatus === 'APPROVED' ||
       normalizedOrderStatus === 'DELIVERY' ||
       normalizedOrderStatus === 'ARRIVED';
-    const canEditOrder =
-      (hasAction('edit') || isAdminSales) &&
-      !['APPROVED', 'ARRIVED', 'ORDER_APPROVED'].includes(normalizedOrderStatus);
+    const canEditOrder = (hasAction('edit') || isAdminSales) && !['APPROVED', 'ARRIVED', 'ORDER_APPROVED'].includes(normalizedOrderStatus);
 
     if (!isOrderStatusAllowed(order)) {
       return {
@@ -1294,9 +1295,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
         aria-label="Open order actions"
         aria-expanded={String(orderActionMenu?.order?.id) === String(order.id)}
         onClick={(event) =>
-          setOrderActionMenu((current) =>
-            String(current?.order?.id) === String(order.id) ? null : { order, target: event.currentTarget }
-          )
+          setOrderActionMenu((current) => (String(current?.order?.id) === String(order.id) ? null : { order, target: event.currentTarget }))
         }
       >
         <i className="ti ti-dots-vertical me-1" />
@@ -1758,9 +1757,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                 >
                   <i
                     className={
-                      downloadingPdfId === order?.id
-                        ? 'ti ti-loader-2 text-secondary me-2'
-                        : 'ti ti-file-type-pdf text-secondary me-2'
+                      downloadingPdfId === order?.id ? 'ti ti-loader-2 text-secondary me-2' : 'ti ti-file-type-pdf text-secondary me-2'
                     }
                   />
                   Download PI
@@ -1809,12 +1806,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
         onHide={() => setCmoActionMenu(null)}
       >
         {({ ref, style, placement }) => (
-          <div
-            ref={ref}
-            className="dropdown-menu show"
-            data-popper-placement={placement}
-            style={{ ...style, zIndex: 1080, minWidth: 190 }}
-          >
+          <div ref={ref} className="dropdown-menu show" data-popper-placement={placement} style={{ ...style, zIndex: 1080, minWidth: 190 }}>
             <button
               type="button"
               className="dropdown-item"
@@ -1877,11 +1869,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                 if (order) setCommitmentOrderToDelete(order);
               }}
             >
-              <i
-                className={
-                  String(deletingCmoId) === String(cmoActionMenu?.order?.id) ? 'ti ti-loader-2 me-2' : 'ti ti-trash me-2'
-                }
-              />
+              <i className={String(deletingCmoId) === String(cmoActionMenu?.order?.id) ? 'ti ti-loader-2 me-2' : 'ti ti-trash me-2'} />
               Delete
             </button>
           </div>
@@ -2054,11 +2042,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
               </Button>
             </Modal.Footer>
           </Modal>
-          <Modal
-            show={Boolean(commitmentOrderToDelete)}
-            onHide={() => !deletingCmoId && setCommitmentOrderToDelete(null)}
-            centered
-          >
+          <Modal show={Boolean(commitmentOrderToDelete)} onHide={() => !deletingCmoId && setCommitmentOrderToDelete(null)} centered>
             <Modal.Header closeButton={!deletingCmoId}>
               <Modal.Title>Delete CMO</Modal.Title>
             </Modal.Header>
@@ -2081,6 +2065,40 @@ export default function OrderList({ showOnlyCommitment = false }) {
           </Modal>
         </>
       )}
+      <Modal show={Boolean(orderForDocument)} onHide={() => !downloadingPdfId && setOrderForDocument(null)} centered>
+        <Modal.Header closeButton={!downloadingPdfId}>
+          <Modal.Title>Pilih Template Dokumen</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="text-muted">
+            Dokumen akan mengambil header dan item dari <code>getSalesOrderDetail</code>, kemudian mengikuti layout template yang dipilih.
+          </p>
+          <Form.Group>
+            <Form.Label className="fw-semibold">Template</Form.Label>
+            <Form.Select
+              value={selectedDocumentTemplateId}
+              onChange={(event) => setSelectedDocumentTemplateId(event.target.value)}
+              disabled={Boolean(downloadingPdfId)}
+            >
+              {documentTemplates.map((template) => (
+                <option key={template.id} value={template.id}>
+                  {template.name} ({template.code})
+                </option>
+              ))}
+            </Form.Select>
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" onClick={() => setOrderForDocument(null)} disabled={Boolean(downloadingPdfId)}>
+            Batal
+          </Button>
+          <Button onClick={handleGenerateDocument} disabled={!selectedDocumentTemplateId || Boolean(downloadingPdfId)}>
+            <i className={downloadingPdfId ? 'ti ti-loader-2 me-1' : 'ti ti-printer me-1'} />
+            {downloadingPdfId ? 'Menyiapkan...' : 'Buat Dokumen'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
       <Modal show={Boolean(orderToCancel)} onHide={() => !cancellingOrderId && setOrderToCancel(null)} centered>
         <Modal.Header closeButton={!cancellingOrderId}>
           <Modal.Title>Cancel Sales Order</Modal.Title>

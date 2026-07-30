@@ -8,6 +8,7 @@ import Header from './Header';
 import Breadcrumbs from 'components/Breadcrumbs';
 import FloatingFaq from 'components/FloatingFaq';
 import NavigationScroll from 'components/NavigationScroll';
+import Workspace from './Workspace';
 import {
   canAccessMenuItem,
   getFirstAccessibleMenuPath,
@@ -21,7 +22,9 @@ import { getCookies } from '../../utils/cookies';
 // ==============================|| MAIN LAYOUT ||============================== //
 
 export default function MainLayout() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
+  const isWorkspaceWindow =
+    new URLSearchParams(search).get('workspaceWindow') === '1' || window.self !== window.top;
   const activeSystem = getSystemByPathname(pathname);
   const roleId = getCookies('role');
   const permissionMenu = getCookies('menu') || [];
@@ -55,6 +58,14 @@ export default function MainLayout() {
     };
   }, [activeSystem?.key]);
 
+  useEffect(() => {
+    if (!isWorkspaceWindow || !isSystemSelectorPath) return;
+
+    sessionStorage.removeItem('dc-browser-workspace-v1');
+    const baseName = (import.meta.env.VITE_APP_BASE_NAME || '').replace(/\/$/, '');
+    window.top.location.replace(`${baseName}/systems`);
+  }, [isSystemSelectorPath, isWorkspaceWindow]);
+
   if (activeSystem && !isAdministrator && !allowedSystemKeys.has(activeSystem.key)) {
     return (
       <Navigate
@@ -85,19 +96,44 @@ export default function MainLayout() {
     );
   }
 
+  if (isWorkspaceWindow) {
+    if (isSystemSelectorPath) {
+      return null;
+    }
+
+    return (
+      <NavigationScroll>
+        <div className="sm-workspace-embedded-content">
+          <Outlet />
+        </div>
+      </NavigationScroll>
+    );
+  }
+
   return (
     <>
       {showSidebar && <Drawer />}
       <Header showSidebar={showSidebar} />
-      <div className={`pc-container ${!showSidebar ? 'pc-container-no-sidebar' : ''}`}>
+      <div
+        className={`pc-container ${!showSidebar ? 'pc-container-no-sidebar' : 'pc-container-workspace'}`}
+      >
         <div className="pc-content">
           {/* <Breadcrumbs /> */}
           <NavigationScroll>
-            <Outlet />
+            {showSidebar ? (
+              <Workspace
+                activePath={pathname}
+                menuTitle={requestedMenu?.title || activeSystem?.title || 'Workspace'}
+                systemTitle={activeSystem?.title || 'Distributor Channel'}
+                systemKey={activeSystem?.key || 'customer-portal'}
+              />
+            ) : (
+              <Outlet />
+            )}
           </NavigationScroll>
         </div>
       </div>
-      <Footer showSidebar={showSidebar} />
+      {!showSidebar && <Footer showSidebar={showSidebar} />}
       {showSidebar && <FloatingFaq />}
     </>
   );

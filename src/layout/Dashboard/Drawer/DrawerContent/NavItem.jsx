@@ -16,6 +16,13 @@ export default function NavItem({ item }) {
   const isMobile = window.innerWidth <= 1024;
 
   const handleClick = () => {
+    if (!item?.target && itemPath) {
+      window.dispatchEvent(
+        new CustomEvent('dc:open-workspace-tab', {
+          detail: { path: itemPath, title: item.title }
+        })
+      );
+    }
     // close drawer on mobile
     if (isMobile) handlerDrawerOpen(false);
   };
