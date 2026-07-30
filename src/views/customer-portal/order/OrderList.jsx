@@ -24,7 +24,6 @@ import LoaderData from '../../../components/LoaderData';
 import { currency } from '../../../utils/global';
 import { getCookies } from '../../../utils/cookies';
 import { useAlert } from '../../../utils/alertContext';
-import { printDocumentTemplate, readDocumentTemplates } from '../../../utils/documentTemplate';
 import RoleServices from '../../../services/setting/RoleServices';
 import DistributorServices from '../../../services/customer-portal/DistributorServices';
 
@@ -242,9 +241,6 @@ export default function OrderList({ showOnlyCommitment = false }) {
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [downloadingPdfId, setDownloadingPdfId] = useState(null);
-  const [orderForDocument, setOrderForDocument] = useState(null);
-  const [documentTemplates, setDocumentTemplates] = useState([]);
-  const [selectedDocumentTemplateId, setSelectedDocumentTemplateId] = useState('');
   const [downloadingAttachmentId, setDownloadingAttachmentId] = useState(null);
   const [loadingDetailId, setLoadingDetailId] = useState(null);
   const [orderToCancel, setOrderToCancel] = useState(null);
@@ -987,35 +983,28 @@ export default function OrderList({ showOnlyCommitment = false }) {
     }
   };
 
-  const handleDownloadPdf = (order) => {
-    const templates = readDocumentTemplates().filter((template) => !template.feature || template.feature === 'sales-order');
-
-    if (!templates.length) {
-      showAlert('Belum ada template. Buat dan simpan template melalui Settings > Document Builder.', 'warning');
-      return;
-    }
-
-    setDocumentTemplates(templates);
-    setSelectedDocumentTemplateId(templates[0].id);
-    setOrderForDocument(order);
-  };
-
-  const handleGenerateDocument = async () => {
-    const selectedTemplate = documentTemplates.find((template) => template.id === selectedDocumentTemplateId);
-    if (!orderForDocument || !selectedTemplate) return;
-
-    const printWindow = window.open('', '_blank');
-    setDownloadingPdfId(orderForDocument.id);
+  const handleDownloadPdf = async (order) => {
+    setDownloadingPdfId(order.id);
 
     try {
-      const response = await OrderServices.getSalesOrderDetail(orderForDocument.id);
-      const orderDetail = response?.data?.data || response?.data || orderForDocument;
-      printDocumentTemplate(selectedTemplate, orderDetail, printWindow);
-      setOrderForDocument(null);
-      showAlert('Dokumen berhasil dibuat dari template yang dipilih', 'success');
+      const response = await OrderServices.downloadPdf(order.id);
+      if (response && response.data) {
+        const blob = new Blob([response.data], { type: 'application/pdf' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const customerName = (order.customer_name || 'customer').replace(/[\s\\/]+/g, '-');
+        link.download = `PI-${customerName}-${order.order_no || order.id}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        showAlert('PDF downloaded successfully', 'success');
+      } else {
+        showAlert('Failed to download PDF file', 'danger');
+      }
     } catch (error) {
-      printWindow?.close();
-      showAlert(error?.message || 'Gagal mengambil detail Sales Order', 'danger');
+      showAlert(error?.message || 'Failed to download order PDF', 'danger');
     } finally {
       setDownloadingPdfId(null);
     }
@@ -2065,40 +2054,6 @@ export default function OrderList({ showOnlyCommitment = false }) {
           </Modal>
         </>
       )}
-      <Modal show={Boolean(orderForDocument)} onHide={() => !downloadingPdfId && setOrderForDocument(null)} centered>
-        <Modal.Header closeButton={!downloadingPdfId}>
-          <Modal.Title>Pilih Template Dokumen</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <p className="text-muted">
-            Dokumen akan mengambil header dan item dari <code>getSalesOrderDetail</code>, kemudian mengikuti layout template yang dipilih.
-          </p>
-          <Form.Group>
-            <Form.Label className="fw-semibold">Template</Form.Label>
-            <Form.Select
-              value={selectedDocumentTemplateId}
-              onChange={(event) => setSelectedDocumentTemplateId(event.target.value)}
-              disabled={Boolean(downloadingPdfId)}
-            >
-              {documentTemplates.map((template) => (
-                <option key={template.id} value={template.id}>
-                  {template.name} ({template.code})
-                </option>
-              ))}
-            </Form.Select>
-          </Form.Group>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="light-secondary" onClick={() => setOrderForDocument(null)} disabled={Boolean(downloadingPdfId)}>
-            Batal
-          </Button>
-          <Button onClick={handleGenerateDocument} disabled={!selectedDocumentTemplateId || Boolean(downloadingPdfId)}>
-            <i className={downloadingPdfId ? 'ti ti-loader-2 me-1' : 'ti ti-printer me-1'} />
-            {downloadingPdfId ? 'Menyiapkan...' : 'Buat Dokumen'}
-          </Button>
-        </Modal.Footer>
-      </Modal>
-
       <Modal show={Boolean(orderToCancel)} onHide={() => !cancellingOrderId && setOrderToCancel(null)} centered>
         <Modal.Header closeButton={!cancellingOrderId}>
           <Modal.Title>Cancel Sales Order</Modal.Title>
