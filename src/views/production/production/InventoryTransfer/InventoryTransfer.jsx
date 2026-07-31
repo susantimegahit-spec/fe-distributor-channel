@@ -8,6 +8,7 @@ import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
 import InputGroup from 'react-bootstrap/InputGroup';
 import Modal from 'react-bootstrap/Modal';
+import Overlay from 'react-bootstrap/Overlay';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
@@ -21,6 +22,7 @@ import MaterialServices from '../../../../services/production/MaterialServices';
 import ProductionServices from '../../../../services/production/ProductionServices';
 import ProductionWarehouseServices from '../../../../services/production/WarehouseServices';
 import { useAlert } from '../../../../utils/alertContext';
+import { useConfirm } from '../../../../utils/confirmContext';
 
 const today = new Date().toISOString().slice(0, 10);
 const firstDayOfMonth = `${today.slice(0, 8)}01`;
@@ -35,6 +37,22 @@ const compactSelectStyles = {
   valueContainer: (base) => ({ ...base, paddingTop: 0, paddingBottom: 0 }),
   input: (base) => ({ ...base, fontSize: '0.75rem' }),
   option: (base) => ({ ...base, fontSize: '0.75rem', paddingTop: 6, paddingBottom: 6 })
+};
+const actionPopperConfig = {
+  modifiers: [
+    {
+      name: 'offset',
+      options: { offset: [0, 8] }
+    },
+    {
+      name: 'preventOverflow',
+      options: { boundary: 'viewport', padding: 8 }
+    },
+    {
+      name: 'flip',
+      options: { fallbackPlacements: ['top-end', 'bottom-end'] }
+    }
+  ]
 };
 
 const getResponseList = (response) => {
@@ -247,6 +265,7 @@ const isQuantityEqual = (first, second) => Math.abs((Number(first) || 0) - (Numb
 
 export default function InventoryTransfer() {
   const { showAlert } = useAlert();
+  const { showConfirm } = useConfirm();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [form, setForm] = useState(createInitialForm);
   const [productOptions, setProductOptions] = useState([]);
@@ -272,6 +291,7 @@ export default function InventoryTransfer() {
   });
   const [selectedTransferDetail, setSelectedTransferDetail] = useState(null);
   const [loadingTransferDetailId, setLoadingTransferDetailId] = useState(null);
+  const [transferActionMenu, setTransferActionMenu] = useState(null);
 
   const activeBinLine = activeBinLineIndex === null ? null : form.lines[activeBinLineIndex];
   const activeBinWarehouse = activeBinType === 'from' ? form.fromWarehouse : form.toWarehouse;
@@ -354,6 +374,33 @@ export default function InventoryTransfer() {
     } finally {
       setLoadingTransferDetailId(null);
     }
+  };
+
+  const handleCancelInventoryTransfer = (transfer) => {
+    const docEntry = transfer?.id;
+    if (docEntry === undefined || docEntry === null || docEntry === '') {
+      showAlert('DocEntry was not found', 'danger');
+      return;
+    }
+
+    showConfirm({
+      title: 'Cancel Inventory Transfer',
+      subTitle: `Are you sure you want to cancel inventory transfer ${transfer.documentNumber || docEntry}?`,
+      onConfirm: async () => {
+        try {
+          const response = await ProductionWarehouseServices.postCancelInventoryTransfer(docEntry);
+          if (response?.data?.success === false) {
+            throw new Error(response.data.message || 'Failed to cancel inventory transfer');
+          }
+
+          await fetchInventoryTransfers();
+          showAlert(response?.data?.message || 'Inventory transfer cancelled successfully', 'success');
+        } catch (error) {
+          showAlert(error?.response?.data?.message || error?.message || 'Failed to cancel inventory transfer', 'danger');
+          throw error;
+        }
+      }
+    });
   };
 
   const fetchSeries = async (documentDate) => {
@@ -806,6 +853,7 @@ export default function InventoryTransfer() {
             ) : inventoryTransfers.length ? (
               inventoryTransfers.map((transfer, index) => {
                 const normalizedStatus = String(transfer.status).toUpperCase();
+                const canCancel = ['O', 'OPEN', 'BOST_OPEN'].includes(normalizedStatus);
                 const statusVariant =
                   normalizedStatus === 'O' || normalizedStatus === 'OPEN'
                     ? 'success'
@@ -827,16 +875,20 @@ export default function InventoryTransfer() {
                     <td className="text-end">
                       <Button
                         size="sm"
-                        variant="outline-primary"
-                        disabled={loadingTransferDetailId !== null}
-                        onClick={() => handleViewInventoryTransfer(transfer)}
-                        aria-label={`View inventory transfer ${transfer.documentNumber}`}
+                        variant={String(transferActionMenu?.transfer?.id) === String(transfer.id) ? 'primary' : 'outline-primary'}
+                        aria-label={`Open actions for inventory transfer ${transfer.documentNumber}`}
+                        aria-expanded={String(transferActionMenu?.transfer?.id) === String(transfer.id)}
+                        onClick={(event) =>
+                          setTransferActionMenu((current) =>
+                            String(current?.transfer?.id) === String(transfer.id)
+                              ? null
+                              : { transfer, canCancel, target: event.currentTarget }
+                          )
+                        }
                       >
-                        <i
-                          className={
-                            String(loadingTransferDetailId) === String(transfer.id) ? 'ti ti-loader-2' : 'ti ti-eye'
-                          }
-                        />
+                        <i className="ti ti-dots-vertical me-1" />
+                        Actions
+                        <i className="ti ti-chevron-down ms-1" />
                       </Button>
                     </td>
                   </tr>
@@ -852,6 +904,64 @@ export default function InventoryTransfer() {
           </tbody>
         </Table>
       </MainCard>
+
+      <Overlay
+        show={Boolean(transferActionMenu)}
+        target={transferActionMenu?.target}
+        placement="top-end"
+        container={typeof document !== 'undefined' ? document.body : null}
+        containerPadding={8}
+        popperConfig={actionPopperConfig}
+        rootClose
+        rootCloseEvent="mousedown"
+        onHide={() => setTransferActionMenu(null)}
+      >
+        {({ ref, style, placement }) => {
+          const transfer = transferActionMenu?.transfer;
+
+          return (
+            <div
+              ref={ref}
+              className="dropdown-menu show"
+              data-popper-placement={placement}
+              style={{ ...style, zIndex: 1080, minWidth: 190 }}
+            >
+              <button
+                type="button"
+                className="dropdown-item"
+                disabled={loadingTransferDetailId !== null}
+                onClick={() => {
+                  setTransferActionMenu(null);
+                  if (transfer) handleViewInventoryTransfer(transfer);
+                }}
+              >
+                <i
+                  className={
+                    String(loadingTransferDetailId) === String(transfer?.id)
+                      ? 'ti ti-loader-2 text-primary me-2'
+                      : 'ti ti-eye text-primary me-2'
+                  }
+                />
+                Detail
+              </button>
+              <div className="dropdown-divider" />
+              <button
+                type="button"
+                className="dropdown-item text-danger"
+                disabled={!transferActionMenu?.canCancel}
+                title={transferActionMenu?.canCancel ? 'Cancel inventory transfer' : 'Only open inventory transfers can be cancelled'}
+                onClick={() => {
+                  setTransferActionMenu(null);
+                  if (transfer) handleCancelInventoryTransfer(transfer);
+                }}
+              >
+                <i className="ti ti-x me-2" />
+                Cancel Transfer
+              </button>
+            </div>
+          );
+        }}
+      </Overlay>
 
       <Modal show={Boolean(selectedTransferDetail)} onHide={() => setSelectedTransferDetail(null)} centered size="xl">
         <Modal.Header closeButton>

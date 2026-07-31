@@ -27,6 +27,12 @@ class WarehouseServices {
   postInventory(payload) {
     return DataService.post('/warehouses/inventory-transfer', payload);
   }
+
+  postCancelInventoryTransfer(DocEntry) {
+    return DataService.post('/warehouses/inventory-transfer/cancel', {
+      DocEntry
+    });
+  }
 }
 
 export default new WarehouseServices();
