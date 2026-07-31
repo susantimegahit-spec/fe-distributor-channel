@@ -66,6 +66,17 @@ export default function MainLayout() {
     window.top.location.replace(`${baseName}/systems`);
   }, [isSystemSelectorPath, isWorkspaceWindow]);
 
+  useEffect(() => {
+    if (!isWorkspaceWindow) return undefined;
+
+    const notifyParentOfPointerDown = () => {
+      window.parent.postMessage({ type: 'dc:workspace-pointerdown' }, window.location.origin);
+    };
+
+    document.addEventListener('pointerdown', notifyParentOfPointerDown, true);
+    return () => document.removeEventListener('pointerdown', notifyParentOfPointerDown, true);
+  }, [isWorkspaceWindow]);
+
   if (activeSystem && !isAdministrator && !allowedSystemKeys.has(activeSystem.key)) {
     return (
       <Navigate

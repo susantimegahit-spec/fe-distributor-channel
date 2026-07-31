@@ -2,13 +2,15 @@ import customerPortalMenu from './customer-portal/menu';
 import expeditionMenu from './expedition/menu';
 import pickingListMenu from './picking-list/menu';
 import productionMenu from './production/menu';
+import supportMenu from './support/menu';
 import { matchPath } from 'react-router-dom';
 
 export const SYSTEM_KEYS = {
   CUSTOMER_PORTAL: 'customer-portal',
   EXPEDITION: 'expedition',
   PICKING_LIST: 'picking-list',
-  PRODUCTION: 'production'
+  PRODUCTION: 'production',
+  SUPPORT: 'support'
 };
 
 export const systems = [
@@ -47,6 +49,15 @@ export const systems = [
     basePath: '/production',
     defaultPath: '/production/dashboard',
     menu: productionMenu
+  },
+  {
+    key: SYSTEM_KEYS.SUPPORT,
+    title: 'Support',
+    description: 'Help desk, ticket tracking, service status, and customer assistance.',
+    icon: 'ti ti-headset',
+    basePath: '/support',
+    defaultPath: '/support/help-desk',
+    menu: supportMenu
   }
 ];
 
@@ -65,7 +76,11 @@ const systemAccessAliases = {
   'picking list': SYSTEM_KEYS.PICKING_LIST,
   production: SYSTEM_KEYS.PRODUCTION,
   produksi: SYSTEM_KEYS.PRODUCTION,
-  manufacturing: SYSTEM_KEYS.PRODUCTION
+  manufacturing: SYSTEM_KEYS.PRODUCTION,
+  support: SYSTEM_KEYS.SUPPORT,
+  helpdesk: SYSTEM_KEYS.SUPPORT,
+  'help-desk': SYSTEM_KEYS.SUPPORT,
+  'support center': SYSTEM_KEYS.SUPPORT
 };
 
 const flattenMenuIds = (menuItems = []) =>

@@ -95,6 +95,17 @@ body {
   --system-accent-rgb: 121, 226, 173;
 }
 
+[data-system-theme='support'] {
+  --system-primary: #5b4fe9;
+  --system-primary-rgb: 91, 79, 233;
+  --system-secondary: #17b8c7;
+  --system-sidebar-start: #17143a;
+  --system-sidebar-middle: #282265;
+  --system-sidebar-end: #374b9a;
+  --system-accent: #83e7ef;
+  --system-accent-rgb: 131, 231, 239;
+}
+
 [data-system-theme] {
   --bs-primary: var(--system-primary);
   --bs-primary-rgb: var(--system-primary-rgb);
@@ -1859,6 +1870,19 @@ body {
   gap: 8px;
 }
 
+.sm-browser-tab-count {
+  display: inline-flex;
+  min-height: 28px;
+  padding: 4px 9px;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid rgba(49, 95, 180, 0.15);
+  border-radius: 999px;
+  background: rgba(49, 95, 180, 0.08);
+  color: #315fb4;
+  font-weight: 700;
+}
+
 .sm-browser-online-dot {
   width: 7px;
   height: 7px;
@@ -2254,6 +2278,252 @@ body {
     34px 34px,
     34px 34px,
     auto;
+}
+
+.pc-header .sm-system-switcher {
+  margin-left: 6px;
+}
+
+.pc-header .sm-system-switcher-toggle.btn {
+  display: flex;
+  min-width: 205px;
+  height: 48px;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 10px 5px 6px;
+  border: 1px solid rgba(49, 95, 180, 0.15);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #172b4d;
+  box-shadow: 0 7px 20px rgba(28, 54, 102, 0.07);
+}
+
+.pc-header .sm-system-switcher-toggle.btn::after {
+  display: none;
+}
+
+.pc-header .sm-system-switcher-toggle.btn:hover,
+.pc-header .sm-system-switcher-toggle.btn:focus,
+.pc-header .sm-system-switcher.show .sm-system-switcher-toggle.btn {
+  border-color: rgba(var(--system-primary-rgb, 49, 95, 180), 0.35);
+  background: #fff;
+  color: var(--system-primary, #315fb4);
+}
+
+.sm-system-switcher-icon,
+.sm-system-switcher-item-icon {
+  --switcher-color: #315fb4;
+  --switcher-rgb: 49, 95, 180;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--switcher-rgb), 0.11);
+  color: var(--switcher-color);
+}
+
+.sm-system-switcher-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  font-size: 1.05rem;
+}
+
+.sm-system-switcher-item-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
+  font-size: 1.15rem;
+}
+
+.sm-system-switcher-icon.is-expedition,
+.sm-system-switcher-item-icon.is-expedition {
+  --switcher-color: #e8590c;
+  --switcher-rgb: 232, 89, 12;
+}
+
+.sm-system-switcher-icon.is-picking-list,
+.sm-system-switcher-item-icon.is-picking-list {
+  --switcher-color: #7048e8;
+  --switcher-rgb: 112, 72, 232;
+}
+
+.sm-system-switcher-icon.is-production,
+.sm-system-switcher-item-icon.is-production {
+  --switcher-color: #198754;
+  --switcher-rgb: 25, 135, 84;
+}
+
+.sm-system-switcher-icon.is-support,
+.sm-system-switcher-item-icon.is-support {
+  --switcher-color: #5b4fe9;
+  --switcher-rgb: 91, 79, 233;
+}
+
+.sm-system-switcher-current {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  line-height: 1.12;
+  text-align: left;
+}
+
+.sm-system-switcher-current small {
+  color: #8490a5;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.sm-system-switcher-current strong {
+  overflow: hidden;
+  color: #172b4d;
+  font-size: 0.84rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sm-system-switcher-chevron {
+  color: #718096;
+  font-size: 0.9rem;
+  transition: transform 0.18s ease;
+}
+
+.sm-system-switcher.show .sm-system-switcher-chevron {
+  transform: rotate(180deg);
+}
+
+.pc-header .sm-system-switcher-menu.dropdown-menu {
+  width: 350px;
+  margin-top: 9px;
+  padding: 0;
+  border: 1px solid #e3e9f2;
+  border-radius: 16px;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 22px 52px rgba(18, 39, 78, 0.17);
+}
+
+.sm-system-switcher-header {
+  display: grid;
+  padding: 16px 16px 11px !important;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.sm-system-switcher-header strong {
+  color: #172b4d;
+  font-size: 0.95rem;
+}
+
+.sm-system-switcher-header small {
+  margin-top: 2px;
+  color: #7a879a;
+  font-size: 0.72rem;
+}
+
+.sm-system-switcher-list {
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+}
+
+.pc-header .sm-system-switcher-item.dropdown-item {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  gap: 11px;
+  padding: 9px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  color: #253858;
+  white-space: normal;
+}
+
+.pc-header .sm-system-switcher-item.dropdown-item:hover,
+.pc-header .sm-system-switcher-item.dropdown-item:focus {
+  border-color: #e3eaf4;
+  background: #f7f9fc;
+  color: #253858;
+}
+
+.pc-header .sm-system-switcher-item.dropdown-item.is-active {
+  border-color: rgba(var(--system-primary-rgb, 49, 95, 180), 0.14);
+  background: rgba(var(--system-primary-rgb, 49, 95, 180), 0.07);
+}
+
+.sm-system-switcher-item-copy {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+}
+
+.sm-system-switcher-item-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.sm-system-switcher-item-title strong {
+  color: #172b4d;
+  font-size: 0.84rem;
+}
+
+.sm-system-switcher-item-title span {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(var(--system-primary-rgb, 49, 95, 180), 0.11);
+  color: var(--system-primary, #315fb4);
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+.sm-system-switcher-item-copy small {
+  display: -webkit-box;
+  margin-top: 2px;
+  overflow: hidden;
+  color: #7a879a;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.sm-system-switcher-item-arrow {
+  color: #9aa6b8;
+  font-size: 0.85rem;
+}
+
+.pc-header .sm-system-switcher-manage.dropdown-item {
+  padding: 12px 16px;
+  border-top: 1px solid #eef2f7;
+  color: var(--system-primary, #315fb4);
+  font-size: 0.76rem;
+  font-weight: 750;
+  text-align: center;
+}
+
+.pc-header .sm-system-switcher-manage.dropdown-item:hover,
+.pc-header .sm-system-switcher-manage.dropdown-item:focus {
+  background: #f7f9fc;
+  color: var(--system-primary, #315fb4);
+}
+
+@media (max-width: 767.98px) {
+  .pc-header .sm-system-switcher-toggle.btn {
+    min-width: 0;
+    width: 46px;
+    padding: 5px;
+  }
+
+  .sm-system-switcher-current,
+  .sm-system-switcher-chevron {
+    display: none;
+  }
+
+  .pc-header .sm-system-switcher-menu.dropdown-menu {
+    width: min(350px, calc(100vw - 30px));
+  }
 }
 
 .pc-content > .card,

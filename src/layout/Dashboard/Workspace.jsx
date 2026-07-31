@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const WORKSPACE_STORAGE_KEY = 'dc-browser-workspace-v1';
@@ -8,6 +8,7 @@ const getSystemKeyFromPath = (path = '') => {
   if (path.startsWith('/expedition')) return 'expedition';
   if (path.startsWith('/picking-list')) return 'picking-list';
   if (path.startsWith('/production')) return 'production';
+  if (path.startsWith('/support')) return 'support';
   return 'customer-portal';
 };
 
@@ -36,6 +37,7 @@ export default function Workspace({ activePath, menuTitle, systemTitle, systemKe
   const [selectedPath, setSelectedPath] = useState(initialWorkspace.activePath);
   const [draggedPath, setDraggedPath] = useState('');
   const [dragOverPath, setDragOverPath] = useState('');
+  const tabRefs = useRef(new Map());
 
   const openTab = useCallback((path, title, currentSystemTitle, currentSystemKey) => {
     if (!path) return;
@@ -90,6 +92,20 @@ export default function Workspace({ activePath, menuTitle, systemTitle, systemKe
     );
   }, [selectedPath, tabs]);
 
+  useEffect(() => {
+    if (!selectedPath) return undefined;
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      tabRefs.current.get(selectedPath)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'nearest'
+      });
+    });
+
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [selectedPath, tabs]);
+
   const selectTab = (path) => {
     setSelectedPath(path);
     if (path !== activePath) {
@@ -136,6 +152,13 @@ export default function Workspace({ activePath, menuTitle, systemTitle, systemKe
             const active = tab.path === selectedPath;
             return (
               <div
+                ref={(element) => {
+                  if (element) {
+                    tabRefs.current.set(tab.path, element);
+                  } else {
+                    tabRefs.current.delete(tab.path);
+                  }
+                }}
                 role="tab"
                 aria-selected={active}
                 data-system-theme={tab.systemKey || getSystemKeyFromPath(tab.path)}
@@ -207,6 +230,14 @@ export default function Workspace({ activePath, menuTitle, systemTitle, systemKe
             <span className="sm-browser-online-dot" />
             <span>Workspace</span>
           </span>
+          <span
+            className="sm-browser-tab-count"
+            aria-live="polite"
+            aria-label={`${tabs.length} open ${tabs.length === 1 ? 'tab' : 'tabs'}`}
+          >
+            <i className="ti ti-folders" aria-hidden="true" />
+            {tabs.length} {tabs.length === 1 ? 'Tab' : 'Tabs'}
+          </span>
           <button
             type="button"
             className="sm-browser-close-all"
@@ -214,6 +245,7 @@ export default function Workspace({ activePath, menuTitle, systemTitle, systemKe
             onClick={() => {
               setTabs([]);
               setSelectedPath('');
+              window.dispatchEvent(new CustomEvent('dc:workspace-tabs-cleared'));
             }}
           >
             <i className="ti ti-x" aria-hidden="true" />

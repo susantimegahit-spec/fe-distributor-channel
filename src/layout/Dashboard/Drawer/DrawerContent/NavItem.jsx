@@ -1,4 +1,5 @@
 import PropTypes from 'prop-types';
+import { useEffect, useState } from 'react';
 import { useLocation, matchPath, Link } from 'react-router-dom';
 
 // project-imports
@@ -8,21 +9,26 @@ import { handlerDrawerOpen } from 'api/menu';
 
 export default function NavItem({ item }) {
   const { pathname } = useLocation();
+  const [workspaceCleared, setWorkspaceCleared] = useState(false);
 
   const itemPath = item?.link || item?.url;
   const activePaths = item?.activeUrls || [itemPath];
   const itemTarget = item?.target ? '_blank' : '_self';
-  const isSelected = activePaths.some((path) => path && matchPath({ path, end: true }, pathname));
+  const isSelected = !workspaceCleared && activePaths.some((path) => path && matchPath({ path, end: true }, pathname));
   const isMobile = window.innerWidth <= 1024;
 
+  useEffect(() => {
+    const handleWorkspaceCleared = () => setWorkspaceCleared(true);
+    window.addEventListener('dc:workspace-tabs-cleared', handleWorkspaceCleared);
+    return () => window.removeEventListener('dc:workspace-tabs-cleared', handleWorkspaceCleared);
+  }, []);
+
+  useEffect(() => {
+    setWorkspaceCleared(false);
+  }, [pathname]);
+
   const handleClick = () => {
-    if (!item?.target && itemPath) {
-      window.dispatchEvent(
-        new CustomEvent('dc:open-workspace-tab', {
-          detail: { path: itemPath, title: item.title }
-        })
-      );
-    }
+    setWorkspaceCleared(false);
     // close drawer on mobile
     if (isMobile) handlerDrawerOpen(false);
   };

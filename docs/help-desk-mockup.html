@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mockup Fitur Help Desk — SM Connect</title>
+  <style>
+    :root {
+      --navy: #17243d;
+      --navy-2: #223456;
+      --blue: #04a9f5;
+      --blue-soft: #eaf7fe;
+      --yellow: #f4c22b;
+      --green: #1de9b6;
+      --red: #f44236;
+      --orange: #fd7e14;
+      --ink: #1d2630;
+      --muted: #667789;
+      --line: #dbe0e5;
+      --surface: #f3f5f7;
+      --white: #fff;
+      --shadow: 0 10px 30px rgba(23, 36, 61, .09);
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: #e9edf2;
+      font: 14px/1.55 "Open Sans", Arial, sans-serif;
+    }
+    h1, h2, h3, h4, p { margin-top: 0; }
+    h1 { font-size: 34px; line-height: 1.18; letter-spacing: -.7px; }
+    h2 { font-size: 23px; color: var(--navy); margin-bottom: 18px; }
+    h3 { font-size: 16px; color: var(--navy); margin-bottom: 9px; }
+    .document { max-width: 1120px; margin: 28px auto; background: white; box-shadow: var(--shadow); }
+    .page { min-height: 760px; padding: 54px 64px; border-bottom: 1px solid var(--line); page-break-after: always; }
+    .page:last-child { page-break-after: auto; }
+    .cover {
+      min-height: 820px;
+      color: white;
+      background:
+        radial-gradient(circle at 85% 16%, rgba(4,169,245,.42), transparent 30%),
+        radial-gradient(circle at 8% 85%, rgba(244,194,43,.16), transparent 25%),
+        linear-gradient(145deg, #101b31, #223456);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .brand { display: flex; align-items: center; gap: 13px; font-weight: 700; font-size: 18px; }
+    .brand-mark {
+      width: 40px; height: 40px; display: grid; place-items: center;
+      border-radius: 12px; background: var(--yellow); color: var(--navy);
+      font-size: 18px; font-weight: 800;
+    }
+    .eyebrow { color: var(--blue); text-transform: uppercase; letter-spacing: 2px; font-weight: 700; font-size: 12px; }
+    .cover .eyebrow { color: #78d1fb; }
+    .cover h1 { max-width: 720px; font-size: 54px; margin: 14px 0 18px; }
+    .cover .lead { max-width: 650px; color: #dbe7f5; font-size: 18px; }
+    .meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; color: #b8c8da; }
+    .meta strong { color: white; display: block; margin-bottom: 4px; }
+    .section-label { color: var(--blue); text-transform: uppercase; letter-spacing: 1.4px; font-size: 11px; font-weight: 700; margin-bottom: 8px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .card { border: 1px solid var(--line); border-radius: 12px; padding: 18px; background: white; }
+    .card.tint { background: var(--surface); border-color: transparent; }
+    .card.accent { border-top: 4px solid var(--blue); }
+    .card p:last-child { margin-bottom: 0; }
+    .callout { padding: 18px 20px; background: var(--blue-soft); border-left: 4px solid var(--blue); border-radius: 8px; }
+    .clean { margin: 0; padding-left: 19px; }
+    .clean li { margin-bottom: 6px; }
+    .tag, .status {
+      display: inline-flex; align-items: center; gap: 5px; border-radius: 99px;
+      padding: 4px 9px; font-size: 11px; font-weight: 700; white-space: nowrap;
+    }
+    .tag { background: var(--surface); color: var(--muted); }
+    .open { background: #eaf7fe; color: #067eb5; }
+    .progress { background: #fff5d7; color: #9a7200; }
+    .waiting { background: #fff0e5; color: #b75d00; }
+    .resolved { background: #e4fbf5; color: #087d65; }
+    .closed { background: #edf0f3; color: #596878; }
+    .priority-high { color: var(--red); }
+    .priority-medium { color: #b47800; }
+    .priority-low { color: #087d65; }
+    .flow { display: flex; align-items: stretch; gap: 8px; margin: 22px 0; }
+    .flow-step { flex: 1; padding: 15px 12px; text-align: center; border: 1px solid var(--line); border-radius: 10px; }
+    .flow-step b { display: block; color: var(--navy); }
+    .arrow { align-self: center; color: var(--blue); font-weight: 800; }
+    .screen-shell { overflow: hidden; border: 1px solid #cfd7df; border-radius: 14px; box-shadow: var(--shadow); background: var(--surface); }
+    .screen-top { height: 44px; background: var(--navy); color: white; display: flex; align-items: center; padding: 0 14px; gap: 9px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #60718d; }
+    .screen-top .app-name { margin-left: 8px; font-weight: 700; }
+    .screen-body { display: grid; grid-template-columns: 154px 1fr; min-height: 430px; }
+    .sidebar { background: white; border-right: 1px solid var(--line); padding: 17px 11px; }
+    .nav-label { padding: 8px 10px; color: #8996a4; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; }
+    .nav-item { padding: 9px 10px; border-radius: 7px; margin-bottom: 4px; color: #526273; font-size: 11px; }
+    .nav-item.active { background: var(--blue-soft); color: #0586c2; font-weight: 700; }
+    .screen-main { padding: 18px; }
+    .screen-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .screen-title h3 { margin: 0; font-size: 15px; }
+    .btn { display: inline-block; border-radius: 7px; padding: 8px 11px; background: var(--blue); color: white; font-size: 10px; font-weight: 700; }
+    .btn.secondary { background: white; color: var(--navy); border: 1px solid var(--line); }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; margin-bottom: 13px; }
+    .stat { background: white; border: 1px solid var(--line); border-radius: 8px; padding: 11px; }
+    .stat b { display: block; font-size: 20px; color: var(--navy); }
+    .stat span { color: var(--muted); font-size: 9px; }
+    .toolbar { background: white; border: 1px solid var(--line); border-radius: 8px; padding: 8px; display: flex; gap: 7px; margin-bottom: 10px; }
+    .input { height: 28px; border: 1px solid var(--line); border-radius: 6px; background: white; padding: 6px 8px; color: #7b8b9a; font-size: 9px; flex: 1; }
+    .input.small { flex: 0 0 96px; }
+    table { width: 100%; border-collapse: collapse; background: white; font-size: 9px; }
+    th { text-align: left; color: var(--muted); background: #f8f9fa; padding: 8px; border-bottom: 1px solid var(--line); }
+    td { padding: 9px 8px; border-bottom: 1px solid #edf0f3; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .field { margin-bottom: 9px; }
+    .field label { display: block; font-size: 9px; color: var(--muted); margin-bottom: 4px; font-weight: 700; }
+    .field-box { min-height: 31px; border: 1px solid var(--line); border-radius: 6px; background: white; padding: 7px 8px; font-size: 9px; color: #8a98a6; }
+    .field-box.area { min-height: 70px; }
+    .upload { border: 1px dashed #9ccce3; background: #f4fbff; text-align: center; padding: 17px; border-radius: 7px; color: #398ab1; font-size: 9px; }
+    .ticket-layout { display: grid; grid-template-columns: 1.55fr .8fr; gap: 12px; }
+    .conversation, .ticket-info { background: white; border: 1px solid var(--line); border-radius: 9px; padding: 12px; }
+    .message { display: flex; gap: 8px; margin: 12px 0; }
+    .avatar { width: 25px; height: 25px; flex: 0 0 25px; border-radius: 50%; display: grid; place-items: center; background: var(--blue-soft); color: var(--blue); font-size: 8px; font-weight: 700; }
+    .bubble { padding: 9px; border-radius: 8px; background: var(--surface); font-size: 9px; }
+    .message.agent { flex-direction: row-reverse; }
+    .message.agent .bubble { background: var(--blue-soft); }
+    .info-row { padding: 8px 0; border-bottom: 1px solid #edf0f3; font-size: 9px; }
+    .info-row span { display: block; color: var(--muted); }
+    .note { font-size: 11px; color: var(--muted); }
+    .matrix th, .matrix td { font-size: 11px; padding: 10px; }
+    .yes { color: #087d65; font-weight: 800; }
+    .limited { color: #b47800; font-weight: 800; }
+    .no { color: #a8b1bb; }
+    .timeline { border-left: 2px solid var(--line); margin-left: 8px; padding-left: 20px; }
+    .timeline-item { position: relative; margin-bottom: 18px; }
+    .timeline-item::before { content: ""; position: absolute; left: -26px; top: 5px; width: 10px; height: 10px; border-radius: 50%; background: var(--blue); border: 3px solid white; box-shadow: 0 0 0 1px var(--blue); }
+    .footer-note { margin-top: 28px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; }
+    @media (max-width: 760px) {
+      .document { margin: 0; }
+      .page { padding: 32px 22px; }
+      .grid-2, .grid-3, .meta { grid-template-columns: 1fr; }
+      .cover h1 { font-size: 38px; }
+      .screen-body { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .stats { grid-template-columns: 1fr 1fr; }
+      .ticket-layout { grid-template-columns: 1fr; }
+      .flow { flex-direction: column; }
+      .arrow { transform: rotate(90deg); }
+    }
+    @media print {
+      body { background: white; }
+      .document { max-width: none; margin: 0; box-shadow: none; }
+      .page { min-height: 100vh; border: 0; }
+    }
+  </style>
+</head>
+<body>
+<main class="document">
+  <section class="page cover">
+    <div class="brand"><span class="brand-mark">SM</span> SM Connect</div>
+    <div>
+      <div class="eyebrow">Product concept · v1.0</div>
+      <h1>Help Desk yang menyatu dengan Distributor Channel</h1>
+      <p class="lead">Mockup produk dan rancangan teknis awal untuk mengubah bantuan informal menjadi tiket yang dapat dilacak, memiliki SLA, dan terdokumentasi.</p>
+    </div>
+    <div class="meta">
+      <div><strong>Produk</strong>SM Connect / Customer Portal</div>
+      <div><strong>Target rilis</strong>MVP bertahap</div>
+      <div><strong>Tanggal dokumen</strong>31 Juli 2026</div>
+    </div>
+  </section>
+
+  <section class="page">
+    <div class="section-label">01 · Ringkasan</div>
+    <h2>Masalah yang diselesaikan</h2>
+    <div class="grid-3">
+      <div class="card accent"><h3>Bantuan tersebar</h3><p>Keluhan melalui chat atau telepon sulit dilacak dan konteksnya mudah hilang.</p></div>
+      <div class="card accent"><h3>Tidak ada kepastian</h3><p>Pelapor tidak mengetahui siapa PIC, status penanganan, atau target waktu jawab.</p></div>
+      <div class="card accent"><h3>Pengetahuan berulang</h3><p>Tim menjawab isu serupa berkali-kali tanpa basis pengetahuan yang dapat dicari.</p></div>
+    </div>
+    <div class="callout" style="margin-top:22px">
+      <strong>Usulan:</strong> tambahkan grup menu <em>Support</em> berisi <strong>Help Desk</strong> dan <strong>Knowledge Base</strong>. FAQ/AI “Salty” tetap menjadi pintu self-service, lalu menawarkan “Buat Tiket” jika jawaban belum membantu.
+    </div>
+    <h2 style="margin-top:30px">Temuan scan project</h2>
+    <div class="grid-2">
+      <div class="card tint">
+        <h3>Frontend siap dikembangkan</h3>
+        <ul class="clean">
+          <li>React 19 + React Router + React Bootstrap.</li>
+          <li>Pola halaman: card, filter, table, modal, pagination.</li>
+          <li>Menu per sistem dan role sudah tersedia.</li>
+          <li>Floating FAQ + Local AI sudah menjadi entry point bantuan.</li>
+        </ul>
+      </div>
+      <div class="card tint">
+        <h3>Backend dapat dipakai ulang</h3>
+        <ul class="clean">
+          <li>Laravel 12 + Sanctum untuk autentikasi.</li>
+          <li>Role/menu permission dan user–distributor mapping.</li>
+          <li>Push notification real-time sudah tersedia.</li>
+          <li>Pola attachment dan storage sudah ada pada Sales Order.</li>
+        </ul>
+      </div>
+    </div>
+    <p class="footer-note">Catatan: mockup ini dirancang mengikuti bahasa visual dan arsitektur yang ditemukan pada repository, bukan desain generik yang berdiri sendiri.</p>
+  </section>
+
+  <section class="page">
+    <div class="section-label">02 · Ruang lingkup</div>
+    <h2>MVP yang direkomendasikan</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3>Untuk pelapor</h3>
+        <ul class="clean">
+          <li>Buat tiket dan lampirkan bukti.</li>
+          <li>Lihat tiket milik sendiri/distributor.</li>
+          <li>Balas percakapan dan tambah lampiran.</li>
+          <li>Terima notifikasi perubahan status/balasan.</li>
+          <li>Konfirmasi solusi atau buka kembali tiket.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Untuk agent/admin</h3>
+        <ul class="clean">
+          <li>Inbox lintas distributor dengan filter.</li>
+          <li>Assign PIC, prioritas, kategori, dan SLA.</li>
+          <li>Balasan publik dan catatan internal.</li>
+          <li>Resolve, close, reopen, dan histori audit.</li>
+          <li>Ringkasan beban kerja dan tiket mendekati SLA.</li>
+        </ul>
+      </div>
+    </div>
+    <h2 style="margin-top:28px">Alur utama</h2>
+    <div class="flow">
+      <div class="flow-step"><b>1. Self-service</b>FAQ / Salty memberi jawaban awal</div>
+      <div class="arrow">→</div>
+      <div class="flow-step"><b>2. Buat tiket</b>Konteks user &amp; distributor otomatis</div>
+      <div class="arrow">→</div>
+      <div class="flow-step"><b>3. Triage</b>Kategori, prioritas, PIC, SLA</div>
+      <div class="arrow">→</div>
+      <div class="flow-step"><b>4. Kolaborasi</b>Balasan dan bukti dalam satu thread</div>
+      <div class="arrow">→</div>
+      <div class="flow-step"><b>5. Resolusi</b>Pelapor konfirmasi atau reopen</div>
+    </div>
+    <h2>Taksonomi awal</h2>
+    <div class="grid-3">
+      <div class="card tint"><h3>Order</h3><span class="tag">Pembuatan</span> <span class="tag">Approval</span> <span class="tag">Delivery</span></div>
+      <div class="card tint"><h3>Finance</h3><span class="tag">Reward</span> <span class="tag">Claim</span> <span class="tag">PI</span></div>
+      <div class="card tint"><h3>Akun &amp; Akses</h3><span class="tag">Login</span> <span class="tag">Role</span> <span class="tag">Menu</span></div>
+      <div class="card tint"><h3>Master Data</h3><span class="tag">Produk</span> <span class="tag">Harga</span> <span class="tag">Gudang</span></div>
+      <div class="card tint"><h3>Teknis</h3><span class="tag">Error</span> <span class="tag">Performa</span> <span class="tag">Upload</span></div>
+      <div class="card tint"><h3>Lainnya</h3><span class="tag">Pertanyaan</span> <span class="tag">Saran</span></div>
+    </div>
+  </section>
+
+  <section class="page">
+    <div class="section-label">03 · Mockup pelapor</div>
+    <h2>Daftar tiket “Help Desk Saya”</h2>
+    <div class="screen-shell">
+      <div class="screen-top"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="app-name">SM Connect</span></div>
+      <div class="screen-body">
+        <aside class="sidebar">
+          <div class="nav-label">Dashboard</div><div class="nav-item">⌂ Dashboard</div>
+          <div class="nav-label">Orders</div><div class="nav-item">▤ Orders</div><div class="nav-item">↪ Retur</div>
+          <div class="nav-label">Support</div><div class="nav-item active">◉ Help Desk</div><div class="nav-item">◇ Knowledge Base</div>
+        </aside>
+        <div class="screen-main">
+          <div class="screen-title"><div><h3>Help Desk Saya</h3><span class="note">Pantau dan diskusikan kebutuhan bantuan</span></div><span class="btn">＋ Buat Tiket</span></div>
+          <div class="stats">
+            <div class="stat"><b>3</b><span>Tiket aktif</span></div>
+            <div class="stat"><b>1</b><span>Menunggu Anda</span></div>
+            <div class="stat"><b>8</b><span>Selesai bulan ini</span></div>
+            <div class="stat"><b>4,7</b><span>Rating bantuan</span></div>
+          </div>
+          <div class="toolbar"><div class="input">⌕ Cari nomor atau judul tiket...</div><div class="input small">Semua status ▾</div><div class="input small">Semua kategori ▾</div></div>
+          <table>
+            <thead><tr><th>Tiket</th><th>Kategori</th><th>Status</th><th>Prioritas</th><th>Update terakhir</th></tr></thead>
+            <tbody>
+              <tr><td><b>#HD-260731-014</b><br>Harga produk tidak sesuai PO</td><td>Master Data</td><td><span class="status progress">Diproses</span></td><td class="priority-high">● Tinggi</td><td>12 menit lalu</td></tr>
+              <tr><td><b>#HD-260730-009</b><br>Upload claim gagal tervalidasi</td><td>Finance</td><td><span class="status waiting">Menunggu Anda</span></td><td class="priority-medium">● Sedang</td><td>2 jam lalu</td></tr>
+              <tr><td><b>#HD-260729-002</b><br>Permintaan akses menu warehouse</td><td>Akun &amp; Akses</td><td><span class="status resolved">Selesai</span></td><td class="priority-low">● Rendah</td><td>Kemarin</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="callout" style="margin-top:20px"><strong>Keputusan UX:</strong> user distributor hanya melihat tiket miliknya atau tiket pada distributor yang sama sesuai permission. Status “Menunggu Anda” dibuat menonjol agar percakapan tidak mandek.</div>
+  </section>
+
+  <section class="page">
+    <div class="section-label">04 · Mockup pelapor</div>
+    <h2>Buat tiket baru</h2>
+    <div class="screen-shell">
+      <div class="screen-top"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="app-name">SM Connect</span></div>
+      <div class="screen-body">
+        <aside class="sidebar"><div class="nav-label">Support</div><div class="nav-item active">◉ Help Desk</div><div class="nav-item">◇ Knowledge Base</div></aside>
+        <div class="screen-main">
+          <div class="screen-title"><div><h3>Buat Tiket Baru</h3><span class="note">Ceritakan kendala agar tim dapat membantu lebih cepat</span></div><span class="btn secondary">Batal</span></div>
+          <div class="card">
+            <div class="form-grid">
+              <div class="field"><label>KATEGORI *</label><div class="field-box">Pilih kategori ▾</div></div>
+              <div class="field"><label>TERKAIT MODUL</label><div class="field-box">Order ▾</div></div>
+            </div>
+            <div class="field"><label>JUDUL MASALAH *</label><div class="field-box">Contoh: Harga produk tidak sesuai saat membuat PO</div></div>
+            <div class="field"><label>DESKRIPSI *</label><div class="field-box area">Jelaskan apa yang terjadi, langkah yang dilakukan, dan hasil yang diharapkan...</div></div>
+            <div class="form-grid">
+              <div class="field"><label>NOMOR REFERENSI</label><div class="field-box">Nomor order / claim (opsional)</div></div>
+              <div class="field"><label>DAMPAK</label><div class="field-box">Pekerjaan terhambat ▾</div></div>
+            </div>
+            <div class="field"><label>LAMPIRAN</label><div class="upload">⇧ Tarik file ke sini atau pilih file<br><span class="note">JPG, PNG, PDF, XLSX · maks. 5 file · 5 MB/file</span></div></div>
+            <div style="display:flex;justify-content:flex-end;gap:8px"><span class="btn secondary">Simpan Draft</span><span class="btn">Kirim Tiket</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <h2 style="margin-top:24px">Perilaku pintar</h2>
+    <div class="grid-3">
+      <div class="card tint"><h3>Konteks otomatis</h3><p>User, distributor, URL halaman asal, browser, dan waktu kejadian terisi otomatis.</p></div>
+      <div class="card tint"><h3>Saran artikel</h3><p>Saat judul diketik, tampilkan artikel FAQ relevan sebelum tiket dikirim.</p></div>
+      <div class="card tint"><h3>Prioritas terkontrol</h3><p>User memilih dampak; sistem menghitung prioritas agar label “Urgent” tidak disalahgunakan.</p></div>
+    </div>
+  </section>
+
+  <section class="page">
+    <div class="section-label">05 · Mockup kolaborasi</div>
+    <h2>Detail tiket dan percakapan</h2>
+    <div class="screen-shell">
+      <div class="screen-top"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="app-name">SM Connect</span></div>
+      <div class="screen-main">
+        <div class="screen-title"><div><h3>#HD-260731-014 · Harga produk tidak sesuai PO</h3><span class="note">Dibuat 31 Jul 2026, 09:14 oleh Budi Santoso</span></div><span class="status progress">Diproses</span></div>
+        <div class="ticket-layout">
+          <div class="conversation">
+            <h3>Percakapan</h3>
+            <div class="message"><div class="avatar">BS</div><div class="bubble"><b>Budi · Distributor</b><br>Harga Garam Cap Kapal pada order berbeda dengan price list aktif. Saya lampirkan tangkapan layar.<br><span class="tag">📎 screenshot-order.png</span></div></div>
+            <div class="message agent"><div class="avatar">SA</div><div class="bubble"><b>Sari · Support</b><br>Terima kasih, kami sedang mengecek mapping price list untuk distributor Anda.</div></div>
+            <div class="message"><div class="avatar">BS</div><div class="bubble"><b>Budi · Distributor</b><br>Nomor order draft: SO-20260731-1028.</div></div>
+            <div class="field-box area">Tulis balasan...<br><br><span class="tag">📎 Lampirkan file</span></div>
+            <div style="display:flex;justify-content:flex-end;margin-top:8px"><span class="btn">Kirim Balasan</span></div>
+          </div>
+          <aside class="ticket-info">
+            <h3>Informasi tiket</h3>
+            <div class="info-row"><span>Status</span><b>Diproses</b></div>
+            <div class="info-row"><span>Prioritas</span><b class="priority-high">Tinggi</b></div>
+            <div class="info-row"><span>Kategori</span><b>Master Data / Harga</b></div>
+            <div class="info-row"><span>PIC</span><b>Sari Andini</b></div>
+            <div class="info-row"><span>SLA respons</span><b>Terpenuhi · 18 menit</b></div>
+            <div class="info-row"><span>Target solusi</span><b>31 Jul, 13:14</b></div>
+            <div style="margin-top:12px"><span class="btn secondary">Tandai Selesai</span></div>
+          </aside>
+        </div>
+      </div>
+    </div>
+    <p class="note" style="margin-top:15px">Pada tampilan agent, panel kanan juga menyediakan assignment, perubahan kategori/prioritas, catatan internal, merge duplicate, dan histori audit.</p>
+  </section>
+
+  <section class="page">
+    <div class="section-label">06 · Operasional</div>
+    <h2>Status, prioritas, dan SLA</h2>
+    <table class="matrix">
+      <thead><tr><th>Status</th><th>Makna</th><th>Aksi berikutnya</th></tr></thead>
+      <tbody>
+        <tr><td><span class="status open">Baru</span></td><td>Belum ditangani agent</td><td>Triage dan assign PIC</td></tr>
+        <tr><td><span class="status progress">Diproses</span></td><td>Agent sedang investigasi</td><td>Berikan update berkala</td></tr>
+        <tr><td><span class="status waiting">Menunggu Anda</span></td><td>Butuh informasi dari pelapor</td><td>SLA solusi dijeda</td></tr>
+        <tr><td><span class="status resolved">Selesai</span></td><td>Solusi telah diberikan</td><td>Pelapor konfirmasi atau reopen</td></tr>
+        <tr><td><span class="status closed">Ditutup</span></td><td>Tiket final/otomatis ditutup</td><td>Read-only dan rating</td></tr>
+      </tbody>
+    </table>
+    <div class="grid-3" style="margin-top:20px">
+      <div class="card"><h3 class="priority-high">P1 · Kritis</h3><p>Sistem/operasi utama berhenti untuk banyak user.</p><p><b>Respons:</b> 15 menit<br><b>Target solusi:</b> 4 jam</p></div>
+      <div class="card"><h3 class="priority-medium">P2 · Tinggi</h3><p>Transaksi penting terhambat tanpa workaround layak.</p><p><b>Respons:</b> 1 jam<br><b>Target solusi:</b> 8 jam kerja</p></div>
+      <div class="card"><h3 class="priority-low">P3/P4 · Normal</h3><p>Gangguan terbatas, pertanyaan, atau permintaan layanan.</p><p><b>Respons:</b> 4 jam kerja<br><b>Target solusi:</b> 2–5 hari kerja</p></div>
+    </div>
+    <div class="callout" style="margin-top:20px">Angka SLA adalah baseline mockup. Sebelum produksi, sesuaikan dengan jam operasional support, hari libur, kapasitas agent, dan kontrak layanan distributor.</div>
+    <h2 style="margin-top:26px">Aturan eskalasi</h2>
+    <div class="timeline">
+      <div class="timeline-item"><h3>75% SLA</h3><p>Notifikasi ke PIC dan badge “Mendekati SLA”.</p></div>
+      <div class="timeline-item"><h3>100% SLA</h3><p>Eskalasi ke koordinator support dan tandai “Breached”.</p></div>
+      <div class="timeline-item"><h3>P1 tetap aktif</h3><p>Update publik wajib berkala; eskalasi ke owner sistem terkait.</p></div>
+    </div>
+  </section>
+
+  <section class="page">
+    <div class="section-label">07 · Hak akses &amp; arsitektur</div>
+    <h2>Matriks role</h2>
+    <table class="matrix">
+      <thead><tr><th>Kemampuan</th><th>Distributor</th><th>Sales</th><th>Support Agent</th><th>Administrator</th></tr></thead>
+      <tbody>
+        <tr><td>Buat tiket</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+        <tr><td>Lihat tiket distributor sendiri</td><td class="yes">✓</td><td class="limited">Sesuai mapping</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+        <tr><td>Lihat seluruh tiket</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+        <tr><td>Assign &amp; ubah prioritas</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+        <tr><td>Catatan internal</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+        <tr><td>Kelola kategori, SLA, agent</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td></tr>
+      </tbody>
+    </table>
+    <h2 style="margin-top:25px">Objek data minimum</h2>
+    <div class="grid-3">
+      <div class="card tint"><h3>help_desk_tickets</h3><p>number, requester, distributor, category, subject, description, impact, priority, status, assignee, SLA timestamps, reference.</p></div>
+      <div class="card tint"><h3>help_desk_messages</h3><p>ticket, sender, body, visibility (public/internal), created_at, edited_at.</p></div>
+      <div class="card tint"><h3>help_desk_attachments</h3><p>ticket/message, file path, name, mime type, size, uploader.</p></div>
+      <div class="card tint"><h3>help_desk_categories</h3><p>name, module, default priority, SLA policy, active flag.</p></div>
+      <div class="card tint"><h3>help_desk_events</h3><p>actor, action, old/new value, timestamp untuk audit trail.</p></div>
+      <div class="card tint"><h3>help_desk_ratings</h3><p>ticket, score 1–5, comment, submitted_at.</p></div>
+    </div>
+    <h2 style="margin-top:25px">Endpoint yang diusulkan</h2>
+    <div class="card">
+      <code>
+        GET/POST&nbsp;&nbsp;/api/distributor-channel/v1/help-desk/tickets<br>
+        GET/PATCH&nbsp;/api/distributor-channel/v1/help-desk/tickets/{id}<br>
+        POST&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/api/distributor-channel/v1/help-desk/tickets/{id}/messages<br>
+        POST&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/api/distributor-channel/v1/help-desk/tickets/{id}/attachments<br>
+        POST&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/api/distributor-channel/v1/help-desk/tickets/{id}/resolve<br>
+        POST&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/api/distributor-channel/v1/help-desk/tickets/{id}/reopen<br>
+        GET&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/api/distributor-channel/v1/help-desk/categories
+      </code>
+    </div>
+  </section>
+
+  <section class="page">
+    <div class="section-label">08 · Delivery plan</div>
+    <h2>Implementasi bertahap</h2>
+    <div class="timeline">
+      <div class="timeline-item">
+        <h3>Fase 1 · Fondasi MVP</h3>
+        <p>Ticket CRUD, permission, kategori, thread publik, lampiran, assignment, status, notifikasi, audit dasar.</p>
+      </div>
+      <div class="timeline-item">
+        <h3>Fase 2 · Operasional</h3>
+        <p>SLA kalender kerja, dashboard agent, catatan internal, canned response, rating, export laporan.</p>
+      </div>
+      <div class="timeline-item">
+        <h3>Fase 3 · Self-service cerdas</h3>
+        <p>Knowledge Base terkelola, rekomendasi artikel, triage AI, deteksi tiket duplikat, analitik tema masalah.</p>
+      </div>
+    </div>
+    <h2>Kriteria penerimaan MVP</h2>
+    <div class="grid-2">
+      <div class="card">
+        <ul class="clean">
+          <li>Nomor tiket unik dan dapat dicari.</li>
+          <li>Data distributor tidak bocor antar akun.</li>
+          <li>Setiap perubahan status tercatat.</li>
+          <li>Lampiran divalidasi tipe dan ukuran.</li>
+          <li>Notifikasi terkirim pada create, reply, assign, resolve.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <ul class="clean">
+          <li>Agent dapat memfilter inbox dan mengelola PIC.</li>
+          <li>Pelapor dapat reopen tiket yang baru selesai.</li>
+          <li>Catatan internal tidak terlihat oleh pelapor.</li>
+          <li>UI responsif dan mengikuti pola SM Connect.</li>
+          <li>API memiliki authorization test dan validation test.</li>
+        </ul>
+      </div>
+    </div>
+    <h2 style="margin-top:28px">Keputusan sebelum development</h2>
+    <div class="callout">
+      <ol class="clean">
+        <li>Siapa saja yang menjadi <strong>Support Agent</strong> dan koordinator eskalasi?</li>
+        <li>Apakah tiket distributor dapat dilihat semua user pada distributor yang sama, atau hanya pembuat?</li>
+        <li>Jam kerja dan target SLA resmi yang ingin diberlakukan?</li>
+        <li>Jenis file, batas ukuran, serta masa retensi lampiran?</li>
+        <li>Apakah email/WhatsApp dibutuhkan sejak MVP atau cukup notifikasi in-app?</li>
+      </ol>
+    </div>
+    <p class="footer-note">Dokumen ini merupakan mockup konseptual. Nilai bisnis, kebijakan SLA, dan struktur organisasi support perlu divalidasi oleh product owner dan operasional sebelum implementasi.</p>
+  </section>
+</main>
+</body>
+</html>

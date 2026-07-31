@@ -57,7 +57,8 @@ const accessibleSystemOptions = [
   { value: SYSTEM_KEYS.CUSTOMER_PORTAL, label: 'Customer Portal', color: '#315fb4' },
   { value: SYSTEM_KEYS.EXPEDITION, label: 'Expedition', color: '#e8590c' },
   { value: SYSTEM_KEYS.PICKING_LIST, label: 'Picking List', color: '#7048e8' },
-  { value: SYSTEM_KEYS.PRODUCTION, label: 'Production', color: '#198754' }
+  { value: SYSTEM_KEYS.PRODUCTION, label: 'Production', color: '#198754' },
+  { value: SYSTEM_KEYS.SUPPORT, label: 'Support', color: '#5b4fe9' }
 ];
 const accessibleSystemAliases = {
   distributor: SYSTEM_KEYS.CUSTOMER_PORTAL,
@@ -71,7 +72,11 @@ const accessibleSystemAliases = {
   'picking list': SYSTEM_KEYS.PICKING_LIST,
   production: SYSTEM_KEYS.PRODUCTION,
   produksi: SYSTEM_KEYS.PRODUCTION,
-  manufacturing: SYSTEM_KEYS.PRODUCTION
+  manufacturing: SYSTEM_KEYS.PRODUCTION,
+  support: SYSTEM_KEYS.SUPPORT,
+  helpdesk: SYSTEM_KEYS.SUPPORT,
+  'help-desk': SYSTEM_KEYS.SUPPORT,
+  'support center': SYSTEM_KEYS.SUPPORT
 };
 
 const getUserDistributorCode = (item) =>

@@ -89,10 +89,17 @@ const normalizeInventoryTransfer = (item, index) => {
     'fromWarehouse'
   ]);
   const toWarehouse = getTransferValue(item, ['ToWhsCode', 'to_whs_code', 'toWarehouse', 'to_warehouse']);
+  const seriesCode = getTransferValue(item, ['Series', 'series', 'series_code', 'seriesCode']);
+  const seriesName = getTransferValue(item, ['SeriesName', 'series_name', 'seriesName']);
+  const series =
+    [...new Set([seriesCode, seriesName].filter((value) => value !== undefined && value !== null && String(value).trim() !== ''))]
+      .map(String)
+      .join(' - ') || '-';
 
   return {
     id: getTransferValue(item, ['DocEntry', 'doc_entry', 'id'], index),
     documentNumber: getTransferValue(item, ['DocNum', 'doc_num', 'document_number', 'number'], '-'),
+    series,
     postingDate: getTransferValue(item, ['DocDate', 'doc_date', 'posting_date', 'postingDate']),
     documentDate: getTransferValue(item, ['DocDueDate', 'doc_due_date', 'document_date', 'documentDate']),
     fromWarehouse,
@@ -870,6 +877,10 @@ export default function InventoryTransfer() {
                           <Col md={4}>
                             <Form.Label className="f-12 text-muted">Document No.</Form.Label>
                             <div className="fw-semibold">{detail.documentNumber}</div>
+                          </Col>
+                          <Col md={4}>
+                            <Form.Label className="f-12 text-muted">Series</Form.Label>
+                            <div>{detail.series}</div>
                           </Col>
                           <Col md={4}>
                             <Form.Label className="f-12 text-muted">Document Date</Form.Label>

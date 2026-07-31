@@ -4,7 +4,6 @@ import { getAssignedCustomerCodes } from '../../utils/cookies';
 const getDistributorCustomerCode = (distributor) =>
   distributor?.code_customer || distributor?.customer_code || distributor?.distributor_code || distributor?.card_code || '';
 
-
 class DistributorServices {
   async getAllDistributor(payload) {
     const response = await DataService.get(`/distributors?search=${payload ?? ''}`);
@@ -41,14 +40,19 @@ class DistributorServices {
     return DataService.get(`/distributors/ocr-codes?type=${type}`);
   }
 
+  getSyncOcr(CustomQuery) {
+    // 1 -> Cabang
+    // 2 -> Unit
+    // 3 -> Department
+    return DataService.post('/distributors/ocr-codes/sync', { CustomQuery });
+  }
+
   getAddress(code) {
     // 1 -> Cabang
     // 2 -> Unit
     // 3 -> Department
     return DataService.get(`/distributors/addresses?card_code=${code}`);
   }
-
-
 }
 
 export default new DistributorServices();
