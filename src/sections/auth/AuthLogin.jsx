@@ -28,7 +28,12 @@ import { DataService } from '../../config/dataService';
 import LoaderButton from '../../components/LoaderButton';
 import Turnstile from 'components/Turnstile';
 import { AUTH_STATE_CHANGED_EVENT } from '../../utils/authEvents';
-import { normalizeAccessibleSystems } from '../../systems';
+import {
+  getFirstAccessibleMenuPath,
+  isAdministratorRole,
+  normalizeAccessibleSystems,
+  systems
+} from '../../systems';
 import { setAccessibleSystem } from '../../redux/authReducer';
 
 // ==============================|| AUTH LOGIN FORM ||============================== //
@@ -192,10 +197,26 @@ export default function AuthLoginForm({ className }) {
         setAssignmentCookie('ocr_code3', ocrCodes3);
         Cookies.set('distributorName', userData?.name_distributor);
         Cookies.set('distributorId', userData?.id_distributor);
+        const permissionMenu = Array.isArray(loginData?.menu) ? loginData.menu : [];
+        const accessibleSystemList = systems.filter(
+          (system) => isAdministratorRole(userData.role_id) || accessibleSystems.includes(system.key)
+        );
+        const firstSystemWithAccessibleMenu = accessibleSystemList
+          .map((system) => ({
+            system,
+            menuPath: getFirstAccessibleMenuPath(system, permissionMenu, userData.role_id)
+          }))
+          .find(({ menuPath }) => Boolean(menuPath));
+        const firstAccessibleSystem = firstSystemWithAccessibleMenu?.system || accessibleSystemList[0];
+        const firstAccessiblePath =
+          firstSystemWithAccessibleMenu?.menuPath || firstAccessibleSystem?.defaultPath || '/systems';
+
         window.dispatchEvent(new Event(AUTH_STATE_CHANGED_EVENT));
         setTimeout(() => {
           showAlert('Login berhasil', 'success');
         }, 150);
+        const baseName = (import.meta.env.VITE_APP_BASE_NAME || '').replace(/\/$/, '');
+        window.location.replace(`${baseName}${firstAccessiblePath}`);
       } else if (
         response.data.active_session === true ||
         response.data.message === 'This account is active on another device. Please log out from that device first.'

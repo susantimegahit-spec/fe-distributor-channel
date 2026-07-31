@@ -1,25 +1,21 @@
-import { Navigate, useNavigate } from 'react-router-dom';
-
-// react-bootstrap
-import Card from 'react-bootstrap/Card';
-import Col from 'react-bootstrap/Col';
-import Modal from 'react-bootstrap/Modal';
-import Row from 'react-bootstrap/Row';
+import { Navigate } from 'react-router-dom';
 
 // project-imports
 import { getCookies } from '../../utils/cookies';
-import { getFirstAccessibleMenuPath, normalizeAccessibleSystems, systems } from '../../systems';
-import './system-selector.scss';
+import {
+  getFirstAccessibleMenuPath,
+  isAdministratorRole,
+  normalizeAccessibleSystems,
+  systems
+} from '../../systems';
 
 export default function SystemSelector() {
-  const navigate = useNavigate();
-  const availableSystemKeys = new Set(normalizeAccessibleSystems(getCookies('system')));
-  const availableSystems = systems.filter((system) => availableSystemKeys.has(system.key));
-  const defaultSystem = availableSystems[0];
   const roleId = getCookies('role');
   const permissionMenu = getCookies('menu') || [];
-  const getSystemEntryPath = (system) =>
-    getFirstAccessibleMenuPath(system, permissionMenu, roleId) || system.defaultPath;
+  const availableSystemKeys = new Set(normalizeAccessibleSystems(getCookies('system')));
+  const availableSystems = systems.filter(
+    (system) => isAdministratorRole(roleId) || availableSystemKeys.has(system.key)
+  );
 
   if (!availableSystems.length) {
     return (
@@ -31,47 +27,15 @@ export default function SystemSelector() {
     );
   }
 
-  if (availableSystems.length > 1) {
-    return (
-      <Modal show centered backdrop="static" keyboard={false} size="lg">
-        <Modal.Header className="system-selector__header">
-          <div>
-            <Modal.Title>Choose System</Modal.Title>
-            <div className="text-muted f-12">Select the workspace you want to open.</div>
-          </div>
-        </Modal.Header>
-        <Modal.Body className="system-selector__body">
-          <Row className="g-3">
-            {availableSystems.map((system) => (
-              <Col xs={12} sm={6} key={system.key}>
-                <Card
-                  className={`system-selector__card system-selector__card--${system.key} border mb-0 h-100`}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => navigate(getSystemEntryPath(system))}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      navigate(getSystemEntryPath(system));
-                    }
-                  }}
-                >
-                  <Card.Body className="d-flex flex-column align-items-center text-center">
-                    <span className="system-selector__icon">
-                      <i className={system.icon} />
-                    </span>
-                    <h5 className="mb-2">{system.title}</h5>
-                    <p className="text-muted mb-4">{system.description}</p>
-                    <span className="system-selector__button btn mt-auto">Open {system.title}</span>
-                  </Card.Body>
-                </Card>
-              </Col>
-            ))}
-          </Row>
-        </Modal.Body>
-      </Modal>
-    );
-  }
+  const firstSystemWithAccessibleMenu = availableSystems
+    .map((system) => ({
+      system,
+      menuPath: getFirstAccessibleMenuPath(system, permissionMenu, roleId)
+    }))
+    .find(({ menuPath }) => Boolean(menuPath));
+  const defaultSystem = firstSystemWithAccessibleMenu?.system || availableSystems[0];
+  const defaultPath =
+    firstSystemWithAccessibleMenu?.menuPath || defaultSystem.defaultPath;
 
-  return <Navigate to={getSystemEntryPath(defaultSystem)} replace />;
+  return <Navigate to={defaultPath} replace />;
 }
