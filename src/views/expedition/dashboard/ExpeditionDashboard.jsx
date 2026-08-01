@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import Select from 'react-select';
+import AsyncSelect from 'react-select/async';
 
 // react-bootstrap
 import Badge from 'react-bootstrap/Badge';
@@ -44,6 +45,38 @@ const formatMasterOption = ({ label, code, customerCode }) => (
 
 const filterMasterOption = ({ data }, inputValue) =>
   `${data.label} ${data.code} ${data.customerCode}`.toLowerCase().includes(inputValue.trim().toLowerCase());
+
+const normalizeShipToOption = (item, index) => {
+  const code = String(item.shipToCode ?? item.ship_to_code ?? item.address_code ?? item.AddressName ?? item.code ?? '');
+  const customerCode = String(
+    item.customerCode ??
+      item.customer_code ??
+      item.code_customer ??
+      item.card_code ??
+      item.CardCode ??
+      item.customer?.code ??
+      ''
+  );
+  const name =
+    item.customerName ??
+    item.customer_name ??
+    item.name ??
+    item.customer?.name ??
+    item.card_name ??
+    item.CardName ??
+    '';
+  const destination =
+    item.shipToName ?? item.ship_to_name ?? item.address_name ?? item.AddressName2 ?? item.destination ?? item.city ?? '';
+
+  return {
+    value: code || String(item.id ?? item.shipto_id ?? item.ship_to_id ?? index),
+    label: [name, destination].filter(Boolean).join(' - ') || code || '-',
+    code,
+    customerCode,
+    destination: item.city ?? item.City ?? destination ?? code,
+    destinationLabel: destination || name || code || '-'
+  };
+};
 
 export default function ExpeditionDashboard() {
   const { showAlert } = useAlert();
@@ -98,41 +131,7 @@ export default function ExpeditionDashboard() {
           };
         })
       );
-      setDestinationOptions(
-        destinations.map((item, index) => {
-          const code = String(
-            item.shipToCode ?? item.ship_to_code ?? item.address_code ?? item.AddressName ?? item.code ?? ''
-          );
-          const customerCode = String(
-            item.customerCode ??
-              item.customer_code ??
-              item.code_customer ??
-              item.card_code ??
-              item.CardCode ??
-              item.customer?.code ??
-              ''
-          );
-          const name =
-            item.customerName ??
-            item.customer_name ??
-            item.name ??
-            item.customer?.name ??
-            item.card_name ??
-            item.CardName ??
-            '';
-          const destination =
-            item.shipToName ?? item.ship_to_name ?? item.address_name ?? item.AddressName2 ?? item.destination ?? item.city ?? '';
-
-          return {
-            value: code || String(item.id ?? item.shipto_id ?? item.ship_to_id ?? index),
-            label: [name, destination].filter(Boolean).join(' - ') || code || '-',
-            code,
-            customerCode,
-            destination: item.city ?? item.City ?? destination ?? code,
-            destinationLabel: destination || name || code || '-'
-          };
-        })
-      );
+      setDestinationOptions(destinations.map(normalizeShipToOption));
     } catch (error) {
       setOriginOptions([]);
       setDestinationOptions([]);
@@ -146,6 +145,21 @@ export default function ExpeditionDashboard() {
   useEffect(() => {
     fetchMasterRoutes();
   }, [fetchMasterRoutes]);
+
+  const searchShipToOptions = useCallback(async (inputValue) => {
+    try {
+      const response = await DestinationServices.getDestinations({
+        search: inputValue.trim() || undefined,
+        per_page: 100
+      });
+
+      if (response?.data?.success === false) return [];
+
+      return getPayloadList(response, ['shiptos', 'ship_tos', 'destinations']).map(normalizeShipToOption);
+    } catch {
+      return [];
+    }
+  }, []);
 
   const weight = Number(form.weight || 0);
   const cheapestRecommendation = recommendations[0];
@@ -167,6 +181,12 @@ export default function ExpeditionDashboard() {
   };
 
   const handleDestinationChange = (option) => {
+    if (option) {
+      setDestinationOptions((current) =>
+        current.some((item) => item.value === option.value) ? current : [...current, option]
+      );
+    }
+
     setForm((current) => ({
       ...current,
       destinationCode: option?.value || '',
@@ -258,12 +278,15 @@ export default function ExpeditionDashboard() {
           <Col md={6} xl={4}>
             <Form.Group>
               <Form.Label className="f-12 text-muted">Destination</Form.Label>
-              <Select
+              <AsyncSelect
+                cacheOptions
                 classNamePrefix="react-select"
+                defaultOptions={destinationOptions}
                 isClearable
                 isLoading={loadingDestinations}
                 filterOption={filterMasterOption}
                 formatOptionLabel={formatMasterOption}
+                loadOptions={searchShipToOptions}
                 noOptionsMessage={() => 'Destination not found'}
                 onChange={handleDestinationChange}
                 options={destinationOptions}

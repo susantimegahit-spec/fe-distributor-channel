@@ -83,8 +83,18 @@ const emptyEditForm = {
   rate: ''
 };
 
+const normalizeNumberInput = (value) => {
+  const rawValue = String(value ?? '').trim();
+  if (!rawValue) return '';
+
+  const numericValue = Number(rawValue);
+  if (Number.isFinite(numericValue)) return String(Math.trunc(numericValue));
+
+  return rawValue.replace(/\D/g, '');
+};
+
 const formatNumberInput = (value) => {
-  const digits = String(value ?? '').replace(/\D/g, '');
+  const digits = normalizeNumberInput(value);
   return digits ? Number(digits).toLocaleString('id-ID') : '';
 };
 
@@ -555,8 +565,8 @@ export default function Rates() {
       expedition: details.expedition,
       valid_from: details.validFrom,
       valid_until: details.validUntil,
-      min_kg: details.minKg,
-      max_kg: details.maxKg,
+      min_kg: normalizeNumberInput(details.minKg),
+      max_kg: normalizeNumberInput(details.maxKg),
       service_type: details.serviceType,
       rate: details.rate
     });
@@ -613,8 +623,8 @@ export default function Rates() {
         expedition: editForm.expedition.trim(),
         valid_from: editForm.valid_from,
         valid_until: editForm.valid_until,
-        min_kg: minKg,
-        max_kg: maxKg,
+        min_tonnage: minKg,
+        max_tonnage: maxKg,
         service_type: editForm.service_type,
         rate: rateValue
       };
