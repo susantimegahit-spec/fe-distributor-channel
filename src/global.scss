@@ -2495,8 +2495,20 @@ body {
 }
 
 .sm-system-switcher-item-arrow {
+  display: inline-grid;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  place-items: center;
+  border-radius: 8px;
   color: #9aa6b8;
   font-size: 0.85rem;
+}
+
+.pc-header .sm-system-switcher-item.dropdown-item.is-active .sm-system-switcher-item-arrow,
+.pc-sidebar .sm-system-switcher-item.dropdown-item.is-active .sm-system-switcher-item-arrow {
+  background: rgba(var(--system-primary-rgb, 49, 95, 180), 0.11);
+  color: var(--system-primary, #315fb4);
 }
 
 .pc-header .sm-system-switcher-manage.dropdown-item,
@@ -3892,12 +3904,12 @@ body {
   min-width: 46px;
   height: 46px;
   margin-right: 8px;
-  border: 1px solid #e2e6f2;
+  border: 1px solid rgba(var(--system-primary-rgb, 49, 95, 180), 0.18);
   border-radius: 999px;
   background: #fff;
-  color: #23265f;
+  color: var(--system-primary, #315fb4);
   overflow: visible;
-  box-shadow: 0 8px 22px rgba(23, 31, 79, 0.08);
+  box-shadow: 0 8px 22px rgba(var(--system-primary-rgb, 49, 95, 180), 0.08);
 }
 
 .pc-header .sm-notification-toggle.pc-head-link::before {
@@ -3906,9 +3918,9 @@ body {
 
 .pc-header .sm-notification-toggle.pc-head-link:hover,
 .pc-header .sm-notification-toggle.pc-head-link:focus {
-  border-color: rgba(49, 95, 180, 0.26);
+  border-color: rgba(var(--system-primary-rgb, 49, 95, 180), 0.26);
   background: #f7f8fc;
-  color: #315fb4;
+  color: var(--system-primary, #315fb4);
 }
 
 .pc-header .sm-notification-toggle.pc-head-link > i {
@@ -4054,12 +4066,12 @@ body {
   height: 46px;
   gap: 10px;
   padding: 6px 10px 6px 6px;
-  border: 1px solid #e2e6f2;
+  border: 1px solid rgba(var(--system-primary-rgb, 49, 95, 180), 0.18);
   border-radius: 999px;
   background: #fff;
-  color: #23265f;
+  color: var(--system-primary, #315fb4);
   overflow: visible;
-  box-shadow: 0 8px 22px rgba(23, 31, 79, 0.08);
+  box-shadow: 0 8px 22px rgba(var(--system-primary-rgb, 49, 95, 180), 0.08);
 }
 
 .pc-header .sm-account-toggle.pc-head-link::before {
@@ -4068,13 +4080,13 @@ body {
 
 .pc-header .sm-account-toggle.pc-head-link:hover,
 .pc-header .sm-account-toggle.pc-head-link:focus {
-  border-color: rgba(49, 95, 180, 0.26);
+  border-color: rgba(var(--system-primary-rgb, 49, 95, 180), 0.26);
   background: #f7f8fc;
-  color: #315fb4;
+  color: var(--system-primary, #315fb4);
 }
 
 .pc-header .sm-account-toggle.pc-head-link > i {
-  color: #315fb4;
+  color: var(--system-primary, #315fb4);
   font-size: 0.95rem;
 }
 
@@ -4086,7 +4098,7 @@ body {
   min-width: 34px;
   height: 34px;
   border-radius: 999px;
-  background: #315fb4;
+  background: var(--system-primary, #315fb4);
   color: #fff;
   font-size: 0.9rem;
   font-weight: 800;
@@ -4098,7 +4110,7 @@ body {
   min-width: 48px;
   height: 48px;
   background: #fff;
-  color: #315fb4;
+  color: var(--system-primary, #315fb4);
   font-size: 1.15rem;
 }
 
@@ -4147,7 +4159,7 @@ body {
   padding: 18px !important;
   background:
     radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.22), transparent 36%),
-    linear-gradient(135deg, #315fb4 0%, #12bfd7 100%);
+    linear-gradient(135deg, var(--system-primary, #315fb4) 0%, var(--system-secondary, #12bfd7) 100%);
 }
 
 .sm-account-header h6 {
@@ -4185,9 +4197,9 @@ body {
 
 .pc-header .sm-account-menu .sm-account-item.dropdown-item:hover,
 .pc-header .sm-account-menu .sm-account-item.dropdown-item:focus {
-  border-color: #e2e6f2;
-  background: #f7f8fc;
-  color: #315fb4;
+  border-color: rgba(var(--system-primary-rgb, 49, 95, 180), 0.2);
+  background: rgba(var(--system-primary-rgb, 49, 95, 180), 0.06);
+  color: var(--system-primary, #315fb4);
 }
 
 .sm-account-item-icon {
@@ -4198,8 +4210,8 @@ body {
   min-width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: rgba(49, 95, 180, 0.09);
-  color: #315fb4;
+  background: rgba(var(--system-primary-rgb, 49, 95, 180), 0.09);
+  color: var(--system-primary, #315fb4);
 }
 
 .sm-account-item-icon i {

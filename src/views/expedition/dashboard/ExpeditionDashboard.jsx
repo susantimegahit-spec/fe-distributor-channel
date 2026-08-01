@@ -196,11 +196,6 @@ export default function ExpeditionDashboard() {
   };
 
   const handleFindRates = async () => {
-    if (!form.originCode || !form.destinationCode || weight <= 0 || !form.serviceType) {
-      showAlert('Please select origin, destination, service type, and enter a valid weight', 'warning');
-      return;
-    }
-
     setLoadingRatesRank(true);
 
     try {
@@ -317,7 +312,7 @@ export default function ExpeditionDashboard() {
             <Button
               className="w-100 py-3"
               size="lg"
-              disabled={loadingRatesRank || !form.originCode || !form.destinationCode || weight <= 0 || !form.serviceType}
+              disabled={loadingRatesRank}
               onClick={handleFindRates}
             >
               {loadingRatesRank ? (

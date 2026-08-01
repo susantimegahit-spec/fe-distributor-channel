@@ -83,8 +83,8 @@ export const DrawerHeader = () => {
 
         <Dropdown.Menu className="sm-system-switcher-menu">
           <Dropdown.Header className="sm-system-switcher-header">
-            <strong>Pilih Sistem</strong>
-            <small>Pindah ke ruang kerja lain</small>
+            <strong>Select System</strong>
+            <small>Switch to another workspace</small>
           </Dropdown.Header>
 
           <div className="sm-system-switcher-list">
@@ -104,7 +104,7 @@ export const DrawerHeader = () => {
                   <span className="sm-system-switcher-item-copy">
                     <span className="sm-system-switcher-item-title">
                       <strong>{system.title}</strong>
-                      {isActive && <span>Aktif</span>}
+                      {isActive && <span>Active</span>}
                     </span>
                     <small>{system.description}</small>
                   </span>
@@ -117,7 +117,7 @@ export const DrawerHeader = () => {
           {Number(roleId) === 5 && (
             <Dropdown.Item as={Link} to="/setting/permissions" className="sm-system-switcher-manage">
               <i className="ti ti-shield-lock me-1" />
-              Kelola akses sistem
+              Manage system access
             </Dropdown.Item>
           )}
         </Dropdown.Menu>

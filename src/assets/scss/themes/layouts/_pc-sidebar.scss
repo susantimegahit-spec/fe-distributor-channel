@@ -369,6 +369,13 @@
       width: 0;
       --pc-sidebar-border: none;
 
+      > .navbar-wrapper,
+      > .sm-sidebar-floating-balls {
+        visibility: hidden;
+        opacity: 0;
+        pointer-events: none;
+      }
+
       ~.pc-header {
         left: 0;
       }
