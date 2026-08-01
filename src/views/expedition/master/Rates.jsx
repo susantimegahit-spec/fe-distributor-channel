@@ -30,8 +30,8 @@ const rateColumns = [
   'expedition',
   'valid_from',
   'valid_until',
-  'min_kg',
-  'max_kg',
+  'min_tonnage',
+  'max_tonnage',
   'service_type',
   'rate'
 ];
@@ -123,8 +123,8 @@ const getRateDetails = (rate) => {
     expedition,
     validFrom: formatDateInput(getRateValue(rate, ['valid_from', 'start_date', 'effective_from'])),
     validUntil: formatDateInput(getRateValue(rate, ['valid_until', 'end_date', 'effective_until'])),
-    minKg: getRateValue(rate, ['min_kg', 'min_tonnage']),
-    maxKg: getRateValue(rate, ['max_kg', 'max_tonnage']),
+    minKg: getRateValue(rate, ['min_tonnage', 'min_kg']),
+    maxKg: getRateValue(rate, ['max_tonnage', 'max_kg']),
     serviceType: String(getRateValue(rate, ['service_type', 'service'])).toUpperCase(),
     rate: getRateValue(rate, ['rate', 'amount', 'price'])
   };
@@ -234,14 +234,14 @@ const validateRatesWorkbook = (workbook, expeditionCode) => {
     const emptyColumns = rateColumns.filter((column) => String(values[column] ?? '').trim() === '');
     if (emptyColumns.length) throw new Error(`Row ${excelRow}: fill in ${emptyColumns.join(', ')}`);
 
-    const minKg = Number(values.min_kg);
-    const maxKg = Number(values.max_kg);
+    const minTonnage = Number(values.min_tonnage);
+    const maxTonnage = Number(values.max_tonnage);
     const rate = Number(values.rate);
-    if (![minKg, maxKg, rate].every(Number.isFinite)) {
-      throw new Error(`Row ${excelRow}: min_kg, max_kg, and rate must be numbers`);
+    if (![minTonnage, maxTonnage, rate].every(Number.isFinite)) {
+      throw new Error(`Row ${excelRow}: min_tonnage, max_tonnage, and rate must be numbers`);
     }
-    if (minKg < 0 || maxKg < minKg || rate < 0) {
-      throw new Error(`Row ${excelRow}: check the weight range and rate values`);
+    if (minTonnage < 0 || maxTonnage < minTonnage || rate < 0) {
+      throw new Error(`Row ${excelRow}: check the tonnage range and rate values`);
     }
 
     const validFrom = parseExcelDate(values.valid_from);
@@ -395,7 +395,17 @@ export default function Rates() {
       validUntil.setFullYear(validUntil.getFullYear() + 1);
       const formatTemplateDate = (date) => date.toISOString().slice(0, 10);
       const rateRows = [
-        ['origin', 'destination', 'expedition', 'valid_from', 'valid_until', 'min_kg', 'max_kg', 'service_type', 'rate'],
+        [
+          'origin',
+          'destination',
+          'expedition',
+          'valid_from',
+          'valid_until',
+          'min_tonnage',
+          'max_tonnage',
+          'service_type',
+          'rate'
+        ],
         [
           originValues[0],
           destinationValues[0],
