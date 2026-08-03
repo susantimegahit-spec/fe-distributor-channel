@@ -36,6 +36,10 @@ const rateColumns = [
   'rate'
 ];
 
+const requiredUploadColumns = rateColumns.filter(
+  (column) => !['valid_from', 'valid_until'].includes(column)
+);
+
 const getPayload = (response) => response?.data?.data ?? response?.data ?? {};
 
 const getList = (response, keys = []) => {
@@ -55,6 +59,9 @@ const getRateValue = (item, keys) =>
       (value) =>
         value !== undefined && value !== null && typeof value !== 'object' && String(value).trim() !== ''
     ) ?? '';
+
+const getServiceTypeLabel = (serviceType) =>
+  String(serviceType || '').toUpperCase() === 'FEET' ? 'CONTAINER' : serviceType;
 
 const formatNumber = (value) => {
   const number = Number(value);
@@ -130,18 +137,6 @@ const getRateDetails = (rate) => {
   };
 };
 
-const parseExcelDate = (value) => {
-  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
-
-  if (typeof value === 'number') {
-    const dateParts = XLSX.SSF.parse_date_code(value);
-    if (dateParts) return new Date(Date.UTC(dateParts.y, dateParts.m - 1, dateParts.d));
-  }
-
-  const date = new Date(String(value).trim());
-  return Number.isNaN(date.getTime()) ? null : date;
-};
-
 const uniqueValues = (values) => [...new Set(values.map((value) => String(value || '').trim()).filter(Boolean))];
 
 const normalizeColumnName = (value) =>
@@ -215,7 +210,7 @@ const validateRatesWorkbook = (workbook, expeditionCode) => {
 
   const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true });
   const headers = (rows[0] || []).map(normalizeColumnName);
-  const missingColumns = rateColumns.filter((column) => !headers.includes(column));
+  const missingColumns = requiredUploadColumns.filter((column) => !headers.includes(column));
 
   if (missingColumns.length) throw new Error(`Missing required columns: ${missingColumns.join(', ')}`);
 
@@ -231,7 +226,9 @@ const validateRatesWorkbook = (workbook, expeditionCode) => {
   if (!dataRows.length) throw new Error('No rates data found in the Rates Upload sheet');
 
   dataRows.forEach(({ excelRow, values }) => {
-    const emptyColumns = rateColumns.filter((column) => String(values[column] ?? '').trim() === '');
+    const emptyColumns = requiredUploadColumns.filter(
+      (column) => String(values[column] ?? '').trim() === ''
+    );
     if (emptyColumns.length) throw new Error(`Row ${excelRow}: fill in ${emptyColumns.join(', ')}`);
 
     const minTonnage = Number(values.min_tonnage);
@@ -242,15 +239,6 @@ const validateRatesWorkbook = (workbook, expeditionCode) => {
     }
     if (minTonnage < 0 || maxTonnage < minTonnage || rate < 0) {
       throw new Error(`Row ${excelRow}: check the tonnage range and rate values`);
-    }
-
-    const validFrom = parseExcelDate(values.valid_from);
-    const validUntil = parseExcelDate(values.valid_until);
-    if (!validFrom || !validUntil) {
-      throw new Error(`Row ${excelRow}: valid_from and valid_until must contain valid dates`);
-    }
-    if (validUntil < validFrom) {
-      throw new Error(`Row ${excelRow}: valid_until must be on or after valid_from`);
     }
 
     const serviceType = String(values.service_type).trim().toUpperCase();
@@ -772,8 +760,16 @@ export default function Rates() {
                     </td>
                     <td>{expedition || '-'}</td>
                     <td>{weightRange === '' ? '-' : weightRange}</td>
-                    <td>{serviceType || '-'}</td>
-                    <td className="text-end">{rateValue === '' ? '-' : `Rp ${formatNumber(rateValue)}`}</td>
+                    <td>{getServiceTypeLabel(serviceType) || '-'}</td>
+                    <td className="text-end">
+                      {rateValue === '' ? (
+                        '-'
+                      ) : Number(rateValue) === 0 ? (
+                        <Badge bg="danger">SKIP</Badge>
+                      ) : (
+                        `Rp ${formatNumber(rateValue)}`
+                      )}
+                    </td>
                     <td className="text-end">
                       <Button
                         size="sm"
@@ -949,7 +945,7 @@ export default function Rates() {
                     </Col>
                     <Col md={6}>
                       <Form.Label className="f-12 text-muted">Service Type</Form.Label>
-                      <div>{details.serviceType || '-'}</div>
+                      <div>{getServiceTypeLabel(details.serviceType) || '-'}</div>
                     </Col>
                     <Col md={6}>
                       <Form.Label className="f-12 text-muted">Valid From</Form.Label>
@@ -1033,7 +1029,7 @@ export default function Rates() {
                     <option value="">Select service type</option>
                     <option value="RIT">RIT</option>
                     <option value="TONASE">TONASE</option>
-                    <option value="FEET">FEET</option>
+                    <option value="FEET">CONTAINER</option>
                   </Form.Select>
                 </Form.Group>
               </Col>
@@ -1115,7 +1111,7 @@ export default function Rates() {
               {getRateValue(rateToDelete, ['destination', 'destination_name']) || 'Destination'}
             </div>
             <small className="text-muted">
-              {getRateValue(rateToDelete, ['service_type', 'service']) || 'Service'}
+              {getServiceTypeLabel(getRateValue(rateToDelete, ['service_type', 'service'])) || 'Service'}
               {' · '}
               Rp {formatNumber(getRateValue(rateToDelete, ['rate', 'amount', 'price']) || 0)}
             </small>

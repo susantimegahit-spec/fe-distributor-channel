@@ -29,6 +29,18 @@ export default function NavItem({ item }) {
 
   const handleClick = () => {
     setWorkspaceCleared(false);
+
+    if (itemTarget === '_self' && itemPath && itemPath !== '#') {
+      window.dispatchEvent(
+        new CustomEvent('dc:open-workspace-tab', {
+          detail: {
+            path: itemPath,
+            title: item.title
+          }
+        })
+      );
+    }
+
     // close drawer on mobile
     if (isMobile) handlerDrawerOpen(false);
   };

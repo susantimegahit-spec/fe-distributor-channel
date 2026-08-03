@@ -6,7 +6,6 @@ import Drawer from './Drawer';
 import Footer from './Footer';
 import Header from './Header';
 import Breadcrumbs from 'components/Breadcrumbs';
-import FloatingFaq from 'components/FloatingFaq';
 import NavigationScroll from 'components/NavigationScroll';
 import Workspace from './Workspace';
 import {
@@ -145,7 +144,6 @@ export default function MainLayout() {
         </div>
       </div>
       {!showSidebar && <Footer showSidebar={showSidebar} />}
-      {showSidebar && <FloatingFaq />}
     </>
   );
 }

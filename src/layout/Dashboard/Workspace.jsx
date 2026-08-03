@@ -118,6 +118,9 @@ export default function Workspace({ activePath, menuTitle, systemTitle, systemKe
     const closingIndex = tabs.findIndex((tab) => tab.path === path);
     const nextTabs = tabs.filter((tab) => tab.path !== path);
     setTabs(nextTabs);
+    if (!nextTabs.length) {
+      window.dispatchEvent(new CustomEvent('dc:workspace-tabs-cleared'));
+    }
 
     if (selectedPath !== path) return;
 

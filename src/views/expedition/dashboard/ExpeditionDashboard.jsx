@@ -5,7 +5,6 @@ import AsyncSelect from 'react-select/async';
 // react-bootstrap
 import Badge from 'react-bootstrap/Badge';
 import Button from 'react-bootstrap/Button';
-import Card from 'react-bootstrap/Card';
 import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
 import Row from 'react-bootstrap/Row';
@@ -45,6 +44,32 @@ const formatMasterOption = ({ label, code, customerCode }) => (
 
 const filterMasterOption = ({ data }, inputValue) =>
   `${data.label} ${data.code} ${data.customerCode}`.toLowerCase().includes(inputValue.trim().toLowerCase());
+
+const formatWeightRange = (minTonnage, maxTonnage) => {
+  const minValue = Number(minTonnage);
+  const maxValue = Number(maxTonnage);
+  const hasMin = minTonnage !== undefined && minTonnage !== null && minTonnage !== '';
+  const hasMax = maxTonnage !== undefined && maxTonnage !== null && maxTonnage !== '';
+
+  if (!hasMin && !hasMax) return '-';
+
+  const formatWeight = (value, numericValue) =>
+    Number.isFinite(numericValue) ? numericValue.toLocaleString('id-ID') : value;
+  const formattedMin = hasMin ? formatWeight(minTonnage, minValue) : null;
+  const formattedMax = hasMax ? formatWeight(maxTonnage, maxValue) : null;
+
+  if (!hasMin) return `${formattedMax} kg`;
+  const hasSameWeight =
+    Number.isFinite(minValue) && Number.isFinite(maxValue)
+      ? minValue === maxValue
+      : minTonnage === maxTonnage;
+
+  if (!hasMax || hasSameWeight) {
+    return `${formattedMin} kg`;
+  }
+
+  return `${formattedMin} - ${formattedMax} kg`;
+};
 
 const normalizeShipToOption = (item, index) => {
   const code = String(item.shipToCode ?? item.ship_to_code ?? item.address_code ?? item.AddressName ?? item.code ?? '');
@@ -94,7 +119,8 @@ export default function ExpeditionDashboard() {
     destination: '',
     destinationLabel: '',
     weight: 25,
-    serviceType: ''
+    serviceType: '',
+    route: ''
   });
 
   const selectedOrigin = originOptions.find((item) => item.value === form.originCode) || null;
@@ -199,7 +225,13 @@ export default function ExpeditionDashboard() {
     setLoadingRatesRank(true);
 
     try {
-      const response = await RateServices.getRatesRank(form.originCode, form.destinationCode, weight, form.serviceType);
+      const response = await RateServices.getRatesRank(
+        form.originCode,
+        form.destinationCode,
+        weight,
+        form.serviceType,
+        form.route
+      );
 
       if (response?.data?.success === false) {
         throw new Error(response.data.message || 'Failed to fetch rate recommendations');
@@ -218,9 +250,14 @@ export default function ExpeditionDashboard() {
           ...item,
           id: item.id ?? item.rate_id ?? index,
           name: expeditionName ?? item.expedition_name ?? item.expedition_code ?? '-',
-          service: item.service_type ?? item.service ?? '-',
+          service: item.service ?? '-',
+          serviceType:
+            String(item.service_type ?? item.service ?? '').toUpperCase() === 'FEET'
+              ? 'CONTAINER'
+              : item.service_type ?? item.service ?? '-',
+          weightRange: formatWeightRange(item.min_tonnage, item.max_tonnage),
           totalPrice,
-          pricePerKg: Number(item.price_per_kg ?? item.rate_per_kg ?? (weight > 0 ? totalPrice / weight : 0))
+          price: Number(item.price ?? 0)
         };
       });
 
@@ -252,7 +289,7 @@ export default function ExpeditionDashboard() {
         }
       >
         <Row className="g-3">
-          <Col md={6} xl={4}>
+          <Col md={6}>
             <Form.Group>
               <Form.Label className="f-12 text-muted">Origin</Form.Label>
               <Select
@@ -270,7 +307,7 @@ export default function ExpeditionDashboard() {
               />
             </Form.Group>
           </Col>
-          <Col md={6} xl={4}>
+          <Col md={6}>
             <Form.Group>
               <Form.Label className="f-12 text-muted">Destination</Form.Label>
               <AsyncSelect
@@ -291,20 +328,31 @@ export default function ExpeditionDashboard() {
               />
             </Form.Group>
           </Col>
-          <Col md={6} xl={2}>
+          <Col md={4}>
             <Form.Group>
               <Form.Label className="f-12 text-muted">Weight (Kg)</Form.Label>
               <Form.Control min={1} type="number" value={form.weight} onChange={handleChange('weight')} placeholder="0" />
             </Form.Group>
           </Col>
-          <Col md={6} xl={2}>
+          <Col md={4}>
+            <Form.Group>
+              <Form.Label className="f-12 text-muted">Route</Form.Label>
+              <Form.Select value={form.route} onChange={handleChange('route')}>
+                <option value="">Select route</option>
+                <option value="LAND">Land Route</option>
+                <option value="SEA">Sea Route</option>
+                <option value="AIR">Air Route</option>
+              </Form.Select>
+            </Form.Group>
+          </Col>
+          <Col md={4}>
             <Form.Group>
               <Form.Label className="f-12 text-muted">Service Type</Form.Label>
               <Form.Select value={form.serviceType} onChange={handleChange('serviceType')}>
                 <option value="">Select service</option>
                 <option value="RIT">RIT</option>
                 <option value="TONASE">TONASE</option>
-                <option value="FEET">FEET</option>
+                <option value="FEET">CONTAINER</option>
               </Form.Select>
             </Form.Group>
           </Col>
@@ -331,39 +379,6 @@ export default function ExpeditionDashboard() {
         </Row>
       </MainCard>
 
-      <Row className="g-3">
-        <Col md={6}>
-          <Card className="border mb-0 h-100">
-            <Card.Body>
-              <Stack direction="horizontal" className="justify-content-between" gap={3}>
-                <div>
-                  <div className="text-muted f-12">Shipment Weight</div>
-                  <h5 className="mb-0">{weight > 0 ? `${weight} kg` : '-'}</h5>
-                </div>
-                <span className="avtar avtar-s bg-light-info text-info">
-                  <i className="ti ti-weight" />
-                </span>
-              </Stack>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col md={6}>
-          <Card className="border mb-0 h-100">
-            <Card.Body>
-              <Stack direction="horizontal" className="justify-content-between" gap={3}>
-                <div>
-                  <div className="text-muted f-12">Lowest Price</div>
-                  <h5 className="mb-0">{cheapestRecommendation ? currency(cheapestRecommendation.totalPrice) : '-'}</h5>
-                </div>
-                <span className="avtar avtar-s bg-light-success text-success">
-                  <i className="ti ti-cash" />
-                </span>
-              </Stack>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
-
       <MainCard
         title={
           <Stack gap={1}>
@@ -383,14 +398,14 @@ export default function ExpeditionDashboard() {
             <tr>
               <th>Expedition</th>
               <th>Service</th>
-              <th className="text-end">Estimated Price</th>
+              <th>Weight</th>
+              <th>Service Type</th>
               <th className="text-end">Price</th>
-              <th className="text-center">Recommendation</th>
             </tr>
           </thead>
           <tbody>
             {recommendations.length > 0 ? (
-              recommendations.map((item, index) => (
+              recommendations.map((item) => (
                 <tr key={item.id || `${item.name}-${item.service}`}>
                   <td>
                     <div className="fw-semibold">{item.name}</div>
@@ -399,17 +414,9 @@ export default function ExpeditionDashboard() {
                     </div>
                   </td>
                   <td>{item.service}</td>
-                  <td className="text-end fw-semibold">{currency(item.totalPrice)}</td>
-                  <td className="text-end">{currency(item.pricePerKg)}</td>
-                  <td className="text-center">
-                    {index === 0 ? (
-                      <Badge bg="success">Cheapest</Badge>
-                    ) : (
-                      <Badge bg="light" text="dark">
-                        Alternative
-                      </Badge>
-                    )}
-                  </td>
+                  <td>{item.weightRange}</td>
+                  <td>{item.serviceType}</td>
+                  <td className="text-end">{currency(item.price)}</td>
                 </tr>
               ))
             ) : (

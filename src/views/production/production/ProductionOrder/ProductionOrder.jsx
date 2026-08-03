@@ -18,6 +18,7 @@ import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
 import ProductionServices from '../../../../services/production/ProductionServices';
 import { useAlert } from '../../../../utils/alertContext';
+import { getCookies } from '../../../../utils/cookies';
 
 const numberFormatter = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 });
 const pageSize = 10;
@@ -374,55 +375,52 @@ export default function ProductionOrder() {
       return;
     }
 
-    const selectedSeries = seriesOptions.find((option) => String(option.value) === String(form.series));
-    const seriesRaw = selectedSeries?.raw ?? {};
+    const series = Number(form.series);
+    const formatPayloadDate = (date) => `${date}T00:00:00`;
     const payload = {
-      prod_order_no:
-        form.product.prod_order_no ??
-        seriesRaw.prod_order_no ??
-        seriesRaw.next_number ??
-        seriesRaw.nextNumber ??
-        seriesRaw.next_no ??
-        seriesRaw.next_num ??
-        seriesRaw.NextNumber ??
-        seriesRaw.doc_num ??
-        seriesRaw.DocNum ??
-        '',
-      item_code: form.product.productCode,
-      planned_qty: plannedQuantity,
-      warehouse,
-      post_date: form.orderDate,
-      due_date: form.dueDate,
-      start_date: form.startDate,
-      status: form.status,
-      type: form.type,
-      series: form.series,
-      priority: 100,
-      origin_type: 'Sales Order',
-      u_shift: form.shift,
-      u_unit: form.product.ocr_code2 ?? form.product.business_unit_code ?? '',
-      comments: form.product.comments ?? '',
-      details: form.product.details.map((detail) => {
+      ItemCode: form.product.productCode,
+      Series: Number.isFinite(series) ? series : form.series,
+      PlannedQty: plannedQuantity,
+      PostingDate: formatPayloadDate(form.orderDate),
+      DueDate: formatPayloadDate(form.dueDate),
+      WhsCode: warehouse,
+      Remarks: form.product.comments ?? form.product.remarks ?? '',
+      Shift: form.shift,
+      Unit: form.product.ocr_code2 ?? form.product.business_unit_code ?? form.product.unit ?? '',
+      Bomid: String(form.product.bom_id ?? form.product.bomId ?? form.product.id ?? ''),
+      UserId: String(getCookies('id') ?? ''),
+      AddonId: String(
+        form.product.addon_id ??
+          form.product.addonId ??
+          form.product.add_on_id ??
+          form.product.addon?.id ??
+          getCookies('addonId') ??
+          ''
+      ),
+      Lines: form.product.details.map((detail) => {
         const item = getComponentItem(detail);
         const baseQuantity = Number(detail.qty ?? detail.quantity) || 0;
-        const detailType = String(detail.type ?? detail.component_type ?? '');
+        const detailType = String(detail.type ?? detail.component_type ?? '').toUpperCase();
 
         return {
-          type: detailType === '4' ? 'Item' : detailType === '290' ? 'Resource' : detailType,
-          item_code: item.code,
-          base_qty: baseQuantity,
-          planned_qty: baseQuantity * plannedQuantity,
-          warehouse:
+          ItemType: ['4', 'ITEM', 'I'].includes(detailType)
+            ? 'I'
+            : ['290', 'RESOURCE', 'R'].includes(detailType)
+              ? 'R'
+              : detailType,
+          ItemCode: item.code,
+          BaseQty: baseQuantity,
+          WhsCode:
             detail.whs_code ??
             detail.warehouse_code ??
             detail.to_whs ??
             detail.warehouse?.code ??
             detail.warehouse?.whs_code ??
             warehouse,
-          issue_mthd: detail.issue_mthd ?? detail.issue_method ?? detail.issueMethod ?? '',
-          ocr_code: detail.ocr_code ?? form.product.ocr_code ?? '',
-          ocr_code2: detail.ocr_code2 ?? form.product.ocr_code2 ?? '',
-          ocr_code3: detail.ocr_code3 ?? form.product.ocr_code3 ?? ''
+          IssueMethod: detail.issue_mthd ?? detail.issue_method ?? detail.issueMethod ?? '',
+          OcrCode: detail.ocr_code ?? form.product.ocr_code ?? '',
+          OcrCode2: detail.ocr_code2 ?? form.product.ocr_code2 ?? '',
+          OcrCode3: detail.ocr_code3 ?? form.product.ocr_code3 ?? ''
         };
       })
     };

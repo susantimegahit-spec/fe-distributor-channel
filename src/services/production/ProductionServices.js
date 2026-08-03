@@ -15,14 +15,14 @@ class ProductionServices {
     return DataService.get(`/production/boms/${id}`);
   }
 
-  getSeries(date, CardCode = '') {
+  getSeries(date, CardCode = '202') {
     const query = new URLSearchParams({ CustomQuery: date || '', CardCode: CardCode || '' }).toString();
 
     return DataService.get(`/sales-orders/series?${query}`);
   }
 
   postProductionOrder(payload) {
-    return DataService.post('/production/orders', payload);
+    return DataService.post('/production/orders/sap', payload);
   }
 
   getProductionOrder(payload = {}) {
