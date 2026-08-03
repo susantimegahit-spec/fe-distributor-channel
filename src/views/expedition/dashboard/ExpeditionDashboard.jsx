@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Select from 'react-select';
 import AsyncSelect from 'react-select/async';
 
@@ -118,7 +118,7 @@ export default function ExpeditionDashboard() {
     destinationCode: '',
     destination: '',
     destinationLabel: '',
-    weight: 25,
+    weight: 0,
     serviceType: '',
     route: ''
   });
@@ -189,6 +189,59 @@ export default function ExpeditionDashboard() {
 
   const weight = Number(form.weight || 0);
   const cheapestRecommendation = recommendations[0];
+  const weightColumns = useMemo(() => {
+    const columns = new Map();
+
+    recommendations.forEach((item) => {
+      const key = `${item.min_tonnage ?? ''}|${item.max_tonnage ?? ''}`;
+      if (!columns.has(key)) {
+        columns.set(key, {
+          key,
+          label: item.weightRange,
+          min: Number(item.min_tonnage ?? 0),
+          max: Number(item.max_tonnage ?? item.min_tonnage ?? 0)
+        });
+      }
+    });
+
+    return [...columns.values()].sort((a, b) => a.min - b.min || a.max - b.max);
+  }, [recommendations]);
+
+  const expeditionComparisonRows = useMemo(() => {
+    const rows = new Map();
+
+    recommendations.forEach((item) => {
+      const expeditionKey = String(item.expedition_id ?? item.expedition_code ?? item.name);
+      const weightKey = `${item.min_tonnage ?? ''}|${item.max_tonnage ?? ''}`;
+      const current = rows.get(expeditionKey) || {
+        key: expeditionKey,
+        name: item.name,
+        prices: {}
+      };
+      const currentPrice = current.prices[weightKey];
+
+      if (currentPrice === undefined || item.price < currentPrice) {
+        current.prices[weightKey] = item.price;
+      }
+      rows.set(expeditionKey, current);
+    });
+
+    return [...rows.values()];
+  }, [recommendations]);
+
+  const lowestPricesByWeight = useMemo(
+    () =>
+      Object.fromEntries(
+        weightColumns.map((column) => {
+          const prices = expeditionComparisonRows
+            .map((item) => item.prices[column.key])
+            .filter((price) => price !== undefined && Number.isFinite(price));
+
+          return [column.key, prices.length ? Math.min(...prices) : undefined];
+        })
+      ),
+    [expeditionComparisonRows, weightColumns]
+  );
 
   const handleChange = (field) => (event) => {
     setForm((current) => ({
@@ -397,31 +450,45 @@ export default function ExpeditionDashboard() {
           <thead>
             <tr>
               <th>Expedition</th>
-              <th>Service</th>
-              <th>Weight</th>
-              <th>Service Type</th>
-              <th className="text-end">Price</th>
+              {weightColumns.map((column) => (
+                <th className="text-end" key={column.key}>
+                  {column.label}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {recommendations.length > 0 ? (
-              recommendations.map((item) => (
-                <tr key={item.id || `${item.name}-${item.service}`}>
+            {expeditionComparisonRows.length > 0 ? (
+              expeditionComparisonRows.map((item) => (
+                <tr key={item.key}>
                   <td>
                     <div className="fw-semibold">{item.name}</div>
                     <div className="text-muted f-12">
                       {form.originLabel || form.departure} to {form.destinationLabel || form.destination}
                     </div>
                   </td>
-                  <td>{item.service}</td>
-                  <td>{item.weightRange}</td>
-                  <td>{item.serviceType}</td>
-                  <td className="text-end">{currency(item.price)}</td>
+                  {weightColumns.map((column) => {
+                    const price = item.prices[column.key];
+                    const isLowestPrice =
+                      price !== undefined && price === lowestPricesByWeight[column.key];
+
+                    return (
+                      <td className="text-end fw-semibold" key={column.key}>
+                        {price === undefined ? (
+                          <Badge bg="danger">SKIP</Badge>
+                        ) : isLowestPrice ? (
+                          <Badge bg="success">{currency(price)}</Badge>
+                        ) : (
+                          currency(price)
+                        )}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={5} className="text-center text-muted py-4">
+                <td colSpan={Math.max(weightColumns.length + 1, 2)} className="text-center text-muted py-4">
                   Complete the origin, destination, and weight to view recommendations.
                 </td>
               </tr>

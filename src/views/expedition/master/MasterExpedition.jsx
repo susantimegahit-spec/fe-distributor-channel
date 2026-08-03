@@ -10,6 +10,7 @@ import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
 import InputGroup from 'react-bootstrap/InputGroup';
 import Modal from 'react-bootstrap/Modal';
+import Overlay from 'react-bootstrap/Overlay';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
@@ -25,6 +26,12 @@ const selectStyles = {
   menuPortal: (base) => ({ ...base, zIndex: 1060 }),
   menu: (base) => ({ ...base, zIndex: 1060 })
 };
+
+const transportModeOptions = [
+  { value: 'LAND', label: 'Land Route' },
+  { value: 'SEA', label: 'Sea Route' },
+  { value: 'AIR', label: 'Air Route' }
+];
 
 const initialForm = {
   code: '',
@@ -74,6 +81,29 @@ const normalizeStatus = (value) => {
   return ['inactive', 'tidak aktif', 'nonaktif', '0'].includes(status) ? 'inactive' : 'active';
 };
 
+const normalizeTransportModes = (value) => {
+  const values = Array.isArray(value) ? value : String(value || '').split(',');
+
+  return values
+    .map((item) => {
+      const transportMode = String(item || '').trim();
+      const normalizedMode = transportMode.toLowerCase();
+
+      if (['land', 'land route', 'darat'].includes(normalizedMode)) return 'LAND';
+      if (['sea', 'sea route', 'laut'].includes(normalizedMode)) return 'SEA';
+      if (['air', 'air route', 'udara'].includes(normalizedMode)) return 'AIR';
+      return transportMode;
+    })
+    .filter(Boolean);
+};
+
+const formatTransportModes = (value) => {
+  const values = normalizeTransportModes(value);
+  return values
+    .map((item) => transportModeOptions.find((option) => option.value === item)?.label || item)
+    .join(', ');
+};
+
 const normalizeExpedition = (item = {}) => ({
   ...item,
   id: item.id ?? item.expedition_id,
@@ -88,6 +118,7 @@ const normalizeExpedition = (item = {}) => ({
   vehicleType: item.vehicleType ?? item.vehicle_type ?? '',
   transportMode: item.transportMode ?? item.transport_mode ?? '',
   province: item.province ?? item.province_name ?? '',
+  provinceId: String(item.provinceId ?? item.province_id ?? ''),
   city: item.city ?? item.city_name ?? '',
   status: normalizeStatus(item.status)
 });
@@ -117,6 +148,11 @@ export default function MasterExpedition() {
   const [keywords, setKeywords] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [formMode, setFormMode] = useState('add');
+  const [editingId, setEditingId] = useState(null);
+  const [viewExpedition, setViewExpedition] = useState(null);
+  const [expeditionActionMenu, setExpeditionActionMenu] = useState(null);
+  const [loadingExpeditionAction, setLoadingExpeditionAction] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [uploadingExcel, setUploadingExcel] = useState(false);
   const [provinceOptions, setProvinceOptions] = useState([]);
@@ -275,6 +311,8 @@ export default function MasterExpedition() {
   };
 
   const handleOpenForm = () => {
+    setFormMode('add');
+    setEditingId(null);
     setForm(initialForm);
     setCityOptions([]);
     setShowForm(true);
@@ -284,6 +322,85 @@ export default function MasterExpedition() {
     setShowForm(false);
     setForm(initialForm);
     setCityOptions([]);
+    setFormMode('add');
+    setEditingId(null);
+  };
+
+  const fetchExpeditionDetail = async (id) => {
+    const response = await ExpeditionServices.getDetailExpedition(id);
+
+    if (!isSuccessfulResponse(response)) {
+      throw new Error(response?.data?.message || 'Failed to fetch expedition detail');
+    }
+
+    const payload = response?.data?.data ?? response?.data ?? {};
+    const detail = payload?.data ?? payload?.item ?? payload;
+    return normalizeExpedition(Array.isArray(detail) ? detail[0] : detail);
+  };
+
+  const handleView = async (item) => {
+    setLoadingExpeditionAction(true);
+    try {
+      setViewExpedition(await fetchExpeditionDetail(item.id));
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch expedition detail', 'danger');
+    } finally {
+      setLoadingExpeditionAction(false);
+    }
+  };
+
+  const handleEdit = async (item) => {
+    setLoadingExpeditionAction(true);
+    let detail;
+
+    try {
+      detail = await fetchExpeditionDetail(item.id);
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch expedition detail', 'danger');
+      setLoadingExpeditionAction(false);
+      return;
+    }
+
+    const matchedProvince = provinceOptions.find(
+      (province) =>
+        String(province.id) === String(detail.provinceId) ||
+        String(province.name).toLowerCase() === String(detail.province).toLowerCase()
+    );
+    const provinceId = String(detail.provinceId || matchedProvince?.id || '');
+
+    setFormMode('edit');
+    setEditingId(detail.id);
+    setForm({
+      code: detail.code,
+      name: detail.name,
+      address: detail.address,
+      provinceId,
+      city: detail.city,
+      province: detail.province,
+      postalCode: detail.postalCode,
+      picName: detail.picName,
+      picPhone: detail.picPhone,
+      email: detail.email,
+      npwp: detail.npwp,
+      vehicleType: detail.vehicleType,
+      transportMode: normalizeTransportModes(detail.transportMode),
+      status: detail.status === 'active' ? 'ACTIVE' : 'INACTIVE'
+    });
+    setCityOptions([]);
+    setShowForm(true);
+
+    if (provinceId) {
+      setLoadingCities(true);
+      try {
+        const response = await ExpeditionServices.getCities(provinceId);
+        if (isSuccessfulResponse(response)) setCityOptions(getResponseList(response));
+      } catch (error) {
+        showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch city data', 'danger');
+      } finally {
+        setLoadingCities(false);
+      }
+    }
+    setLoadingExpeditionAction(false);
   };
 
   const buildPayload = (values) => ({
@@ -298,7 +415,9 @@ export default function MasterExpedition() {
     email: values.email.trim() || null,
     npwp: values.npwp.trim() || null,
     vehicle_type: values.vehicleType.trim() || null,
-    transport_mode: values.transportMode.trim() || null,
+    transport_mode: Array.isArray(values.transportMode)
+      ? values.transportMode
+      : values.transportMode.trim() || null,
     status: values.status
   });
 
@@ -307,19 +426,33 @@ export default function MasterExpedition() {
     setSubmitting(true);
 
     try {
-      const response = await ExpeditionServices.postExpedition(buildPayload(form));
+      const response =
+        formMode === 'edit'
+          ? await ExpeditionServices.updateExpedition(editingId, buildPayload(form))
+          : await ExpeditionServices.postExpedition(buildPayload(form));
 
       if (!isSuccessfulResponse(response)) {
-        showAlert(response.data.message || 'Failed to add expedition', 'danger');
+        showAlert(
+          response.data.message || `Failed to ${formMode === 'edit' ? 'update' : 'add'} expedition`,
+          'danger'
+        );
         return;
       }
 
-      showAlert(response?.data?.message || 'Expedition added successfully', 'success');
+      showAlert(
+        response?.data?.message || `Expedition ${formMode === 'edit' ? 'updated' : 'added'} successfully`,
+        'success'
+      );
       handleCloseForm();
       setCurrentPage(1);
       await fetchExpeditions();
     } catch (error) {
-      showAlert(error?.response?.data?.message || error?.message || 'Failed to add expedition', 'danger');
+      showAlert(
+        error?.response?.data?.message ||
+          error?.message ||
+          `Failed to ${formMode === 'edit' ? 'update' : 'add'} expedition`,
+        'danger'
+      );
     } finally {
       setSubmitting(false);
     }
@@ -529,12 +662,13 @@ export default function MasterExpedition() {
                 <th style={{ minWidth: 150 }}>Vehicle Type</th>
                 <th style={{ minWidth: 150 }}>Transport Mode</th>
                 <th style={{ minWidth: 120 }}>Status</th>
+                <th style={{ minWidth: 120 }} className="text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={13}>
+                  <td colSpan={14}>
                     <LoaderData />
                   </td>
                 </tr>
@@ -552,15 +686,43 @@ export default function MasterExpedition() {
                     <td>{item.email || '-'}</td>
                     <td>{item.npwp || '-'}</td>
                     <td>{item.vehicleType || '-'}</td>
-                    <td>{item.transportMode || '-'}</td>
+                    <td>{formatTransportModes(item.transportMode) || '-'}</td>
                     <td>
                       {item.status === 'active' ? <Badge bg="success">Active</Badge> : <Badge bg="secondary">Inactive</Badge>}
+                    </td>
+                    <td className="text-center text-nowrap">
+                      <Button
+                        size="sm"
+                        disabled={loadingExpeditionAction}
+                        variant={
+                          String(expeditionActionMenu?.expedition?.id ?? expeditionActionMenu?.expedition?.code) ===
+                          String(item.id ?? item.code)
+                            ? 'primary'
+                            : 'outline-primary'
+                        }
+                        aria-label={`Open actions for expedition ${item.name}`}
+                        aria-expanded={
+                          String(expeditionActionMenu?.expedition?.id ?? expeditionActionMenu?.expedition?.code) ===
+                          String(item.id ?? item.code)
+                        }
+                        onClick={(event) =>
+                          setExpeditionActionMenu((current) =>
+                            String(current?.expedition?.id ?? current?.expedition?.code) === String(item.id ?? item.code)
+                              ? null
+                              : { expedition: item, target: event.currentTarget }
+                          )
+                        }
+                      >
+                        <i className="ti ti-dots-vertical me-1" />
+                        Actions
+                        <i className="ti ti-chevron-down ms-1" />
+                      </Button>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={13}>
+                  <td colSpan={14}>
                     <div className="text-center py-5">
                       <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                         <i className="ti ti-package-off f-24" />
@@ -588,10 +750,59 @@ export default function MasterExpedition() {
         </MainCard>
       </Stack>
 
+      <Overlay
+        show={Boolean(expeditionActionMenu)}
+        target={expeditionActionMenu?.target}
+        placement="top-end"
+        container={typeof document !== 'undefined' ? document.body : null}
+        containerPadding={8}
+        rootClose
+        rootCloseEvent="mousedown"
+        onHide={() => setExpeditionActionMenu(null)}
+      >
+        {({ ref, style, placement }) => {
+          const expedition = expeditionActionMenu?.expedition;
+
+          return (
+            <div
+              ref={ref}
+              className="dropdown-menu show"
+              data-popper-placement={placement}
+              style={{ ...style, zIndex: 1080, minWidth: 180 }}
+            >
+              <button
+                type="button"
+                className="dropdown-item"
+                disabled={loadingExpeditionAction}
+                onClick={() => {
+                  setExpeditionActionMenu(null);
+                  handleView(expedition);
+                }}
+              >
+                <i className="ti ti-eye text-primary me-2" />
+                View
+              </button>
+              <button
+                type="button"
+                className="dropdown-item"
+                disabled={loadingExpeditionAction}
+                onClick={() => {
+                  setExpeditionActionMenu(null);
+                  handleEdit(expedition);
+                }}
+              >
+                <i className="ti ti-edit text-warning me-2" />
+                Edit
+              </button>
+            </div>
+          );
+        }}
+      </Overlay>
+
       <Modal show={showForm} onHide={handleCloseForm} centered size="lg">
         <Form onSubmit={handleSubmit}>
           <Modal.Header closeButton>
-            <Modal.Title>Add Expedition</Modal.Title>
+            <Modal.Title>{formMode === 'edit' ? 'Edit Expedition' : 'Add Expedition'}</Modal.Title>
           </Modal.Header>
           <Modal.Body>
             <Row className="g-3">
@@ -693,7 +904,25 @@ export default function MasterExpedition() {
               <Col md={4}>
                 <Form.Group>
                   <Form.Label>Transport Mode</Form.Label>
-                  <Form.Control value={form.transportMode} onChange={handleChange('transportMode')} placeholder="Darat" />
+                  {formMode === 'edit' ? (
+                    <Select
+                      isMulti
+                      classNamePrefix="react-select"
+                      menuPortalTarget={document.body}
+                      options={transportModeOptions}
+                      placeholder="Select transport mode"
+                      styles={selectStyles}
+                      value={transportModeOptions.filter((option) => form.transportMode.includes(option.value))}
+                      onChange={(options) =>
+                        setForm((current) => ({
+                          ...current,
+                          transportMode: options.map((option) => option.value)
+                        }))
+                      }
+                    />
+                  ) : (
+                    <Form.Control value={form.transportMode} onChange={handleChange('transportMode')} placeholder="Darat" />
+                  )}
                 </Form.Group>
               </Col>
               <Col md={4}>
@@ -713,10 +942,68 @@ export default function MasterExpedition() {
             </Button>
             <Button variant="primary" type="submit" disabled={!canSubmit}>
               <i className={`${submitting ? 'ti ti-loader-2' : 'ti ti-device-floppy'} me-1`} />
-              {submitting ? 'Saving...' : 'Save'}
+              {submitting ? 'Saving...' : formMode === 'edit' ? 'Update' : 'Save'}
             </Button>
           </Modal.Footer>
         </Form>
+      </Modal>
+
+      <Modal show={Boolean(viewExpedition)} onHide={() => setViewExpedition(null)} centered size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>Expedition Detail</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {viewExpedition ? (
+            <Row className="g-3">
+              {[
+                ['Expedition Code', viewExpedition.code],
+                ['Expedition Name', viewExpedition.name],
+                ['Address', viewExpedition.address],
+                ['City/Regency', viewExpedition.city],
+                ['Province', viewExpedition.province],
+                ['Postal Code', viewExpedition.postalCode],
+                ['PIC Name', viewExpedition.picName],
+                ['PIC Phone', viewExpedition.picPhone],
+                ['Email', viewExpedition.email],
+                ['NPWP', viewExpedition.npwp],
+                ['Vehicle Type', viewExpedition.vehicleType],
+                ['Transport Mode', formatTransportModes(viewExpedition.transportMode)]
+              ].map(([label, value]) => (
+                <Col md={label === 'Address' ? 12 : 6} key={label}>
+                  <div className="text-muted f-12">{label}</div>
+                  <div className="fw-semibold" style={{ whiteSpace: 'pre-wrap' }}>
+                    {value || '-'}
+                  </div>
+                </Col>
+              ))}
+              <Col md={6}>
+                <div className="text-muted f-12">Status</div>
+                {viewExpedition.status === 'active' ? (
+                  <Badge bg="success">Active</Badge>
+                ) : (
+                  <Badge bg="secondary">Inactive</Badge>
+                )}
+              </Col>
+            </Row>
+          ) : null}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" onClick={() => setViewExpedition(null)}>
+            Close
+          </Button>
+          <Button
+            variant="primary"
+            disabled={loadingExpeditionAction}
+            onClick={() => {
+              const selectedItem = viewExpedition;
+              setViewExpedition(null);
+              handleEdit(selectedItem);
+            }}
+          >
+            <i className="ti ti-edit me-1" />
+            Edit
+          </Button>
+        </Modal.Footer>
       </Modal>
 
       <Modal show={showUpload} onHide={() => setShowUpload(false)} centered>

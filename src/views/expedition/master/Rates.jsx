@@ -358,7 +358,6 @@ export default function Rates() {
       const expeditionCode = String(getCookies('expedition_code') || '').trim();
       const originValues = uniqueValues(
         origins.map((item) => {
-          const warehouseCode = firstValue(item, ['whsCode', 'whs_code', 'warehouse_code', 'code', 'origin_code']);
           const warehouseName = firstValue(item, [
             'whsNameOrigin',
             'whs_name_origin',
@@ -367,7 +366,7 @@ export default function Rates() {
             'name'
           ]);
 
-          return joinValues([warehouseCode, warehouseName]);
+          return warehouseName;
         })
       );
       const destinationRows = destinations.map(getDestinationRow).filter((item) => item.dropdown);
@@ -749,7 +748,10 @@ export default function Rates() {
                 const rateValue = getRateValue(rate, ['rate', 'amount', 'price']);
 
                 return (
-                  <tr key={rate.id || rate.rate_id || `${warehouseCode}-${destination}-${index}`}>
+                  <tr
+                    key={rate.id || rate.rate_id || `${warehouseCode}-${destination}-${index}`}
+                    className={rateValue !== '' && Number(rateValue) === 0 ? 'table-danger' : undefined}
+                  >
                     <td>
                       <div>{warehouseName || '-'}</div>
                       {warehouseCode ? <small className="text-muted">{warehouseCode}</small> : null}

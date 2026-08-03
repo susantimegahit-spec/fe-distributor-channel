@@ -13,7 +13,7 @@ class ExpeditionServices {
     return DataService.get('ekspedisi/expeditions', payload);
   }
 
-  getExpeditionById(id) {
+  getDetailExpedition(id) {
     return DataService.get(`ekspedisi/expeditions/${id}`);
   }
 
@@ -21,7 +21,7 @@ class ExpeditionServices {
     return DataService.post('ekspedisi/expeditions', payload);
   }
 
-  putExpedition(id, payload) {
+  updateExpedition(id, payload) {
     return DataService.put(`ekspedisi/expeditions/${id}`, payload);
   }
 
