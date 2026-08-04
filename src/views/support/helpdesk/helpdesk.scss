@@ -1,9 +1,9 @@
 .helpdesk-page {
-  --hd-navy: #132649;
-  --hd-blue: var(--system-primary, #315fb4);
-  --hd-cyan: var(--system-secondary, #12bfd7);
-  --hd-soft: #eef6ff;
-  --hd-line: #e5ebf2;
+  --hd-navy: #4b3700;
+  --hd-blue: var(--system-primary, #f2b705);
+  --hd-cyan: var(--system-secondary, #ffd43b);
+  --hd-soft: #fff8dc;
+  --hd-line: #f0dfa8;
 
   .helpdesk-hero {
     overflow: hidden;
@@ -12,10 +12,10 @@
     border: 0;
     border-radius: 16px;
     background:
-      radial-gradient(circle at 82% 8%, rgba(115, 229, 245, 0.3), transparent 28%),
-      linear-gradient(135deg, var(--hd-navy), #244b86);
+      radial-gradient(circle at 82% 8%, rgba(255, 224, 130, 0.42), transparent 28%),
+      linear-gradient(135deg, var(--hd-navy), #bd8d00);
     color: #fff;
-    box-shadow: 0 16px 35px rgba(19, 38, 73, 0.18);
+    box-shadow: 0 16px 35px rgba(75, 55, 0, 0.2);
 
     &::after {
       position: absolute;
@@ -34,7 +34,7 @@
     }
 
     .hero-kicker {
-      color: #91e7f2;
+      color: #ffe082;
       font-size: 0.68rem;
       font-weight: 700;
       letter-spacing: 0.14em;
@@ -44,9 +44,9 @@
 
   .helpdesk-stat {
     height: 100%;
-    border: 1px solid rgba(49, 95, 180, 0.1);
+    border: 1px solid rgba(var(--system-primary-rgb), 0.16);
     border-radius: 14px;
-    box-shadow: 0 8px 24px rgba(19, 38, 73, 0.07);
+    box-shadow: 0 8px 24px rgba(75, 55, 0, 0.08);
 
     .stat-icon {
       display: grid;
@@ -69,7 +69,7 @@
   .helpdesk-filter {
     border: 1px solid var(--hd-line);
     border-radius: 12px;
-    background: #f9fbfd;
+    background: #fffcf2;
   }
 
   .ticket-subject {
@@ -93,8 +93,8 @@
     transition: 0.2s ease;
 
     &:hover {
-      border-color: rgba(49, 95, 180, 0.35);
-      box-shadow: 0 10px 24px rgba(19, 38, 73, 0.08);
+      border-color: rgba(var(--system-primary-rgb), 0.4);
+      box-shadow: 0 10px 24px rgba(75, 55, 0, 0.1);
       transform: translateY(-2px);
     }
   }
@@ -114,8 +114,8 @@
       flex-direction: row-reverse;
 
       .message-bubble {
-        background: #eaf6ff;
-        border-color: #d7ebfa;
+        background: #fff4c2;
+        border-color: #f3d978;
       }
     }
   }
@@ -138,7 +138,7 @@
     padding: 12px 14px;
     border: 1px solid var(--hd-line);
     border-radius: 4px 14px 14px;
-    background: #f7f9fc;
+    background: #fffdf7;
   }
 
   .ticket-meta-row {
@@ -152,10 +152,10 @@
 
   .upload-dropzone {
     padding: 24px;
-    border: 1.5px dashed #9ebfe1;
+    border: 1.5px dashed #d8ad2f;
     border-radius: 12px;
-    background: #f5faff;
-    color: #52749a;
+    background: #fff9df;
+    color: #725500;
     text-align: center;
   }
 

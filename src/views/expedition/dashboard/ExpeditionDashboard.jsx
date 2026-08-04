@@ -23,6 +23,18 @@ const selectStyles = {
   menu: (base) => ({ ...base, zIndex: 10 })
 };
 
+const routeOptions = [
+  { value: 'D', label: 'Land Route' },
+  { value: 'L', label: 'Sea Route' },
+  { value: 'U', label: 'Air Route' }
+];
+
+const serviceTypeOptions = [
+  { value: 'RIT', label: 'RIT' },
+  { value: 'TONASE', label: 'TONASE' },
+  { value: 'FEET', label: 'CONTAINER' }
+];
+
 const getPayloadList = (response, keys = []) => {
   const payload = response?.data?.data ?? response?.data ?? [];
   if (Array.isArray(payload)) return payload;
@@ -42,8 +54,17 @@ const formatMasterOption = ({ label, code, customerCode }) => (
   </div>
 );
 
+const formatDestinationOption = ({ label, street }) => (
+  <div>
+    <div>{label || '-'}</div>
+    <small className="text-muted d-block">{street || '-'}</small>
+  </div>
+);
+
 const filterMasterOption = ({ data }, inputValue) =>
-  `${data.label} ${data.code} ${data.customerCode}`.toLowerCase().includes(inputValue.trim().toLowerCase());
+  `${data.label} ${data.code} ${data.customerCode} ${data.street}`
+    .toLowerCase()
+    .includes(inputValue.trim().toLowerCase());
 
 const formatWeightRange = (minTonnage, maxTonnage) => {
   const minValue = Number(minTonnage);
@@ -92,14 +113,18 @@ const normalizeShipToOption = (item, index) => {
     '';
   const destination =
     item.shipToName ?? item.ship_to_name ?? item.address_name ?? item.AddressName2 ?? item.destination ?? item.city ?? '';
+  const alias = item.alias ?? item.ship_to_alias ?? item.destination_alias ?? '';
+  const street = item.street ?? item.Street ?? item.ship_to_address ?? item.Address ?? item.address ?? '';
 
   return {
     value: code || String(item.id ?? item.shipto_id ?? item.ship_to_id ?? index),
-    label: [name, destination].filter(Boolean).join(' - ') || code || '-',
+    label: alias || destination || name || code || '-',
     code,
     customerCode,
     destination: item.city ?? item.City ?? destination ?? code,
-    destinationLabel: destination || name || code || '-'
+    destinationLabel: alias || destination || name || code || '-',
+    street,
+    city: item.city ?? item.City ?? ''
   };
 };
 
@@ -115,16 +140,22 @@ export default function ExpeditionDashboard() {
     originCode: '',
     departure: '',
     originLabel: '',
+    originStreet: '',
+    originCity: '',
     destinationCode: '',
     destination: '',
     destinationLabel: '',
+    destinationStreet: '',
+    destinationCity: '',
     weight: 0,
     serviceType: '',
-    route: ''
+    route: []
   });
 
   const selectedOrigin = originOptions.find((item) => item.value === form.originCode) || null;
   const selectedDestination = destinationOptions.find((item) => item.value === form.destinationCode) || null;
+  const selectedRoute = routeOptions.filter((item) => form.route.includes(item.value));
+  const selectedServiceType = serviceTypeOptions.find((item) => item.value === form.serviceType) || null;
 
   const fetchMasterRoutes = useCallback(async () => {
     setLoadingOrigins(true);
@@ -153,7 +184,9 @@ export default function ExpeditionDashboard() {
             value: code || String(item.id ?? item.origin_id ?? index),
             label: name || code || '-',
             code,
-            departure: item.city || item.regency || name || code || ''
+            departure: item.city || item.regency || name || code || '',
+            street: item.street ?? item.address ?? '',
+            city: item.city ?? item.regency ?? item.city_name ?? ''
           };
         })
       );
@@ -188,7 +221,6 @@ export default function ExpeditionDashboard() {
   }, []);
 
   const weight = Number(form.weight || 0);
-  const cheapestRecommendation = recommendations[0];
   const weightColumns = useMemo(() => {
     const columns = new Map();
 
@@ -243,6 +275,19 @@ export default function ExpeditionDashboard() {
     [expeditionComparisonRows, weightColumns]
   );
 
+  const originLocation = form.originStreet
+    ? `${form.originStreet}${form.originCity ? ` (${form.originCity})` : ''}`
+    : form.originCity
+      ? `(${form.originCity})`
+      : '';
+  const originHeader = [form.originLabel, originLocation].filter(Boolean).join(' - ');
+  const destinationLocation = form.destinationStreet
+    ? `${form.destinationStreet}${form.destinationCity ? ` (${form.destinationCity})` : ''}`
+    : form.destinationCity
+      ? `(${form.destinationCity})`
+      : '';
+  const destinationHeader = [form.destinationLabel, destinationLocation].filter(Boolean).join(' - ');
+
   const handleChange = (field) => (event) => {
     setForm((current) => ({
       ...current,
@@ -255,7 +300,9 @@ export default function ExpeditionDashboard() {
       ...current,
       originCode: option?.value || '',
       departure: option?.departure || '',
-      originLabel: option?.label || ''
+      originLabel: option?.label || '',
+      originStreet: option?.street || '',
+      originCity: option?.city || ''
     }));
   };
 
@@ -270,7 +317,9 @@ export default function ExpeditionDashboard() {
       ...current,
       destinationCode: option?.value || '',
       destination: option?.destination || '',
-      destinationLabel: option?.destinationLabel || ''
+      destinationLabel: option?.destinationLabel || '',
+      destinationStreet: option?.street || '',
+      destinationCity: option?.city || ''
     }));
   };
 
@@ -333,13 +382,6 @@ export default function ExpeditionDashboard() {
             <span className="text-muted f-12">Find expedition recommendations based on route and shipment weight.</span>
           </Stack>
         }
-        secondary={
-          cheapestRecommendation ? (
-            <Badge bg="success" className="py-2 px-3">
-              Cheapest: {cheapestRecommendation.name}
-            </Badge>
-          ) : null
-        }
       >
         <Row className="g-3">
           <Col md={6}>
@@ -370,7 +412,7 @@ export default function ExpeditionDashboard() {
                 isClearable
                 isLoading={loadingDestinations}
                 filterOption={filterMasterOption}
-                formatOptionLabel={formatMasterOption}
+                formatOptionLabel={formatDestinationOption}
                 loadOptions={searchShipToOptions}
                 noOptionsMessage={() => 'Destination not found'}
                 onChange={handleDestinationChange}
@@ -390,23 +432,37 @@ export default function ExpeditionDashboard() {
           <Col md={4}>
             <Form.Group>
               <Form.Label className="f-12 text-muted">Route</Form.Label>
-              <Form.Select value={form.route} onChange={handleChange('route')}>
-                <option value="">Select route</option>
-                <option value="LAND">Land Route</option>
-                <option value="SEA">Sea Route</option>
-                <option value="AIR">Air Route</option>
-              </Form.Select>
+              <Select
+                classNamePrefix="react-select"
+                isMulti
+                isClearable
+                options={routeOptions}
+                placeholder="Search route"
+                styles={selectStyles}
+                value={selectedRoute}
+                onChange={(options) =>
+                  setForm((current) => ({
+                    ...current,
+                    route: options.map((option) => option.value)
+                  }))
+                }
+              />
             </Form.Group>
           </Col>
           <Col md={4}>
             <Form.Group>
               <Form.Label className="f-12 text-muted">Service Type</Form.Label>
-              <Form.Select value={form.serviceType} onChange={handleChange('serviceType')}>
-                <option value="">Select service</option>
-                <option value="RIT">RIT</option>
-                <option value="TONASE">TONASE</option>
-                <option value="FEET">CONTAINER</option>
-              </Form.Select>
+              <Select
+                classNamePrefix="react-select"
+                isClearable
+                options={serviceTypeOptions}
+                placeholder="Search service type"
+                styles={selectStyles}
+                value={selectedServiceType}
+                onChange={(option) =>
+                  setForm((current) => ({ ...current, serviceType: option?.value || '' }))
+                }
+              />
             </Form.Group>
           </Col>
           <Col xs={12}>
@@ -446,6 +502,22 @@ export default function ExpeditionDashboard() {
           </Button>
         }
       >
+        {originHeader || destinationHeader ? (
+          <Row className="g-2 mb-3">
+            <Col md={6}>
+              <div className="rounded border bg-light-primary px-3 py-2 h-100">
+                <span className="text-muted f-12 d-block">Origin</span>
+                <span className="fw-semibold">{originHeader || '-'}</span>
+              </div>
+            </Col>
+            <Col md={6}>
+              <div className="rounded border bg-light-primary px-3 py-2 h-100">
+                <span className="text-muted f-12 d-block">Destination</span>
+                <span className="fw-semibold">{destinationHeader || '-'}</span>
+              </div>
+            </Col>
+          </Row>
+        ) : null}
         <Table className="mb-0 align-middle" responsive hover>
           <thead>
             <tr>
@@ -463,9 +535,6 @@ export default function ExpeditionDashboard() {
                 <tr key={item.key}>
                   <td>
                     <div className="fw-semibold">{item.name}</div>
-                    <div className="text-muted f-12">
-                      {form.originLabel || form.departure} to {form.destinationLabel || form.destination}
-                    </div>
                   </td>
                   {weightColumns.map((column) => {
                     const price = item.prices[column.key];

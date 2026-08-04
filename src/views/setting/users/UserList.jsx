@@ -58,7 +58,7 @@ const accessibleSystemOptions = [
   { value: SYSTEM_KEYS.EXPEDITION, label: 'Expedition', color: '#e8590c' },
   { value: SYSTEM_KEYS.PICKING_LIST, label: 'Picking List', color: '#7048e8' },
   { value: SYSTEM_KEYS.PRODUCTION, label: 'Production', color: '#198754' },
-  { value: SYSTEM_KEYS.SUPPORT, label: 'Support', color: '#5b4fe9' }
+  { value: SYSTEM_KEYS.SUPPORT, label: 'Support', color: '#f2b705' }
 ];
 const accessibleSystemAliases = {
   distributor: SYSTEM_KEYS.CUSTOMER_PORTAL,

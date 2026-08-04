@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import * as XLSX from 'xlsx';
 
 // react-bootstrap
 import Badge from 'react-bootstrap/Badge';
@@ -27,6 +28,7 @@ const normalizeDestination = (item = {}) => ({
   customerName: item.customerName ?? item.customer_name ?? item.name ?? item.customer?.name ?? item.card_name ?? item.CardName ?? '',
   shipToCode: item.shipToCode ?? item.ship_to_code ?? item.address_code ?? item.AddressName ?? '',
   shipToName: item.shipToName ?? item.ship_to_name ?? item.address_name ?? item.AddressName2 ?? '',
+  alias: item.alias ?? item.ship_to_alias ?? item.destination_alias ?? '',
   street: item.street ?? item.Street ?? item.address ?? '',
   city: item.city ?? item.City ?? '',
   province: item.province ?? item.state ?? item.State ?? '',
@@ -44,9 +46,11 @@ const isSuccessful = (response) => response?.status < 400 && response?.data?.suc
 
 export default function MasterDestination() {
   const { showAlert } = useAlert();
+  const uploadInputRef = useRef(null);
   const [destinations, setDestinations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [keywords, setKeywords] = useState('');
   const [status, setStatus] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -75,18 +79,56 @@ export default function MasterDestination() {
     return () => clearTimeout(timeout);
   }, [fetchDestinations]);
 
-  const handleSync = async () => {
-    setSyncing(true);
+  const handleUploadDestination = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    if (!['xlsx', 'xls'].includes(extension)) {
+      showAlert('Please select an Excel file with .xlsx or .xls extension', 'danger');
+      event.target.value = '';
+      return;
+    }
+
+    setUploading(true);
     try {
-      const response = await DestinationServices.syncDestinations();
-      if (!isSuccessful(response)) throw new Error(response?.data?.message || 'Failed to sync destination data');
-      showAlert(response?.data?.message || 'Destination data synced successfully', 'success');
+      const response = await DestinationServices.postUploadDestination(file);
+      if (!isSuccessful(response)) throw new Error(response?.data?.message || 'Failed to upload destination data');
+      showAlert(response?.data?.message || 'Destination data uploaded successfully', 'success');
       setCurrentPage(1);
       await fetchDestinations();
     } catch (error) {
-      showAlert(error?.response?.data?.message || error?.message || 'Failed to sync destination data', 'danger');
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to upload destination data', 'danger');
     } finally {
-      setSyncing(false);
+      setUploading(false);
+      event.target.value = '';
+    }
+  };
+
+  const handleDownloadTemplate = () => {
+    setDownloading(true);
+    try {
+      const headers = [
+        'customer_code',
+        'customer_name',
+        'ship_to_code',
+        'ship_to_name',
+        'alias',
+        'street',
+        'city',
+        'province',
+        'postal_code',
+        'status'
+      ];
+      const worksheet = XLSX.utils.aoa_to_sheet([headers]);
+      worksheet['!cols'] = headers.map((header) => ({ wch: Math.max(header.length + 4, 18) }));
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Destination Upload');
+      XLSX.writeFile(workbook, 'Template_Upload_Destination.xlsx');
+    } catch (error) {
+      showAlert(error?.message || 'Failed to download destination template', 'danger');
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -110,10 +152,23 @@ export default function MasterDestination() {
               <h5 className="mb-1">Destination</h5>
               <span className="text-muted f-12">Manage customer ship-to destinations for expedition routes.</span>
             </div>
-            <Button disabled={syncing} onClick={handleSync}>
-              <i className={syncing ? 'ti ti-loader-2 me-1' : 'ti ti-refresh me-1'} />
-              {syncing ? 'Syncing...' : 'Sync Destination'}
-            </Button>
+            <Stack direction="horizontal" gap={2}>
+              <Button variant="success" disabled={uploading} onClick={() => uploadInputRef.current?.click()}>
+                <i className={`${uploading ? 'ti ti-loader-2' : 'ti ti-upload'} me-1`} />
+                {uploading ? 'Uploading...' : 'Upload Excel'}
+              </Button>
+              <Button disabled={downloading} onClick={handleDownloadTemplate}>
+                <i className={`${downloading ? 'ti ti-loader-2' : 'ti ti-download'} me-1`} />
+                {downloading ? 'Preparing...' : 'Download Template'}
+              </Button>
+              <Form.Control
+                ref={uploadInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                className="d-none"
+                onChange={handleUploadDestination}
+              />
+            </Stack>
           </Stack>
         }
       >
@@ -146,11 +201,12 @@ export default function MasterDestination() {
           </Row>
         </div>
 
-        <Table responsive hover className="mb-3 align-middle">
+        <Table responsive hover className="mb-3 align-middle f-12">
           <thead>
             <tr>
               <th>Customer</th>
-              <th>Destination</th>
+              <th>Alias</th>
+              <th>City</th>
               <th>Address</th>
               <th>Status</th>
               <th className="text-center">Action</th>
@@ -159,7 +215,7 @@ export default function MasterDestination() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={5}>
+                <td colSpan={6}>
                   <LoaderData />
                 </td>
               </tr>
@@ -170,7 +226,8 @@ export default function MasterDestination() {
                     <div className="fw-semibold">{destination.customerCode || '-'}</div>
                     <div className="text-muted">{destination.customerName || '-'}</div>
                   </td>
-                  <td>{destination.shipToName || [destination.city, destination.province].filter(Boolean).join(', ') || '-'}</td>
+                  <td>{destination.alias || '-'}</td>
+                  <td>{destination.city || '-'}</td>
                   <td>
                     <div>{destination.street || '-'}</div>
                     <small className="text-muted">
@@ -198,7 +255,7 @@ export default function MasterDestination() {
               ))
             ) : (
               <tr>
-                <td colSpan={5} className="text-center text-muted py-5">
+                <td colSpan={6} className="text-center text-muted py-5">
                   No destination data found.
                 </td>
               </tr>
@@ -229,12 +286,12 @@ export default function MasterDestination() {
                 <div>{selectedDestination.customerName || '-'}</div>
               </Col>
               <Col sm={6}>
-                <small className="text-muted">Destination</small>
-                <div className="fw-semibold">
-                  {selectedDestination.shipToName ||
-                    [selectedDestination.city, selectedDestination.province].filter(Boolean).join(', ') ||
-                    '-'}
-                </div>
+                <small className="text-muted">Alias</small>
+                <div className="fw-semibold">{selectedDestination.alias || '-'}</div>
+              </Col>
+              <Col sm={6}>
+                <small className="text-muted">City</small>
+                <div className="fw-semibold">{selectedDestination.city || '-'}</div>
               </Col>
               <Col xs={12}>
                 <small className="text-muted">Address</small>

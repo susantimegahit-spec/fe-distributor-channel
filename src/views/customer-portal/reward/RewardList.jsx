@@ -21,7 +21,7 @@ import FinanceServices from '../../../services/customer-portal/FinanceServices';
 import PromoServices from '../../../services/customer-portal/PromoServices';
 import RoleServices from '../../../services/setting/RoleServices';
 import { useAlert } from '../../../utils/alertContext';
-import { getAssignedCustomerCode, getCookies } from '../../../utils/cookies';
+import { getAssignedCustomerCode, getAssignedCustomerCodes, getCookies } from '../../../utils/cookies';
 import ConfirmDialog from 'components/ConfirmDialog';
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
@@ -269,6 +269,7 @@ const normalizeDistributorOption = (item) => ({
 export default function RewardList() {
   const { showAlert } = useAlert();
   const customerCode = getAssignedCustomerCode();
+  const assignedCustomerCodes = useMemo(() => getAssignedCustomerCodes(), []);
   const roleId = getCookies('role');
   const todayDate = getTodayDate();
   const fileInputRef = useRef(null);
@@ -290,6 +291,7 @@ export default function RewardList() {
   const [claimToDelete, setClaimToDelete] = useState(null);
   const [selectedWithdraw, setSelectedWithdraw] = useState(null);
   const [showClaimModal, setShowClaimModal] = useState(false);
+  const [selectedClaimDistributor, setSelectedClaimDistributor] = useState(null);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showVerifyWithdrawModal, setShowVerifyWithdrawModal] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
@@ -332,10 +334,29 @@ export default function RewardList() {
   );
   const effectiveCustomerCode = selectedDistributorCodes.length ? selectedDistributorCodes.toString() : showDistributorFilter ? '' : customerCode;
   const canCreateWithdrawal = Boolean(customerCode || selectedDistributorCodes.length === 1);
+  const hasMultipleClaimDistributors = assignedCustomerCodes.length > 1;
+  const claimDistributorOptions = useMemo(
+    () => listDistributor.filter((distributor) => assignedCustomerCodes.includes(String(distributor.value))),
+    [assignedCustomerCodes, listDistributor]
+  );
+  const claimDistributor = useMemo(() => {
+    if (hasMultipleClaimDistributors) return selectedClaimDistributor;
+
+    const assignedCode = assignedCustomerCodes[0] || '';
+    return (
+      listDistributor.find((distributor) => String(distributor.value) === assignedCode) ||
+      (assignedCode
+        ? {
+            value: assignedCode,
+            name: getCookies('distributorName') || getCookies('name') || '',
+            label: `${assignedCode} - ${getCookies('distributorName') || getCookies('name') || '-'}`
+          }
+        : null)
+    );
+  }, [assignedCustomerCodes, hasMultipleClaimDistributors, listDistributor, selectedClaimDistributor]);
+  const requiresClaimDistributor = hasMultipleClaimDistributors && !selectedClaimDistributor;
 
   const fetchDistributors = useCallback(async () => {
-    if (!showDistributorFilter) return;
-
     setLoadingDistributors(true);
 
     try {
@@ -355,7 +376,7 @@ export default function RewardList() {
     } finally {
       setLoadingDistributors(false);
     }
-  }, [showDistributorFilter, showAlert]);
+  }, [showAlert]);
 
   const fetchClaimBatches = useCallback(async () => {
     if (!effectiveCustomerCode && !showDistributorFilter) {
@@ -770,10 +791,18 @@ export default function RewardList() {
   };
 
   const handleDownloadTemplate = async () => {
+    if (requiresClaimDistributor) {
+      showAlert('Please select a distributor first', 'danger');
+      return;
+    }
+
     setDownloadingTemplate(true);
 
     try {
-      await FinanceServices.downloadRewardTemplate();
+      await FinanceServices.downloadRewardTemplate({
+        code: claimDistributor?.value || '',
+        name: claimDistributor?.name || ''
+      });
       showAlert('Reward template downloaded successfully', 'success');
     } catch (error) {
       showAlert(error?.message || 'Failed to download reward template', 'danger');
@@ -820,6 +849,12 @@ export default function RewardList() {
 
   const handleCloseClaimModal = () => {
     setShowClaimModal(false);
+    if (hasMultipleClaimDistributors) setSelectedClaimDistributor(null);
+  };
+
+  const handleOpenClaimModal = () => {
+    if (hasMultipleClaimDistributors) setSelectedClaimDistributor(null);
+    setShowClaimModal(true);
   };
 
   const handleRefreshClaims = async () => {
@@ -991,7 +1026,7 @@ export default function RewardList() {
                       {loadingClaims ? 'Refreshing...' : 'Refresh'}
                     </Button>
                     {canManageReward ? (
-                      <Button variant="primary" onClick={() => setShowClaimModal(true)}>
+                      <Button variant="primary" onClick={handleOpenClaimModal}>
                         <i className="ti ti-plus me-1" />
                         Add Claim
                       </Button>
@@ -1062,7 +1097,7 @@ export default function RewardList() {
                             <h5 className="mb-1">No claim transactions yet</h5>
                             <p className="text-muted mb-3">Upload the Excel template to add reward claim data.</p>
                             {canManageReward ? (
-                              <Button variant="primary" onClick={() => setShowClaimModal(true)}>
+                              <Button variant="primary" onClick={handleOpenClaimModal}>
                                 <i className="ti ti-plus me-1" />
                                 Add Claim
                               </Button>
@@ -1265,6 +1300,23 @@ export default function RewardList() {
           <Modal.Title>Add Reward Claim</Modal.Title>
         </Modal.Header>
         <Modal.Body>
+          {hasMultipleClaimDistributors ? (
+            <Row className="mb-3">
+              <Col lg={7}>
+                <Form.Label>Select Distributor</Form.Label>
+                <Select
+                  value={selectedClaimDistributor}
+                  options={claimDistributorOptions}
+                  onChange={setSelectedClaimDistributor}
+                  placeholder="Select customer code"
+                  isLoading={loadingDistributors}
+                  isClearable
+                  noOptionsMessage={() => 'Distributor not found'}
+                  aria-label="Select distributor for reward claim"
+                />
+              </Col>
+            </Row>
+          ) : null}
           <Row className="g-3">
             <Col lg={5}>
               <Card className="border mb-0 h-100">
@@ -1290,7 +1342,11 @@ export default function RewardList() {
                       <div className="flex-grow-1">
                         <h6 className="mb-1">Download Template</h6>
                         <p className="text-muted mb-3">Use this format so claim and sell-out transaction data can be read automatically.</p>
-                        <Button variant="light-primary" onClick={handleDownloadTemplate} disabled={downloadingTemplate}>
+                        <Button
+                          variant="light-primary"
+                          onClick={handleDownloadTemplate}
+                          disabled={downloadingTemplate || requiresClaimDistributor}
+                        >
                           <i className="ti ti-download me-1" />
                           {downloadingTemplate ? 'Preparing...' : 'Download Template'}
                         </Button>
@@ -1310,7 +1366,11 @@ export default function RewardList() {
                         {/* <p className="text-muted mb-3">
                           Upload a completed `.xlsx` or `.xls` file to add claim transactions. Maximum file size is 1MB.
                         </p> */}
-                        <Button variant="primary" onClick={() => fileInputRef.current?.click()} disabled={uploadingClaim}>
+                        <Button
+                          variant="primary"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={uploadingClaim || requiresClaimDistributor}
+                        >
                           <i className={`${uploadingClaim ? 'ti ti-loader-2' : 'ti ti-upload'} me-1`} />
                           {uploadingClaim ? 'Uploading...' : 'Choose & Upload Excel'}
                         </Button>

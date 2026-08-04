@@ -5,13 +5,13 @@ class RateServices {
     return DataService.get('ekspedisi/rates', params);
   }
 
-  getRatesRank(origin, destination, weight, serviceType, route) {
+  getRatesRank(origin, destination, weight, serviceType, transportMode) {
     return DataService.get('ekspedisi/rates/rank', {
       origin,
       destination,
       ...(Number(weight) > 0 ? { weight } : {}),
       service_type: serviceType,
-      route
+      transport_mode: transportMode
     });
   }
 

@@ -62,14 +62,50 @@ const buildCell = (value, styleId = '') => {
   return `<Cell${styleAttribute}><Data ss:Type="String">${escapeXml(value)}</Data></Cell>`;
 };
 
+const buildFormulaCell = (formula, styleId = '') => {
+  const styleAttribute = styleId ? ` ss:StyleID="${styleId}"` : '';
+
+  return `<Cell${styleAttribute} ss:Formula="${escapeXml(formula)}"><Data ss:Type="String"></Data></Cell>`;
+};
+
 const buildRow = (values, styleId = '') => `<Row>${values.map((value) => buildCell(value, styleId)).join('')}</Row>`;
 const buildEmptyRow = () => '<Row/>';
 
-const buildWorksheet = (name, rows) => `
+const buildRewardInputRow = (masterItemLastRow, distributor = {}) =>
+  `<Row>${rewardTemplateHeaders
+    .map((header) => {
+      if (header === 'Kode Distributor') {
+        return buildCell(distributor.code || '', 'TableCell');
+      }
+
+      if (header === 'Nama Distributor') {
+        return buildCell(distributor.name || '', 'TableCell');
+      }
+
+      if (header === 'Nama Item' && masterItemLastRow > 1) {
+        return buildFormulaCell(
+          `=IF(RC[-1]="","",IFERROR(VLOOKUP(RC[-1],'Master Item'!R2C1:R${masterItemLastRow}C2,2,FALSE),""))`,
+          'TableCell'
+        );
+      }
+
+      return buildCell('', 'TableCell');
+    })
+    .join('')}</Row>`;
+
+const buildListValidation = (range, source) => `
+    <x:DataValidation>
+      <x:Range>${escapeXml(range)}</x:Range>
+      <x:Type>List</x:Type>
+      <x:Value>${escapeXml(source)}</x:Value>
+    </x:DataValidation>`;
+
+const buildWorksheet = (name, rows, validations = []) => `
   <Worksheet ss:Name="${escapeXml(name)}">
     <Table>
       ${rows.join('')}
     </Table>
+    ${validations.join('')}
   </Worksheet>`;
 
 const downloadExcelXml = (fileName, worksheets) => {
@@ -132,7 +168,7 @@ class FinanceServices {
     return this.postBalanceLedger(payload);
   }
 
-  async downloadRewardTemplate() {
+  async downloadRewardTemplate(distributor = {}) {
     const response = await ProductServices.getAllProduct('');
 
     if (!response?.data?.success) {
@@ -142,16 +178,6 @@ class FinanceServices {
     const products = normalizeList(response);
     const masterItemRows = getProductRows(products);
     const masterItemHeaders = ['Item Code', 'Item Name', 'Status'];
-    const templateRows = [
-      buildRow(rewardTemplateHeaders, 'Header'),
-      buildRow(
-        rewardTemplateHeaders.map(() => ''),
-        'TableCell'
-      ),
-      buildEmptyRow(),
-      buildRow(['*Untuk kolom tipe customer harap diisi dengan MT/GT'], 'Information'),
-      buildRow(['*Untuk kolom item code dan item name harap diisi dengan data dari sheet master item'], 'Information')
-    ];
     const masterItemSheetRows = [
       buildRow(masterItemHeaders, 'Header'),
       ...masterItemRows.map((item) =>
@@ -161,9 +187,20 @@ class FinanceServices {
         )
       )
     ];
+    const masterItemLastRow = masterItemRows.length + 1;
+    const templateRows = [
+      buildRow(rewardTemplateHeaders, 'Header'),
+      ...Array.from({ length: 999 }, () => buildRewardInputRow(masterItemLastRow, distributor)),
+      buildEmptyRow(),
+      buildRow(['*Untuk kolom tipe customer harap diisi dengan MT/GT'], 'Information'),
+      buildRow(['*Nama item terisi otomatis setelah kode item dipilih'], 'Information')
+    ];
+    const itemCodeValidation = masterItemRows.length
+      ? [buildListValidation('R2C3:R1000C3', `'Master Item'!R2C1:R${masterItemRows.length + 1}C1`)]
+      : [];
 
     downloadExcelXml('template-claim-reward.xls', [
-      buildWorksheet('template', templateRows),
+      buildWorksheet('template', templateRows, itemCodeValidation),
       buildWorksheet('Master Item', masterItemSheetRows)
     ]);
 

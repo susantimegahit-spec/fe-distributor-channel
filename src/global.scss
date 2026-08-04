@@ -96,14 +96,20 @@ body {
 }
 
 [data-system-theme='support'] {
-  --system-primary: #5b4fe9;
-  --system-primary-rgb: 91, 79, 233;
-  --system-secondary: #17b8c7;
-  --system-sidebar-start: #17143a;
-  --system-sidebar-middle: #282265;
-  --system-sidebar-end: #374b9a;
-  --system-accent: #83e7ef;
-  --system-accent-rgb: 131, 231, 239;
+  --system-primary: #f2b705;
+  --system-primary-rgb: 242, 183, 5;
+  --system-secondary: #ffd43b;
+  --system-sidebar-start: #4b3700;
+  --system-sidebar-middle: #806000;
+  --system-sidebar-end: #bd8d00;
+  --system-accent: #ffe082;
+  --system-accent-rgb: 255, 224, 130;
+}
+
+[data-system-theme='support'] .btn-primary {
+  --bs-btn-color: #2b2100;
+  --bs-btn-hover-color: #2b2100;
+  --bs-btn-active-color: #2b2100;
 }
 
 [data-system-theme] {
@@ -2356,8 +2362,8 @@ body {
 
 .sm-system-switcher-icon.is-support,
 .sm-system-switcher-item-icon.is-support {
-  --switcher-color: #5b4fe9;
-  --switcher-rgb: 91, 79, 233;
+  --switcher-color: #f2b705;
+  --switcher-rgb: 242, 183, 5;
 }
 
 .sm-system-switcher-current {

@@ -2083,7 +2083,7 @@ export default function OrderPost({ cmoMode = false }) {
             }
             secondary={
               <Stack direction="horizontal" gap={2} className="flex-wrap">
-                <Button variant="danger" onClick={() => navigate(-1)}>
+                <Button variant="danger" onClick={() => (cmoMode ? navigate('/customer-portal/order/cmo') : navigate(-1))}>
                   <i className="ti ti-arrow-left me-1" />
                   Cancel
                 </Button>

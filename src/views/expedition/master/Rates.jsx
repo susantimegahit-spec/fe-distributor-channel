@@ -28,6 +28,7 @@ const rateColumns = [
   'origin',
   'destination',
   'expedition',
+  'transport_mode',
   'valid_from',
   'valid_until',
   'min_tonnage',
@@ -156,20 +157,21 @@ const joinValues = (values, separator = ' - ') =>
     .join(separator);
 
 const getDestinationRow = (item) => {
-  const customerCode = firstValue(item, ['customerCode', 'customer_code', 'code_customer', 'card_code', 'CardCode']);
-  const customerName =
-    firstValue(item, ['customerName', 'customer_name', 'card_name', 'CardName', 'name']) || item?.customer?.name;
+  const alias = firstValue(item, [
+    'alias',
+    'shipToAlias',
+    'ship_to_alias',
+    'destination_alias',
+    'shipToName',
+    'ship_to_name',
+    'AddressName2'
+  ]);
   const street = firstValue(item, ['street', 'Street', 'ship_to_address', 'Address', 'address']);
-  const city = firstValue(item, ['city', 'City']);
-  const province = firstValue(item, ['province', 'state', 'State']);
-  const postalCode = firstValue(item, ['postalCode', 'postal_code', 'zip_code', 'ZipCode']);
-  const customer = joinValues([customerCode, customerName]);
 
   return {
-    customer,
-    destination: city,
-    address: joinValues([street, city, province, postalCode], ', '),
-    dropdown: joinValues([customerCode, customerName, city])
+    alias,
+    street,
+    dropdown: joinValues([alias, street])
   };
 };
 
@@ -184,10 +186,11 @@ const addDropdownValidations = (workbookBuffer) => {
   const encoder = new TextEncoder();
   const xml = decoder.decode(sheetEntry.content);
   const validations =
-    '<dataValidations count="3">' +
+    '<dataValidations count="4">' +
     '<dataValidation type="list" allowBlank="0" sqref="A2:A1000"><formula1>OriginList</formula1></dataValidation>' +
     '<dataValidation type="list" allowBlank="0" sqref="B2:B1000"><formula1>DestinationList</formula1></dataValidation>' +
-    '<dataValidation type="list" allowBlank="0" sqref="H2:H1000"><formula1>ServiceTypeList</formula1></dataValidation>' +
+    '<dataValidation type="list" allowBlank="0" sqref="D2:D1000"><formula1>TransportModeList</formula1></dataValidation>' +
+    '<dataValidation type="list" allowBlank="0" sqref="I2:I1000"><formula1>ServiceTypeList</formula1></dataValidation>' +
     '</dataValidations>';
   const trailingWorksheetElement = /<(?:hyperlinks|printOptions|pageMargins|pageSetup|headerFooter|rowBreaks|colBreaks|customProperties|cellWatches|ignoredErrors|smartTags|drawing|legacyDrawing|legacyDrawingHF|picture|oleObjects|controls|webPublishItems|tableParts|extLst)\b/;
   const insertionIndex = xml.search(trailingWorksheetElement);
@@ -241,9 +244,14 @@ const validateRatesWorkbook = (workbook, expeditionCode) => {
       throw new Error(`Row ${excelRow}: check the tonnage range and rate values`);
     }
 
+    const transportMode = String(values.transport_mode).trim().toUpperCase();
+    if (!['D', 'L', 'U'].includes(transportMode)) {
+      throw new Error(`Row ${excelRow}: transport_mode must be D, L, or U`);
+    }
+
     const serviceType = String(values.service_type).trim().toUpperCase();
-    if (!['RIT', 'TONASE', 'FEET'].includes(serviceType)) {
-      throw new Error(`Row ${excelRow}: service_type must be RIT, TONASE, or FEET`);
+    if (!['RIT', 'TONASE', 'CONTAINER'].includes(serviceType)) {
+      throw new Error(`Row ${excelRow}: service_type must be RIT, TONASE, or CONTAINER`);
     }
     if (String(values.expedition).trim() !== expeditionCode) {
       throw new Error(`Row ${excelRow}: expedition must match ${expeditionCode}`);
@@ -386,6 +394,7 @@ export default function Rates() {
           'origin',
           'destination',
           'expedition',
+          'transport_mode',
           'valid_from',
           'valid_until',
           'min_tonnage',
@@ -397,6 +406,7 @@ export default function Rates() {
           originValues[0],
           destinationValues[0],
           expeditionCode,
+          'D',
           formatTemplateDate(validFrom),
           formatTemplateDate(validUntil),
           0,
@@ -407,26 +417,28 @@ export default function Rates() {
       ];
 
       for (let row = 3; row <= 200; row += 1) {
-        rateRows.push(['', '', '', '', '', '', '', '', '']);
+        rateRows.push(['', '', '', '', '', '', '', '', '', '']);
       }
 
       const ratesSheet = XLSX.utils.aoa_to_sheet(rateRows);
       const originSheet = XLSX.utils.aoa_to_sheet([['origin'], ...originValues.map((value) => [value])]);
       const destinationSheet = XLSX.utils.aoa_to_sheet([
-        ['customer', 'destination', 'address'],
-        ...destinationRows.map((item) => [item.customer, item.destination, item.address])
+        ['alias', 'street'],
+        ...destinationRows.map((item) => [item.alias, item.street])
       ]);
       const dropdownSheet = XLSX.utils.aoa_to_sheet([
-        ['customer_destination'],
+        ['alias_street'],
         ...destinationValues.map((value) => [value])
       ]);
       const expeditionSheet = XLSX.utils.aoa_to_sheet([['expedition_code'], [expeditionCode]]);
-      const serviceTypeSheet = XLSX.utils.aoa_to_sheet([['service_type'], ['RIT'], ['TONASE'], ['FEET']]);
+      const transportModeSheet = XLSX.utils.aoa_to_sheet([['transport_mode'], ['D'], ['L'], ['U']]);
+      const serviceTypeSheet = XLSX.utils.aoa_to_sheet([['service_type'], ['RIT'], ['TONASE'], ['CONTAINER']]);
 
       ratesSheet['!cols'] = [
         { wch: 32 },
         { wch: 36 },
         { wch: 30 },
+        { wch: 18 },
         { wch: 16 },
         { wch: 16 },
         { wch: 14 },
@@ -435,21 +447,24 @@ export default function Rates() {
         { wch: 18 }
       ];
       originSheet['!cols'] = [{ wch: 40 }];
-      destinationSheet['!cols'] = [{ wch: 40 }, { wch: 40 }, { wch: 70 }];
+      destinationSheet['!cols'] = [{ wch: 40 }, { wch: 70 }];
       dropdownSheet['!cols'] = [{ wch: 80 }];
       expeditionSheet['!cols'] = [{ wch: 22 }];
+      transportModeSheet['!cols'] = [{ wch: 20 }];
       serviceTypeSheet['!cols'] = [{ wch: 20 }];
-      ratesSheet['!autofilter'] = { ref: 'A1:I200' };
+      ratesSheet['!autofilter'] = { ref: 'A1:J200' };
       originSheet['!autofilter'] = { ref: `A1:A${originValues.length + 1}` };
-      destinationSheet['!autofilter'] = { ref: `A1:C${destinationRows.length + 1}` };
+      destinationSheet['!autofilter'] = { ref: `A1:B${destinationRows.length + 1}` };
       dropdownSheet['!autofilter'] = { ref: `A1:A${destinationValues.length + 1}` };
       expeditionSheet['!autofilter'] = { ref: 'A1:A2' };
+      transportModeSheet['!autofilter'] = { ref: 'A1:A4' };
       serviceTypeSheet['!autofilter'] = { ref: 'A1:A4' };
 
       XLSX.utils.book_append_sheet(workbook, ratesSheet, 'Rates Upload');
       XLSX.utils.book_append_sheet(workbook, originSheet, 'Master Origin');
       XLSX.utils.book_append_sheet(workbook, destinationSheet, 'Master Destination');
       XLSX.utils.book_append_sheet(workbook, expeditionSheet, 'User Expedition');
+      XLSX.utils.book_append_sheet(workbook, transportModeSheet, 'Master Transport Mode');
       XLSX.utils.book_append_sheet(workbook, serviceTypeSheet, 'Master Service Type');
       XLSX.utils.book_append_sheet(workbook, dropdownSheet, 'Dropdown Lists');
       workbook.Workbook = {
@@ -460,6 +475,7 @@ export default function Rates() {
         Names: [
           { Name: 'OriginList', Ref: `'Master Origin'!$A$2:$A$${originValues.length + 1}` },
           { Name: 'DestinationList', Ref: `'Dropdown Lists'!$A$2:$A$${destinationValues.length + 1}` },
+          { Name: 'TransportModeList', Ref: "'Master Transport Mode'!$A$2:$A$4" },
           { Name: 'ServiceTypeList', Ref: "'Master Service Type'!$A$2:$A$4" }
         ]
       };
