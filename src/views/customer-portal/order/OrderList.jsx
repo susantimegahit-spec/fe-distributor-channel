@@ -138,13 +138,6 @@ const getStatusLabel = (value) => {
 
 const statusSummaryItems = [
   {
-    value: 'DRAFT',
-    label: 'Draft',
-    icon: 'ti ti-clipboard-list',
-    avatarClassName: 'bg-light-secondary text-secondary',
-    activeClassName: 'border-secondary shadow-sm'
-  },
-  {
     value: 'WAITING_OM',
     label: 'Waiting OM Distributor',
     icon: 'ti ti-user-check',
@@ -292,7 +285,6 @@ export default function OrderList({ showOnlyCommitment = false }) {
   const [orderLayout, setOrderLayout] = useState('list');
   const [orderCalendarMonth, setOrderCalendarMonth] = useState(() => moment().startOf('month'));
   const [permissionDetail, setPermissionDetail] = useState(null);
-  const [isDefaultStatusApplied, setIsDefaultStatusApplied] = useState(false);
 
   useEffect(() => {
     getPermissionDetail();
@@ -368,7 +360,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
 
     return {
       ...statusCounts,
-      total: Object.values(statusCounts).reduce((total, count) => total + count, 0)
+      total: summaryOrders.length
     };
   }, [summaryOrders]);
 
@@ -1142,17 +1134,23 @@ export default function OrderList({ showOnlyCommitment = false }) {
     }
   };
 
-  const openAttachment = (attachment) => {
+  const openAttachment = (attachment, targetWindow = null) => {
     const attachmentUrl = getAttachmentUrl(attachment);
 
     if (!attachmentUrl) {
+      targetWindow?.close();
       showAlert('Attachment URL not found', 'danger');
+      return;
+    }
+
+    if (targetWindow) {
+      targetWindow.location.replace(attachmentUrl);
       return;
     }
 
     const anchor = document.createElement('a');
     anchor.href = attachmentUrl;
-    anchor.download = getAttachmentValue(attachment, ['file_name', 'filename', 'name', 'original_name']) || '';
+    anchor.target = '_blank';
     anchor.rel = 'noopener noreferrer';
     document.body.appendChild(anchor);
     anchor.click();
@@ -1160,6 +1158,9 @@ export default function OrderList({ showOnlyCommitment = false }) {
   };
 
   const handleViewAttachment = async (order, isCmo = false) => {
+    const attachmentTab = window.open('about:blank', '_blank');
+    if (attachmentTab) attachmentTab.opener = null;
+
     setDownloadingAttachmentId(order.id);
 
     try {
@@ -1174,12 +1175,14 @@ export default function OrderList({ showOnlyCommitment = false }) {
       }
 
       if (!attachments.length) {
+        attachmentTab?.close();
         showAlert(`${isCmo ? 'CMO' : 'Order'} attachment is not available`, 'warning');
         return;
       }
 
-      openAttachment(attachments[0]);
+      openAttachment(attachments[0], attachmentTab);
     } catch (error) {
+      attachmentTab?.close();
       showAlert(error?.response?.data?.message || error?.message || `Failed to download ${isCmo ? 'CMO' : 'order'} attachment`, 'danger');
     } finally {
       setDownloadingAttachmentId(null);
@@ -1409,19 +1412,6 @@ export default function OrderList({ showOnlyCommitment = false }) {
     roleName.includes('OPERATIONAL_MANAGER');
   const isAsm = permissionApprovalName === 'WAITING_ASM' || roleName === 'ASM' || roleName.includes('AREA_SALES_MANAGER');
   const isAdminSales = permissionApprovalName === 'WAITING_ADMIN_SALES' || roleName.includes('ADMIN_SALES');
-
-  const defaultStatusByAccess = useMemo(() => {
-    if (!permissionApprovalName || permissionApprovalName === 'ALL') return '';
-
-    return statusOptions.some((item) => item.value === permissionApprovalName) ? permissionApprovalName : '';
-  }, [permissionApprovalName]);
-
-  useEffect(() => {
-    if (isDefaultStatusApplied || !permissionDetail) return;
-
-    setStatus(defaultStatusByAccess);
-    setIsDefaultStatusApplied(true);
-  }, [defaultStatusByAccess, isDefaultStatusApplied, permissionDetail]);
 
   const hasAction = (actionName) => {
     const aliases = actionAliases[actionName] || [actionName];
@@ -1655,7 +1645,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
               <thead>
                 <tr>
                   <th aria-label="Expand product details" style={{ width: 48 }} />
-                  <th>Depo</th>
+                  <th>CMO / Customer</th>
                   <th>Date</th>
                   <th>Total Item</th>
                   <th>Kg</th>
@@ -1696,7 +1686,16 @@ export default function OrderList({ showOnlyCommitment = false }) {
                               </Button>
                             </td>
                             <td>
-                              {order.depo} - {order.customer_name}
+                              <div className="fw-semibold text-primary">
+                                {getOrderValue(
+                                  order,
+                                  ['cmo_no', 'cmo_number', 'order_no', 'doc_num', 'document_number', 'DocNum'],
+                                  `CMO-${order.id}`
+                                )}
+                              </div>
+                              <div className="text-muted f-12">
+                                {order.depo || '-'} - {order.customer_name || order.customer_code || '-'}
+                              </div>
                             </td>
                             <td>{moment(order.doc_date).format('DD MMM YYYY')}</td>
                             <td>{productLines.length}</td>
