@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import moment from 'moment';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Select from 'react-select';
 
 // react-bootstrap
@@ -12,6 +12,8 @@ import Form from 'react-bootstrap/Form';
 import InputGroup from 'react-bootstrap/InputGroup';
 import Modal from 'react-bootstrap/Modal';
 import Overlay from 'react-bootstrap/Overlay';
+import OverlayTrigger from 'react-bootstrap/OverlayTrigger';
+import Popover from 'react-bootstrap/Popover';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
@@ -56,6 +58,29 @@ const statusVariant = {
   CANCELED: 'danger',
   REJECTED: 'orange',
   FAILED: 'danger'
+};
+
+const cmoStatusVariant = {
+  DRAFT: 'warning',
+  POSTED: 'success'
+};
+
+const getCmoStatusLabel = (status) => {
+  const normalizedStatus = String(status || '').trim().toUpperCase();
+
+  if (normalizedStatus === 'DRAFT') return 'Draft';
+  if (normalizedStatus === 'POSTED') return 'Posted';
+
+  return '-';
+};
+
+const getCmoCalendarButtonClass = (status) => {
+  const normalizedStatus = String(status || '').trim().toUpperCase();
+
+  if (normalizedStatus === 'DRAFT') return 'btn-light-warning';
+  if (normalizedStatus === 'POSTED') return 'btn-light-success';
+
+  return 'btn-light-secondary';
 };
 
 const pageSize = 10;
@@ -211,6 +236,7 @@ const seriesDisplayKeys = [...seriesNameKeys, 'series', 'Series', 'series_code',
 const seriesValueKeys = ['series', 'Series', 'series_code', 'seriesCode'];
 
 export default function OrderList({ showOnlyCommitment = false }) {
+  const navigate = useNavigate();
   const roleId = getCookies('role');
   const { showAlert } = useAlert();
   const [orders, setOrders] = useState([]);
@@ -232,6 +258,18 @@ export default function OrderList({ showOnlyCommitment = false }) {
   const [commitmentCustomerCode, setCommitmentCustomerCode] = useState('');
   const [isLoadingCommitment, setIsLoadingCommitment] = useState(false);
   const [commitmentCurrentPage, setCommitmentCurrentPage] = useState(1);
+  const [commitmentLayout, setCommitmentLayout] = useState('list');
+  const [commitmentCalendarMonth, setCommitmentCalendarMonth] = useState(() => moment().startOf('month'));
+  const [draggedCmoId, setDraggedCmoId] = useState(null);
+  const [cmoDropDate, setCmoDropDate] = useState('');
+  const [movingCmoId, setMovingCmoId] = useState(null);
+  const [showDuplicateMonthModal, setShowDuplicateMonthModal] = useState(false);
+  const [duplicateMonthForm, setDuplicateMonthForm] = useState(() => ({
+    sourceMonth: moment().format('YYYY-MM'),
+    targetMonth: moment().add(1, 'month').format('YYYY-MM')
+  }));
+  const [duplicatingMonth, setDuplicatingMonth] = useState(false);
+  const [duplicateMonthProgress, setDuplicateMonthProgress] = useState({ completed: 0, total: 0 });
   const [commitmentCustomerOptions, setCommitmentCustomerOptions] = useState([]);
   const [isLoadingCommitmentCustomers, setIsLoadingCommitmentCustomers] = useState(false);
   const [keywords, setKeywords] = useState('');
@@ -251,6 +289,8 @@ export default function OrderList({ showOnlyCommitment = false }) {
   const [isLoadingCreditLimit, setIsLoadingCreditLimit] = useState(false);
   const [creditLimitError, setCreditLimitError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [orderLayout, setOrderLayout] = useState('list');
+  const [orderCalendarMonth, setOrderCalendarMonth] = useState(() => moment().startOf('month'));
   const [permissionDetail, setPermissionDetail] = useState(null);
   const [isDefaultStatusApplied, setIsDefaultStatusApplied] = useState(false);
 
@@ -291,6 +331,16 @@ export default function OrderList({ showOnlyCommitment = false }) {
 
     return commitmentMonthlyOrders.slice(startIndex, startIndex + commitmentPageSize);
   }, [commitmentCurrentPage, commitmentMonthlyOrders]);
+  const commitmentCalendarDays = useMemo(() => {
+    const calendarStart = commitmentCalendarMonth.clone().startOf('month').startOf('week');
+
+    return Array.from({ length: 42 }, (_, index) => {
+      const dateValue = calendarStart.clone().add(index, 'day');
+      const ordersForDate = commitmentMonthlyOrders.filter((order) => moment(order.doc_date).isSame(dateValue, 'day'));
+
+      return { date: dateValue, orders: ordersForDate };
+    });
+  }, [commitmentCalendarMonth, commitmentMonthlyOrders]);
 
   const summaryOrders = useMemo(() => {
     const normalizedKeyword = keywords.trim().toLowerCase();
@@ -384,6 +434,16 @@ export default function OrderList({ showOnlyCommitment = false }) {
 
     return filteredOrders.slice(startIndex, startIndex + pageSize);
   }, [currentPage, filteredOrders]);
+  const orderCalendarDays = useMemo(() => {
+    const calendarStart = orderCalendarMonth.clone().startOf('month').startOf('week');
+
+    return Array.from({ length: 42 }, (_, index) => {
+      const dateValue = calendarStart.clone().add(index, 'day');
+      const ordersForDate = filteredOrders.filter((order) => moment(order.doc_date).isSame(dateValue, 'day'));
+
+      return { date: dateValue, orders: ordersForDate };
+    });
+  }, [filteredOrders, orderCalendarMonth]);
 
   const resetFilters = () => {
     setKeywords('');
@@ -677,30 +737,20 @@ export default function OrderList({ showOnlyCommitment = false }) {
     }));
   };
 
-  const handleSaveDuplicateCmo = async () => {
-    if (
-      !duplicateCmoForm?.customerCode ||
-      !duplicateCmoForm.docDate ||
-      !duplicateCmoForm.etaDate ||
-      !duplicateCmoForm.lines.length ||
-      duplicateCmoForm.lines.some((line) => !(Number(line.quantity) > 0))
-    ) {
-      showAlert('Customer, dates, and valid item quantities are required', 'warning');
-      return;
-    }
-
-    const source = duplicateCmoForm.source || duplicateCmoSource || {};
-    const docTotal = duplicateCmoForm.lines.reduce(
+  const createCmoPayload = (form, status = 'DRAFT') => {
+    const source = form.source || {};
+    const docTotal = form.lines.reduce(
       (total, line) => total + (Number(line.quantity) || 0) * (Number(line.unitPrice) || 0),
       0
     );
-    const payload = {
-      card_code: duplicateCmoForm.customerCode,
-      customer_code: duplicateCmoForm.customerCode,
-      po_number: duplicateCmoForm.poNumber,
-      doc_date: duplicateCmoForm.docDate,
-      doc_due_date: duplicateCmoForm.docDate,
-      eta_date: duplicateCmoForm.etaDate,
+
+    return {
+      card_code: form.customerCode,
+      customer_code: form.customerCode,
+      po_number: form.poNumber,
+      doc_date: form.docDate,
+      doc_due_date: form.docDate,
+      eta_date: form.etaDate,
       use_balance: getOrderValue(source, ['use_balance', 'useBalance'], false),
       Series: getOrderValue(source, seriesValueKeys, ''),
       series_name: getOrderValue(source, seriesNameKeys, ''),
@@ -709,13 +759,13 @@ export default function OrderList({ showOnlyCommitment = false }) {
       address: getOrderValue(source, ['address', 'bill_to_address', 'Address'], ''),
       ship_to_code: getOrderValue(source, ['ship_to_code', 'shipToCode', 'address2_code', 'ShipToCode'], ''),
       address2: getOrderValue(source, ['address2', 'ship_to_address', 'Address2'], ''),
-      comments: duplicateCmoForm.comments,
-      status: 'DRAFT',
+      comments: form.comments,
+      status,
       doc_total: docTotal,
       DocTotal: docTotal,
       id_discount: getOrderValue(source, ['id_discount', 'idDiscount'], ''),
-      action: '',
-      lines: duplicateCmoForm.lines.map((line) => ({
+      action: getOrderValue(source, ['action'], ''),
+      lines: form.lines.map((line) => ({
         item_code: line.itemCode,
         quantity: Number(line.quantity),
         unit_msr: line.unitMsr,
@@ -729,6 +779,24 @@ export default function OrderList({ showOnlyCommitment = false }) {
         ocr_code3: line.ocrCode3
       }))
     };
+  };
+
+  const handleSaveDuplicateCmo = async () => {
+    if (
+      !duplicateCmoForm?.customerCode ||
+      !duplicateCmoForm.docDate ||
+      !duplicateCmoForm.etaDate ||
+      !duplicateCmoForm.lines.length ||
+      duplicateCmoForm.lines.some((line) => !(Number(line.quantity) > 0))
+    ) {
+      showAlert('Customer, dates, and valid item quantities are required', 'warning');
+      return;
+    }
+
+    const payload = createCmoPayload(
+      { ...duplicateCmoForm, source: duplicateCmoForm.source || duplicateCmoSource || {} },
+      'DRAFT'
+    );
 
     setSavingDuplicateCmo(true);
 
@@ -746,6 +814,141 @@ export default function OrderList({ showOnlyCommitment = false }) {
       showAlert(error?.response?.data?.message || error?.message || 'Failed to duplicate CMO', 'danger');
     } finally {
       setSavingDuplicateCmo(false);
+    }
+  };
+
+  const handleMoveCmo = async (orderId, targetDate) => {
+    const order = commitmentMonthlyOrders.find((item) => String(item.id) === String(orderId));
+
+    if (!order || moment(order.doc_date).format('YYYY-MM-DD') === targetDate || movingCmoId !== null) return;
+
+    setMovingCmoId(order.id);
+
+    try {
+      const detailResponse = await OrderServices.getCmoById(order.id);
+      if (detailResponse?.data?.success === false) {
+        throw new Error(detailResponse.data.message || 'Failed to fetch CMO detail');
+      }
+
+      const detail = getResponsePayload(detailResponse);
+      const form = { ...createDuplicateCmoForm(detail), docDate: targetDate };
+      const payload = createCmoPayload(form, getOrderValue(detail, ['status'], 'DRAFT'));
+      const response = await OrderServices.putCmo(order.id, payload);
+
+      if (response?.data?.success === false) {
+        throw new Error(response.data.message || 'Failed to move CMO');
+      }
+
+      setCommitmentMonthlyOrders((currentOrders) =>
+        currentOrders.map((item) =>
+          String(item.id) === String(order.id) ? { ...item, doc_date: targetDate, doc_due_date: targetDate } : item
+        )
+      );
+      showAlert(response?.data?.message || `CMO moved to ${moment(targetDate).format('DD MMM YYYY')}`, 'success');
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to move CMO', 'danger');
+    } finally {
+      setMovingCmoId(null);
+      setDraggedCmoId(null);
+      setCmoDropDate('');
+    }
+  };
+
+  const openDuplicateMonthModal = () => {
+    const sourceMonth = commitmentCalendarMonth.format('YYYY-MM');
+
+    setDuplicateMonthForm({
+      sourceMonth,
+      targetMonth: commitmentCalendarMonth.clone().add(1, 'month').format('YYYY-MM')
+    });
+    setDuplicateMonthProgress({ completed: 0, total: 0 });
+    setShowDuplicateMonthModal(true);
+  };
+
+  const handleDuplicateCmoMonth = async () => {
+    const { sourceMonth, targetMonth } = duplicateMonthForm;
+
+    if (!sourceMonth || !targetMonth) {
+      showAlert('Source month and target month are required', 'warning');
+      return;
+    }
+    if (sourceMonth === targetMonth) {
+      showAlert('Target month must be different from source month', 'warning');
+      return;
+    }
+
+    const sourceStart = moment(`${sourceMonth}-01`).startOf('month');
+    const sourceEnd = sourceStart.clone().endOf('month');
+    const targetStart = moment(`${targetMonth}-01`).startOf('month');
+
+    setDuplicatingMonth(true);
+    setDuplicateMonthProgress({ completed: 0, total: 0 });
+
+    try {
+      const listResponse = await OrderServices.getCmo({
+        start_date: sourceStart.format('YYYY-MM-DD'),
+        end_date: sourceEnd.format('YYYY-MM-DD')
+      });
+      const sourceOrders = extractOrderList(listResponse) || [];
+
+      if (!sourceOrders.length) {
+        showAlert('No CMO data found in the selected source month', 'warning');
+        return;
+      }
+
+      setDuplicateMonthProgress({ completed: 0, total: sourceOrders.length });
+      let successCount = 0;
+      let failedCount = 0;
+
+      for (const sourceOrder of sourceOrders) {
+        try {
+          const detailResponse = await OrderServices.getCmoById(sourceOrder.id);
+          if (detailResponse?.data?.success === false) throw new Error('Failed to fetch CMO detail');
+
+          const detail = getResponsePayload(detailResponse);
+          const sourceForm = createDuplicateCmoForm(detail);
+          const sourceDocDate = moment(sourceForm.docDate);
+          const targetDay = Math.min(sourceDocDate.date(), targetStart.daysInMonth());
+          const targetDocDate = targetStart.clone().date(targetDay);
+          const etaOffset = Math.max(moment(sourceForm.etaDate).diff(sourceDocDate, 'days'), 0);
+          const duplicateForm = {
+            ...sourceForm,
+            docDate: targetDocDate.format('YYYY-MM-DD'),
+            etaDate: targetDocDate.clone().add(etaOffset, 'days').format('YYYY-MM-DD')
+          };
+          const payload = { ...createCmoPayload(duplicateForm, 'DRAFT'), action: '' };
+          const response = await OrderServices.postCmo(payload);
+
+          if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to duplicate CMO');
+          successCount += 1;
+        } catch {
+          failedCount += 1;
+        } finally {
+          setDuplicateMonthProgress((current) => ({ ...current, completed: current.completed + 1 }));
+        }
+      }
+
+      if (successCount > 0) {
+        showAlert(
+          `${successCount} CMO duplicated to ${targetStart.format('MMMM YYYY')}${failedCount ? `, ${failedCount} failed` : ''}`,
+          failedCount ? 'warning' : 'success'
+        );
+        setCommitmentCalendarMonth(targetStart.clone());
+        const targetStartDate = targetStart.format('YYYY-MM-DD');
+        const targetEndDate = targetStart.clone().endOf('month').format('YYYY-MM-DD');
+
+        setCommitmentStartDate(targetStartDate);
+        setCommitmentEndDate(targetEndDate);
+        await fetchCommitmentOrders({ start_date: targetStartDate, end_date: targetEndDate });
+      } else {
+        showAlert('Failed to duplicate monthly CMO data', 'danger');
+      }
+
+      if (!failedCount) setShowDuplicateMonthModal(false);
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to duplicate monthly CMO data', 'danger');
+    } finally {
+      setDuplicatingMonth(false);
     }
   };
 
@@ -1270,7 +1473,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
     const button = getButtonVisibility(order);
     const canCancel = isAdminSales && ['ORDER_APPROVED', 'APPROVED'].includes(normalizeStatus(order.status));
     const canDownloadPdf = ['ORDER_APPROVED', 'APPROVED', 'DELIVERY', 'ARRIVED'].includes(normalizeStatus(order.status));
-    const canViewAttachment = getOrderAttachments(order).length > 0;
+    const canViewAttachment = Boolean(order?.id);
 
     const hasVisibleButton = button.view || canViewAttachment || canDownloadPdf || button.edit || canCancel;
 
@@ -1333,6 +1536,24 @@ export default function OrderList({ showOnlyCommitment = false }) {
             }
             secondary={
               <Stack direction="horizontal" gap={2} className="flex-wrap justify-content-end">
+                <div className="btn-group" role="group" aria-label="Order layout">
+                  <Button
+                    variant={orderLayout === 'list' ? 'light-secondary' : 'outline-secondary'}
+                    aria-pressed={orderLayout === 'list'}
+                    onClick={() => setOrderLayout('list')}
+                  >
+                    <i className="ti ti-list me-1" />
+                    List
+                  </Button>
+                  <Button
+                    variant={orderLayout === 'calendar' ? 'light-secondary' : 'outline-secondary'}
+                    aria-pressed={orderLayout === 'calendar'}
+                    onClick={() => setOrderLayout('calendar')}
+                  >
+                    <i className="ti ti-calendar me-1" />
+                    Calendar
+                  </Button>
+                </div>
                 <Button variant="light-primary" onClick={syncData} disabled={isLoading || isSyncing}>
                   <i className={`ti ${isSyncing ? 'ti-loader-2' : 'ti-refresh'} me-1`} />
                   {isSyncing ? 'Syncing...' : 'Sync'}
@@ -1357,10 +1578,34 @@ export default function OrderList({ showOnlyCommitment = false }) {
               </Stack>
             }
             secondary={
-              <Button variant="primary" as={Link} to="/customer-portal/order/cmo-create">
-                <i className="ti ti-plus me-1" />
-                Add CMO
-              </Button>
+              <Stack direction="horizontal" gap={2} className="flex-wrap justify-content-end">
+                <div className="btn-group" role="group" aria-label="CMO layout">
+                  <Button
+                    variant={commitmentLayout === 'list' ? 'light-secondary' : 'outline-secondary'}
+                    aria-pressed={commitmentLayout === 'list'}
+                    onClick={() => setCommitmentLayout('list')}
+                  >
+                    <i className="ti ti-list me-1" />
+                    List
+                  </Button>
+                  <Button
+                    variant={commitmentLayout === 'calendar' ? 'light-secondary' : 'outline-secondary'}
+                    aria-pressed={commitmentLayout === 'calendar'}
+                    onClick={() => setCommitmentLayout('calendar')}
+                  >
+                    <i className="ti ti-calendar me-1" />
+                    Calendar
+                  </Button>
+                </div>
+                <Button variant="light-info" onClick={openDuplicateMonthModal}>
+                  <i className="ti ti-calendar-copy me-1" />
+                  Duplicate Month
+                </Button>
+                <Button variant="primary" as={Link} to="/customer-portal/order/cmo-create">
+                  <i className="ti ti-plus me-1" />
+                  Add CMO
+                </Button>
+              </Stack>
             }
           >
             <Row className="g-2 align-items-end mb-3">
@@ -1404,7 +1649,9 @@ export default function OrderList({ showOnlyCommitment = false }) {
                 </Stack>
               </Col>
             </Row>
-            <Table className="mb-0 align-middle" responsive hover>
+            {commitmentLayout === 'list' ? (
+              <>
+                <Table className="mb-0 align-middle" responsive hover>
               <thead>
                 <tr>
                   <th aria-label="Expand product details" style={{ width: 48 }} />
@@ -1413,7 +1660,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                   <th>Total Item</th>
                   <th>Kg</th>
                   <th>Total Order</th>
-                  {/* <th>Status</th> */}
+                  <th>Status</th>
                   <th className="text-center">Action</th>
                 </tr>
               </thead>
@@ -1455,9 +1702,11 @@ export default function OrderList({ showOnlyCommitment = false }) {
                             <td>{productLines.length}</td>
                             <td className="fw-semibold">{formatKg(getOrderTotalKg(order))}</td>
                             <td>{currency(order?.doc_total)}</td>
-                            {/* <td>
-                            <Badge bg={statusVariant[order.status] || 'secondary'}>{getStatusLabel(order.status)}</Badge>
-                            </td> */}
+                            <td>
+                              <Badge bg={cmoStatusVariant[normalizeStatus(order.status)] || 'secondary'}>
+                                {getCmoStatusLabel(order.status)}
+                              </Badge>
+                            </td>
                             <td className="text-center">
                               <Button
                                 size="sm"
@@ -1530,18 +1779,188 @@ export default function OrderList({ showOnlyCommitment = false }) {
                   )}
                 </tbody>
               )}
-            </Table>
-            <TablePagination
-              currentPage={commitmentCurrentPage}
-              onPageChange={(page) => {
-                setCommitmentCurrentPage(page);
-                setExpandedCommitmentOrderId(null);
-              }}
-              pageCount={commitmentPageCount}
-              pageSize={commitmentPageSize}
-              total={commitmentMonthlyOrders.length}
-              itemLabel="commitment order"
-            />
+                </Table>
+                <TablePagination
+                  currentPage={commitmentCurrentPage}
+                  onPageChange={(page) => {
+                    setCommitmentCurrentPage(page);
+                    setExpandedCommitmentOrderId(null);
+                  }}
+                  pageCount={commitmentPageCount}
+                  pageSize={commitmentPageSize}
+                  total={commitmentMonthlyOrders.length}
+                  itemLabel="commitment order"
+                />
+              </>
+            ) : (
+              <div className="border rounded overflow-hidden">
+                <Stack direction="horizontal" gap={2} className="justify-content-between border-bottom p-3 flex-wrap">
+                  <Button
+                    size="sm"
+                    variant="light-primary"
+                    onClick={() => setCommitmentCalendarMonth((currentMonth) => currentMonth.clone().subtract(1, 'month'))}
+                    aria-label="Previous month"
+                  >
+                    <i className="ti ti-chevron-left" />
+                  </Button>
+                  <Stack direction="horizontal" gap={2}>
+                    <h5 className="mb-0">{commitmentCalendarMonth.format('MMMM YYYY')}</h5>
+                    <Button size="sm" variant="outline-primary" onClick={() => setCommitmentCalendarMonth(moment().startOf('month'))}>
+                      Today
+                    </Button>
+                  </Stack>
+                  <Button
+                    size="sm"
+                    variant="light-primary"
+                    onClick={() => setCommitmentCalendarMonth((currentMonth) => currentMonth.clone().add(1, 'month'))}
+                    aria-label="Next month"
+                  >
+                    <i className="ti ti-chevron-right" />
+                  </Button>
+                </Stack>
+                {isLoading || isLoadingCommitment ? (
+                  <LoaderData />
+                ) : (
+                  <div className="overflow-auto">
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(135px, 1fr))', minWidth: 945 }}>
+                      {moment.weekdaysShort().map((dayName) => (
+                        <div key={dayName} className="border-bottom border-end bg-light text-center text-muted fw-semibold p-2">
+                          {dayName}
+                        </div>
+                      ))}
+                      {commitmentCalendarDays.map(({ date: calendarDate, orders: calendarOrders }) => {
+                        const isCurrentMonth = calendarDate.isSame(commitmentCalendarMonth, 'month');
+                        const isToday = calendarDate.isSame(moment(), 'day');
+                        const canCreateCmoOnDate = isCurrentMonth;
+                        const isEmptyCreateDate = canCreateCmoOnDate && calendarOrders.length === 0;
+                        const createCmoForDate = () => {
+                          if (canCreateCmoOnDate) {
+                            navigate(`/customer-portal/order/cmo-create?date=${calendarDate.format('YYYY-MM-DD')}`);
+                          }
+                        };
+
+                        return (
+                          <div
+                            key={calendarDate.format('YYYY-MM-DD')}
+                            className={`border-end border-bottom p-2 ${isCurrentMonth ? 'bg-white' : 'bg-light'} ${
+                              isEmptyCreateDate ? 'cursor-pointer' : ''
+                            } ${cmoDropDate === calendarDate.format('YYYY-MM-DD') ? 'bg-light-primary border-primary' : ''}`}
+                            style={{ minHeight: 130, cursor: isEmptyCreateDate ? 'pointer' : 'default' }}
+                            role={isEmptyCreateDate ? 'button' : undefined}
+                            tabIndex={isEmptyCreateDate ? 0 : undefined}
+                            aria-label={isEmptyCreateDate ? `Add CMO on ${calendarDate.format('DD MMMM YYYY')}` : undefined}
+                            onClick={isEmptyCreateDate ? createCmoForDate : undefined}
+                            onDragOver={(event) => {
+                              if (!isCurrentMonth || movingCmoId !== null) return;
+
+                              event.preventDefault();
+                              event.dataTransfer.dropEffect = 'move';
+                              setCmoDropDate(calendarDate.format('YYYY-MM-DD'));
+                            }}
+                            onDragLeave={(event) => {
+                              if (!event.currentTarget.contains(event.relatedTarget)) setCmoDropDate('');
+                            }}
+                            onDrop={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              const orderId = event.dataTransfer.getData('text/plain') || draggedCmoId;
+
+                              if (isCurrentMonth && orderId) handleMoveCmo(orderId, calendarDate.format('YYYY-MM-DD'));
+                            }}
+                            onKeyDown={(event) => {
+                              if (isEmptyCreateDate && (event.key === 'Enter' || event.key === ' ')) {
+                                event.preventDefault();
+                                createCmoForDate();
+                              }
+                            }}
+                          >
+                            <span
+                              className={`d-inline-flex align-items-center justify-content-center rounded-circle f-12 mb-2 ${
+                                isToday ? 'bg-primary text-white' : isCurrentMonth ? '' : 'text-muted'
+                              }`}
+                              style={{ width: 26, height: 26 }}
+                            >
+                              {calendarDate.date()}
+                            </span>
+                            <Stack gap={1}>
+                              {calendarOrders.map((order) => {
+                                const cmoStatusLabel = getCmoStatusLabel(order.status);
+
+                                return (
+                                  <OverlayTrigger
+                                    key={order.id}
+                                    placement="top"
+                                    delay={{ show: 250, hide: 100 }}
+                                    overlay={
+                                      <Popover className="border shadow-sm">
+                                        <Popover.Body className="bg-white rounded p-2" style={{ minWidth: 190 }}>
+                                          <div className="fw-semibold mb-1">{order.depo || '-'}</div>
+                                          <div className="text-muted small mb-2">{order.customer_name || order.customer_code || '-'}</div>
+                                          <Stack direction="horizontal" gap={2} className="justify-content-between">
+                                            <span className="small text-muted">Status</span>
+                                            <Badge bg={cmoStatusVariant[normalizeStatus(order.status)] || 'secondary'}>
+                                              {cmoStatusLabel}
+                                            </Badge>
+                                          </Stack>
+                                        </Popover.Body>
+                                      </Popover>
+                                    }
+                                  >
+                                    <button
+                                      type="button"
+                                      className={`btn ${getCmoCalendarButtonClass(order.status)} text-start w-100 px-1 py-1`}
+                                      style={{ fontSize: 10, lineHeight: 1.15, cursor: movingCmoId === order.id ? 'wait' : 'grab' }}
+                                      draggable={movingCmoId === null}
+                                      disabled={String(movingCmoId) === String(order.id)}
+                                      onDragStart={(event) => {
+                                        event.dataTransfer.effectAllowed = 'move';
+                                        event.dataTransfer.setData('text/plain', String(order.id));
+                                        setDraggedCmoId(order.id);
+                                        setCmoActionMenu(null);
+                                      }}
+                                      onDragEnd={() => {
+                                        setDraggedCmoId(null);
+                                        setCmoDropDate('');
+                                      }}
+                                      onClick={(event) =>
+                                        setCmoActionMenu((current) =>
+                                          String(current?.order?.id) === String(order.id) ? null : { order, target: event.currentTarget }
+                                        )
+                                      }
+                                    >
+                                      <span className="d-flex align-items-center gap-1 fw-semibold">
+                                        <i className={String(movingCmoId) === String(order.id) ? 'ti ti-loader-2' : 'ti ti-grip-vertical'} />
+                                        <span className="text-truncate">{order.depo || '-'}</span>
+                                      </span>
+                                      <span className="d-block text-truncate">{order.customer_name || order.customer_code || '-'}</span>
+                                      <span className="d-block text-truncate text-muted">{formatKg(getOrderTotalKg(order))}</span>
+                                    </button>
+                                  </OverlayTrigger>
+                                );
+                              })}
+                              {canCreateCmoOnDate ? (
+                                <button
+                                  type="button"
+                                  className="btn btn-link d-flex align-items-center justify-content-center gap-1 w-100 p-1 text-decoration-none"
+                                  style={{ fontSize: 10 }}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    createCmoForDate();
+                                  }}
+                                >
+                                  <i className="ti ti-plus" />
+                                  Add CMO
+                                </button>
+                              ) : null}
+                            </Stack>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </MainCard>
         )}
 
@@ -1586,7 +2005,9 @@ export default function OrderList({ showOnlyCommitment = false }) {
                 </Col>
               </Row>
 
-              <Table className="mb-0 align-middle" responsive hover>
+              {orderLayout === 'list' ? (
+                <>
+                  <Table className="mb-0 align-middle" responsive hover>
                 <thead>
                   <tr>
                     <th>No. SO</th>
@@ -1668,16 +2089,118 @@ export default function OrderList({ showOnlyCommitment = false }) {
                     )}
                   </tbody>
                 )}
-              </Table>
+                  </Table>
 
-              <TablePagination
-                currentPage={currentPage}
-                onPageChange={setCurrentPage}
-                pageCount={pageCount}
-                pageSize={pageSize}
-                total={filteredOrders.length}
-                itemLabel="order"
-              />
+                  <TablePagination
+                    currentPage={currentPage}
+                    onPageChange={setCurrentPage}
+                    pageCount={pageCount}
+                    pageSize={pageSize}
+                    total={filteredOrders.length}
+                    itemLabel="order"
+                  />
+                </>
+              ) : (
+                <div className="border rounded overflow-hidden">
+                  <Stack direction="horizontal" gap={2} className="justify-content-between border-bottom p-3 flex-wrap">
+                    <Button
+                      size="sm"
+                      variant="light-primary"
+                      onClick={() => setOrderCalendarMonth((currentMonth) => currentMonth.clone().subtract(1, 'month'))}
+                      aria-label="Previous month"
+                    >
+                      <i className="ti ti-chevron-left" />
+                    </Button>
+                    <Stack direction="horizontal" gap={2}>
+                      <h5 className="mb-0">{orderCalendarMonth.format('MMMM YYYY')}</h5>
+                      <Button size="sm" variant="outline-primary" onClick={() => setOrderCalendarMonth(moment().startOf('month'))}>
+                        Today
+                      </Button>
+                    </Stack>
+                    <Button
+                      size="sm"
+                      variant="light-primary"
+                      onClick={() => setOrderCalendarMonth((currentMonth) => currentMonth.clone().add(1, 'month'))}
+                      aria-label="Next month"
+                    >
+                      <i className="ti ti-chevron-right" />
+                    </Button>
+                  </Stack>
+                  {isLoading ? (
+                    <LoaderData />
+                  ) : (
+                    <div className="overflow-auto">
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(135px, 1fr))', minWidth: 945 }}>
+                        {moment.weekdaysShort().map((dayName) => (
+                          <div key={dayName} className="border-bottom border-end bg-light text-center text-muted fw-semibold p-2">
+                            {dayName}
+                          </div>
+                        ))}
+                        {orderCalendarDays.map(({ date: calendarDate, orders: calendarOrders }) => {
+                          const isCurrentMonth = calendarDate.isSame(orderCalendarMonth, 'month');
+                          const isToday = calendarDate.isSame(moment(), 'day');
+                          const canCreateOrderOnDate = isCurrentMonth && canCreateOrder;
+                          const createOrderForDate = () => {
+                            if (canCreateOrderOnDate) {
+                              navigate(`/customer-portal/order/order-create?date=${calendarDate.format('YYYY-MM-DD')}`);
+                            }
+                          };
+
+                          return (
+                            <div
+                              key={calendarDate.format('YYYY-MM-DD')}
+                              className={`border-end border-bottom p-2 ${isCurrentMonth ? 'bg-white' : 'bg-light'}`}
+                              style={{ minHeight: 130 }}
+                            >
+                              <span
+                                className={`d-inline-flex align-items-center justify-content-center rounded-circle f-12 mb-2 ${
+                                  isToday ? 'bg-primary text-white' : isCurrentMonth ? '' : 'text-muted'
+                                }`}
+                                style={{ width: 26, height: 26 }}
+                              >
+                                {calendarDate.date()}
+                              </span>
+                              <Stack gap={1}>
+                                {calendarOrders.map((order) => (
+                                  <button
+                                    key={order.id}
+                                    type="button"
+                                    className="btn btn-light-primary text-start w-100 px-1 py-1"
+                                    style={{ fontSize: 10, lineHeight: 1.15 }}
+                                    title={`${order.depo || '-'} - ${order.customer_name || '-'}`}
+                                    onClick={(event) =>
+                                      setOrderActionMenu((current) =>
+                                        String(current?.order?.id) === String(order.id) ? null : { order, target: event.currentTarget }
+                                      )
+                                    }
+                                  >
+                                    <span className="d-block text-truncate fw-semibold">
+                                      {order.sap_doc_num || order.order_no || 'Order'}
+                                    </span>
+                                    <span className="d-block text-truncate">{order.customer_name || order.customer_code || '-'}</span>
+                                    <span className="d-block text-truncate text-muted">{getStatusLabel(order.status)}</span>
+                                  </button>
+                                ))}
+                                {canCreateOrderOnDate ? (
+                                  <button
+                                    type="button"
+                                    className="btn btn-link d-flex align-items-center justify-content-center gap-1 w-100 p-1 text-decoration-none"
+                                    style={{ fontSize: 10 }}
+                                    onClick={createOrderForDate}
+                                  >
+                                    <i className="ti ti-plus" />
+                                    Add Order
+                                  </button>
+                                ) : null}
+                              </Stack>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </MainCard>
           </>
         )}
@@ -1699,7 +2222,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
           const normalizedOrderStatus = normalizeStatus(order?.status);
           const canDownloadPdf = ['ORDER_APPROVED', 'APPROVED', 'DELIVERY', 'ARRIVED'].includes(normalizedOrderStatus);
           const canCancel = isAdminSales && ['ORDER_APPROVED', 'APPROVED'].includes(normalizedOrderStatus);
-          const canViewAttachment = getOrderAttachments(order).length > 0;
+          const canViewAttachment = Boolean(order?.id);
 
           return (
             <div
@@ -1721,6 +2244,16 @@ export default function OrderList({ showOnlyCommitment = false }) {
                   <i className={loadingDetailId === order?.id ? 'ti ti-loader-2 text-primary me-2' : 'ti ti-eye text-primary me-2'} />
                   Detail
                 </button>
+              ) : null}
+              {button.edit ? (
+                <Link
+                  className="dropdown-item"
+                  to={`/customer-portal/order/order-create/${order?.id}`}
+                  onClick={() => setOrderActionMenu(null)}
+                >
+                  <i className="ti ti-pencil text-success me-2" />
+                  Edit
+                </Link>
               ) : null}
               {canViewAttachment ? (
                 <button
@@ -1759,16 +2292,6 @@ export default function OrderList({ showOnlyCommitment = false }) {
                   />
                   Download PI
                 </button>
-              ) : null}
-              {button.edit ? (
-                <Link
-                  className="dropdown-item"
-                  to={`/customer-portal/order/order-create/${order?.id}`}
-                  onClick={() => setOrderActionMenu(null)}
-                >
-                  <i className="ti ti-pencil text-success me-2" />
-                  Edit
-                </Link>
               ) : null}
               {canCancel ? (
                 <>
@@ -1830,7 +2353,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
               onClick={() => {
                 const order = cmoActionMenu?.order;
                 setCmoActionMenu(null);
-                if (order) openDuplicateCmoModal(order);
+                if (order) navigate(`/customer-portal/order/cmo-create?duplicate=${order.id}`);
               }}
             >
               <i className="ti ti-copy text-info me-2" />
@@ -1893,6 +2416,85 @@ export default function OrderList({ showOnlyCommitment = false }) {
       </Overlay>
       {showOnlyCommitment && (
         <>
+          <Modal
+            show={showDuplicateMonthModal}
+            onHide={() => !duplicatingMonth && setShowDuplicateMonthModal(false)}
+            centered
+            backdrop={duplicatingMonth ? 'static' : true}
+          >
+            <Modal.Header closeButton={!duplicatingMonth}>
+              <Modal.Title>Duplicate Monthly CMO</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <p className="text-muted">
+                Copy all CMO data, including customer and product items, from the source month into the target month as new Draft CMO.
+              </p>
+              <Row className="g-3">
+                <Col sm={6}>
+                  <Form.Label>Source Month</Form.Label>
+                  <Form.Control
+                    type="month"
+                    value={duplicateMonthForm.sourceMonth}
+                    disabled={duplicatingMonth}
+                    onChange={(event) => setDuplicateMonthForm((current) => ({ ...current, sourceMonth: event.target.value }))}
+                  />
+                </Col>
+                <Col sm={6}>
+                  <Form.Label>Target Month</Form.Label>
+                  <Form.Control
+                    type="month"
+                    value={duplicateMonthForm.targetMonth}
+                    disabled={duplicatingMonth}
+                    onChange={(event) => setDuplicateMonthForm((current) => ({ ...current, targetMonth: event.target.value }))}
+                  />
+                </Col>
+              </Row>
+              {duplicateMonthProgress.total > 0 ? (
+                <div className="mt-4">
+                  <Stack direction="horizontal" className="justify-content-between mb-2">
+                    <span className="small text-muted">Duplicating CMO...</span>
+                    <span className="small fw-semibold">
+                      {duplicateMonthProgress.completed}/{duplicateMonthProgress.total}
+                    </span>
+                  </Stack>
+                  <div
+                    className="progress"
+                    role="progressbar"
+                    aria-valuenow={duplicateMonthProgress.completed}
+                    aria-valuemin={0}
+                    aria-valuemax={duplicateMonthProgress.total}
+                  >
+                    <div
+                      className="progress-bar progress-bar-striped progress-bar-animated"
+                      style={{ width: `${(duplicateMonthProgress.completed / duplicateMonthProgress.total) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              ) : null}
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="light-secondary" disabled={duplicatingMonth} onClick={() => setShowDuplicateMonthModal(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="info"
+                disabled={duplicatingMonth || !duplicateMonthForm.sourceMonth || !duplicateMonthForm.targetMonth}
+                onClick={handleDuplicateCmoMonth}
+              >
+                {duplicatingMonth ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />
+                    Duplicating...
+                  </>
+                ) : (
+                  <>
+                    <i className="ti ti-calendar-copy me-1" />
+                    Duplicate Month
+                  </>
+                )}
+              </Button>
+            </Modal.Footer>
+          </Modal>
           <Modal show={Boolean(duplicateCmoSource)} onHide={closeDuplicateCmoModal} size="xl" centered scrollable>
             <Modal.Header closeButton={!loadingDuplicateCmo && !savingDuplicateCmo}>
               <Modal.Title>Duplicate Commitment Monthly Order</Modal.Title>

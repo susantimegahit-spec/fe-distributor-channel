@@ -55,7 +55,16 @@ export default function ConfirmDialog({ show, title, subTitle, onSubmit, onCance
             No
           </Button>
           <Button className="w-100" variant="danger" onClick={onSubmit} disabled={isSubmitDisabled}>
-            {loading ? 'Processing...' : countdown > 0 ? `Yes (${countdown})` : 'Yes'}
+            {loading ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />
+                Processing...
+              </>
+            ) : countdown > 0 ? (
+              `Yes (${countdown})`
+            ) : (
+              'Yes'
+            )}
           </Button>
         </Stack>
       </Modal.Footer>

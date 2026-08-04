@@ -11,7 +11,7 @@ import LoaderData from '../../../components/LoaderData';
 import Select from 'react-select';
 import ProductServices from '../../../services/customer-portal/ProductServices';
 import WarehouseServices from '../../../services/customer-portal/WarehouseServices';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import EmployeeServices from '../../../services/customer-portal/EmployeeServices';
 import OrderServices from '../../../services/customer-portal/OrderServices';
 import PromoServices from '../../../services/customer-portal/PromoServices';
@@ -38,8 +38,11 @@ export default function OrderPost({ cmoMode = false }) {
   const canSaveDraft = cmoMode || roleNumber === 1 || roleNumber === 5;
   const shouldShowSeriesSalesOrder = !isCustomerRole;
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { id } = useParams();
   const isDetailMode = Boolean(id);
+  const duplicateCmoId = cmoMode && !isDetailMode ? searchParams.get('duplicate') : '';
+  const isDuplicateCmo = Boolean(duplicateCmoId);
   const { showAlert } = useAlert();
   const [showDisc, setShowDisc] = useState(false);
   const [selectedRewardTarget, setSelectedRewardTarget] = useState(null);
@@ -126,6 +129,11 @@ export default function OrderPost({ cmoMode = false }) {
   };
 
   const todayDate = getTodayDate();
+  const requestedDocumentDate = searchParams.get('date');
+  const initialDocumentDate =
+    !isDetailMode && /^\d{4}-\d{2}-\d{2}$/.test(requestedDocumentDate || '') && requestedDocumentDate >= todayDate
+      ? requestedDocumentDate
+      : todayDate;
 
   // VAT disabled
   // const getVatRate = (vatGroup) => {
@@ -184,9 +192,9 @@ export default function OrderPost({ cmoMode = false }) {
   const [orderInput, setOrderInput] = useState({
     cardCode: '',
     poNumber: '',
-    docDate: todayDate,
-    docDueDate: todayDate,
-    etaDate: addDaysToDate(todayDate, 7),
+    docDate: initialDocumentDate,
+    docDueDate: initialDocumentDate,
+    etaDate: addDaysToDate(initialDocumentDate, 7),
     useBalance: false,
     series: '',
     seriesName: '',
@@ -246,8 +254,10 @@ export default function OrderPost({ cmoMode = false }) {
   useEffect(() => {
     if (id) {
       fetchOrderDetail(id);
+    } else if (duplicateCmoId) {
+      fetchOrderDetail(duplicateCmoId);
     }
-  }, [id]);
+  }, [duplicateCmoId, id]);
 
   useEffect(() => {
     if (!shouldShowSeriesSalesOrder || !orderInput.docDate) {
@@ -1703,14 +1713,21 @@ export default function OrderPost({ cmoMode = false }) {
   };
 
   const handleSubmitOrder = async () => {
-    const payload = buildOrderRequestPayload(createOrderPayload(statusType));
+    if (loadingSubmit) return;
 
-    if (id) {
-      const resp = cmoMode ? await OrderServices.putCmo(id, payload) : await OrderServices.putOrder(id, payload);
+    setLoadingSubmit(true);
+
+    try {
+      const payload = buildOrderRequestPayload(createOrderPayload(statusType));
+      const resp = id
+        ? await (cmoMode ? OrderServices.putCmo(id, payload) : OrderServices.putOrder(id, payload))
+        : await (cmoMode ? OrderServices.postCmo(payload) : OrderServices.postOrder(payload));
+
       handleOrderResponse(resp);
-    } else {
-      const resp = cmoMode ? await OrderServices.postCmo(payload) : await OrderServices.postOrder(payload);
-      handleOrderResponse(resp);
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || `Failed to submit ${cmoMode ? 'CMO' : 'order'}`, 'danger');
+    } finally {
+      setLoadingSubmit(false);
     }
   };
 
@@ -2070,9 +2087,13 @@ export default function OrderPost({ cmoMode = false }) {
           <MainCard
             title={
               <Stack gap={1}>
-                <h5 className="mb-0">{isDetailMode ? `Detail ${cmoMode ? 'CMO' : 'Order'}` : `Create ${cmoMode ? 'CMO' : 'Order'}`}</h5>
+                <h5 className="mb-0">
+                  {isDuplicateCmo ? 'Duplicate CMO' : isDetailMode ? `Detail ${cmoMode ? 'CMO' : 'Order'}` : `Create ${cmoMode ? 'CMO' : 'Order'}`}
+                </h5>
                 <span className="text-muted f-12">
-                  {isDetailMode
+                  {isDuplicateCmo
+                    ? 'Review the copied CMO data before saving it as a new CMO.'
+                    : isDetailMode
                     ? `Showing detail ${orderDetail?.order_no || orderDetail?.doc_num || 'order'} selected.`
                     : 'Complete customer information, addresses, and product details before saving the order.'}
                 </span>
@@ -2092,7 +2113,7 @@ export default function OrderPost({ cmoMode = false }) {
                   <>
                     <Button onClick={() => handleShowConfirm('DRAFT')} variant="warning">
                       <i className="ti ti-device-floppy me-1" />
-                      {cmoMode ? 'Save CMO' : 'Save Draft'}
+                      {isDuplicateCmo ? 'Save as New CMO' : cmoMode ? 'Save CMO' : 'Save Draft'}
                     </Button>
                     {!cmoMode && (
                       <Button onClick={() => handleShowConfirm('WAITING_OM')} variant="primary">
@@ -2918,9 +2939,10 @@ export default function OrderPost({ cmoMode = false }) {
 
       <ConfirmDialog
         show={confirmSubmit}
-        onCancel={() => setConfirmSubmit(false)}
+        loading={loadingSubmit}
+        onCancel={() => !loadingSubmit && setConfirmSubmit(false)}
         onSubmit={handleSubmitOrder}
-        title="Submit Order"
+        title={`Submit ${cmoMode ? 'CMO' : 'Order'}`}
         subTitle="Are you sure you want to process this data"
       />
     </>
