@@ -949,21 +949,21 @@ export default function OrderList({ showOnlyCommitment = false }) {
 
     const anchor = document.createElement('a');
     anchor.href = attachmentUrl;
-    anchor.target = '_blank';
-    anchor.rel = 'noreferrer';
+    anchor.download = getAttachmentValue(attachment, ['file_name', 'filename', 'name', 'original_name']) || '';
+    anchor.rel = 'noopener noreferrer';
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
   };
 
-  const handleViewAttachment = async (order) => {
+  const handleViewAttachment = async (order, isCmo = false) => {
     setDownloadingAttachmentId(order.id);
 
     try {
       let attachments = getOrderAttachments(order);
 
       if (!attachments.length) {
-        const response = await OrderServices.getDetailOrder(order.id);
+        const response = isCmo ? await OrderServices.getCmoById(order.id) : await OrderServices.getDetailOrder(order.id);
 
         if (response?.data?.success) {
           attachments = getOrderAttachments(response.data.data);
@@ -971,13 +971,13 @@ export default function OrderList({ showOnlyCommitment = false }) {
       }
 
       if (!attachments.length) {
-        showAlert('Order attachment is not available', 'warning');
+        showAlert(`${isCmo ? 'CMO' : 'Order'} attachment is not available`, 'warning');
         return;
       }
 
       openAttachment(attachments[0]);
     } catch (error) {
-      showAlert(error?.message || 'Failed to open order attachment', 'danger');
+      showAlert(error?.response?.data?.message || error?.message || `Failed to download ${isCmo ? 'CMO' : 'order'} attachment`, 'danger');
     } finally {
       setDownloadingAttachmentId(null);
     }
@@ -1835,6 +1835,25 @@ export default function OrderList({ showOnlyCommitment = false }) {
             >
               <i className="ti ti-copy text-info me-2" />
               Duplicate
+            </button>
+            <button
+              type="button"
+              className="dropdown-item"
+              disabled={String(downloadingAttachmentId) === String(cmoActionMenu?.order?.id)}
+              onClick={() => {
+                const order = cmoActionMenu?.order;
+                setCmoActionMenu(null);
+                if (order) handleViewAttachment(order, true);
+              }}
+            >
+              <i
+                className={
+                  String(downloadingAttachmentId) === String(cmoActionMenu?.order?.id)
+                    ? 'ti ti-loader-2 text-primary me-2'
+                    : 'ti ti-paperclip text-primary me-2'
+                }
+              />
+              Download Attachment
             </button>
             <button
               type="button"
