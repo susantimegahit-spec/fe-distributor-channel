@@ -8,6 +8,7 @@ const getSystemKeyFromPath = (path = '') => {
   if (path.startsWith('/expedition')) return 'expedition';
   if (path.startsWith('/picking-list')) return 'picking-list';
   if (path.startsWith('/production')) return 'production';
+  if (path.startsWith('/purchasing')) return 'purchasing';
   if (path.startsWith('/support')) return 'support';
   return 'customer-portal';
 };

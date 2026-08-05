@@ -10,6 +10,7 @@ import FinanceRoutes from './FinanceRoutes';
 import ExpeditionRoutes from './ExpeditionRoutes';
 import PickingListRoutes from './PickingListRoutes';
 import ProductionRoutes from './ProductionRoutes';
+import PurchasingRoutes from './PurchasingRoutes';
 import HelpDeskRoutes from './HelpDeskRoutes';
 import { NotFoundPage } from '../views/ErrorBoundary';
 import ErrorPage from '../views/errors/ErrorPage';
@@ -33,6 +34,7 @@ const router = createBrowserRouter(
     ExpeditionRoutes,
     PickingListRoutes,
     ProductionRoutes,
+    PurchasingRoutes,
     HelpDeskRoutes,
     OtherRoutes,
     ...ERROR_STATUSES.map((status) => ({

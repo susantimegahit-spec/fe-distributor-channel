@@ -95,6 +95,17 @@ body {
   --system-accent-rgb: 121, 226, 173;
 }
 
+[data-system-theme='purchasing'] {
+  --system-primary: #0f766e;
+  --system-primary-rgb: 15, 118, 110;
+  --system-secondary: #2dd4bf;
+  --system-sidebar-start: #042f2e;
+  --system-sidebar-middle: #115e59;
+  --system-sidebar-end: #0f766e;
+  --system-accent: #5eead4;
+  --system-accent-rgb: 94, 234, 212;
+}
+
 [data-system-theme='support'] {
   --system-primary: #f2b705;
   --system-primary-rgb: 242, 183, 5;
@@ -2358,6 +2369,12 @@ body {
 .sm-system-switcher-item-icon.is-production {
   --switcher-color: #198754;
   --switcher-rgb: 25, 135, 84;
+}
+
+.sm-system-switcher-icon.is-purchasing,
+.sm-system-switcher-item-icon.is-purchasing {
+  --switcher-color: #0f766e;
+  --switcher-rgb: 15, 118, 110;
 }
 
 .sm-system-switcher-icon.is-support,

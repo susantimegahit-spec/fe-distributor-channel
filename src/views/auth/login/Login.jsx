@@ -41,7 +41,7 @@ export default function LoginPage() {
                 Distributor <span>operations</span> control room.
               </h1> */}
               <p>
-                One secure workspace for Customer Portal, Expedition, Picking List, and Production operations.
+                One secure workspace for Customer Portal, Expedition, Picking List, Production, and Purchasing operations.
               </p>
             </div>
             <div className="sm-auth-products" aria-label="Product brands">
@@ -78,6 +78,13 @@ export default function LoginPage() {
                 <span>
                   <strong>Production</strong>
                   <small>Planning and operations</small>
+                </span>
+              </div>
+              <div>
+                <i className="ti ti-shopping-cart" />
+                <span>
+                  <strong>Purchasing</strong>
+                  <small>Orders and suppliers</small>
                 </span>
               </div>
             </div>

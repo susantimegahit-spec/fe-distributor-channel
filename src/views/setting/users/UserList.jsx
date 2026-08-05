@@ -58,6 +58,7 @@ const accessibleSystemOptions = [
   { value: SYSTEM_KEYS.EXPEDITION, label: 'Expedition', color: '#e8590c' },
   { value: SYSTEM_KEYS.PICKING_LIST, label: 'Picking List', color: '#7048e8' },
   { value: SYSTEM_KEYS.PRODUCTION, label: 'Production', color: '#198754' },
+  { value: SYSTEM_KEYS.PURCHASING, label: 'Purchasing', color: '#0f766e' },
   { value: SYSTEM_KEYS.SUPPORT, label: 'Support', color: '#f2b705' }
 ];
 const accessibleSystemAliases = {
@@ -73,6 +74,9 @@ const accessibleSystemAliases = {
   production: SYSTEM_KEYS.PRODUCTION,
   produksi: SYSTEM_KEYS.PRODUCTION,
   manufacturing: SYSTEM_KEYS.PRODUCTION,
+  purchasing: SYSTEM_KEYS.PURCHASING,
+  procurement: SYSTEM_KEYS.PURCHASING,
+  pembelian: SYSTEM_KEYS.PURCHASING,
   support: SYSTEM_KEYS.SUPPORT,
   helpdesk: SYSTEM_KEYS.SUPPORT,
   'help-desk': SYSTEM_KEYS.SUPPORT,

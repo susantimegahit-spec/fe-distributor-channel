@@ -2,6 +2,7 @@ import customerPortalMenu from './customer-portal/menu';
 import expeditionMenu from './expedition/menu';
 import pickingListMenu from './picking-list/menu';
 import productionMenu from './production/menu';
+import purchasingMenu from './purchasing/menu';
 import supportMenu from './support/menu';
 import { matchPath } from 'react-router-dom';
 
@@ -10,6 +11,7 @@ export const SYSTEM_KEYS = {
   EXPEDITION: 'expedition',
   PICKING_LIST: 'picking-list',
   PRODUCTION: 'production',
+  PURCHASING: 'purchasing',
   SUPPORT: 'support'
 };
 
@@ -51,6 +53,15 @@ export const systems = [
     menu: productionMenu
   },
   {
+    key: SYSTEM_KEYS.PURCHASING,
+    title: 'Purchasing',
+    description: 'Purchase orders, supplier management, and procurement monitoring.',
+    icon: 'ti ti-shopping-cart',
+    basePath: '/purchasing',
+    defaultPath: '/purchasing/dashboard',
+    menu: purchasingMenu
+  },
+  {
     key: SYSTEM_KEYS.SUPPORT,
     title: 'Support',
     description: 'Help desk, ticket tracking, service status, and customer assistance.',
@@ -77,6 +88,9 @@ const systemAccessAliases = {
   production: SYSTEM_KEYS.PRODUCTION,
   produksi: SYSTEM_KEYS.PRODUCTION,
   manufacturing: SYSTEM_KEYS.PRODUCTION,
+  purchasing: SYSTEM_KEYS.PURCHASING,
+  procurement: SYSTEM_KEYS.PURCHASING,
+  pembelian: SYSTEM_KEYS.PURCHASING,
   support: SYSTEM_KEYS.SUPPORT,
   helpdesk: SYSTEM_KEYS.SUPPORT,
   'help-desk': SYSTEM_KEYS.SUPPORT,
