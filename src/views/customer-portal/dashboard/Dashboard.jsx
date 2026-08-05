@@ -1650,6 +1650,7 @@ export default function Dashboard() {
           </Row>
         )}
 
+        {!isLoadingOrders && deliveryOrders.length > 0 ? (
         <Row className="g-3 align-items-stretch dashboard-action-cards">
           <Col xs={12} className="d-flex">
             <MainCard
@@ -1882,6 +1883,7 @@ export default function Dashboard() {
             </MainCard>
           </Col>
         </Row>
+        ) : null}
 
         <Row className="g-3">
           <Col sm={6} xl={4}>

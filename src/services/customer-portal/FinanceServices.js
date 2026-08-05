@@ -190,13 +190,13 @@ class FinanceServices {
     const masterItemLastRow = masterItemRows.length + 1;
     const templateRows = [
       buildRow(rewardTemplateHeaders, 'Header'),
-      ...Array.from({ length: 999 }, () => buildRewardInputRow(masterItemLastRow, distributor)),
+      buildRewardInputRow(masterItemLastRow, distributor),
       buildEmptyRow(),
       buildRow(['*Untuk kolom tipe customer harap diisi dengan MT/GT'], 'Information'),
       buildRow(['*Nama item terisi otomatis setelah kode item dipilih'], 'Information')
     ];
     const itemCodeValidation = masterItemRows.length
-      ? [buildListValidation('R2C3:R1000C3', `'Master Item'!R2C1:R${masterItemRows.length + 1}C1`)]
+      ? [buildListValidation('R2C3', `'Master Item'!R2C1:R${masterItemRows.length + 1}C1`)]
       : [];
 
     downloadExcelXml('template-claim-reward.xls', [

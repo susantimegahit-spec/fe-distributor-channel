@@ -74,7 +74,9 @@ export default function OrderPost({ cmoMode = false }) {
   const [orderDetail, setOrderDetail] = useState(null);
   const [statusType, setStatusType] = useState('');
   const [confirmSubmit, setConfirmSubmit] = useState(false);
+  const [closeAfterSubmit, setCloseAfterSubmit] = useState(false);
   const [documents, setDocuments] = useState([]);
+  const [documentInputKey, setDocumentInputKey] = useState(0);
   const [existingDocuments, setExistingDocuments] = useState([]);
   const [discountSnapshot, setDiscountSnapshot] = useState(null);
 
@@ -660,6 +662,7 @@ export default function OrderPost({ cmoMode = false }) {
     setOrderDetail(order);
     setExistingDocuments(Array.isArray(orderDocuments) ? orderDocuments : []);
     setDocuments([]);
+    setDocumentInputKey((currentKey) => currentKey + 1);
     setDiscId(orderDiscountId);
     setDetailDisc(
       discountDetails.length > 0
@@ -1704,7 +1707,24 @@ export default function OrderPost({ cmoMode = false }) {
   const handleOrderResponse = (resp) => {
     if (resp.data.success) {
       showAlert(resp.data.message, 'success');
+      setConfirmSubmit(false);
       setLoadingSubmit(false);
+
+      if (cmoMode) {
+        if (closeAfterSubmit) {
+          navigate('/customer-portal/order/cmo');
+          return;
+        }
+
+        const savedCmo = resp.data.data;
+        const savedCmoId = savedCmo?.id || savedCmo?.cmo_id || savedCmo?.cmoId || resp.data.id;
+
+        if (!id && savedCmoId) {
+          navigate(`/customer-portal/order/cmo-create/${savedCmoId}`, { replace: true });
+        }
+        return;
+      }
+
       navigate(-1);
     } else {
       showAlert(resp.data.message, 'danger');
@@ -1902,14 +1922,90 @@ export default function OrderPost({ cmoMode = false }) {
     return null; // No errors
   };
 
-  const handleShowConfirm = (type) => {
+  const handleShowConfirm = (type, shouldCloseAfterSubmit = false) => {
     const errorMsg = validateForm();
     if (errorMsg) {
       showAlert(errorMsg, 'danger');
       return;
     }
     setStatusType(type);
+    setCloseAfterSubmit(shouldCloseAfterSubmit);
     setConfirmSubmit(true);
+  };
+
+  const handleClearCmoForm = () => {
+    setOrderInput({
+      cardCode: assignedCustomerCode,
+      poNumber: '',
+      docDate: initialDocumentDate,
+      docDueDate: initialDocumentDate,
+      etaDate: addDaysToDate(initialDocumentDate, 7),
+      useBalance: false,
+      series: '',
+      seriesName: '',
+      slpCode: '',
+      cnctCode: '',
+      address: '',
+      address2: '',
+      comments: '',
+      idDiscount: ''
+    });
+    setItemArr([
+      {
+        itemCode: null,
+        quantity: '',
+        kgPerUnit: 0,
+        totalKg: 0,
+        unitMsr: '',
+        unitPrice: '',
+        whs_code: null,
+        lineTotal: '',
+        vatTotal: '',
+        freeText: '',
+        ocrCode: null,
+        ocrCode2: null,
+        ocrCode3: null,
+        vatGroup: null
+      }
+    ]);
+    setDetailDisc([
+      {
+        name: '',
+        value: '',
+        remarks: '',
+        section: 'primary',
+        valueType: 'nominal',
+        calculationValue: ''
+      },
+      {
+        name: '',
+        value: '',
+        remarks: '',
+        section: 'other',
+        valueType: 'nominal',
+        calculationValue: ''
+      },
+      {
+        name: '',
+        value: '',
+        remarks: '',
+        section: 'tradePromo',
+        valueType: 'nominal',
+        calculationValue: '',
+        claimBatch: null
+      }
+    ]);
+    setDiscId('');
+    setDocuments([]);
+    setDocumentInputKey((currentKey) => currentKey + 1);
+    setExistingDocuments([]);
+    setDiscountSnapshot(null);
+    setSelectedRewardTarget(null);
+    setRewardDiscountPreview([]);
+    setRewardResultCount(0);
+    setShowDisc(false);
+    setStatusType('');
+    setCloseAfterSubmit(false);
   };
 
   const renderDiscountSection = ({ section, title, description, options, allowCreate = false, allowAdd = false }) => {
@@ -2109,12 +2205,25 @@ export default function OrderPost({ cmoMode = false }) {
                   Cancel
                 </Button>
 
+                {cmoMode && !isDetailMode ? (
+                  <Button variant="light-secondary" onClick={handleClearCmoForm} disabled={loadingSubmit}>
+                    <i className="ti ti-eraser me-1" />
+                    Clear
+                  </Button>
+                ) : null}
+
                 {canSaveDraft ? (
                   <>
                     <Button onClick={() => handleShowConfirm('DRAFT')} variant="warning">
                       <i className="ti ti-device-floppy me-1" />
                       {isDuplicateCmo ? 'Save as New CMO' : cmoMode ? 'Save CMO' : 'Save Draft'}
                     </Button>
+                    {cmoMode ? (
+                      <Button onClick={() => handleShowConfirm('DRAFT', true)} variant="primary">
+                        <i className="ti ti-device-floppy me-1" />
+                        Save &amp; Close
+                      </Button>
+                    ) : null}
                     {!cmoMode && (
                       <Button onClick={() => handleShowConfirm('WAITING_OM')} variant="primary">
                         <i className="ti ti-send" />
@@ -2445,6 +2554,7 @@ export default function OrderPost({ cmoMode = false }) {
                       <Form.Group>
                         <Form.Label className="small text-muted">Select File</Form.Label>
                         <Form.Control
+                          key={documentInputKey}
                           type="file"
                           multiple
                           accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"

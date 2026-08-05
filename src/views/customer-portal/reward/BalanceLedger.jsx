@@ -20,7 +20,7 @@ import FinanceServices from '../../../services/customer-portal/FinanceServices';
 import PromoServices from '../../../services/customer-portal/PromoServices';
 import RoleServices from '../../../services/setting/RoleServices';
 import { useAlert } from '../../../utils/alertContext';
-import { getAssignedCustomerCode, getCookies } from '../../../utils/cookies';
+import { getAssignedCustomerCodes, getCookies } from '../../../utils/cookies';
 
 const pageSize = 10;
 
@@ -407,7 +407,8 @@ const getStatusVariant = (status) => {
 
 export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0, refreshSignal = 0 }) {
   const { showAlert } = useAlert();
-  const customerCode = getAssignedCustomerCode();
+  const assignedCustomerCodes = useMemo(() => getAssignedCustomerCodes(), []);
+  const customerCode = assignedCustomerCodes.join(',');
   const roleId = getCookies('role');
   const fileInputRef = useRef(null);
   const handledWithdrawSignalRef = useRef(0);
@@ -486,7 +487,11 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
 
     return ledgerBankAccount !== '-' ? ledgerBankAccount : formatBankAccount(selectedWithdrawCustomer);
   }, [selectedWithdraw, selectedWithdrawCustomer]);
-  const effectiveCustomerCode = selectedCustomerCodes.length ? selectedCustomerCodes.join(',') : customerCode;
+  const effectiveCustomerCode = embedded
+    ? selectedCustomerCodes.join(',')
+    : selectedCustomerCodes.length
+      ? selectedCustomerCodes.join(',')
+      : customerCode;
   const adjustmentCustomerCode = isDistributor ? customerCode : '';
   const canCreateAdjustment = isDistributor;
   const canCreateWithdrawal = isAdminDistributor && isDistributor;
@@ -512,6 +517,7 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
       const options = getResponseList(response)
         .map(normalizeCustomerOption)
         .filter((item) => item.value)
+        .filter((item) => !embedded || !assignedCustomerCodes.length || assignedCustomerCodes.includes(String(item.value)))
         .sort((firstItem, secondItem) => firstItem.label.localeCompare(secondItem.label));
 
       setCustomerOptions(options);
@@ -521,9 +527,16 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
     } finally {
       setLoadingCustomers(false);
     }
-  }, [embedded, showAlert, showCustomerFilter]);
+  }, [assignedCustomerCodes, embedded, showAlert, showCustomerFilter]);
 
   const fetchClaimsLedger = useCallback(async () => {
+    if (embedded && !effectiveCustomerCode) {
+      setLedgerRows([]);
+      setSummarySource({});
+      setCurrentPage(1);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -1229,16 +1242,21 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
         className="claim-transaction-card"
         title={
           <Stack direction="horizontal" gap={3} className="flex-wrap justify-content-between w-100">
-            <div>
+            <div className="flex-grow-1" style={{ minWidth: 0 }}>
               <h5 className="mb-1">{embedded ? 'Reward History' : 'Reward Balance Ledger'}</h5>
               <span className="text-muted f-12">Monitor every reward credit, debit, and running balance transaction.</span>
+              {!embedded && assignedCustomerCodes.length ? (
+                <div className="d-flex flex-wrap align-items-center gap-1 mt-2" style={{ maxHeight: 72, overflowY: 'auto' }}>
+                  <span className="text-muted f-12 me-1">Customer:</span>
+                  {assignedCustomerCodes.map((code) => (
+                    <Badge bg="light" text="primary" key={code} className="fw-medium">
+                      {code}
+                    </Badge>
+                  ))}
+                </div>
+              ) : null}
             </div>
             <Stack direction="horizontal" gap={2} className="flex-wrap">
-              {customerCode ? (
-                <Badge bg="light" text="primary">
-                  Customer: {customerCode}
-                </Badge>
-              ) : null}
               {embedded ? (
                 <Button variant="primary" size="sm" onClick={handleOpenAdjustmentModal} disabled={submittingAdjustment}>
                   <i className="ti ti-plus me-1" />
@@ -1271,7 +1289,12 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
                   ) : null}
                 </>
               ) : null}
-              <Button variant="light-primary" size="sm" onClick={fetchClaimsLedger} disabled={loading}>
+              <Button
+                variant="light-primary"
+                size="sm"
+                onClick={fetchClaimsLedger}
+                disabled={loading || (embedded && !selectedCustomerCodes.length)}
+              >
                 <i className={`ti ti-refresh me-1 ${loading ? 'spin' : ''}`} />
                 Refresh
               </Button>
@@ -1387,7 +1410,7 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
               </Button>
             ) : null}
           </Stack>
-          {showCustomerFilter ? (
+          {embedded || showCustomerFilter ? (
             <Form.Group style={{ width: 420, maxWidth: '100%' }}>
               <Form.Label className="f-12 text-muted mb-1">Customer Code</Form.Label>
               <Select
@@ -1518,8 +1541,14 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
                   <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                     <i className="ti ti-wallet f-24" />
                   </div>
-                  <h5 className="mb-1">No ledger transactions yet</h5>
-                  <p className="text-muted mb-0">Reward balance transactions for this customer will appear here.</p>
+                  <h5 className="mb-1">
+                    {embedded && !selectedCustomerCodes.length ? 'Select a customer code' : 'No ledger transactions yet'}
+                  </h5>
+                  <p className="text-muted mb-0">
+                    {embedded && !selectedCustomerCodes.length
+                      ? 'Choose a customer code to load reward history.'
+                      : 'Reward balance transactions for this customer will appear here.'}
+                  </p>
                 </td>
               </tr>
             )}
@@ -2001,13 +2030,26 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
             <Card className="border mb-0">
               <Card.Body className="py-3">
                 <Stack direction="horizontal" gap={3} className="justify-content-between">
-                  <div>
+                  <div className="flex-grow-1" style={{ minWidth: 0 }}>
                     <div className="text-muted f-12">Customer Code</div>
-                    <div className="fw-semibold mb-2">{adjustmentCustomerCode || '-'}</div>
+                    {assignedCustomerCodes.length ? (
+                      <div
+                        className="d-flex flex-wrap align-items-center gap-1 mt-1 mb-3 pe-2"
+                        style={{ maxHeight: 72, overflowY: 'auto' }}
+                      >
+                        {assignedCustomerCodes.map((code) => (
+                          <Badge bg="light" text="primary" key={code} className="fw-medium">
+                            {code}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="fw-semibold mb-2">-</div>
+                    )}
                     <div className="text-muted f-12">Total Available Balance</div>
                     <h5 className="mb-0 text-success">{formatCurrency(summary.balance)}</h5>
                   </div>
-                  <span className="avtar avtar-s bg-light-success text-success">
+                  <span className="avtar avtar-s bg-light-success text-success flex-shrink-0">
                     <i className="ti ti-wallet" />
                   </span>
                 </Stack>
