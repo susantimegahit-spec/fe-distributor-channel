@@ -119,10 +119,11 @@ export default function NavGroup(props) {
 
   const groupLabel = findGroupLabel(item);
   const isDashboardGroup = item.id === 'dashboard' || item.id?.endsWith('-dashboard');
+  const isAlwaysOpenGroup = isDashboardGroup || item.collapsible === false;
 
   return (
     <Fragment>
-      {groupLabel && !isDashboardGroup && (
+      {groupLabel && !isAlwaysOpenGroup && (
         <li className={`pc-item pc-caption sm-sidebar-group-toggle ${groupOpen ? 'is-open' : ''}`} key={item.id}>
           <button
             type="button"
@@ -135,8 +136,8 @@ export default function NavGroup(props) {
           </button>
         </li>
       )}
-      <Collapse in={Boolean(groupLabel && (isDashboardGroup || groupOpen))}>
-        <div className={`sm-sidebar-group-items ${isDashboardGroup ? '' : 'is-indented'}`} id={`sidebar-group-${item.id}`}>
+      <Collapse in={Boolean(groupLabel && (isAlwaysOpenGroup || groupOpen))}>
+        <div className={`sm-sidebar-group-items ${isAlwaysOpenGroup ? '' : 'is-indented'}`} id={`sidebar-group-${item.id}`}>
           {navCollapse}
         </div>
       </Collapse>

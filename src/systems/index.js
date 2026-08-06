@@ -1,18 +1,16 @@
 import customerPortalMenu from './customer-portal/menu';
+import enterpriseMenu from './enterprise/menu';
 import expeditionMenu from './expedition/menu';
 import pickingListMenu from './picking-list/menu';
 import productionMenu from './production/menu';
-import purchasingMenu from './purchasing/menu';
-import supportMenu from './support/menu';
 import { matchPath } from 'react-router-dom';
 
 export const SYSTEM_KEYS = {
   CUSTOMER_PORTAL: 'customer-portal',
+  ENTERPRISE: 'enterprise',
   EXPEDITION: 'expedition',
   PICKING_LIST: 'picking-list',
-  PRODUCTION: 'production',
-  PURCHASING: 'purchasing',
-  SUPPORT: 'support'
+  PRODUCTION: 'production'
 };
 
 export const systems = [
@@ -24,6 +22,15 @@ export const systems = [
     basePath: '/customer-portal',
     defaultPath: '/customer-portal/dashboard',
     menu: customerPortalMenu
+  },
+  {
+    key: SYSTEM_KEYS.ENTERPRISE,
+    title: 'Entrerprise',
+    description: 'Integrated purchasing, procurement, and enterprise budgeting workflows.',
+    icon: 'ti ti-building-skyscraper',
+    basePath: '/enterprise',
+    defaultPath: '/enterprise/purchasing/request',
+    menu: enterpriseMenu
   },
   {
     key: SYSTEM_KEYS.EXPEDITION,
@@ -51,24 +58,6 @@ export const systems = [
     basePath: '/production',
     defaultPath: '/production/dashboard',
     menu: productionMenu
-  },
-  {
-    key: SYSTEM_KEYS.PURCHASING,
-    title: 'Purchasing',
-    description: 'Purchase orders, supplier management, and procurement monitoring.',
-    icon: 'ti ti-shopping-cart',
-    basePath: '/purchasing',
-    defaultPath: '/purchasing/dashboard',
-    menu: purchasingMenu
-  },
-  {
-    key: SYSTEM_KEYS.SUPPORT,
-    title: 'Support',
-    description: 'Help desk, ticket tracking, service status, and customer assistance.',
-    icon: 'ti ti-headset',
-    basePath: '/support',
-    defaultPath: '/support/help-desk',
-    menu: supportMenu
   }
 ];
 
@@ -79,6 +68,12 @@ const systemAccessAliases = {
   customer_portal: SYSTEM_KEYS.CUSTOMER_PORTAL,
   'customer portal': SYSTEM_KEYS.CUSTOMER_PORTAL,
   customerportal: SYSTEM_KEYS.CUSTOMER_PORTAL,
+  enterprise: SYSTEM_KEYS.ENTERPRISE,
+  entrerprise: SYSTEM_KEYS.ENTERPRISE,
+  erp: SYSTEM_KEYS.ENTERPRISE,
+  purchasing: SYSTEM_KEYS.ENTERPRISE,
+  procurement: SYSTEM_KEYS.ENTERPRISE,
+  pembelian: SYSTEM_KEYS.ENTERPRISE,
   ekspedisi: SYSTEM_KEYS.EXPEDITION,
   expedition: SYSTEM_KEYS.EXPEDITION,
   pickinglist: SYSTEM_KEYS.PICKING_LIST,
@@ -88,13 +83,10 @@ const systemAccessAliases = {
   production: SYSTEM_KEYS.PRODUCTION,
   produksi: SYSTEM_KEYS.PRODUCTION,
   manufacturing: SYSTEM_KEYS.PRODUCTION,
-  purchasing: SYSTEM_KEYS.PURCHASING,
-  procurement: SYSTEM_KEYS.PURCHASING,
-  pembelian: SYSTEM_KEYS.PURCHASING,
-  support: SYSTEM_KEYS.SUPPORT,
-  helpdesk: SYSTEM_KEYS.SUPPORT,
-  'help-desk': SYSTEM_KEYS.SUPPORT,
-  'support center': SYSTEM_KEYS.SUPPORT
+  support: SYSTEM_KEYS.ENTERPRISE,
+  helpdesk: SYSTEM_KEYS.ENTERPRISE,
+  'help-desk': SYSTEM_KEYS.ENTERPRISE,
+  'support center': SYSTEM_KEYS.ENTERPRISE
 };
 
 const flattenMenuIds = (menuItems = []) =>

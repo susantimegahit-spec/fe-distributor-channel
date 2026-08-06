@@ -5,6 +5,10 @@ class CronJobServices {
     return DataService.get('/cron-jobs');
   }
 
+  postCronJobs(data) {
+    return DataService.post('/cron-jobs', data);
+  }
+
   updateCronJob(id, data) {
     return DataService.put(`/cron-jobs/${id}`, data);
   }

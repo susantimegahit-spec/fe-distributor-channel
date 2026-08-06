@@ -8,9 +8,9 @@ import SettingRoutes from './SettingRoutes';
 import OrderRoutes from './OrderRoutes';
 import FinanceRoutes from './FinanceRoutes';
 import ExpeditionRoutes from './ExpeditionRoutes';
+import EnterpriseRoutes from './EnterpriseRoutes';
 import PickingListRoutes from './PickingListRoutes';
 import ProductionRoutes from './ProductionRoutes';
-import PurchasingRoutes from './PurchasingRoutes';
 import HelpDeskRoutes from './HelpDeskRoutes';
 import { NotFoundPage } from '../views/ErrorBoundary';
 import ErrorPage from '../views/errors/ErrorPage';
@@ -31,10 +31,10 @@ const router = createBrowserRouter(
     SettingRoutes,
     OrderRoutes,
     FinanceRoutes,
+    EnterpriseRoutes,
     ExpeditionRoutes,
     PickingListRoutes,
     ProductionRoutes,
-    PurchasingRoutes,
     HelpDeskRoutes,
     OtherRoutes,
     ...ERROR_STATUSES.map((status) => ({
