@@ -6,7 +6,6 @@ import { useDispatch } from 'react-redux';
 // react-bootstrap
 import Button from 'react-bootstrap/Button';
 import Form from 'react-bootstrap/Form';
-import Image from 'react-bootstrap/Image';
 import Modal from 'react-bootstrap/Modal';
 
 // third-party
@@ -17,13 +16,6 @@ import MainCard from 'components/MainCard';
 import { passwordSchema, usernameSchema } from 'utils/validationSchema';
 import { useAlert } from '../../utils/alertContext';
 
-import CapKapalLogo from 'assets/images/cap-kapal.png';
-import CapLayarLogo from 'assets/images/cap_layar.png';
-import GaramCapTanganLogo from 'assets/images/garam-cap-tangan.png';
-import GaramiLogo from 'assets/images/garami.png';
-import GaramJempolLogo from 'assets/images/garam-jempol.png';
-import GaramkuLogo from 'assets/images/garamku.png';
-import SusantiMegahLogo from 'assets/images/logo-susanti-white.png';
 import { DataService } from '../../config/dataService';
 import LoaderButton from '../../components/LoaderButton';
 import Turnstile from 'components/Turnstile';
@@ -37,15 +29,6 @@ import {
 import { setAccessibleSystem } from '../../redux/authReducer';
 
 // ==============================|| AUTH LOGIN FORM ||============================== //
-
-const productLogos = [
-  { src: GaramkuLogo, alt: 'Garamku' },
-  { src: CapKapalLogo, alt: 'Cap Kapal' },
-  { src: CapLayarLogo, alt: 'Cap Layar' },
-  { src: GaramiLogo, alt: 'Garami' },
-  { src: GaramCapTanganLogo, alt: 'Garam Cap Tangan' },
-  { src: GaramJempolLogo, alt: 'Garam Jempol' }
-];
 
 const normalizeAssignmentValues = (value, valueKeys = []) => {
   if (value === undefined || value === null || value === '') return [];
@@ -252,32 +235,20 @@ export default function AuthLoginForm({ className }) {
       ) : null}
       <div className="sm-login-header">
         <div className="sm-login-title-group">
-          <div className="sm-login-logo-wrap">
-            <Image src={SusantiMegahLogo} alt="Susanti Megah" className="sm-login-logo" />
-          </div>
-          <h4>Sign in to SM-Connect</h4>
+          <h4>Sign in</h4>
         </div>
         {/* <span className="sm-login-access">OPERATOR ACCESS</span> */}
-        <p>Enter your account credentials to continue to the workspace assigned to your role.</p>
-      </div>
-      <div className="sm-login-products" aria-label="Product brands">
-        {productLogos.map((product) => (
-          <div className="sm-login-product" key={product.alt}>
-            <img src={product.src} alt={product.alt} />
-          </div>
-        ))}
+        <p>Enter your credentials to access your assigned workspace.</p>
       </div>
       <Form onSubmit={handleSubmit(() => onSubmit(false))}>
         <Form.Group className="sm-login-field" controlId="formUsername">
-          <Form.Label>
-            <span>*</span> Username
-          </Form.Label>
           <div className="sm-input-group">
             <span className="sm-input-icon" aria-hidden="true">
               <i className="ti ti-user" />
             </span>
             <Form.Control
               type="text"
+              aria-label="Username"
               placeholder="Enter your username"
               {...register('username', usernameSchema)}
               isInvalid={!!errors.username}
@@ -288,15 +259,13 @@ export default function AuthLoginForm({ className }) {
           <Form.Control.Feedback type="invalid">{errors.username?.message}</Form.Control.Feedback>
         </Form.Group>
         <Form.Group className="sm-login-field" controlId="formPassword">
-          <Form.Label>
-            <span>*</span> Password
-          </Form.Label>
           <div className="sm-input-group">
             <span className="sm-input-icon" aria-hidden="true">
               <i className="ti ti-lock" />
             </span>
             <Form.Control
               type={showPassword ? 'text' : 'password'}
+              aria-label="Password"
               placeholder="Enter your password"
               {...register('password', passwordSchema)}
               isInvalid={!!errors.password}
@@ -306,7 +275,11 @@ export default function AuthLoginForm({ className }) {
               {showPassword ? <i className="ti ti-eye" /> : <i className="ti ti-eye-off" />}
             </Button>
           </div>
-          <Form.Control.Feedback type="invalid">{errors.password?.message}</Form.Control.Feedback>
+          {errors.password && (
+            <Form.Control.Feedback type="invalid" className="d-block">
+              {errors.password.message}
+            </Form.Control.Feedback>
+          )}
         </Form.Group>
 
         {import.meta.env.VITE_TURNSTILE_ENABLED !== 'false' && (
@@ -326,7 +299,9 @@ export default function AuthLoginForm({ className }) {
           </Button>
         </div>
       </Form>
-      <div className="sm-login-footnote">Dashboard access follows your registered role and distributor assignment.</div>
+      <div className="sm-login-footnote">
+        <i className="ti ti-lock" aria-hidden="true" /> Your access is protected and role-based.
+      </div>
       <Modal show={showConfirmModal} onHide={() => setShowConfirmModal(false)} centered>
         <Modal.Header closeButton>
           <Modal.Title>Sign-In Confirmation</Modal.Title>

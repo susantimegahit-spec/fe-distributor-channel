@@ -7,17 +7,17 @@ export default function AccessDenied({ showSystemSelector = true }) {
   const requestedSystem = state?.requestedSystem;
   const requestedMenu = state?.requestedMenu;
   const noAvailableSystems = state?.noAvailableSystems;
-  const target = requestedMenu ? `menu ${requestedMenu}` : requestedSystem ? `sistem ${requestedSystem}` : 'halaman tersebut';
+  const target = requestedMenu ? `the ${requestedMenu} menu` : requestedSystem ? `the ${requestedSystem} system` : 'this page';
   const detail = requestedSystem
-    ? `Akun Anda belum diizinkan membuka ${target}. Hubungi administrator jika akses ini diperlukan.`
-    : 'Hubungi administrator jika Anda merasa seharusnya memiliki akses. Izin dapat diatur melalui Setting → Access Control.';
+    ? `Your account is not authorized to open ${target}. Contact your administrator if you need access.`
+    : 'Contact your administrator if you believe you should have access. Permissions can be configured under Settings → Access Control.';
 
   return (
     <ErrorPage
       status={403}
-      description={`Anda tidak memiliki izin untuk membuka ${target}.`}
+      description={`You do not have permission to open ${target}.`}
       detail={detail}
-      actionLabel={showSystemSelector ? 'Pilih sistem tersedia' : 'Kembali ke beranda'}
+      actionLabel={showSystemSelector ? 'Choose an available system' : 'Back to home'}
       actionHref={showSystemSelector ? '/systems' : '/'}
       showPrimaryAction={!noAvailableSystems}
     />

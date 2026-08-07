@@ -1,5 +1,6 @@
 import PropTypes from 'prop-types';
 import Button from 'react-bootstrap/Button';
+import SaltechLogo from 'assets/images/saltech_blue.png';
 
 import './error-page.scss';
 
@@ -7,73 +8,73 @@ const ERROR_CONTENT = {
   NETWORK: {
     icon: 'ti-wifi-off',
     displayStatus: 'OFFLINE',
-    eyebrow: 'Koneksi terputus',
-    title: 'Ups, jaringan sedang bermasalah',
-    description: 'Periksa koneksi internet Anda, lalu coba muat halaman kembali.'
+    eyebrow: 'Connection interrupted',
+    title: 'Oops, there is a network problem',
+    description: 'Check your internet connection, then try loading the page again.'
   },
   400: {
     icon: 'ti-alert-triangle',
-    eyebrow: 'Permintaan tidak valid',
-    title: 'Ada yang keliru pada permintaan ini',
-    description: 'Periksa kembali data yang dikirim, lalu coba sekali lagi.'
+    eyebrow: 'Invalid request',
+    title: 'Something is wrong with this request',
+    description: 'Review the submitted data, then try again.'
   },
   401: {
     icon: 'ti-lock',
-    eyebrow: 'Sesi diperlukan',
-    title: 'Silakan masuk untuk melanjutkan',
-    description: 'Sesi Anda tidak ditemukan atau sudah berakhir.',
-    actionLabel: 'Masuk kembali',
+    eyebrow: 'Session required',
+    title: 'Please sign in to continue',
+    description: 'Your session could not be found or has expired.',
+    actionLabel: 'Sign in again',
     actionHref: '/'
   },
   403: {
     icon: 'ti-shield-lock',
-    eyebrow: 'Akses dibatasi',
-    title: 'Anda tidak memiliki akses',
-    description: 'Akun Anda belum memiliki izin untuk membuka halaman ini.',
-    actionLabel: 'Pilih sistem lain',
+    eyebrow: 'Restricted access',
+    title: 'You do not have access',
+    description: 'Your account does not have permission to open this page.',
+    actionLabel: 'Choose another system',
     actionHref: '/systems'
   },
   404: {
     icon: 'ti-map-search',
-    eyebrow: 'Halaman tidak ditemukan',
-    title: 'Sepertinya Anda tersesat',
-    description: 'Alamat yang dibuka tidak tersedia, sudah dipindahkan, atau mungkin salah ketik.'
+    eyebrow: 'Page not found',
+    title: 'It looks like you are lost',
+    description: 'The requested address is unavailable, has moved, or may have been entered incorrectly.'
   },
   408: {
     icon: 'ti-clock-pause',
-    eyebrow: 'Waktu permintaan habis',
-    title: 'Server terlalu lama merespons',
-    description: 'Periksa koneksi Anda dan coba muat ulang halaman.'
+    eyebrow: 'Request timed out',
+    title: 'The server took too long to respond',
+    description: 'Check your connection and try reloading the page.'
   },
   429: {
     icon: 'ti-hourglass',
-    eyebrow: 'Terlalu banyak permintaan',
-    title: 'Tunggu sebentar sebelum mencoba lagi',
-    description: 'Kami membatasi permintaan sementara untuk menjaga layanan tetap stabil.'
+    eyebrow: 'Too many requests',
+    title: 'Please wait before trying again',
+    description: 'Requests are temporarily limited to keep the service stable.'
   },
   500: {
     icon: 'ti-server-off',
-    eyebrow: 'Kesalahan server',
-    title: 'Sistem sedang mengalami kendala',
-    description: 'Tim kami telah diberi tahu. Silakan coba kembali dalam beberapa saat.'
+    eyebrow: 'Server error',
+    title: 'The system is experiencing a problem',
+    description: 'Our team has been notified. Please try again in a few moments.'
   },
   502: {
     icon: 'ti-plug-off',
-    eyebrow: 'Gateway bermasalah',
-    title: 'Layanan belum dapat dihubungi',
-    description: 'Salah satu layanan pendukung memberikan respons yang tidak valid.'
+    eyebrow: 'Gateway error',
+    title: 'The service cannot be reached',
+    description: 'A supporting service returned an invalid response.'
   },
   503: {
     icon: 'ti-tool',
-    eyebrow: 'Layanan tidak tersedia',
-    title: 'Kami sedang melakukan pemeliharaan',
-    description: 'Layanan akan kembali tersedia sesegera mungkin. Terima kasih atas kesabaran Anda.'
+    eyebrow: 'Service unavailable',
+    title: 'We are performing maintenance',
+    description: 'The service will be available again as soon as possible. Thank you for your patience.'
   },
   504: {
     icon: 'ti-wifi-off',
     eyebrow: 'Gateway timeout',
-    title: 'Layanan membutuhkan waktu terlalu lama',
-    description: 'Koneksi ke layanan pendukung terputus. Silakan coba kembali.'
+    title: 'The service took too long to respond',
+    description: 'The connection to a supporting service was interrupted. Please try again.'
   }
 };
 
@@ -102,7 +103,7 @@ export default function ErrorPage({
 }) {
   const content = getErrorContent(status);
   const displayStatus = content.displayStatus ?? status;
-  const resolvedActionLabel = actionLabel ?? content.actionLabel ?? 'Kembali ke beranda';
+  const resolvedActionLabel = actionLabel ?? content.actionLabel ?? 'Back to home';
   const resolvedActionHref = actionHref ?? content.actionHref ?? '/';
   const canGoBack = typeof window !== 'undefined' && window.history.length > 1;
   const shouldShowRetry = showRetryAction ?? (Number(status) >= 500 || [408, 429].includes(Number(status)));
@@ -115,8 +116,8 @@ export default function ErrorPage({
       <section className="app-error-card" aria-labelledby="app-error-title">
         <img
           className="app-error-card__brand"
-          src={`${import.meta.env.BASE_URL}customer-portal-wordmark.png`}
-          alt="SM Connect"
+          src={SaltechLogo}
+          alt="Saltech"
         />
 
         <div className="app-error-card__visual" aria-hidden="true">
@@ -154,20 +155,20 @@ export default function ErrorPage({
               onClick={onRetry || (() => window.location.reload())}
             >
               <i className={`ti ${isRetrying ? 'ti-loader-2 app-error-card__spin' : 'ti-refresh'} me-2`} aria-hidden="true" />
-              {isRetrying ? 'Memeriksa koneksi...' : retryLabel || 'Muat ulang'}
+              {isRetrying ? 'Checking connection...' : retryLabel || 'Reload'}
             </Button>
           )}
 
           {showBackAction && canGoBack && (
             <Button variant="link" className="app-error-card__back" onClick={() => window.history.back()}>
               <i className="ti ti-arrow-left me-2" aria-hidden="true" />
-              Kembali
+              Back
             </Button>
           )}
         </div>
 
         <p className="app-error-card__help">
-          Masih mengalami kendala? Hubungi administrator dan sertakan kode error <strong>{status}</strong>.
+          Still having trouble? Contact your administrator and include error code <strong>{status}</strong>.
         </p>
       </section>
     </main>

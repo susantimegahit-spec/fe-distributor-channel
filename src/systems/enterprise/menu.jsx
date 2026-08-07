@@ -11,6 +11,27 @@ const enterpriseMenu = [
     collapsible: false,
     children: [
       {
+        id: 'enterprise-master-data',
+        title: 'Master Data',
+        type: 'collapse',
+        value: 'enterprise-master-data',
+        label: 'Master Data',
+        selected: true,
+        icon: 'ti ti-database',
+        children: [
+          {
+            id: 'enterprise-master-data-department',
+            title: 'Department',
+            type: 'item',
+            value: 'enterprise-master-data-department',
+            label: 'Department',
+            selected: true,
+            icon: 'ti ti-building-community',
+            url: withBasePath('/master-data/department')
+          }
+        ]
+      },
+      {
         id: 'enterprise-purchasing',
         title: 'Purchasing',
         type: 'collapse',

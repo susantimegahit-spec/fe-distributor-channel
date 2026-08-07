@@ -25,7 +25,7 @@ export const systems = [
   },
   {
     key: SYSTEM_KEYS.ENTERPRISE,
-    title: 'Entrerprise',
+    title: 'Enterprise',
     description: 'Integrated purchasing, procurement, and enterprise budgeting workflows.',
     icon: 'ti ti-building-skyscraper',
     basePath: '/enterprise',

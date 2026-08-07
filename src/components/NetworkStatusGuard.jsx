@@ -43,7 +43,7 @@ export default function NetworkStatusGuard({ children }) {
         showRetryAction
         onRetry={handleRetry}
         isRetrying={isRetrying}
-        retryLabel="Coba lagi"
+        retryLabel="Try again"
       />
     );
   }

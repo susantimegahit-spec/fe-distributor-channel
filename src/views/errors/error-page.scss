@@ -56,10 +56,12 @@
 
 .app-error-card__brand {
   display: block;
-  height: 34px;
+  width: 220px;
+  height: 54px;
   margin: 0 auto 28px;
-  max-width: 180px;
-  object-fit: contain;
+  max-width: 100%;
+  object-fit: cover;
+  object-position: center 53%;
 }
 
 .app-error-card__visual {

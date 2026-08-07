@@ -2,6 +2,184 @@
       Authentication css start
 ==========================  **/
 
+.saltech-splash {
+  position: fixed;
+  z-index: 9999;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.72) 26%, transparent 58%),
+    linear-gradient(135deg, #2f78d0 0%, #a8cff4 38%, #eef7ff 68%, #ffffff 100%);
+  opacity: 1;
+  transition: opacity 0.6s ease, visibility 0.6s ease;
+
+  &.is-exiting {
+    visibility: hidden;
+    opacity: 0;
+
+    .saltech-splash__content {
+      transform: scale(1.035);
+    }
+  }
+}
+
+.saltech-splash__aura {
+  position: absolute;
+  width: min(68vw, 720px);
+  aspect-ratio: 1;
+  border: 1px solid rgba(47, 132, 224, 0.13);
+  border-radius: 50%;
+  animation: saltech-aura 2.4s ease-out both;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    border: 1px solid rgba(13, 31, 92, 0.08);
+    border-radius: inherit;
+  }
+
+  &::before {
+    inset: 10%;
+  }
+
+  &::after {
+    inset: 22%;
+  }
+}
+
+.saltech-splash__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: min(600px, 86vw);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  transition: transform 0.6s ease;
+}
+
+.saltech-splash__logo-wrap {
+  position: relative;
+  width: 100%;
+  height: 180px;
+  overflow: hidden;
+  animation: saltech-logo-reveal 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 53%;
+  }
+}
+
+.saltech-splash__shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.82) 49%, transparent 60%);
+  transform: translateX(-115%);
+  animation: saltech-shine 1s 0.65s ease-in-out both;
+  pointer-events: none;
+}
+
+.saltech-splash__loader {
+  position: relative;
+  z-index: 2;
+  width: min(42vw, 260px);
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(13, 31, 92, 0.1);
+
+  span {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #0d1f5c, #4299ef, #0d1f5c);
+    transform: scaleX(0);
+    transform-origin: left;
+    animation: saltech-progress 2.35s 0.25s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+  }
+}
+
+@keyframes saltech-logo-reveal {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+    transform: translateY(18px) scale(0.94);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes saltech-shine {
+  to {
+    transform: translateX(115%);
+  }
+}
+
+@keyframes saltech-progress {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes saltech-aura {
+  from {
+    opacity: 0;
+    transform: scale(0.65);
+  }
+
+  45% {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+}
+
+@media (max-width: 575.98px) {
+  .saltech-splash__content {
+    width: min(440px, 88vw);
+    gap: 22px;
+  }
+
+  .saltech-splash__logo-wrap {
+    height: 130px;
+  }
+
+  .saltech-splash__logo-wrap img {
+    object-fit: cover;
+    object-position: center 53%;
+  }
+
+  .saltech-splash__loader {
+    width: 42vw;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .saltech-splash *,
+  .saltech-splash *::before,
+  .saltech-splash *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+  }
+}
+
 .auth-main {
   position: relative;
   background-size: cover;

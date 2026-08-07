@@ -11,6 +11,7 @@ import Card from 'react-bootstrap/Card';
 import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
 import InputGroup from 'react-bootstrap/InputGroup';
+import Overlay from 'react-bootstrap/Overlay';
 
 // project-imports
 import MainCard from 'components/MainCard';
@@ -25,11 +26,19 @@ const initialCreateForm = {
   description: ''
 };
 
+const actionPopperConfig = {
+  modifiers: [
+    { name: 'offset', options: { offset: [0, 8] } },
+    { name: 'preventOverflow', options: { boundary: 'viewport', padding: 8 } }
+  ]
+};
+
 export default function CronJobList() {
   const { showAlert } = useAlert();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [runningJobId, setRunningJobId] = useState(null);
+  const [actionMenu, setActionMenu] = useState(null);
 
   // Create Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -306,39 +315,21 @@ export default function CronJobList() {
                       />
                     </td>
                     <td className="text-end">
-                      <div className="d-flex flex-wrap gap-2 justify-content-end">
-                        <Button variant="outline-info" size="sm" title="View Details" onClick={() => openViewModal(job)}>
-                          <i className="ti ti-eye me-1" />
-                          View
-                        </Button>
-                        <Button
-                          variant="outline-secondary"
-                          size="sm"
-                          title="View Log History"
-                          onClick={() => openLogsModal(job)}
-                        >
-                          <i className="ti ti-file-text me-1" />
-                          Log
-                        </Button>
-                        <Button variant="outline-primary" size="sm" title="Edit Schedule" onClick={() => openEditModal(job)}>
-                          <i className="ti ti-edit me-1" />
-                          Edit
-                        </Button>
-                        <Button
-                          variant="success"
-                          size="sm"
-                          title="Run Now"
-                          onClick={() => handleRunJob(job)}
-                          disabled={runningJobId === job.id}
-                        >
-                          {runningJobId === job.id ? (
-                            <Spinner animation="border" size="sm" />
-                          ) : (
-                            <i className="ti ti-player-play me-1" />
-                          )}
-                          Run
-                        </Button>
-                      </div>
+                      <Button
+                        size="sm"
+                        variant={String(actionMenu?.job?.id) === String(job.id) ? 'primary' : 'outline-primary'}
+                        aria-label="Open cron job actions"
+                        aria-expanded={String(actionMenu?.job?.id) === String(job.id)}
+                        onClick={(event) =>
+                          setActionMenu((current) =>
+                            String(current?.job?.id) === String(job.id) ? null : { job, target: event.currentTarget }
+                          )
+                        }
+                      >
+                        <i className="ti ti-dots-vertical me-1" />
+                        Actions
+                        <i className="ti ti-chevron-down ms-1" />
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -347,6 +338,79 @@ export default function CronJobList() {
           </div>
         )}
       </MainCard>
+
+      <Overlay
+        show={Boolean(actionMenu)}
+        target={actionMenu?.target}
+        placement="top-end"
+        container={typeof document !== 'undefined' ? document.body : null}
+        containerPadding={8}
+        popperConfig={actionPopperConfig}
+        rootClose
+        rootCloseEvent="mousedown"
+        onHide={() => setActionMenu(null)}
+      >
+        {({ ref, style, placement }) => {
+          const job = actionMenu?.job;
+          const isRunning = String(runningJobId) === String(job?.id);
+
+          return (
+            <div
+              ref={ref}
+              className="dropdown-menu show"
+              data-popper-placement={placement}
+              style={{ ...style, zIndex: 1080, minWidth: 180 }}
+            >
+              <button
+                type="button"
+                className="dropdown-item"
+                onClick={() => {
+                  setActionMenu(null);
+                  if (job) openViewModal(job);
+                }}
+              >
+                <i className="ti ti-eye text-info me-2" />
+                View
+              </button>
+              <button
+                type="button"
+                className="dropdown-item"
+                onClick={() => {
+                  setActionMenu(null);
+                  if (job) openLogsModal(job);
+                }}
+              >
+                <i className="ti ti-file-text text-secondary me-2" />
+                Log History
+              </button>
+              <button
+                type="button"
+                className="dropdown-item"
+                onClick={() => {
+                  setActionMenu(null);
+                  if (job) openEditModal(job);
+                }}
+              >
+                <i className="ti ti-edit text-primary me-2" />
+                Edit
+              </button>
+              <div className="dropdown-divider" />
+              <button
+                type="button"
+                className="dropdown-item text-success"
+                disabled={isRunning}
+                onClick={() => {
+                  setActionMenu(null);
+                  if (job) handleRunJob(job);
+                }}
+              >
+                <i className={isRunning ? 'ti ti-loader-2 me-2' : 'ti ti-player-play me-2'} />
+                {isRunning ? 'Running...' : 'Run Now'}
+              </button>
+            </div>
+          );
+        }}
+      </Overlay>
 
       {/* Create Modal */}
       <Modal show={showCreateModal} onHide={() => !createLoading && setShowCreateModal(false)} centered>
