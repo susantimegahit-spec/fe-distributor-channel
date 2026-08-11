@@ -63,6 +63,27 @@ const enterpriseMenu = [
         ]
       },
       {
+        id: 'enterprise-hrd',
+        title: 'HRD',
+        type: 'collapse',
+        value: 'enterprise-hrd',
+        label: 'HRD',
+        selected: true,
+        icon: 'ti ti-users-group',
+        children: [
+          {
+            id: 'enterprise-hrd-cv',
+            title: 'CV',
+            type: 'item',
+            value: 'enterprise-hrd-cv',
+            label: 'CV',
+            selected: true,
+            icon: 'ti ti-file-cv',
+            url: withBasePath('/hrd/cv')
+          }
+        ]
+      },
+      {
         id: 'enterprise-budget',
         title: 'Budget',
         type: 'item',

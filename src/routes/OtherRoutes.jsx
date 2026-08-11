@@ -50,6 +50,10 @@ const OtherRoutes = {
     {
       path: 'notifications',
       element: <NotificationList />
+    },
+    {
+      path: 'cv-screening',
+      element: <Navigate to="/enterprise/hrd/cv" replace />
     }
   ]
 };

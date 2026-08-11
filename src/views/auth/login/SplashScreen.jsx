@@ -20,11 +20,7 @@ export default function SplashScreen({ onComplete }) {
   }, [onComplete]);
 
   return (
-    <div
-      className={`saltech-splash${isExiting ? ' is-exiting' : ''}`}
-      role="status"
-      aria-label="Memuat halaman login"
-    >
+    <div className={`saltech-splash${isExiting ? ' is-exiting' : ''}`} role="status" aria-label="Memuat halaman login">
       <div className="saltech-splash__aura" aria-hidden="true" />
       <div className="saltech-splash__content">
         <div className="saltech-splash__logo-wrap">
@@ -35,6 +31,7 @@ export default function SplashScreen({ onComplete }) {
           <span />
         </div>
       </div>
+      <p className="saltech-splash__powered-by">Powered by PT. Susanti Megah</p>
     </div>
   );
 }
