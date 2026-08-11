@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 // react-bootstrap
 import Dropdown from 'react-bootstrap/Dropdown';
 import Image from 'react-bootstrap/Image';
-import SaltechLogo from 'assets/images/saltech_blue.png';
+import SmestaLogo from 'assets/images/smesta_logo_line_small_transparent.png';
 import {
   getFirstAccessibleMenuPath,
   getSystemByPathname,
@@ -73,7 +73,7 @@ export const DrawerHeader = () => {
           id="sidebar-system-switcher"
           aria-label={`Current system: ${activeSystem.title}. Click to change system.`}
         >
-          <Image src={SaltechLogo} alt="Saltech" className="sm-sidebar-logo" />
+          <Image src={SmestaLogo} alt="SMESTA" className="sm-sidebar-logo" />
           <span className="sm-sidebar-brand-text">
             <small>{activeSystem.title}</small>
             <i className="ti ti-chevron-down sm-system-switcher-chevron" aria-hidden="true" />

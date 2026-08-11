@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 
-import SaltechLogo from 'assets/images/saltech_blue.png';
+import SmestaLogo from 'assets/images/smesta_text_tagline_transparent.png';
 
 const SPLASH_EXIT_DELAY = 2400;
 const SPLASH_DURATION = 3000;
@@ -24,7 +24,7 @@ export default function SplashScreen({ onComplete }) {
       <div className="saltech-splash__aura" aria-hidden="true" />
       <div className="saltech-splash__content">
         <div className="saltech-splash__logo-wrap">
-          <img src={SaltechLogo} alt="Saltech — Integrated, Connected, Empowering" />
+          <img src={SmestaLogo} alt="SMESTA — Integrated, Connected, Intelligent" />
           <span className="saltech-splash__shine" aria-hidden="true" />
         </div>
         <div className="saltech-splash__loader" aria-hidden="true">

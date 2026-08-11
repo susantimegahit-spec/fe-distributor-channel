@@ -19,7 +19,7 @@ import MainCard from 'components/MainCard';
 import { confirmPasswordSchema, emailSchema, firstNameSchema, lastNameSchema, passwordSchema } from 'utils/validationSchema';
 
 // assets
-import CustomerPortalMark from 'assets/images/customer-portal-mark.png';
+import SmestaLogo from 'assets/images/smesta_text_line.png';
 
 // ==============================|| AUTH REGISTER FORM ||============================== //
 
@@ -54,7 +54,7 @@ export default function AuthRegisterForm({ className, link }) {
     <MainCard className="mb-0">
       <div className="text-center">
         <a>
-          <Image src={CustomerPortalMark} alt="sm-connect" className="sm-login-logo" />
+          <Image src={SmestaLogo} alt="SMESTA" className="sm-login-logo" />
         </a>
       </div>
       <Form onSubmit={handleSubmit(onSubmit)}>

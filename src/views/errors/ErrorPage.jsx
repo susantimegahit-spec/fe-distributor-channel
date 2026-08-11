@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import Button from 'react-bootstrap/Button';
-import SaltechLogo from 'assets/images/saltech_blue.png';
+import SmestaLogo from 'assets/images/smesta_text_line.png';
 
 import './error-page.scss';
 
@@ -116,8 +116,8 @@ export default function ErrorPage({
       <section className="app-error-card" aria-labelledby="app-error-title">
         <img
           className="app-error-card__brand"
-          src={SaltechLogo}
-          alt="Saltech"
+          src={SmestaLogo}
+          alt="SMESTA"
         />
 
         <div className="app-error-card__visual" aria-hidden="true">

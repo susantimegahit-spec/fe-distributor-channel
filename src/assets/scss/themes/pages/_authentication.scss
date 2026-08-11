@@ -74,8 +74,8 @@
     display: block;
     width: 100%;
     height: 100%;
-    object-fit: cover;
-    object-position: center 53%;
+    object-fit: contain;
+    object-position: center;
   }
 }
 
@@ -178,8 +178,8 @@
   }
 
   .saltech-splash__logo-wrap img {
-    object-fit: cover;
-    object-position: center 53%;
+    object-fit: contain;
+    object-position: center;
   }
 
   .saltech-splash__loader {

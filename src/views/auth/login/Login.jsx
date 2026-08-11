@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 // project-imoports
 import AuthLoginForm from 'sections/auth/AuthLogin';
 import SplashScreen from './SplashScreen';
-import SaltechLogo from 'assets/images/saltech_blue.png';
+import SmestaLogo from 'assets/images/smesta_text_tagline_transparent.png';
 
 // ===========================|| AUTH - LOGIN PAGE ||=========================== //
 
@@ -17,7 +17,7 @@ export default function LoginPage() {
         <div className="sm-auth-shell">
           <section className="sm-auth-single-panel">
             <div className="sm-auth-saltech-logo">
-              <img src={SaltechLogo} alt="Saltech" />
+              <img src={SmestaLogo} alt="SMESTA" />
             </div>
             <AuthLoginForm />
           </section>
