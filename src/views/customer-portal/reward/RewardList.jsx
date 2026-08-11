@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 // react-bootstrap
 import Badge from 'react-bootstrap/Badge';
@@ -52,6 +52,8 @@ const formatCurrency = (value) =>
     currency: 'IDR',
     maximumFractionDigits: 0
   }).format(Number(value) || 0);
+
+const formatCount = (value) => (Number(value) || 0).toLocaleString('id-ID');
 
 const parseCurrencyInput = (value) => String(value || '').replace(/\D/g, '');
 
@@ -192,6 +194,10 @@ const normalizeBatch = (batch, index) => ({
   totalDeducted: Number(batch.total_deducted || 0),
   balance: Number(batch.total_diskon_verified || 0) - Number(batch.total_deducted || 0),
   totalTransactions: Number(batch.total_rows || batch.total_records || batch.result_count || batch.total_transactions || 0),
+  validTransactions: Number(batch.valid_rows || 0),
+  invalidTransactions: Number(batch.invalid_rows || 0),
+  approvedTransactions: Number(batch.approved_rows || 0),
+  pendingTransactions: Number(batch.pending_rows || 0),
   status: normalizeStatus(batch.status || batch.process_status || batch.processing_status),
   sellOut: []
 });
@@ -274,6 +280,7 @@ export default function RewardList() {
   const todayDate = getTodayDate();
   const fileInputRef = useRef(null);
   const [claims, setClaims] = useState([]);
+  const [expandedClaimId, setExpandedClaimId] = useState(null);
   const [withdraws, setWithdraws] = useState([]);
   const [listDistributor, setListDistributor] = useState([]);
   const [selectedDistributors, setSelectedDistributors] = useState([]);
@@ -1037,6 +1044,7 @@ export default function RewardList() {
                 <Table className="mb-0 align-middle" responsive hover>
                   <thead>
                     <tr>
+                      <th aria-label="Transaction summary" style={{ width: 52 }} />
                       <th style={{ minWidth: 170 }}>ID</th>
                       <th style={{ minWidth: 220 }}>Customer</th>
                       <th style={{ minWidth: 190 }}>Upload Date</th>
@@ -1051,45 +1059,95 @@ export default function RewardList() {
                   <tbody>
                     {loadingClaims ? (
                       <tr>
-                        <td colSpan={7}>
+                        <td colSpan={8}>
                           <LoaderData />
                         </td>
                       </tr>
                     ) : paginatedClaims.length > 0 ? (
-                      paginatedClaims.map((claim) => (
-                        <tr key={claim.id}>
-                          <td className="fw-semibold">{claim.claimNo}</td>
-                          <td>
-                            <div className="fw-semibold">{`${claim.customerName} - ${claim.depo}`}</div>
-                          </td>
-                          <td>{formatDate(claim.uploadedAt)}</td>
-                          <td>{formatCurrency(claim.totalClaim)}</td>
-                          <td className="text-danger">{formatCurrency(claim.totalDeducted)}</td>
-                          <td className="fw-semibold text-success">{formatCurrency(claim.balance)}</td>
-                          <td className="text-center">
-                            <Button
-                              size="sm"
-                              variant={String(claimActionMenu?.claim?.id) === String(claim.id) ? 'primary' : 'outline-primary'}
-                              aria-label="Open claim actions"
-                              aria-expanded={String(claimActionMenu?.claim?.id) === String(claim.id)}
-                              onClick={(event) =>
-                                setClaimActionMenu((current) =>
-                                  String(current?.claim?.id) === String(claim.id)
-                                    ? null
-                                    : { claim, target: event.currentTarget }
-                                )
-                              }
-                            >
-                              <i className="ti ti-dots-vertical me-1" />
-                              Actions
-                              <i className="ti ti-chevron-down ms-1" />
-                            </Button>
-                          </td>
-                        </tr>
-                      ))
+                      paginatedClaims.map((claim) => {
+                        const isExpanded = String(expandedClaimId) === String(claim.id);
+                        const metrics = [
+                          { label: 'Total Transaction', value: claim.totalTransactions, icon: 'ti-list-details', color: 'primary' },
+                          { label: 'Valid Transaction', value: claim.validTransactions, icon: 'ti-circle-check', color: 'success' },
+                          { label: 'Not Valid', value: claim.invalidTransactions, icon: 'ti-circle-x', color: 'danger' },
+                          { label: 'Verified', value: claim.approvedTransactions, icon: 'ti-rosette-discount-check', color: 'info' },
+                          { label: 'Pending', value: claim.pendingTransactions, icon: 'ti-clock-hour-4', color: 'warning' }
+                        ];
+
+                        return (
+                          <Fragment key={claim.id}>
+                            <tr>
+                              <td>
+                                <Button
+                                  size="sm"
+                                  variant="light-primary"
+                                  className="rounded-circle"
+                                  aria-label={`${isExpanded ? 'Hide' : 'Show'} transaction summary for ${claim.claimNo}`}
+                                  aria-expanded={isExpanded}
+                                  onClick={() => setExpandedClaimId(isExpanded ? null : claim.id)}
+                                >
+                                  <i className={`ti ${isExpanded ? 'ti-chevron-down' : 'ti-chevron-right'}`} />
+                                </Button>
+                              </td>
+                              <td className="fw-semibold">{claim.claimNo}</td>
+                              <td>
+                                <div className="fw-semibold">{`${claim.customerName} - ${claim.depo}`}</div>
+                              </td>
+                              <td>{formatDate(claim.uploadedAt)}</td>
+                              <td>{formatCurrency(claim.totalClaim)}</td>
+                              <td className="text-danger">{formatCurrency(claim.totalDeducted)}</td>
+                              <td className="fw-semibold text-success">{formatCurrency(claim.balance)}</td>
+                              <td className="text-center">
+                                <Button
+                                  size="sm"
+                                  variant={String(claimActionMenu?.claim?.id) === String(claim.id) ? 'primary' : 'outline-primary'}
+                                  aria-label="Open claim actions"
+                                  aria-expanded={String(claimActionMenu?.claim?.id) === String(claim.id)}
+                                  onClick={(event) =>
+                                    setClaimActionMenu((current) =>
+                                      String(current?.claim?.id) === String(claim.id)
+                                        ? null
+                                        : { claim, target: event.currentTarget }
+                                    )
+                                  }
+                                >
+                                  <i className="ti ti-dots-vertical me-1" />
+                                  Actions
+                                  <i className="ti ti-chevron-down ms-1" />
+                                </Button>
+                              </td>
+                            </tr>
+                            {isExpanded ? (
+                              <tr key={`${claim.id}-summary`}>
+                                <td colSpan={8} className="bg-light py-3 px-4">
+                                  <Row className="g-2">
+                                    {metrics.map((metric) => (
+                                      <Col key={metric.label} xs={12} sm={6} lg>
+                                        <Card className="border mb-0 h-100">
+                                          <Card.Body className="p-3">
+                                            <Stack direction="horizontal" gap={2} className="align-items-center">
+                                              <span className={`avtar avtar-xs bg-light-${metric.color} text-${metric.color}`}>
+                                                <i className={`ti ${metric.icon}`} />
+                                              </span>
+                                              <div>
+                                                <div className="text-muted f-11">{metric.label}</div>
+                                                <div className="fw-bold f-18">{formatCount(metric.value)}</div>
+                                              </div>
+                                            </Stack>
+                                          </Card.Body>
+                                        </Card>
+                                      </Col>
+                                    ))}
+                                  </Row>
+                                </td>
+                              </tr>
+                            ) : null}
+                          </Fragment>
+                        );
+                      })
                     ) : (
                       <tr>
-                        <td colSpan={7}>
+                        <td colSpan={8}>
                           <div className="text-center py-5">
                             <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                               <i className="ti ti-gift f-24" />

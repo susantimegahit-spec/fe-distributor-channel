@@ -40,6 +40,19 @@ class OrderServices {
     return DataService.get('/customer-monthly-orders', params);
   }
 
+  exportCmo(params = {}) {
+    const query = new URLSearchParams();
+
+    ['start_date', 'end_date', 'depo'].forEach((key) => {
+      if (params[key] !== undefined && params[key] !== null && String(params[key]).trim() !== '') {
+        query.set(key, String(params[key]).trim());
+      }
+    });
+
+    const queryString = query.toString();
+    return DataService.getBlob(`/customer-monthly-orders/reports/detail-export${queryString ? `?${queryString}` : ''}`);
+  }
+
   postCmo(payload) {
     return DataService.post('/customer-monthly-orders', payload);
   }

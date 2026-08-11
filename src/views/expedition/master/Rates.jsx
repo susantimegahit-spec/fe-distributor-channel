@@ -266,6 +266,7 @@ export default function Rates() {
   const isAdministrator = Number(getCookies('role')) === 5;
   const uploadInputRef = useRef(null);
   const [downloadingTemplate, setDownloadingTemplate] = useState(false);
+  const [exportingRates, setExportingRates] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
   const [uploadingExcel, setUploadingExcel] = useState(false);
   const [rates, setRates] = useState([]);
@@ -346,6 +347,84 @@ export default function Rates() {
 
     fetchExpeditions();
   }, [isAdministrator, showAlert]);
+
+  const handleExportRates = () => {
+    if (!rates.length) {
+      showAlert('No rates data available to export', 'warning');
+      return;
+    }
+
+    setExportingRates(true);
+
+    try {
+      const rows = rates.map((rate, index) => {
+        const details = getRateDetails(rate);
+        const expeditionCode =
+          getRateValue(rate, ['expedition_code']) ||
+          getRateValue(rate?.expedition_data || rate?.expedition, ['code', 'expedition_code']) ||
+          details.expedition;
+        const expeditionName =
+          getRateValue(rate?.expedition_data || rate?.expedition, ['name', 'expedition_name']) ||
+          getRateValue(rate, ['expedition_name']) ||
+          expeditionOptions.find((option) => option.value === expeditionCode)?.name ||
+          '';
+
+        return {
+          No: index + 1,
+          'Origin Code': details.warehouseCode,
+          'Origin Name': details.warehouseName,
+          Destination: details.destination,
+          'Destination City': details.destinationCity,
+          'Expedition Code': expeditionCode,
+          'Expedition Name': expeditionName,
+          'Transport Mode': getRateValue(rate, ['transport_mode', 'mode']),
+          'Valid From': details.validFrom,
+          'Valid Until': details.validUntil,
+          'Min Weight (Kg)': Number(details.minKg) || 0,
+          'Max Weight (Kg)': Number(details.maxKg) || 0,
+          'Service Type': getServiceTypeLabel(details.serviceType),
+          Rate: Number(details.rate) || 0
+        };
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      worksheet['!cols'] = [
+        { wch: 7 },
+        { wch: 16 },
+        { wch: 28 },
+        { wch: 32 },
+        { wch: 22 },
+        { wch: 18 },
+        { wch: 28 },
+        { wch: 18 },
+        { wch: 14 },
+        { wch: 14 },
+        { wch: 18 },
+        { wch: 18 },
+        { wch: 18 },
+        { wch: 18 }
+      ];
+      worksheet['!autofilter'] = { ref: `A1:N${rows.length + 1}` };
+
+      const workbook = XLSX.utils.book_new();
+      workbook.Props = {
+        Title: 'Expedition Rates',
+        Subject: 'Exported expedition rates',
+        Author: 'Distributor Channel'
+      };
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Rates');
+
+      const expeditionLabel = selectedExpeditionCode || getCookies('expedition_code') || 'All';
+      const safeExpeditionLabel = String(expeditionLabel).replace(/[^a-z0-9_-]+/gi, '_');
+      const dateLabel = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(workbook, `Rates_${safeExpeditionLabel}_${dateLabel}.xlsx`);
+      showAlert(`${rows.length} rates exported successfully`, 'success');
+    } catch (error) {
+      showAlert(error?.message || 'Failed to export rates', 'danger');
+    } finally {
+      setExportingRates(false);
+    }
+  };
 
   const handleDownloadTemplate = async () => {
     setDownloadingTemplate(true);
@@ -669,6 +748,14 @@ export default function Rates() {
               <span className="text-muted f-12">Kelola tarif pengiriman untuk setiap ekspedisi dan rute.</span>
             </div>
             <Stack direction="horizontal" gap={2}>
+              <Button
+                variant="outline-success"
+                disabled={loadingRates || exportingRates || !rates.length}
+                onClick={handleExportRates}
+              >
+                <i className={exportingRates ? 'ti ti-loader-2 me-1' : 'ti ti-file-export me-1'} />
+                {exportingRates ? 'Exporting...' : 'Export Rates'}
+              </Button>
               <Button variant="success" onClick={() => setShowUpload(true)}>
                 <i className="ti ti-file-upload me-1" />
                 Upload Excel

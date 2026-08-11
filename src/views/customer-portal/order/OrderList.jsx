@@ -250,9 +250,11 @@ export default function OrderList({ showOnlyCommitment = false }) {
   const [commitmentEndDate, setCommitmentEndDate] = useState('');
   const [commitmentCustomerCode, setCommitmentCustomerCode] = useState('');
   const [isLoadingCommitment, setIsLoadingCommitment] = useState(false);
+  const [exportingCmo, setExportingCmo] = useState(false);
   const [commitmentCurrentPage, setCommitmentCurrentPage] = useState(1);
   const [commitmentLayout, setCommitmentLayout] = useState('list');
   const [commitmentCalendarMonth, setCommitmentCalendarMonth] = useState(() => moment().startOf('month'));
+  const [selectedCmoCalendarDay, setSelectedCmoCalendarDay] = useState(null);
   const [draggedCmoId, setDraggedCmoId] = useState(null);
   const [cmoDropDate, setCmoDropDate] = useState('');
   const [movingCmoId, setMovingCmoId] = useState(null);
@@ -537,6 +539,45 @@ export default function OrderList({ showOnlyCommitment = false }) {
     setCommitmentEndDate('');
     setCommitmentCustomerCode('');
     fetchCommitmentOrders({ start_date: '', end_date: '', customer_code: '' });
+  };
+
+  const handleExportCmo = async () => {
+    if (commitmentStartDate && commitmentEndDate && commitmentEndDate < commitmentStartDate) {
+      showAlert('End date cannot be earlier than start date', 'warning');
+      return;
+    }
+
+    setExportingCmo(true);
+
+    try {
+      const response = await OrderServices.exportCmo({
+        start_date: commitmentStartDate,
+        end_date: commitmentEndDate,
+        depo: commitmentCustomerCode
+      });
+
+      if (!response || response?.status >= 400 || response?.data?.success === false) {
+        throw new Error(response?.data?.message || 'Failed to export CMO report');
+      }
+
+      const blob =
+        response.data instanceof Blob
+          ? response.data
+          : new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const downloadLink = document.createElement('a');
+      downloadLink.href = downloadUrl;
+      downloadLink.download = `CMO_Detailed_Report_${moment().format('YYYY-MM-DD')}.xlsx`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      downloadLink.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+      showAlert('CMO report downloaded successfully', 'success');
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to export CMO report', 'danger');
+    } finally {
+      setExportingCmo(false);
+    }
   };
 
   const fetchData = async (customerCode = distributor) => {
@@ -1599,7 +1640,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
             }
           >
             <Row className="g-2 align-items-end mb-3">
-              <Col md={3} sm={6}>
+              <Col lg={3} md={6}>
                 <Form.Label className="f-12 text-muted">Customer Code</Form.Label>
                 <Select
                   classNamePrefix="react-select"
@@ -1614,11 +1655,11 @@ export default function OrderList({ showOnlyCommitment = false }) {
                   onChange={(option) => setCommitmentCustomerCode(option?.value || '')}
                 />
               </Col>
-              <Col md={3} sm={6}>
+              <Col lg={2} md={3} sm={6}>
                 <Form.Label className="f-12 text-muted">Start Date</Form.Label>
                 <Form.Control type="date" value={commitmentStartDate} onChange={(event) => setCommitmentStartDate(event.target.value)} />
               </Col>
-              <Col md={3} sm={6}>
+              <Col lg={2} md={3} sm={6}>
                 <Form.Label className="f-12 text-muted">End Date</Form.Label>
                 <Form.Control
                   type="date"
@@ -1627,14 +1668,37 @@ export default function OrderList({ showOnlyCommitment = false }) {
                   onChange={(event) => setCommitmentEndDate(event.target.value)}
                 />
               </Col>
-              <Col md={3} sm={6}>
-                <Stack direction="horizontal" gap={2}>
-                  <Button className="flex-grow-1" variant="primary" disabled={isLoadingCommitment} onClick={() => fetchCommitmentOrders()}>
+              <Col lg={5} md={12}>
+                <Stack direction="horizontal" gap={2} className="align-items-stretch flex-nowrap">
+                  <Button
+                    className="flex-grow-1 text-nowrap"
+                    variant="primary"
+                    disabled={isLoadingCommitment}
+                    onClick={() => fetchCommitmentOrders()}
+                  >
                     <i className="ti ti-filter me-1" />
                     Filter
                   </Button>
-                  <Button variant="light-primary" disabled={isLoadingCommitment} onClick={resetCommitmentFilters}>
+                  <Button
+                    className="flex-shrink-0"
+                    style={{ width: 42 }}
+                    variant="light-primary"
+                    disabled={isLoadingCommitment}
+                    onClick={resetCommitmentFilters}
+                    aria-label="Reset CMO filters"
+                    title="Reset filters"
+                  >
                     <i className="ti ti-refresh" />
+                  </Button>
+                  <Button
+                    className="flex-shrink-0 text-nowrap"
+                    style={{ minWidth: 132 }}
+                    variant="outline-success"
+                    disabled={isLoadingCommitment || exportingCmo}
+                    onClick={handleExportCmo}
+                  >
+                    <i className={`ti ${exportingCmo ? 'ti-loader-2' : 'ti-file-export'} me-1`} />
+                    {exportingCmo ? 'Exporting...' : 'Export CMO'}
                   </Button>
                 </Stack>
               </Col>
@@ -1830,6 +1894,8 @@ export default function OrderList({ showOnlyCommitment = false }) {
                       {commitmentCalendarDays.map(({ date: calendarDate, orders: calendarOrders }) => {
                         const isCurrentMonth = calendarDate.isSame(commitmentCalendarMonth, 'month');
                         const isToday = calendarDate.isSame(moment(), 'day');
+                        const visibleCalendarOrders = calendarOrders.slice(0, 2);
+                        const hiddenCalendarOrderCount = Math.max(calendarOrders.length - visibleCalendarOrders.length, 0);
                         const canCreateCmoOnDate = isCurrentMonth;
                         const isEmptyCreateDate = canCreateCmoOnDate && calendarOrders.length === 0;
                         const createCmoForDate = () => {
@@ -1882,7 +1948,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                               {calendarDate.date()}
                             </span>
                             <Stack gap={1}>
-                              {calendarOrders.map((order) => {
+                              {visibleCalendarOrders.map((order) => {
                                 const cmoStatusLabel = getCmoStatusLabel(order.status);
 
                                 return (
@@ -1937,6 +2003,20 @@ export default function OrderList({ showOnlyCommitment = false }) {
                                   </OverlayTrigger>
                                 );
                               })}
+                              {hiddenCalendarOrderCount > 0 ? (
+                                <Button
+                                  size="sm"
+                                  variant="light-primary"
+                                  className="w-100 px-1 py-1 fw-semibold"
+                                  style={{ fontSize: 10 }}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    setSelectedCmoCalendarDay({ date: calendarDate.clone(), orders: calendarOrders });
+                                  }}
+                                >
+                                  <i className="ti ti-list-details me-1" />+{hiddenCalendarOrderCount} lainnya
+                                </Button>
+                              ) : null}
                               {canCreateCmoOnDate ? (
                                 <button
                                   type="button"
@@ -2316,7 +2396,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
       <Overlay
         show={Boolean(cmoActionMenu)}
         target={cmoActionMenu?.target}
-        placement="top-end"
+        placement={cmoActionMenu?.placement || 'top-end'}
         container={typeof document !== 'undefined' ? document.body : null}
         containerPadding={8}
         popperConfig={cmoActionPopperConfig}
@@ -2332,6 +2412,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
               onClick={() => {
                 const order = cmoActionMenu?.order;
                 setCmoActionMenu(null);
+                setSelectedCmoCalendarDay(null);
                 if (order) handleViewOrder(order);
               }}
             >
@@ -2341,7 +2422,10 @@ export default function OrderList({ showOnlyCommitment = false }) {
             <Link
               className="dropdown-item"
               to={`/customer-portal/order/cmo-create/${cmoActionMenu?.order?.id}`}
-              onClick={() => setCmoActionMenu(null)}
+              onClick={() => {
+                setCmoActionMenu(null);
+                setSelectedCmoCalendarDay(null);
+              }}
             >
               <i className="ti ti-pencil text-success me-2" />
               Edit
@@ -2352,6 +2436,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
               onClick={() => {
                 const order = cmoActionMenu?.order;
                 setCmoActionMenu(null);
+                setSelectedCmoCalendarDay(null);
                 if (order) navigate(`/customer-portal/order/cmo-create?duplicate=${order.id}`);
               }}
             >
@@ -2365,6 +2450,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
               onClick={() => {
                 const order = cmoActionMenu?.order;
                 setCmoActionMenu(null);
+                setSelectedCmoCalendarDay(null);
                 if (order) handleViewAttachment(order, true);
               }}
             >
@@ -2384,6 +2470,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
               onClick={() => {
                 const order = cmoActionMenu?.order;
                 setCmoActionMenu(null);
+                setSelectedCmoCalendarDay(null);
                 if (order) openProcessCmoModal(order);
               }}
             >
@@ -2404,6 +2491,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
               onClick={() => {
                 const order = cmoActionMenu?.order;
                 setCmoActionMenu(null);
+                setSelectedCmoCalendarDay(null);
                 if (order) setCommitmentOrderToDelete(order);
               }}
             >
@@ -2413,6 +2501,70 @@ export default function OrderList({ showOnlyCommitment = false }) {
           </div>
         )}
       </Overlay>
+      <Modal
+        show={Boolean(selectedCmoCalendarDay)}
+        onHide={() => setSelectedCmoCalendarDay(null)}
+        centered
+        size="lg"
+      >
+        <Modal.Header closeButton>
+          <div>
+            <Modal.Title>CMO pada {selectedCmoCalendarDay?.date?.format('DD MMMM YYYY')}</Modal.Title>
+            <div className="text-muted f-12 mt-1">
+              {selectedCmoCalendarDay?.orders?.length || 0} data CMO pada tanggal ini
+            </div>
+          </div>
+        </Modal.Header>
+        <Modal.Body className="bg-light">
+          <Stack gap={2}>
+            {(selectedCmoCalendarDay?.orders || []).map((order) => {
+              const cmoStatusLabel = getCmoStatusLabel(order.status);
+
+              return (
+                <Card key={order.id} className="border mb-0 shadow-none">
+                  <Card.Body className="p-3">
+                    <Stack direction="horizontal" gap={3} className="justify-content-between align-items-center flex-wrap">
+                      <div className="flex-grow-1">
+                        <Stack direction="horizontal" gap={2} className="align-items-center flex-wrap mb-1">
+                          <span className="fw-semibold">{order.depo || '-'}</span>
+                          <Badge bg={cmoStatusVariant[normalizeStatus(order.status)] || 'secondary'}>{cmoStatusLabel}</Badge>
+                        </Stack>
+                        <div className="text-muted f-12">{order.customer_name || order.customer_code || '-'}</div>
+                        <div className="f-12 mt-1">
+                          <i className="ti ti-weight me-1 text-primary" />
+                          {formatKg(getOrderTotalKg(order))}
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant={String(cmoActionMenu?.order?.id) === String(order.id) ? 'primary' : 'outline-primary'}
+                        aria-label="Open CMO actions"
+                        aria-expanded={String(cmoActionMenu?.order?.id) === String(order.id)}
+                        onClick={(event) =>
+                          setCmoActionMenu((current) =>
+                            String(current?.order?.id) === String(order.id)
+                              ? null
+                              : { order, target: event.currentTarget, placement: 'left-start' }
+                          )
+                        }
+                      >
+                        <i className="ti ti-dots-vertical me-1" />
+                        Actions
+                        <i className="ti ti-chevron-down ms-1" />
+                      </Button>
+                    </Stack>
+                  </Card.Body>
+                </Card>
+              );
+            })}
+          </Stack>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" onClick={() => setSelectedCmoCalendarDay(null)}>
+            Tutup
+          </Button>
+        </Modal.Footer>
+      </Modal>
       {showOnlyCommitment && (
         <>
           <Modal
