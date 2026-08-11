@@ -9,6 +9,7 @@ const PurchaseRequest = Loadable(lazy(() => import('views/enterprise/purchasing/
 const PurchaseOrder = Loadable(lazy(() => import('views/enterprise/purchasing/order/PurchaseOrder')));
 const Budget = Loadable(lazy(() => import('views/enterprise/budget/Budget')));
 const DepartmentList = Loadable(lazy(() => import('views/setting/department/DepartmentList')));
+const CvScreening = Loadable(lazy(() => import('views/customer-portal/cv-screening/CvScreening')));
 
 const EnterpriseRoutes = {
   path: '/',
@@ -30,6 +31,10 @@ const EnterpriseRoutes = {
     {
       path: 'enterprise/budget',
       element: <Budget />
+    },
+    {
+      path: 'enterprise/hrd/cv',
+      element: <CvScreening />
     }
   ]
 };

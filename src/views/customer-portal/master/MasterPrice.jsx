@@ -56,8 +56,7 @@ const getValue = (item, keys, fallback = '-') => {
 
 const getPriceValue = (item) => Number(getValue(item, ['price', 'item_price', 'selling_price', 'unit_price', 'amount', 'harga'], 0));
 
-const getPriceId = (item) =>
-  getValue(item, ['id', 'price_id', 'distributor_item_price_id', 'distributor_item_prices_id'], '');
+const getPriceId = (item) => getValue(item, ['id', 'price_id', 'distributor_item_price_id', 'distributor_item_prices_id'], '');
 
 const formatCurrency = (value) => {
   const number = Number(value || 0);
@@ -94,6 +93,7 @@ export default function MasterPrice() {
   const [priceActionMenu, setPriceActionMenu] = useState(null);
   const [submittingPrice, setSubmittingPrice] = useState(false);
   const [priceInput, setPriceInput] = useState(initialPriceInput);
+  const [selectedDistributorCodes, setSelectedDistributorCodes] = useState([]);
   const [listItem, setListItem] = useState([]);
   const [listDistributor, setListDistributor] = useState([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
@@ -242,11 +242,13 @@ export default function MasterPrice() {
     setShowAddModal(false);
     setEditingPriceId(null);
     setPriceInput(initialPriceInput);
+    setSelectedDistributorCodes([]);
   };
 
   const openAddModal = () => {
     setEditingPriceId(null);
     setPriceInput(initialPriceInput);
+    setSelectedDistributorCodes([]);
     setShowAddModal(true);
   };
 
@@ -266,6 +268,7 @@ export default function MasterPrice() {
       price: String(getPriceValue(item) || ''),
       status: String(getValue(item, ['status', 'is_active'], '1'))
     });
+    setSelectedDistributorCodes([]);
     setShowAddModal(true);
   };
 
@@ -278,6 +281,11 @@ export default function MasterPrice() {
   };
 
   const handleSelectDistributor = (option) => {
+    if (!editingPriceId) {
+      setSelectedDistributorCodes((option || []).map((item) => item.value));
+      return;
+    }
+
     setPriceInput((prevState) => ({
       ...prevState,
       code_customer: option?.value || ''
@@ -287,31 +295,79 @@ export default function MasterPrice() {
   const submitPrice = async (event) => {
     event.preventDefault();
 
-    if (!priceInput.item_code || !priceInput.code_customer || !priceInput.price) {
+    const distributorCodes = editingPriceId ? [priceInput.code_customer] : selectedDistributorCodes;
+
+    if (!priceInput.item_code || !distributorCodes.length || !priceInput.price) {
       showAlert('Item code, distributor code, and price are required', 'danger');
       return;
     }
 
     setSubmittingPrice(true);
 
-    const payload = {
+    const basePayload = {
       item_code: priceInput.item_code,
-      code_customer: priceInput.code_customer,
       uom: priceInput.uom,
       price: Number(priceInput.price),
       status: Number(priceInput.status)
     };
 
     try {
-      const response = editingPriceId ? await PriceServices.putPrice(editingPriceId, payload) : await PriceServices.postPrice(payload);
+      if (editingPriceId) {
+        const response = await PriceServices.putPrice(editingPriceId, {
+          ...basePayload,
+          code_customer: distributorCodes[0]
+        });
 
-      if (response.data.success) {
-        showAlert(editingPriceId ? 'Master price updated successfully' : 'Master price added successfully', 'success');
+        if (!response.data.success) {
+          throw new Error(response.data.message || 'Failed to update master price');
+        }
+
+        showAlert('Master price updated successfully', 'success');
         closeAddModal();
         fetchData();
-      } else {
-        showAlert(response.data.message || (editingPriceId ? 'Failed to update master price' : 'Failed to add master price'), 'danger');
+        return;
       }
+
+      const results = await Promise.all(
+        distributorCodes.map(async (codeCustomer) => {
+          try {
+            const response = await PriceServices.postPrice({
+              ...basePayload,
+              code_customer: codeCustomer
+            });
+
+            return {
+              codeCustomer,
+              success: Boolean(response?.data?.success),
+              message: response?.data?.message || ''
+            };
+          } catch (error) {
+            return {
+              codeCustomer,
+              success: false,
+              message: error?.message || 'Failed to add master price'
+            };
+          }
+        })
+      );
+      const successfulCodes = results.filter((result) => result.success).map((result) => result.codeCustomer);
+      const failedResults = results.filter((result) => !result.success);
+
+      if (!failedResults.length) {
+        showAlert(`${successfulCodes.length} master prices added successfully`, 'success');
+        closeAddModal();
+        fetchData();
+        return;
+      }
+
+      setSelectedDistributorCodes(failedResults.map((result) => result.codeCustomer));
+      if (successfulCodes.length) {
+        fetchData();
+      }
+      showAlert(
+        `${successfulCodes.length} saved, ${failedResults.length} failed. ${failedResults[0]?.message || 'Please retry failed distributors.'}`,
+        successfulCodes.length ? 'warning' : 'danger'
+      );
     } catch (error) {
       showAlert(error?.message || (editingPriceId ? 'Failed to update master price' : 'Failed to add master price'), 'danger');
     } finally {
@@ -353,7 +409,8 @@ export default function MasterPrice() {
     });
   };
 
-  const canSubmitPrice = Boolean(priceInput.item_code && priceInput.code_customer && priceInput.price && !submittingPrice);
+  const selectedDistributorCount = editingPriceId ? Number(Boolean(priceInput.code_customer)) : selectedDistributorCodes.length;
+  const canSubmitPrice = Boolean(priceInput.item_code && selectedDistributorCount && priceInput.price && !submittingPrice);
 
   return (
     <>
@@ -667,11 +724,17 @@ export default function MasterPrice() {
                 <Select
                   styles={selectStyles}
                   options={listDistributor}
-                  value={listDistributor.find((item) => item.value === priceInput.code_customer) || null}
+                  value={
+                    editingPriceId
+                      ? listDistributor.find((item) => item.value === priceInput.code_customer) || null
+                      : listDistributor.filter((item) => selectedDistributorCodes.includes(item.value))
+                  }
                   onChange={handleSelectDistributor}
                   isClearable
+                  isMulti={!editingPriceId}
+                  closeMenuOnSelect={Boolean(editingPriceId)}
                   isLoading={loadingOptions}
-                  placeholder="Select distributor"
+                  placeholder={editingPriceId ? 'Select distributor' : 'Select one or more distributors'}
                   noOptionsMessage={() => 'Distributor not found'}
                 />
               </Col>
@@ -699,7 +762,13 @@ export default function MasterPrice() {
               Cancel
             </Button>
             <Button type="submit" variant="primary" disabled={!canSubmitPrice}>
-              {submittingPrice ? 'Saving...' : editingPriceId ? 'Save Changes' : 'Save Price'}
+              {submittingPrice
+                ? `Saving ${selectedDistributorCount} price${selectedDistributorCount === 1 ? '' : 's'}...`
+                : editingPriceId
+                  ? 'Save Changes'
+                  : selectedDistributorCount
+                    ? `Save ${selectedDistributorCount} Price${selectedDistributorCount === 1 ? '' : 's'}`
+                    : 'Save Price'}
             </Button>
           </Modal.Footer>
         </Form>

@@ -109,6 +109,22 @@
   }
 }
 
+.saltech-splash__powered-by {
+  position: absolute;
+  z-index: 2;
+  bottom: clamp(24px, 5vh, 48px);
+  left: 50%;
+  margin: 0;
+  color: rgba(13, 31, 92, 0.72);
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.035em;
+  text-align: center;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  animation: saltech-logo-reveal 0.7s 0.7s ease both;
+}
+
 @keyframes saltech-logo-reveal {
   from {
     opacity: 0;
@@ -168,6 +184,11 @@
 
   .saltech-splash__loader {
     width: 42vw;
+  }
+
+  .saltech-splash__powered-by {
+    bottom: 24px;
+    font-size: 0.68rem;
   }
 }
 

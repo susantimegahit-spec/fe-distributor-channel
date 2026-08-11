@@ -35,10 +35,11 @@ body {
   padding: 12px 14px;
   align-items: center;
   gap: 11px;
-  border: 1px solid rgba(232, 89, 12, 0.2);
+  border: 1px solid rgba(214, 40, 57, 0.5);
   border-radius: 10px;
-  background: rgba(255, 176, 32, 0.1);
-  color: #7a3815;
+  background: linear-gradient(135deg, #fff0f1 0%, #ffd9dd 100%);
+  box-shadow: 0 8px 20px rgba(180, 24, 42, 0.12);
+  color: #8f1725;
 }
 
 .sm-session-expired-alert > span {
@@ -48,8 +49,8 @@ body {
   flex: 0 0 34px;
   place-items: center;
   border-radius: 9px;
-  background: rgba(232, 89, 12, 0.12);
-  color: #e8590c;
+  background: #d62839;
+  color: #fff;
   font-size: 1.05rem;
 }
 
@@ -60,7 +61,7 @@ body {
 
 .sm-session-expired-alert p {
   margin: 2px 0 0;
-  color: #92593b;
+  color: #a52a38;
   font-size: 0.72rem;
 }
 
@@ -3184,6 +3185,7 @@ body {
   position: relative;
   z-index: 2;
   display: flex;
+  height: 100dvh;
   min-height: 100dvh;
   flex-direction: column;
   background: transparent;
@@ -3293,8 +3295,10 @@ body {
 
 .pc-sidebar .navbar-content {
   flex: 1 1 auto;
+  height: auto;
   min-height: 0;
   padding: 14px 10px 18px;
+  overflow: hidden;
 }
 
 .sm-sidebar-characters {
