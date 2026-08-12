@@ -41,6 +41,25 @@ body {
   opacity: 1;
 }
 
+.modal-content {
+  --bs-modal-border-radius: 14px;
+  --bs-modal-inner-border-radius: 13px;
+  overflow: hidden;
+  border-color: rgba(var(--system-primary-rgb, 49, 95, 180), 0.12);
+  border-radius: var(--bs-modal-border-radius);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 20px 52px rgba(18, 35, 68, 0.2);
+}
+
+.modal-content > .modal-header:first-child {
+  border-radius: var(--bs-modal-inner-border-radius) var(--bs-modal-inner-border-radius) 0 0;
+}
+
+.modal-content > .modal-footer:last-child {
+  border-radius: 0 0 var(--bs-modal-inner-border-radius) var(--bs-modal-inner-border-radius);
+}
+
 .sm-order-detail-modal .modal-title {
   font-size: 0.9rem;
   font-weight: 700;
