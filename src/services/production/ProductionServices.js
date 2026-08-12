@@ -33,6 +33,38 @@ class ProductionServices {
     return DataService.get(`/production/orders/${id}`);
   }
 
+  getProductionReceipts(payload = {}) {
+    return DataService.get('/production/receipts', payload);
+  }
+
+  getProductionReceiptById(id) {
+    return DataService.get(`/production/receipts/${id}`);
+  }
+
+  postProductionReceipt(payload) {
+    return DataService.post('/production/receipts', payload);
+  }
+
+  cancelProductionReceipt(id) {
+    return DataService.post(`/production/receipts/${id}/cancel`);
+  }
+
+  getProductionIssues(payload = {}) {
+    return DataService.get('/production/issues', payload);
+  }
+
+  getProductionIssueById(id) {
+    return DataService.get(`/production/issues/${id}`);
+  }
+
+  postProductionIssue(payload) {
+    return DataService.post('/production/issues', payload);
+  }
+
+  cancelProductionIssue(id) {
+    return DataService.post(`/production/issues/${id}/cancel`);
+  }
+
   putBoms(id, payload) {
     return DataService.put(`/production/boms/${id}`, payload);
   }
