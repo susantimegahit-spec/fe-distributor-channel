@@ -1430,23 +1430,24 @@ export default function Dashboard() {
         />
 
         {!isLoadingComparison && (
-        <MainCard
-          className="claim-transaction-card dashboard-comparison-card"
-          title={
-            <Stack direction="horizontal" className="justify-content-between align-items-start" gap={3}>
-              <Stack gap={1}>
-                <h5 className="mb-0">Order Comparison</h5>
-                <span className="text-muted f-12">
-                  Target, CMO, dan Sales Order berdasarkan customer dan periode terpilih.
-                </span>
-              </Stack>
-              <span className="avtar avtar-s bg-light-primary text-primary">
-                <i className="ti ti-chart-bar" />
-              </span>
-            </Stack>
-          }
-        >
-          <Stack gap={3}>
+          <>
+            <MainCard
+              className="claim-transaction-card dashboard-comparison-card"
+              title={
+                <Stack direction="horizontal" className="justify-content-between align-items-start" gap={3}>
+                  <Stack gap={1}>
+                    <h5 className="mb-0">Order Comparison</h5>
+                    <span className="text-muted f-12">
+                      Target, CMO, dan Sales Order berdasarkan customer dan periode terpilih.
+                    </span>
+                  </Stack>
+                  <span className="avtar avtar-s bg-light-primary text-primary">
+                    <i className="ti ti-table" />
+                  </span>
+                </Stack>
+              }
+            >
+              <Stack gap={3}>
             <Row className="g-3 dashboard-comparison-filters">
               <Col lg={6} md={12}>
                 <Form.Label className="f-12 fw-semibold">Customer Code</Form.Label>
@@ -1489,11 +1490,10 @@ export default function Dashboard() {
               </Col>
             </Row>
 
-            {comparisonError ? (
-              <div className="text-center text-danger py-4">{comparisonError}</div>
-            ) : orderComparison.length > 0 ? (
-              <>
-              <Table className="mb-0 align-middle dashboard-comparison-table" responsive hover>
+                {comparisonError ? (
+                  <div className="text-center text-danger py-4">{comparisonError}</div>
+                ) : orderComparison.length > 0 ? (
+                  <Table className="mb-0 align-middle dashboard-comparison-table" responsive hover>
               <thead>
                 <tr>
                   <th>Brand</th>
@@ -1551,24 +1551,40 @@ export default function Dashboard() {
                   </td>
                 </tr>
               </tfoot>
-              </Table>
-              <div className="dashboard-comparison-chart">
-                <h6 className="mb-1">Comparison by Brand</h6>
-                <p className="text-muted f-12 mb-2">Target, CMO, process, and completed order amounts.</p>
-                <ReactApexChart
-                  options={comparisonChart.options}
-                  series={comparisonChart.series}
-                  type="bar"
-                  height={Math.max(320, orderComparison.length * 70)}
-                  width="100%"
-                />
-              </div>
-              </>
-            ) : (
-              <div className="text-center text-muted py-4">No order comparison data for this period.</div>
+                  </Table>
+                ) : (
+                  <div className="text-center text-muted py-4">No order comparison data for this period.</div>
+                )}
+              </Stack>
+            </MainCard>
+
+            {!comparisonError && orderComparison.length > 0 && (
+              <MainCard
+                className="claim-transaction-card dashboard-comparison-card dashboard-brand-comparison-card"
+                title={
+                  <Stack direction="horizontal" className="justify-content-between align-items-start" gap={3}>
+                    <Stack gap={1}>
+                      <h5 className="mb-0">Comparison by Brand</h5>
+                      <span className="text-muted f-12">Target, CMO, process, and completed order amounts.</span>
+                    </Stack>
+                    <span className="avtar avtar-s bg-light-primary text-primary">
+                      <i className="ti ti-chart-bar" />
+                    </span>
+                  </Stack>
+                }
+              >
+                <div className="dashboard-comparison-chart">
+                  <ReactApexChart
+                    options={comparisonChart.options}
+                    series={comparisonChart.series}
+                    type="bar"
+                    height={Math.max(320, orderComparison.length * 70)}
+                    width="100%"
+                  />
+                </div>
+              </MainCard>
             )}
-          </Stack>
-        </MainCard>
+          </>
         )}
 
         {!isLoadingEta && etaWarnings.length > 0 && (
@@ -2088,6 +2104,7 @@ export default function Dashboard() {
       </Overlay>
 
       <Modal
+        className="sm-order-detail-modal"
         show={Boolean(viewOrder)}
         onHide={() => loadingViewOrderId === null && setViewOrder(null)}
         size="xl"

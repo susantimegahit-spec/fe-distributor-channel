@@ -41,6 +41,96 @@ body {
   opacity: 1;
 }
 
+.sm-order-detail-modal .modal-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.sm-order-detail-modal .modal-header {
+  min-height: 48px;
+  padding: 0.72rem 1rem;
+}
+
+.sm-order-detail-modal .modal-header .btn-close {
+  padding: 0.55rem;
+  font-size: 0.72rem;
+}
+
+.sm-order-detail-modal .modal-body {
+  padding: 0.9rem 1rem;
+  font-size: 0.76rem;
+}
+
+.sm-order-detail-modal .form-label,
+.sm-order-detail-modal small,
+.sm-order-detail-modal .text-muted {
+  font-size: 0.64rem !important;
+  line-height: 1.25;
+}
+
+.sm-order-detail-modal .form-label {
+  margin-bottom: 0.2rem;
+  font-weight: 650;
+  letter-spacing: 0.015em;
+}
+
+.sm-order-detail-modal .badge,
+.sm-order-detail-modal .btn,
+.sm-order-detail-modal .form-control,
+.sm-order-detail-modal .form-select {
+  font-size: 0.66rem;
+}
+
+.sm-order-detail-modal .badge {
+  padding: 0.3rem 0.48rem;
+}
+
+.sm-order-detail-modal .btn {
+  min-height: 30px;
+  padding: 0.34rem 0.68rem;
+  line-height: 1.2;
+}
+
+.sm-order-detail-modal .btn i {
+  font-size: 0.75rem;
+}
+
+.sm-order-detail-modal .form-control,
+.sm-order-detail-modal .form-select {
+  min-height: 34px;
+  padding: 0.4rem 0.58rem;
+}
+
+.sm-order-detail-modal .table {
+  font-size: 0.72rem;
+}
+
+.sm-order-detail-modal .table > thead > tr > th {
+  padding: 0.62rem 0.58rem;
+  font-size: 0.66rem;
+}
+
+.sm-order-detail-modal .table > tbody > tr > td,
+.sm-order-detail-modal .table > tbody > tr > th {
+  padding: 0.52rem 0.58rem;
+}
+
+.sm-order-detail-modal h5,
+.sm-order-detail-modal h6 {
+  font-size: 0.78rem;
+}
+
+.sm-order-detail-modal h4 {
+  font-size: 0.94rem;
+}
+
+.sm-order-detail-modal .modal-footer {
+  min-height: 50px;
+  padding: 0.65rem 1rem;
+  gap: 0.4rem;
+}
+
 .sm-session-expired-alert {
   display: flex;
   width: 100%;
@@ -2793,6 +2883,35 @@ body {
   --bs-table-bg-state: rgba(var(--system-primary-rgb, 49, 95, 180), 0.07);
 }
 
+.pc-content .table,
+.sm-workspace-embedded-content .table {
+  font-size: 0.76rem;
+}
+
+.pc-content .table > thead > tr > th,
+.sm-workspace-embedded-content .table > thead > tr > th {
+  padding: 0.7rem 0.65rem;
+  font-size: 0.7rem;
+  line-height: 1.25;
+}
+
+.pc-content .table > tbody > tr > td,
+.pc-content .table > tbody > tr > th,
+.sm-workspace-embedded-content .table > tbody > tr > td,
+.sm-workspace-embedded-content .table > tbody > tr > th {
+  padding: 0.58rem 0.65rem;
+  line-height: 1.35;
+}
+
+.pc-content .table .btn,
+.pc-content .table .form-control,
+.pc-content .table .form-select,
+.sm-workspace-embedded-content .table .btn,
+.sm-workspace-embedded-content .table .form-control,
+.sm-workspace-embedded-content .table .form-select {
+  font-size: 0.72rem;
+}
+
 .pc-content .card:not(.sm-login-card) > .card-header:first-child,
 .sm-workspace-embedded-content .card:not(.sm-login-card) > .card-header:first-child {
   border-radius: var(--bs-card-inner-border-radius) var(--bs-card-inner-border-radius) 0 0;
@@ -3670,8 +3789,16 @@ body {
   --pc-sidebar-main-active-color: #17233f;
   --pc-sidebar-border: #e5eaf2;
   --pc-sidebar-shadow: 8px 0 28px rgba(21, 37, 70, 0.07);
-  background: #fff;
-  border-right: 1px solid #e5eaf2;
+  background:
+    radial-gradient(circle at 12% 12%, rgba(var(--system-accent-rgb, 115, 229, 245), 0.22), transparent 32%),
+    radial-gradient(circle at 88% 72%, rgba(var(--system-primary-rgb, 49, 95, 180), 0.13), transparent 42%),
+    linear-gradient(
+      155deg,
+      rgba(var(--system-primary-rgb, 49, 95, 180), 0.1) 0%,
+      rgba(255, 255, 255, 0.98) 38%,
+      rgba(var(--system-accent-rgb, 115, 229, 245), 0.12) 100%
+    );
+  border-right: 1px solid rgba(var(--system-primary-rgb, 49, 95, 180), 0.16);
   box-shadow: var(--pc-sidebar-shadow);
 }
 
@@ -3703,8 +3830,10 @@ body {
 }
 
 .pc-sidebar .m-header {
-  border-bottom-color: #e8edf4;
-  background: #fff;
+  border-bottom-color: rgba(var(--system-primary-rgb, 49, 95, 180), 0.12);
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
   box-shadow: none;
 }
 

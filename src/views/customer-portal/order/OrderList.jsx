@@ -2084,7 +2084,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                 </Col>
               </Row>
 
-              {orderLayout === 'list' ? (
+                {orderLayout === 'list' ? (
                 <>
                   <Table className="mb-0 align-middle" responsive hover>
                 <thead>
@@ -2854,7 +2854,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
           </Button>
         </Modal.Footer>
       </Modal>
-      <Modal show={Boolean(selectedOrderDetail)} onHide={closeDetailModal} centered size="xl">
+      <Modal className="sm-order-detail-modal" show={Boolean(selectedOrderDetail)} onHide={closeDetailModal} centered size="xl">
         <Modal.Header closeButton>
           <Modal.Title>Order Detail</Modal.Title>
         </Modal.Header>
