@@ -86,16 +86,53 @@ export default function OrderPost({ cmoMode = false }) {
   const customStyles = {
     container: (provided) => ({
       ...provided,
-      minWidth: '220px'
+      minWidth: 0,
+      width: '100%'
     }),
-    control: (provided) => ({
+    control: (provided, state) => ({
       ...provided,
-      minHeight: '31px'
+      minHeight: '34px',
+      borderColor: state.isFocused ? 'var(--system-primary, #315fb4)' : '#d7dfeb',
+      borderRadius: '9px',
+      boxShadow: state.isFocused ? '0 0 0 3px rgba(var(--system-primary-rgb, 49, 95, 180), 0.12)' : 'none',
+      '&:hover': {
+        borderColor: 'var(--system-primary, #315fb4)'
+      }
     }),
     valueContainer: (provided) => ({
       ...provided,
-      paddingTop: 0,
-      paddingBottom: 0
+      padding: '2px 10px'
+    }),
+    menu: (provided) => ({
+      ...provided,
+      zIndex: 1080,
+      overflow: 'hidden',
+      border: '1px solid rgba(var(--system-primary-rgb, 49, 95, 180), 0.14)',
+      borderRadius: '10px',
+      boxShadow: '0 14px 34px rgba(18, 35, 68, 0.16)'
+    }),
+    menuPortal: (provided) => ({
+      ...provided,
+      zIndex: 9999
+    }),
+    menuList: (provided) => ({
+      ...provided,
+      padding: '5px'
+    }),
+    option: (provided, state) => ({
+      ...provided,
+      margin: '2px 0',
+      padding: '8px 10px',
+      borderRadius: '7px',
+      backgroundColor: state.isSelected
+        ? 'var(--system-primary, #315fb4)'
+        : state.isFocused
+          ? 'rgba(var(--system-primary-rgb, 49, 95, 180), 0.1)'
+          : '#fff',
+      color: state.isSelected ? 'var(--system-primary-contrast, #fff)' : '#253858',
+      cursor: state.isDisabled ? 'not-allowed' : 'pointer',
+      fontSize: '0.76rem',
+      lineHeight: 1.35
     })
   };
 
@@ -111,6 +148,11 @@ export default function OrderPost({ cmoMode = false }) {
       <span className="text-danger ms-1">*</span>
     </>
   );
+
+  const toTitleCase = (value) =>
+    String(value || '')
+      .toLocaleLowerCase('id-ID')
+      .replace(/(^|[\s/()\-.,])([a-z])/g, (match, separator, letter) => `${separator}${letter.toLocaleUpperCase('id-ID')}`);
 
   const getTodayDate = () => {
     const today = new Date();
@@ -422,7 +464,7 @@ export default function OrderPost({ cmoMode = false }) {
     return value
       ? {
           value,
-          label: String(label || value),
+          label: toTitleCase(label || value),
           raw: item
         }
       : null;
@@ -434,7 +476,7 @@ export default function OrderPost({ cmoMode = false }) {
 
     setLoadingSeries(true);
     try {
-      const response = await OrderServices.getSalesOrderSeries(formattedDate, orderInput.cardCode);
+      const response = await OrderServices.getSalesOrderSeries(formattedDate, '17');
       if (response?.data?.success) {
         const seriesData = response.data.data || response.data.series || [];
         const normalizedSeries = (Array.isArray(seriesData) ? seriesData : [seriesData]).map(mapSeriesOption).filter(Boolean);
@@ -466,7 +508,7 @@ export default function OrderPost({ cmoMode = false }) {
 
     return {
       value: orderInput.series,
-      label: String(fallbackLabel || orderInput.series)
+      label: toTitleCase(fallbackLabel || orderInput.series)
     };
   };
 
@@ -492,7 +534,7 @@ export default function OrderPost({ cmoMode = false }) {
     const percentage = getValue(detail, ['percentage', 'persentase', 'Persentase'], '');
 
     return {
-      name: type ? { value: type, label: type } : '',
+      name: type ? { value: type, label: toTitleCase(type) } : '',
       value: getValue(detail, ['total_discount', 'totalDiscount', 'discount_amount', 'amount'], ''),
       remarks: getValue(detail, ['remarks', 'remark', 'description', 'keterangan'], ''),
       section: normalizedType.includes('promo') ? 'tradePromo' : 'other',
@@ -514,7 +556,7 @@ export default function OrderPost({ cmoMode = false }) {
     if (!value && !label) return null;
     return {
       value: value || label,
-      label: label || value,
+      label: toTitleCase(label || value),
       ...extra
     };
   };
@@ -576,14 +618,14 @@ export default function OrderPost({ cmoMode = false }) {
       return {
         ...matchedOption,
         ...extra,
-        label: label || matchedOption.label
+        label: toTitleCase(label || matchedOption.label)
       };
     }
 
     return createOption(value, label, extra);
   };
 
-  const mapOrderLine = (line) => {
+  const mapOrderLine = (line, customerItems = listItem) => {
     const itemCode = getValue(line, ['item_code', 'itemCode', 'ItemCode', 'item.item_code', 'item.code', 'code']);
     const itemName = getValue(
       line,
@@ -624,7 +666,7 @@ export default function OrderPost({ cmoMode = false }) {
     );
 
     return {
-      itemCode: findOption(listItem, itemCode, itemName, {
+      itemCode: findOption(customerItems, itemCode, itemName, {
         unitMsr,
         uomEntry: getValue(line, ['uom_entry', 'uomEntry', 'UomEntry']),
         kgPerUnit: getKgFromProductName(itemName)
@@ -647,7 +689,7 @@ export default function OrderPost({ cmoMode = false }) {
     };
   };
 
-  const fillOrderForm = (order) => {
+  const fillOrderForm = async (order) => {
     const cardCode = getValue(order, ['card_code', 'cardCode', 'customer_code', 'CardCode']);
     const billToCode = getValue(order, ['pay_to_code', 'payToCode', 'address_code', 'PayToCode']);
     const billToAddress = getValue(order, ['address', 'bill_to_address', 'Address']);
@@ -692,12 +734,14 @@ export default function OrderPost({ cmoMode = false }) {
       idDiscount: orderDiscountId
     });
 
+    let customerItems = listItem;
     if (cardCode) {
+      customerItems = await fetchItem(cardCode);
       fetchAddress(cardCode, false);
       fetchEmployee(cardCode, false);
     }
 
-    setItemArr(detailLines.length > 0 ? detailLines.map(mapOrderLine) : itemArr);
+    setItemArr(detailLines.length > 0 ? detailLines.map((line) => mapOrderLine(line, customerItems)) : itemArr);
   };
 
   const fetchOrderDetail = async (orderId) => {
@@ -706,7 +750,7 @@ export default function OrderPost({ cmoMode = false }) {
       const response = cmoMode ? await OrderServices.getCmoById(orderId) : await OrderServices.getDetailOrder(orderId);
 
       if (response?.data?.success) {
-        fillOrderForm(response.data.data);
+        await fillOrderForm(response.data.data);
         setIsLoading(false);
         return;
       }
@@ -715,7 +759,7 @@ export default function OrderPost({ cmoMode = false }) {
       const selectedOrder = listResponse?.data?.data?.find((order) => String(order.id) === String(orderId));
 
       if (selectedOrder) {
-        fillOrderForm(selectedOrder);
+        await fillOrderForm(selectedOrder);
       } else {
         showAlert('Order detail not found', 'danger');
       }
@@ -744,7 +788,7 @@ export default function OrderPost({ cmoMode = false }) {
       data.forEach((items) => {
         let arr = {
           value: items.item_code,
-          label: items?.item_name,
+          label: toTitleCase(items?.item_name),
           unitMsr: items?.sal_unit_msr,
           uomEntry: items?.suom_entry,
           kgPerUnit: getKgFromProductName(items?.item_name)
@@ -753,9 +797,11 @@ export default function OrderPost({ cmoMode = false }) {
       });
       setListItem(dataArr);
       setIsLoading(false);
+      return dataArr;
     } else {
       setIsLoading(false);
       showAlert('Failed to fetch data', 'danger');
+      return [];
     }
   };
 
@@ -768,7 +814,7 @@ export default function OrderPost({ cmoMode = false }) {
       data.forEach((items) => {
         let arr = {
           value: items?.ocr_code,
-          label: items?.ocr_name
+          label: toTitleCase(items?.ocr_name)
         };
         dataArr.push(arr);
       });
@@ -789,7 +835,7 @@ export default function OrderPost({ cmoMode = false }) {
       data.forEach((items) => {
         let arr = {
           value: items?.ocr_code,
-          label: items?.ocr_name
+          label: toTitleCase(items?.ocr_name)
         };
         dataArr.push(arr);
       });
@@ -810,7 +856,7 @@ export default function OrderPost({ cmoMode = false }) {
       data.forEach((items) => {
         let arr = {
           value: items?.ocr_code,
-          label: items?.ocr_name
+          label: toTitleCase(items?.ocr_name)
         };
         dataArr.push(arr);
       });
@@ -831,7 +877,7 @@ export default function OrderPost({ cmoMode = false }) {
       data.forEach((items) => {
         let arr = {
           value: items.whs_code,
-          label: items?.whs_code + ' - ' + items?.whs_name
+          label: `${items?.whs_code} - ${toTitleCase(items?.whs_name)}`
         };
         dataArr.push(arr);
       });
@@ -865,7 +911,7 @@ export default function OrderPost({ cmoMode = false }) {
       const dataArr = data
         .map((item) => ({
           value: item?.slp_code,
-          label: `${item?.sales_employee?.slp_name || ''}`,
+          label: toTitleCase(item?.sales_employee?.slp_name),
           name: item?.slp_name
         }))
         .filter((item) => item.value);
@@ -891,9 +937,9 @@ export default function OrderPost({ cmoMode = false }) {
       const data = response.data.data;
       const dataArr = data.map((item) => ({
         value: item?.code_customer,
-        label: `${item?.code_customer || item?.customer_code || '-'} - ${item?.name || item?.customer_name || '-'} - ${
-          item?.depo || item?.customer_depo || '-'
-        }`,
+        label: `${item?.code_customer || item?.customer_code || '-'} - ${toTitleCase(
+          item?.name || item?.customer_name || '-'
+        )} - ${toTitleCase(item?.depo || item?.customer_depo || '-')}`,
         name: item?.name,
         depo: item?.depo
       }));
@@ -915,7 +961,7 @@ export default function OrderPost({ cmoMode = false }) {
         .filter((item) => Number(item?.status ?? 1) === 1)
         .map((item) => ({
           value: item?.fld_value,
-          label: item?.descr || item?.fld_value,
+          label: toTitleCase(item?.descr || item?.fld_value),
           description: item?.descr || ''
         }))
         .filter((item) => item.value);
@@ -962,13 +1008,13 @@ export default function OrderPost({ cmoMode = false }) {
         if (item?.AdresType === 'B') {
           let arr = {
             value: item?.Address,
-            label: item?.Street
+            label: toTitleCase(item?.Street)
           };
           dataB.push(arr);
         } else {
           let arr = {
             value: item?.Address,
-            label: item?.Street
+            label: toTitleCase(item?.Street)
           };
           dataS.push(arr);
         }
@@ -2178,7 +2224,7 @@ export default function OrderPost({ cmoMode = false }) {
 
   return (
     <>
-      <Stack gap={3}>
+      <Stack gap={3} className="order-create-page">
         <>
           <MainCard
             title={
@@ -2364,6 +2410,7 @@ export default function OrderPost({ cmoMode = false }) {
                             <Form.Group>
                               <Form.Label className="small text-muted">Series Sales Order</Form.Label>
                               <Select
+                                styles={customStyles}
                                 value={getSelectedSeriesOption()}
                                 options={listSeries}
                                 isLoading={loadingSeries}
@@ -2382,6 +2429,7 @@ export default function OrderPost({ cmoMode = false }) {
                               <RequiredLabel>Billing Address</RequiredLabel>
                             </Form.Label>
                             <Select
+                              styles={customStyles}
                               value={orderInput.address || null}
                               options={listAddressB}
                               menuPosition="fixed"
@@ -2396,6 +2444,7 @@ export default function OrderPost({ cmoMode = false }) {
                               <RequiredLabel>Shipping Address</RequiredLabel>
                             </Form.Label>
                             <Select
+                              styles={customStyles}
                               value={orderInput.address2 || null}
                               options={listAddressS}
                               menuPosition="fixed"
@@ -2729,6 +2778,7 @@ export default function OrderPost({ cmoMode = false }) {
                         value={item.itemCode}
                         options={listItem}
                         menuPosition="fixed"
+                        menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
                         onChange={(e) => handleSelectItem(e, index)}
                         placeholder={loadingItemPriceRows[index] ? 'Loading price...' : 'Select item'}
                         isLoading={Boolean(loadingItemPriceRows[index])}

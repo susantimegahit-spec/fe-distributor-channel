@@ -2922,6 +2922,24 @@ body {
   line-height: 1.35;
 }
 
+.pc-content .table > tbody > tr > td,
+.sm-workspace-embedded-content .table > tbody > tr > td,
+.modal .table > tbody > tr > td {
+  text-transform: capitalize;
+}
+
+.pc-content .table > tbody > tr > td input,
+.pc-content .table > tbody > tr > td textarea,
+.pc-content .table > tbody > tr > td code,
+.sm-workspace-embedded-content .table > tbody > tr > td input,
+.sm-workspace-embedded-content .table > tbody > tr > td textarea,
+.sm-workspace-embedded-content .table > tbody > tr > td code,
+.modal .table > tbody > tr > td input,
+.modal .table > tbody > tr > td textarea,
+.modal .table > tbody > tr > td code {
+  text-transform: none;
+}
+
 .pc-content .table .btn,
 .pc-content .table .form-control,
 .pc-content .table .form-select,
@@ -3215,6 +3233,12 @@ body {
   font-size: 1.05rem !important;
   font-weight: 700;
   line-height: 1.12;
+}
+
+// Fixed react-select menus need an untransformed containing block on Add Order.
+.order-create-page .card,
+.order-create-page .card:hover {
+  transform: none !important;
 }
 
 @keyframes eta-warning-pulse {
