@@ -30,6 +30,17 @@ body {
     linear-gradient(135deg, #eef7ff 0%, #f7faff 46%, #edf4ff 100%);
 }
 
+// Keep modal content sharp while softening the page behind every Bootstrap modal.
+.modal-backdrop {
+  background-color: rgba(8, 18, 38, 0.42);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+.modal-backdrop.show {
+  opacity: 1;
+}
+
 .sm-session-expired-alert {
   display: flex;
   width: 100%;
@@ -79,14 +90,21 @@ body {
 }
 
 [data-system-theme='expedition'] {
-  --system-primary: #e8590c;
-  --system-primary-rgb: 232, 89, 12;
-  --system-secondary: #ffb020;
-  --system-sidebar-start: #28130a;
-  --system-sidebar-middle: #54230d;
-  --system-sidebar-end: #913c0a;
-  --system-accent: #ffca6a;
-  --system-accent-rgb: 255, 202, 106;
+  --system-primary: #f3ba1e;
+  --system-primary-rgb: 243, 186, 30;
+  --system-primary-contrast: #2f2400;
+  --system-secondary: #ffd35c;
+  --system-sidebar-start: #332700;
+  --system-sidebar-middle: #6b5000;
+  --system-sidebar-end: #a97d00;
+  --system-accent: #ffe49a;
+  --system-accent-rgb: 255, 228, 154;
+}
+
+[data-system-theme='expedition'] .btn-primary {
+  --bs-btn-color: #2f2400;
+  --bs-btn-hover-color: #2f2400;
+  --bs-btn-active-color: #2f2400;
 }
 
 [data-system-theme='picking-list'] {
@@ -1875,9 +1893,14 @@ body {
   color: #667590;
   cursor: grab;
   text-align: left;
+  transform: perspective(700px) translate3d(0, 0, 0) rotateX(0deg);
+  transform-origin: center bottom;
   transition:
     background 0.16s ease,
-    color 0.16s ease;
+    color 0.16s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
 }
 
 .sm-browser-tab:active {
@@ -1924,6 +1947,16 @@ body {
   background: #fff;
   color: #17233d;
   box-shadow: 0 -8px 20px rgba(28, 54, 102, 0.07);
+}
+
+.sm-browser-tab:hover:not(.is-dragging) {
+  z-index: 3;
+  border-color: rgba(var(--system-primary-rgb, 49, 95, 180), 0.2);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 -3px 0 rgba(var(--system-primary-rgb, 49, 95, 180), 0.1),
+    0 -10px 20px rgba(28, 54, 102, 0.12);
+  transform: perspective(700px) translate3d(0, -3px, 8px) rotateX(-2deg);
 }
 
 .sm-browser-tab-select > i {
@@ -1990,6 +2023,16 @@ body {
   background: rgba(240, 82, 82, 0.12);
   color: #d94141;
   outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sm-browser-tab {
+    transition: none;
+  }
+
+  .sm-browser-tab:hover:not(.is-dragging) {
+    transform: none;
+  }
 }
 
 .sm-browser-toolbar-actions {
@@ -2464,8 +2507,8 @@ body {
 
 .sm-system-switcher-icon.is-expedition,
 .sm-system-switcher-item-icon.is-expedition {
-  --switcher-color: #e8590c;
-  --switcher-rgb: 232, 89, 12;
+  --switcher-color: #f3ba1e;
+  --switcher-rgb: 243, 186, 30;
 }
 
 .sm-system-switcher-icon.is-picking-list,
@@ -2679,11 +2722,108 @@ body {
 }
 
 .pc-content > .card,
-.pc-content .card:not(.sm-login-card) {
+.pc-content .card:not(.sm-login-card),
+.sm-workspace-embedded-content .card:not(.sm-login-card) {
+  --bs-card-border-radius: 14px;
+  --bs-card-inner-border-radius: 13px;
   border: 1px solid rgba(49, 95, 180, 0.08);
-  border-radius: 8px;
+  border-radius: var(--bs-card-border-radius);
   background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 18px 38px rgba(28, 54, 102, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 3px 0 rgba(var(--system-primary-rgb, 49, 95, 180), 0.1),
+    0 12px 22px rgba(28, 54, 102, 0.1),
+    0 24px 48px rgba(28, 54, 102, 0.07);
+  transform: perspective(1000px) translate3d(0, 0, 0);
+  transform-origin: center bottom;
+  transition:
+    transform 0.22s ease,
+    border-color 0.22s ease,
+    box-shadow 0.22s ease;
+}
+
+.pc-content .card:not(.sm-login-card):hover,
+.sm-workspace-embedded-content .card:not(.sm-login-card):hover {
+  border-color: rgba(var(--system-primary-rgb, 49, 95, 180), 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 5px 0 rgba(var(--system-primary-rgb, 49, 95, 180), 0.12),
+    0 18px 30px rgba(28, 54, 102, 0.13),
+    0 30px 58px rgba(28, 54, 102, 0.09);
+  transform: perspective(1000px) translate3d(0, -3px, 8px);
+}
+
+// The outer page card stays anchored; nested cards may still use the lift effect.
+.pc-content .card:not(.sm-login-card):not(.card .card),
+.sm-workspace-embedded-content .card:not(.sm-login-card):not(.card .card) {
+  transition: none;
+}
+
+.pc-content .card:not(.sm-login-card):not(.card .card):hover,
+.sm-workspace-embedded-content .card:not(.sm-login-card):not(.card .card):hover {
+  border-color: rgba(49, 95, 180, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 3px 0 rgba(var(--system-primary-rgb, 49, 95, 180), 0.1),
+    0 12px 22px rgba(28, 54, 102, 0.1),
+    0 24px 48px rgba(28, 54, 102, 0.07);
+  transform: perspective(1000px) translate3d(0, 0, 0);
+}
+
+.pc-content .table tbody > tr,
+.sm-workspace-embedded-content .table tbody > tr {
+  position: relative;
+  z-index: 0;
+  transform: perspective(900px) translate3d(0, 0, 0);
+  transform-origin: center;
+  transition:
+    transform 0.18s ease,
+    filter 0.18s ease;
+}
+
+.pc-content .table tbody > tr:hover,
+.sm-workspace-embedded-content .table tbody > tr:hover {
+  z-index: 1;
+  transform: perspective(900px) translate3d(0, -2px, 7px) scale(1.002);
+  filter: drop-shadow(0 7px 7px rgba(28, 54, 102, 0.16));
+}
+
+.pc-content .table tbody > tr:hover > *,
+.sm-workspace-embedded-content .table tbody > tr:hover > * {
+  --bs-table-bg-state: rgba(var(--system-primary-rgb, 49, 95, 180), 0.07);
+}
+
+.pc-content .card:not(.sm-login-card) > .card-header:first-child,
+.sm-workspace-embedded-content .card:not(.sm-login-card) > .card-header:first-child {
+  border-radius: var(--bs-card-inner-border-radius) var(--bs-card-inner-border-radius) 0 0;
+}
+
+.pc-content .card:not(.sm-login-card) > .card-footer:last-child,
+.sm-workspace-embedded-content .card:not(.sm-login-card) > .card-footer:last-child {
+  border-radius: 0 0 var(--bs-card-inner-border-radius) var(--bs-card-inner-border-radius);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pc-content .card:not(.sm-login-card),
+  .sm-workspace-embedded-content .card:not(.sm-login-card) {
+    transition: none;
+  }
+
+  .pc-content .card:not(.sm-login-card):hover,
+  .sm-workspace-embedded-content .card:not(.sm-login-card):hover {
+    transform: none;
+  }
+
+  .pc-content .table tbody > tr,
+  .sm-workspace-embedded-content .table tbody > tr {
+    transition: none;
+  }
+
+  .pc-content .table tbody > tr:hover,
+  .sm-workspace-embedded-content .table tbody > tr:hover {
+    filter: none;
+    transform: none;
+  }
 }
 
 .pc-content .card-header {
@@ -3362,8 +3502,30 @@ body {
   font-size: 0.7rem;
   font-weight: 800;
   text-align: left;
-  text-transform: uppercase;
+  text-transform: none;
   transition: background 0.18s ease, color 0.18s ease;
+}
+
+.pc-sidebar .sm-sidebar-group-toggle .sm-sidebar-group-icon {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  align-items: center;
+  justify-content: center;
+  color: currentColor;
+}
+
+.pc-sidebar .sm-sidebar-group-toggle .sm-sidebar-group-icon i {
+  display: inline-block;
+  color: inherit;
+  font-size: 1rem;
+}
+
+.pc-sidebar .sm-sidebar-group-toggle .sm-sidebar-group-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
 }
 
 .pc-sidebar .sm-sidebar-group-toggle button:hover,
@@ -3391,6 +3553,7 @@ body {
 
 .pc-sidebar .sm-sidebar-group-toggle .sm-sidebar-group-arrow {
   display: inline-block;
+  margin-left: auto;
   flex: 0 0 7px;
   width: 7px;
   height: 7px;

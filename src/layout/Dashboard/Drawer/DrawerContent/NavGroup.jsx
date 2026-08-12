@@ -131,8 +131,11 @@ export default function NavGroup(props) {
             aria-expanded={groupOpen}
             aria-controls={`sidebar-group-${item.id}`}
           >
+            <span className="sm-sidebar-group-icon" aria-hidden="true">
+              <i className={currentItem.icon || 'ti ti-category-2'} />
+            </span>
+            <span className="sm-sidebar-group-label">{groupLabel}</span>
             <span className="sm-sidebar-group-arrow" aria-hidden="true" />
-            <span>{groupLabel}</span>
           </button>
         </li>
       )}
