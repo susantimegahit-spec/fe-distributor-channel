@@ -5052,6 +5052,54 @@ body {
   }
 }
 
+.reward-tabs-card__nav {
+  display: flex;
+  width: 100%;
+  margin: 0 0 -1rem !important;
+  background: #f8f9fc;
+  border: 1px solid #e6e9f2;
+  border-bottom: 0;
+  border-radius: 14px 14px 0 0;
+
+.nav-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    border: 1px solid transparent;
+    border-radius: 9px !important;
+    color: #596579;
+    font-weight: 600;
+
+    &:hover,
+    &:focus {
+      color: var(--system-primary, #315fb4);
+      background: rgba(var(--system-primary-rgb, 49, 95, 180), 0.08);
+    }
+
+    &.active {
+      color: var(--system-primary-contrast, #fff);
+      background: var(--system-primary, #315fb4);
+      box-shadow: 0 4px 10px rgba(var(--system-primary-rgb, 49, 95, 180), 0.2);
+    }
+  }
+}
+
+.reward-tabs-card__content {
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #e6e9f2;
+  border-radius: 0 0 14px 14px;
+  box-shadow: 0 4px 14px rgba(23, 31, 79, 0.04);
+
+  > .tab-pane > .card,
+  > .tab-pane > .claim-transaction-card {
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+}
+
 .sm-page-back-button.btn {
   background: #315fb4;
   border-color: #315fb4;

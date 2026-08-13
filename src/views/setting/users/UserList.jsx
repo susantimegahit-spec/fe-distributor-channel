@@ -8,6 +8,7 @@ import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
 import InputGroup from 'react-bootstrap/InputGroup';
 import Modal from 'react-bootstrap/Modal';
+import Overlay from 'react-bootstrap/Overlay';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
@@ -39,6 +40,8 @@ const initialInput = {
   ocrCodes: [],
   ocrCodes2: [],
   ocrCodes3: [],
+  originator: '',
+  stage: '',
   accessibleSystems: [],
   distributorCodes: [],
   distributorIds: []
@@ -59,6 +62,17 @@ const accessibleSystemOptions = [
   { value: SYSTEM_KEYS.EXPEDITION, label: 'Expedition', color: '#e8590c' },
   { value: SYSTEM_KEYS.PICKING_LIST, label: 'Picking List', color: '#7048e8' },
   { value: SYSTEM_KEYS.PRODUCTION, label: 'Production', color: '#198754' }
+];
+// Temporary SAP master data. Replace these options with API data when the SAP master endpoints are available.
+const sapOriginatorOptions = [
+  { value: 'SAP001', label: 'SAP001 - Sales Admin' },
+  { value: 'SAP002', label: 'SAP002 - Finance' },
+  { value: 'SAP003', label: 'SAP003 - Warehouse' }
+];
+const sapStageOptions = [
+  { value: '1', label: 'Stage 1 - Review' },
+  { value: '2', label: 'Stage 2 - Approval' },
+  { value: '3', label: 'Stage 3 - Final Approval' }
 ];
 const accessibleSystemAliases = {
   distributor: SYSTEM_KEYS.CUSTOMER_PORTAL,
@@ -342,6 +356,7 @@ export default function UserList() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [userActionMenu, setUserActionMenu] = useState(null);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [keywords, setKeywords] = useState('');
@@ -563,6 +578,7 @@ export default function UserList() {
     setShowView(false);
     setSelectedUser(null);
     setSelectedUserId(null);
+    setUserActionMenu(null);
     setFormMode('create');
   };
 
@@ -624,6 +640,8 @@ export default function UserList() {
     : listDistributor.filter((item) => input.distributorCodes.includes(item.value));
   const selectedAccessibleSystems = accessibleSystemOptions.filter((item) => input.accessibleSystems.includes(item.value));
   const selectedExpedition = listExpedition.find((item) => item.value === input.expeditionCode) || null;
+  const selectedSapOriginator = sapOriginatorOptions.find((item) => item.value === input.originator) || null;
+  const selectedSapStage = sapStageOptions.find((item) => item.value === input.stage) || null;
   const selectedWarehouses = input.whsCodes.map(
     (code) => listWarehouse.find((warehouse) => warehouse.value === code) || { value: code, label: code }
   );
@@ -677,6 +695,8 @@ export default function UserList() {
       ocrCodes: getUserOcrCodes(item, 'ocr_code', ['ocrCode', 'branches', 'branch_codes']),
       ocrCodes2: getUserOcrCodes(item, 'ocr_code2', ['ocrCode2', 'business_units', 'business_unit_codes']),
       ocrCodes3: getUserOcrCodes(item, 'ocr_code3', ['ocrCode3', 'departments', 'department_codes']),
+      originator: String(item.originator ?? item.sap_originator ?? ''),
+      stage: String(item.stage ?? item.sap_stage ?? ''),
       accessibleSystems: getUserAccessibleSystems(item),
       distributorCodes: hasAllDistributors ? [ALL_DISTRIBUTORS_VALUE] : distributorCodes,
       distributorIds: hasAllDistributors ? [ALL_DISTRIBUTORS_VALUE] : distributorIds
@@ -731,6 +751,8 @@ export default function UserList() {
       ocr_code: input.ocrCodes,
       ocr_code2: input.ocrCodes2,
       ocr_code3: input.ocrCodes3,
+      originator: input.originator || null,
+      stage: input.stage || null,
       accessible_systems: input.accessibleSystems,
       code_customer: distributorPayload.code_customer?.toString(),
       id_distributor: distributorPayload.id_distributor?.toString()
@@ -760,6 +782,8 @@ export default function UserList() {
       ocr_code: input.ocrCodes,
       ocr_code2: input.ocrCodes2,
       ocr_code3: input.ocrCodes3,
+      originator: input.originator || null,
+      stage: input.stage || null,
       accessible_systems: input.accessibleSystems,
       code_customer: distributorPayload.code_customer?.toString(),
       id_distributor: distributorPayload.id_distributor?.toString()
@@ -950,7 +974,7 @@ export default function UserList() {
                     <th style={{ minWidth: 180 }}>Accessible System</th>
                     <th style={{ minWidth: 180 }}>Access Rights</th>
                     <th style={{ minWidth: 120 }}>Status</th>
-                    <th className="text-center" style={{ width: 140 }}>
+                    <th className="text-center" style={{ width: 120 }}>
                       #
                     </th>
                   </tr>
@@ -998,34 +1022,22 @@ export default function UserList() {
                         </td>
                         <td>{item.is_active ? <Badge bg="success">Active</Badge> : <Badge bg="secondary">Inactive</Badge>}</td>
                         <td className="text-center">
-                          <Stack direction="horizontal" gap={2} className="justify-content-center">
-                            <Button
-                              className="rounded-circle"
-                              variant="outline-primary"
-                              size="sm"
-                              disabled={loadingDetail}
-                              onClick={() => openViewModal(item)}
-                            >
-                              <i className="ti ti-eye" />
-                            </Button>
-                            <Button
-                              className="rounded-circle"
-                              variant="outline-secondary"
-                              size="sm"
-                              disabled={loadingDetail}
-                              onClick={() => openEditModal(item)}
-                            >
-                              <i className="ti ti-pencil" />
-                            </Button>
-                            <Button
-                              className="rounded-circle"
-                              variant="outline-danger"
-                              size="sm"
-                              onClick={() => handleShowConfirm(item.id)}
-                            >
-                              <i className="ti ti-trash" />
-                            </Button>
-                          </Stack>
+                          <Button
+                            size="sm"
+                            variant={String(userActionMenu?.user?.id) === String(item.id) ? 'primary' : 'outline-primary'}
+                            disabled={loadingDetail}
+                            aria-label={`Open actions for ${item.name || item.username || 'user'}`}
+                            aria-expanded={String(userActionMenu?.user?.id) === String(item.id)}
+                            onClick={(event) =>
+                              setUserActionMenu((current) =>
+                                String(current?.user?.id) === String(item.id) ? null : { user: item, target: event.currentTarget }
+                              )
+                            }
+                          >
+                            <i className="ti ti-dots-vertical me-1" />
+                            Actions
+                            <i className="ti ti-chevron-down ms-1" />
+                          </Button>
                         </td>
                       </tr>
                     ))
@@ -1068,6 +1080,67 @@ export default function UserList() {
           />
         </MainCard>
       </Stack>
+
+      <Overlay
+        show={Boolean(userActionMenu)}
+        target={userActionMenu?.target}
+        placement="top-end"
+        container={typeof document !== 'undefined' ? document.body : null}
+        containerPadding={8}
+        rootClose
+        rootCloseEvent="mousedown"
+        onHide={() => setUserActionMenu(null)}
+      >
+        {({ ref, style, placement }) => {
+          const user = userActionMenu?.user;
+
+          return (
+            <div
+              ref={ref}
+              className="dropdown-menu show"
+              data-popper-placement={placement}
+              style={{ ...style, zIndex: 1080, minWidth: 180 }}
+            >
+              <button
+                type="button"
+                className="dropdown-item"
+                disabled={loadingDetail}
+                onClick={() => {
+                  setUserActionMenu(null);
+                  if (user) openViewModal(user);
+                }}
+              >
+                <i className="ti ti-eye text-primary me-2" />
+                View
+              </button>
+              <button
+                type="button"
+                className="dropdown-item"
+                disabled={loadingDetail}
+                onClick={() => {
+                  setUserActionMenu(null);
+                  if (user) openEditModal(user);
+                }}
+              >
+                <i className="ti ti-pencil text-warning me-2" />
+                Edit
+              </button>
+              <div className="dropdown-divider" />
+              <button
+                type="button"
+                className="dropdown-item text-danger"
+                onClick={() => {
+                  setUserActionMenu(null);
+                  if (user) handleShowConfirm(user.id);
+                }}
+              >
+                <i className="ti ti-trash me-2" />
+                Delete
+              </button>
+            </div>
+          );
+        }}
+      </Overlay>
 
       <Modal show={showMenu} onHide={resetForm} size="xl" centered scrollable>
         <Modal.Header closeButton>
@@ -1266,6 +1339,44 @@ export default function UserList() {
                         />
                       </Col>
                     ) : null}
+                  </Row>
+                </Card.Body>
+              </Card>
+            </Col>
+            <Col xs={12}>
+              <Card className="border mb-0">
+                <Card.Header className="py-3">
+                  <Stack direction="horizontal" gap={2}>
+                    <i className="ti ti-plug-connected text-primary" />
+                    <h6 className="mb-0">SAP Assignment</h6>
+                  </Stack>
+                </Card.Header>
+                <Card.Body>
+                  <Row className="g-3">
+                    <Col md={6}>
+                      <Form.Label className="f-12 text-muted">Originator</Form.Label>
+                      <Select
+                        value={selectedSapOriginator}
+                        options={sapOriginatorOptions}
+                        menuPosition="fixed"
+                        onChange={(option) => setInput((currentInput) => ({ ...currentInput, originator: option?.value || '' }))}
+                        placeholder="Select Originator"
+                        isClearable
+                        isSearchable
+                      />
+                    </Col>
+                    <Col md={6}>
+                      <Form.Label className="f-12 text-muted">Stage</Form.Label>
+                      <Select
+                        value={selectedSapStage}
+                        options={sapStageOptions}
+                        menuPosition="fixed"
+                        onChange={(option) => setInput((currentInput) => ({ ...currentInput, stage: option?.value || '' }))}
+                        placeholder="Select Stage"
+                        isClearable
+                        isSearchable
+                      />
+                    </Col>
                   </Row>
                 </Card.Body>
               </Card>

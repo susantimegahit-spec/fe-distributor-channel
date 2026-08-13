@@ -960,7 +960,7 @@ export default function RewardList() {
             }
           }}
         >
-          <Nav variant="pills" className="d-inline-flex align-self-start gap-1 bg-light border rounded-3 p-1">
+          <Nav variant="pills" className="reward-tabs-card__nav gap-1 p-2">
             <Nav.Item>
               <Nav.Link eventKey="claim" className="rounded-2 px-3 py-2">
                 <i className="ti ti-file-spreadsheet me-2" />
@@ -982,7 +982,7 @@ export default function RewardList() {
             </Nav.Item>
           </Nav>
 
-          <Tab.Content>
+          <Tab.Content className="reward-tabs-card__content">
             <Tab.Pane eventKey="claim">
               <MainCard
                 className="claim-transaction-card"

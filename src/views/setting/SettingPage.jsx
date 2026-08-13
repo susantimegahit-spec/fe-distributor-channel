@@ -19,7 +19,6 @@ import DocumentBuilder from './DocumentBuilder';
 import PermissionList from './permission/PermissionList';
 import UserList from './users/UserList';
 import CronJobList from './cronjob/CronJobList';
-import DepartmentList from './department/DepartmentList';
 
 const adminRoleId = 5;
 const generalSettingKey = 'dc-general-settings';
@@ -28,7 +27,6 @@ const tabs = [
   { key: 'users', title: 'Users', icon: 'ti ti-users' },
   // { key: 'general', title: 'Setting', icon: 'ti ti-settings' },
   { key: 'permissions', title: 'Access Control', icon: 'ti ti-shield-lock' },
-  { key: 'departments', title: 'Department', icon: 'ti ti-building-community' },
   { key: 'signatures', title: 'Signatures', icon: 'ti ti-signature' },
   { key: 'document-builder', title: 'Document Builder', icon: 'ti ti-file-text', adminOnly: true },
   { key: 'cronjobs', title: 'Automation', icon: 'ti ti-alarm', adminOnly: true }
@@ -180,8 +178,6 @@ export default function SettingPage({ defaultTab = 'users' }) {
         return <GeneralSettings />;
       case 'permissions':
         return <PermissionList />;
-      case 'departments':
-        return <DepartmentList />;
       case 'signatures':
         return <MasterSignature />;
       case 'document-builder':

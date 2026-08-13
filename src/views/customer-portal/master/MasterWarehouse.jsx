@@ -208,7 +208,7 @@ export default function MasterWarehouse() {
             {loadingData ? (
               <tbody>
                 <tr>
-                  <td colSpan={4}>
+                  <td colSpan={3}>
                     <LoaderData />
                   </td>
                 </tr>
@@ -220,28 +220,35 @@ export default function MasterWarehouse() {
                     <th style={{ minWidth: 160 }}>Code Warehouse</th>
                     <th style={{ minWidth: 260 }}>Warehouse Name</th>
                     <th style={{ minWidth: 120 }}>Status</th>
-                    <th className="text-center" style={{ width: 80 }}>
-                      #
-                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredData.length > 0 ? (
                     paginatedData.map((item, index) => (
                       <tr key={item.id || item.whs_code || index}>
-                        <td className="fw-semibold">{item.whs_code || '-'}</td>
+                        <td>
+                          {item.whs_code ? (
+                            <Button
+                              className="d-inline-flex align-items-center gap-1 rounded-pill px-2 py-1 fw-semibold f-12"
+                              variant="light-primary"
+                              size="sm"
+                              onClick={() => setSelectedWarehouse(item)}
+                              title={`View warehouse ${item.whs_code}`}
+                            >
+                              {item.whs_code}
+                              <i className="ti ti-chevron-right f-12" aria-hidden="true" />
+                            </Button>
+                          ) : (
+                            '-'
+                          )}
+                        </td>
                         <td style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>{item.whs_name || '-'}</td>
                         <td>{item.status === 1 ? <Badge bg="success">Active</Badge> : <Badge bg="secondary">Inactive</Badge>}</td>
-                        <td className="text-center">
-                          <Button className="rounded-circle" variant="outline-primary" size="sm" onClick={() => setSelectedWarehouse(item)}>
-                            <i className="ti ti-eye" />
-                          </Button>
-                        </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={4}>
+                      <td colSpan={3}>
                         <div className="text-center py-5">
                           <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                             <i className="ti ti-building-warehouse f-24" />

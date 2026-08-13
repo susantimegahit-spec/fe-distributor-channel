@@ -247,37 +247,39 @@ export default function MasterDistributor() {
                     <th style={{ minWidth: 180 }}>Bank Account</th>
                     <th style={{ minWidth: 320 }}>Address</th>
                     <th style={{ minWidth: 120 }}>Status</th>
-                    <th className="text-center" style={{ width: 80 }}>
-                      #
-                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredData.length > 0 ? (
                     paginatedData.map((item) => (
                       <tr key={item.id || item.code_customer}>
-                        <td className="fw-semibold">{item.code_customer || '-'}</td>
+                        <td>
+                          {item.code_customer ? (
+                            <Button
+                              className="d-inline-flex align-items-center gap-1 rounded-pill px-2 py-1 fw-semibold f-12"
+                              variant="light-primary"
+                              size="sm"
+                              onClick={() => setSelectedDistributor(item)}
+                              title={`View distributor ${item.code_customer}`}
+                            >
+                              {item.code_customer}
+                              <i className="ti ti-chevron-right f-12" aria-hidden="true" />
+                            </Button>
+                          ) : (
+                            '-'
+                          )}
+                        </td>
                         <td style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>{item.name || '-'}</td>
                         <td>{item.phone || '-'}</td>
                         <td>{item.depo || '-'}</td>
                         <td>{formatBankAccount(item)}</td>
                         <td style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>{item.address || '-'}</td>
                         <td>{item.status === 1 ? <Badge bg="success">Active</Badge> : <Badge bg="secondary">Inactive</Badge>}</td>
-                        <td className="text-center">
-                          <Button
-                            className="rounded-circle"
-                            variant="outline-primary"
-                            size="sm"
-                            onClick={() => setSelectedDistributor(item)}
-                          >
-                            <i className="ti ti-eye" />
-                          </Button>
-                        </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={8}>
+                      <td colSpan={7}>
                         <div className="text-center py-5">
                           <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                             <i className="ti ti-building-store f-24" />
