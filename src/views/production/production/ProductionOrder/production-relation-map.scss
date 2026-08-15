@@ -1,0 +1,140 @@
+.production-relation-modal {
+  background: #f8fafc;
+}
+
+.production-relation-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: 1200px;
+  margin: 0 auto 1rem;
+}
+
+.production-relation-scroll {
+  max-width: 1200px;
+  margin: 0 auto;
+  overflow-x: auto;
+  border: 1px solid #dce2e8;
+  border-radius: 0.75rem;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+.production-relation-canvas {
+  position: relative;
+  width: 1000px;
+  min-width: 1000px;
+  height: 560px;
+  margin: 0 auto;
+  background-image: radial-gradient(#dbe3ec 0.8px, transparent 0.8px);
+  background-size: 18px 18px;
+}
+
+.production-relation-lines {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+
+  line {
+    fill: none;
+    stroke: #f6c927;
+    stroke-width: 5;
+    stroke-linecap: round;
+    marker-end: url('#relation-arrow');
+  }
+
+  marker path {
+    fill: #f6c927;
+  }
+
+  .production-relation-lines__secondary {
+    stroke: #8090bf;
+    stroke-width: 2;
+    stroke-dasharray: 6 5;
+    marker-end: url('#relation-arrow-secondary');
+  }
+}
+
+.production-relation-card {
+  position: absolute;
+  z-index: 2;
+  width: 190px;
+  overflow: hidden;
+  border: 1px solid #9fb2c1;
+  border-radius: 0.3rem;
+  background: #fff;
+  box-shadow: 4px 5px 10px rgba(15, 23, 42, 0.13);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+
+  &:active {
+    cursor: grabbing;
+  }
+
+  header {
+    padding: 0.7rem 0.8rem;
+    border-bottom: 1px solid #b7c5d0;
+    background: #d9eaf7;
+    color: #25374a;
+    font-size: 0.79rem;
+    font-weight: 700;
+  }
+
+  dl {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.55rem 0.7rem;
+    margin: 0;
+  }
+
+  dt {
+    color: #7c8795;
+    font-size: 0.69rem;
+    font-weight: 500;
+  }
+
+  dd {
+    margin: 0;
+    color: #273444;
+    font-size: 0.73rem;
+    font-weight: 500;
+    text-align: right;
+  }
+}
+
+.production-relation-card__body {
+  display: flex;
+  min-height: 135px;
+  flex-direction: column;
+  padding: 0.9rem 0.8rem;
+}
+
+.production-relation-card__amount {
+  margin-top: auto;
+  padding-top: 0.8rem;
+  color: #334155;
+  font-size: 0.72rem;
+  text-align: right;
+}
+
+.production-relation-card--order {
+  header {
+    border-color: #d7bf58;
+    background: #fff0aa;
+  }
+
+  .production-relation-card__body {
+    min-height: 240px;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .production-relation-heading {
+    align-items: flex-start;
+  }
+}

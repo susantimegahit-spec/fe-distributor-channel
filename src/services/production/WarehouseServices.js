@@ -29,7 +29,7 @@ class WarehouseServices {
   }
 
   postCancelInventoryTransfer(DocEntry) {
-    return DataService.post('/warehouses/inventory-transfer/cancel', {
+    return DataService.post('/production/inventory-transfer/sap/cancel', {
       DocEntry
     });
   }

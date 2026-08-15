@@ -79,6 +79,16 @@ class ProductionServices {
     return DataService.get('/production/issues', payload);
   }
 
+  getIssueProduction(payload = {}) {
+    const { from = '', to = '', whs_code = '', to_whs_code = '' } = payload;
+
+    return DataService.get('/production/issues/sap-list', { from, to, whs_code, to_whs_code });
+  }
+
+  getIssueProductionDetail(id) {
+    return DataService.get(`/production/issues/sap/${id}`);
+  }
+
   getProductionIssueById(id) {
     return DataService.get(`/production/issues/${id}`);
   }

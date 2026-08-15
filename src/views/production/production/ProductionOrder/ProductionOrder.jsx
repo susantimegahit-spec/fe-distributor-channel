@@ -20,6 +20,7 @@ import TablePagination from 'components/TablePagination';
 import ProductionServices from '../../../../services/production/ProductionServices';
 import { useAlert } from '../../../../utils/alertContext';
 import { getCookies } from '../../../../utils/cookies';
+import ProductionRelationMap from './ProductionRelationMap';
 
 const numberFormatter = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 });
 const pageSize = 10;
@@ -258,24 +259,6 @@ export default function ProductionOrder() {
   const [cancelOrder, setCancelOrder] = useState(null);
   const [cancellingOrder, setCancellingOrder] = useState(false);
   const [relationOrder, setRelationOrder] = useState(null);
-  const [relationPositions, setRelationPositions] = useState({});
-
-  const moveRelationCard = (key, event) => {
-    const startX = event.clientX;
-    const startY = event.clientY;
-    const initial = relationPositions[key] || { x: 0, y: 0 };
-    const move = (moveEvent) =>
-      setRelationPositions((current) => ({
-        ...current,
-        [key]: { x: initial.x + moveEvent.clientX - startX, y: initial.y + moveEvent.clientY - startY }
-      }));
-    const up = () => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-    };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
-  };
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showBomModal, setShowBomModal] = useState(false);
   const [loadingBoms, setLoadingBoms] = useState(false);
@@ -794,80 +777,7 @@ export default function ProductionOrder() {
           </Modal.Footer>
         </Modal>
 
-        <Modal show={Boolean(relationOrder)} onHide={() => setRelationOrder(null)} fullscreen>
-          <Modal.Header closeButton>
-            <Modal.Title>Relationship Map</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            <div className="text-muted f-12 mb-3">Production flow (dummy data)</div>
-            <div className="d-flex flex-wrap align-items-center justify-content-center gap-3 py-4">
-              <div
-                onPointerDown={(event) => moveRelationCard('order', event)}
-                className="border rounded-3 p-3 shadow-sm bg-warning-subtle"
-                style={{
-                  minWidth: 190,
-                  cursor: 'grab',
-                  transform: `translate(${relationPositions.order?.x || 0}px, ${relationPositions.order?.y || 0}px)`
-                }}
-              >
-                <div className="fw-semibold mb-2">Production Order</div>
-                <div className="f-12">{relationOrder?.number || '-'}</div>
-                <div className="f-12">{relationOrder?.itemCode || 'E67.G'}</div>
-                <div className="f-12">{relationOrder?.status || 'Closed'}</div>
-              </div>
-              <span
-                className="text-warning fw-bold"
-                aria-hidden="true"
-                style={{
-                  fontSize: 38,
-                  lineHeight: 1,
-                  transform: `translate(${((relationPositions.order?.x || 0) + (relationPositions.issue?.x || 0)) / 2}px, ${((relationPositions.order?.y || 0) + (relationPositions.issue?.y || 0)) / 2}px)`
-                }}
-              >
-                ➜
-              </span>
-              <div
-                onPointerDown={(event) => moveRelationCard('issue', event)}
-                className="border rounded-3 p-3 shadow-sm bg-primary-subtle"
-                style={{
-                  minWidth: 190,
-                  cursor: 'grab',
-                  transform: `translate(${relationPositions.issue?.x || 0}px, ${relationPositions.issue?.y || 0}px)`
-                }}
-              >
-                <div className="fw-semibold mb-2">Issue for Production</div>
-                <div className="f-12">260810789</div>
-                <div className="f-12">11/08/26</div>
-                <div className="f-12 mt-2">IDR 3.060.000,00</div>
-              </div>
-              <span
-                className="text-warning fw-bold"
-                aria-hidden="true"
-                style={{
-                  fontSize: 38,
-                  lineHeight: 1,
-                  transform: `translate(${((relationPositions.issue?.x || 0) + (relationPositions.receipt?.x || 0)) / 2}px, ${((relationPositions.issue?.y || 0) + (relationPositions.receipt?.y || 0)) / 2}px)`
-                }}
-              >
-                ➜
-              </span>
-              <div
-                onPointerDown={(event) => moveRelationCard('receipt', event)}
-                className="border rounded-3 p-3 shadow-sm bg-info-subtle"
-                style={{
-                  minWidth: 190,
-                  cursor: 'grab',
-                  transform: `translate(${relationPositions.receipt?.x || 0}px, ${relationPositions.receipt?.y || 0}px)`
-                }}
-              >
-                <div className="fw-semibold mb-2">Receipt from Production</div>
-                <div className="f-12">260840010</div>
-                <div className="f-12">11/08/26</div>
-                <div className="f-12 mt-2">IDR 251.970.781,02</div>
-              </div>
-            </div>
-          </Modal.Body>
-        </Modal>
+        <ProductionRelationMap order={relationOrder} onClose={() => setRelationOrder(null)} />
 
         {!loadingOrders && filteredOrders.length > 0 ? (
           <TablePagination

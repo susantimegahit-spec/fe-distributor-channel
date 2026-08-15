@@ -861,8 +861,8 @@ export default function InventoryTransfer() {
               </tr>
             ) : inventoryTransfers.length ? (
               inventoryTransfers.map((transfer, index) => {
-                const normalizedStatus = String(transfer.status).toUpperCase();
-                const canCancel = ['O', 'OPEN', 'BOST_OPEN'].includes(normalizedStatus);
+                const normalizedStatus = String(transfer.status).trim().toUpperCase();
+                const canCancel = !['C', 'CLOSED', 'BOST_CLOSE', 'BOST_CLOSED', 'CANCELLED', 'CANCELED'].includes(normalizedStatus);
                 const statusVariant =
                   normalizedStatus === 'O' || normalizedStatus === 'OPEN'
                     ? 'success'
@@ -958,7 +958,7 @@ export default function InventoryTransfer() {
                 type="button"
                 className="dropdown-item text-danger"
                 disabled={!transferActionMenu?.canCancel}
-                title={transferActionMenu?.canCancel ? 'Cancel inventory transfer' : 'Only open inventory transfers can be cancelled'}
+                title={transferActionMenu?.canCancel ? 'Cancel inventory transfer' : 'Closed inventory transfers cannot be cancelled'}
                 onClick={() => {
                   setTransferActionMenu(null);
                   if (transfer) handleCancelInventoryTransfer(transfer);
