@@ -38,7 +38,7 @@ const normalizeDestination = (item = {}) => ({
 
 const getDestinationList = (response) => {
   const payload = getPayload(response);
-  const list = Array.isArray(payload) ? payload : payload?.data ?? payload?.items ?? payload?.shiptos ?? payload?.ship_tos ?? [];
+  const list = Array.isArray(payload) ? payload : (payload?.data ?? payload?.items ?? payload?.shiptos ?? payload?.ship_tos ?? []);
   return Array.isArray(list) ? list.map(normalizeDestination) : [];
 };
 
@@ -108,18 +108,7 @@ export default function MasterDestination() {
   const handleDownloadTemplate = () => {
     setDownloading(true);
     try {
-      const headers = [
-        'customer_code',
-        'customer_name',
-        'ship_to_code',
-        'ship_to_name',
-        'alias',
-        'street',
-        'city',
-        'province',
-        'postal_code',
-        'status'
-      ];
+      const headers = ['card_code', 'name', 'address', 'city', 'street', 'created_at', 'updated_at', 'alias', 'transport_mode'];
       const worksheet = XLSX.utils.aoa_to_sheet([headers]);
       worksheet['!cols'] = headers.map((header) => ({ wch: Math.max(header.length + 4, 18) }));
       const workbook = XLSX.utils.book_new();
@@ -161,13 +150,7 @@ export default function MasterDestination() {
                 <i className={`${downloading ? 'ti ti-loader-2' : 'ti ti-download'} me-1`} />
                 {downloading ? 'Preparing...' : 'Download Template'}
               </Button>
-              <Form.Control
-                ref={uploadInputRef}
-                type="file"
-                accept=".xlsx,.xls"
-                className="d-none"
-                onChange={handleUploadDestination}
-              />
+              <Form.Control ref={uploadInputRef} type="file" accept=".xlsx,.xls" className="d-none" onChange={handleUploadDestination} />
             </Stack>
           </Stack>
         }

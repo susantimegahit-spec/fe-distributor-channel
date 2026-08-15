@@ -8,6 +8,7 @@ import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
 import InputGroup from 'react-bootstrap/InputGroup';
 import Modal from 'react-bootstrap/Modal';
+import Overlay from 'react-bootstrap/Overlay';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
@@ -22,13 +23,44 @@ import { getCookies } from '../../../../utils/cookies';
 
 const numberFormatter = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 });
 const pageSize = 10;
+const actionPopperConfig = {
+  modifiers: [
+    { name: 'offset', options: { offset: [0, 8] } },
+    { name: 'preventOverflow', options: { boundary: 'viewport', padding: 8 } },
+    { name: 'flip', options: { fallbackPlacements: ['top-end', 'bottom-end'] } }
+  ]
+};
 const today = new Date().toLocaleDateString('en-CA');
+const formatInputDate = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+const createInitialOrderFilters = () => {
+  const currentDate = new Date();
+  const mondayOffset = currentDate.getDay() === 0 ? -6 : 1 - currentDate.getDay();
+  const startOfWeek = new Date(currentDate);
+  startOfWeek.setDate(currentDate.getDate() + mondayOffset);
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 6);
+
+  return {
+    from: formatInputDate(startOfWeek),
+    to: formatInputDate(endOfWeek),
+    whs_code: '',
+    to_whs_code: ''
+  };
+};
 const formatSeriesDate = (value) => String(value || '').replace(/-/g, '');
 const formatDate = (value) => {
   if (!value) return '-';
 
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleDateString('id-ID');
+  const compactDate = String(value).match(/^(\d{4})(\d{2})(\d{2})$/);
+  const date = compactDate ? new Date(Number(compactDate[1]), Number(compactDate[2]) - 1, Number(compactDate[3])) : new Date(value);
+  return Number.isNaN(date.getTime())
+    ? String(value)
+    : date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
 const createInitialForm = () => ({
@@ -54,6 +86,8 @@ const getResponseList = (response) => {
   if (Array.isArray(payload?.series)) return payload.series;
   if (Array.isArray(payload?.orders)) return payload.orders;
   if (Array.isArray(payload?.production_orders)) return payload.production_orders;
+  if (Array.isArray(payload?.value)) return payload.value;
+  if (Array.isArray(payload?.results)) return payload.results;
 
   return [];
 };
@@ -70,6 +104,29 @@ const getResponseItem = (response) => {
 
   return payload;
 };
+
+const getProductionOrderDetail = (response) => {
+  const payload = response?.data?.data ?? response?.data ?? {};
+  const header = payload?.header ?? payload?.Header ?? payload;
+  const items = payload?.items ?? payload?.Items ?? payload?.details ?? payload?.order_details ?? [];
+  return {
+    ...normalizeProductionOrder({ ...(header || {}), details: Array.isArray(items) ? items : [] }),
+    headerData: header || {},
+    itemsData: Array.isArray(items) ? items : []
+  };
+};
+
+const formatDetailValue = (value) => {
+  if (value === null || value === undefined || value === '') return '-';
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+};
+
+const formatDetailLabel = (key) =>
+  String(key)
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/_/g, ' ');
+const formatShift = (value) => ({ A: '1', B: '2', C: '3', X: 'All' })[String(value || '').toUpperCase()] || value || '-';
 
 const normalizeBom = (item = {}, index = 0) => ({
   ...item,
@@ -103,9 +160,7 @@ const normalizeBom = (item = {}, index = 0) => ({
 const getComponentItem = (detail = {}) => {
   const item = detail.item ?? {};
   const code =
-    (typeof item === 'object'
-      ? item.code ?? item.item_code ?? item.material_code ?? item.resource_code ?? item.res_code
-      : null) ??
+    (typeof item === 'object' ? (item.code ?? item.item_code ?? item.material_code ?? item.resource_code ?? item.res_code) : null) ??
     detail.code ??
     detail.item_code ??
     detail.material_code ??
@@ -113,9 +168,7 @@ const getComponentItem = (detail = {}) => {
     detail.res_code ??
     '';
   const name =
-    (typeof item === 'object'
-      ? item.name ?? item.item_name ?? item.material_name ?? item.resource_name ?? item.res_name
-      : item) ||
+    (typeof item === 'object' ? (item.name ?? item.item_name ?? item.material_name ?? item.resource_name ?? item.res_name) : item) ||
     detail.name ||
     detail.item_name ||
     detail.material_name ||
@@ -128,27 +181,38 @@ const getComponentItem = (detail = {}) => {
 
 const normalizeProductionOrder = (item = {}, index = 0) => ({
   ...item,
-  id: item.id || item.production_order_id || item.prod_order_no || item.doc_entry || item.doc_num || index,
+  id: item.id || item.production_order_id || item.prod_order_no || item.DocEntry || item.doc_entry || item.doc_num || index,
   number: item.prod_order_no || item.production_order_no || item.doc_num || item.DocNum || item.number || '',
-  itemCode: item.item_code || item.product_code || item.code || item.product?.item_code || item.product?.code || '',
+  itemCode: item.ItemCode || item.item_code || item.product_code || item.code || item.product?.item_code || item.product?.code || '',
   itemName:
-    item.item_name || item.product_name || item.name || item.product?.item_name || item.product?.product_name || item.product?.name || '',
-  plannedQuantity: item.planned_qty ?? item.planned_quantity ?? item.quantity ?? item.qty ?? 0,
-  completedQuantity: item.completed_qty ?? item.completed_quantity ?? item.cmplt_qty ?? 0,
+    item.ProdName ||
+    item.ItemName ||
+    item.item_name ||
+    item.product_name ||
+    item.name ||
+    item.product?.item_name ||
+    item.product?.product_name ||
+    item.product?.name ||
+    '',
+  plannedQuantity: item.PlannedQty ?? item.PlannedQuantity ?? item.planned_qty ?? item.planned_quantity ?? item.quantity ?? item.qty ?? 0,
+  completedQuantity: item.CmpltQty ?? item.CompletedQty ?? item.completed_qty ?? item.completed_quantity ?? item.cmplt_qty ?? 0,
   warehouse:
     (typeof item.warehouse === 'string' ? item.warehouse : item.warehouse?.code || item.warehouse?.whs_code) ||
+    item.Warehouse ||
+    item.WhsCode ||
     item.whs_code ||
     item.warehouse_code ||
     '',
-  status: item.status || item.order_status || '',
-  orderDate: item.post_date || item.order_date || item.posting_date || item.created_at || '',
-  dueDate: item.due_date || item.end_date || '',
-  startDate: item.start_date || '',
+  status: item.ProductionOrderStatus || item.Status || item.status || item.order_status || '',
+  orderDate:
+    item.PostingDate || item.PostDate || item.DocDate || item.post_date || item.order_date || item.posting_date || item.created_at || '',
+  dueDate: item.DueDate || item.due_date || item.end_date || '',
+  startDate: item.StartDate || item.start_date || '',
   type: item.type || item.order_type || '',
-  series: item.series || item.series_code || '',
-  shift: item.u_shift || item.shift || '',
+  series: item.seriesName || item.SeriesName || item.series || item.series_code || '',
+  shift: item.U_Shift || item.u_shift || item.Shift || item.shift || '',
   priority: item.priority ?? '',
-  comments: item.comments || item.remarks || '',
+  comments: item.Comments || item.comments || item.remarks || '',
   details: Array.isArray(item.details)
     ? item.details
     : Array.isArray(item.order_details)
@@ -173,15 +237,45 @@ const getStatus = (value) => {
   return status ? { label: status, variant } : null;
 };
 
+const canCancelProductionOrder = (status) =>
+  ['planned', 'released', 'open', 'o', 'r', 'p', 'bost_open'].includes(
+    String(status || '')
+      .trim()
+      .toLowerCase()
+  );
+
 export default function ProductionOrder() {
   const { showAlert } = useAlert();
   const [orders, setOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [orderSearch, setOrderSearch] = useState('');
+  const [orderFilters, setOrderFilters] = useState(createInitialOrderFilters);
   const [currentPage, setCurrentPage] = useState(1);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [loadingOrderDetail, setLoadingOrderDetail] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [actionMenu, setActionMenu] = useState(null);
+  const [cancelOrder, setCancelOrder] = useState(null);
+  const [cancellingOrder, setCancellingOrder] = useState(false);
+  const [relationOrder, setRelationOrder] = useState(null);
+  const [relationPositions, setRelationPositions] = useState({});
+
+  const moveRelationCard = (key, event) => {
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const initial = relationPositions[key] || { x: 0, y: 0 };
+    const move = (moveEvent) =>
+      setRelationPositions((current) => ({
+        ...current,
+        [key]: { x: initial.x + moveEvent.clientX - startX, y: initial.y + moveEvent.clientY - startY }
+      }));
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showBomModal, setShowBomModal] = useState(false);
   const [loadingBoms, setLoadingBoms] = useState(false);
@@ -193,25 +287,43 @@ export default function ProductionOrder() {
   const [seriesOptions, setSeriesOptions] = useState([]);
   const [form, setForm] = useState(createInitialForm);
 
-  const fetchProductionOrders = useCallback(async () => {
-    setLoadingOrders(true);
+  const fetchProductionOrders = useCallback(
+    async (activeFilters) => {
+      const filters = activeFilters || orderFilters;
+      if (filters.from && filters.to && new Date(filters.from) > new Date(filters.to)) {
+        showAlert('From date cannot be after To date', 'warning');
+        return;
+      }
 
-    try {
-      const response = await ProductionServices.getProductionOrder();
-      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch Production Order data');
+      setLoadingOrders(true);
 
-      setOrders(getResponseList(response).map(normalizeProductionOrder));
-    } catch (error) {
-      setOrders([]);
-      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch Production Order data', 'danger');
-    } finally {
-      setLoadingOrders(false);
-    }
-  }, [showAlert]);
+      try {
+        const response = await ProductionServices.getListOrderSap({
+          from: filters.from || '',
+          to: filters.to || '',
+          whs_code: filters.whs_code?.value || '',
+          to_whs_code: filters.to_whs_code?.value || ''
+        });
+        if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch Production Order data');
+
+        setOrders(getResponseList(response).map(normalizeProductionOrder));
+        setCurrentPage(1);
+      } catch (error) {
+        setOrders([]);
+        showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch Production Order data', 'danger');
+      } finally {
+        setLoadingOrders(false);
+      }
+    },
+    [orderFilters, showAlert]
+  );
 
   useEffect(() => {
-    fetchProductionOrders();
-  }, [fetchProductionOrders]);
+    const defaultFilters = createInitialOrderFilters();
+    fetchProductionOrders(defaultFilters);
+    // Initial page load uses the current-week filters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const filteredOrders = useMemo(() => {
     const keyword = orderSearch.trim().toLowerCase();
@@ -252,11 +364,32 @@ export default function ProductionOrder() {
         throw new Error(response.data.message || 'Failed to fetch Production Order detail');
       }
 
-      setSelectedOrder(normalizeProductionOrder(getResponseItem(response)));
+      setSelectedOrder(getProductionOrderDetail(response));
     } catch (error) {
       showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch Production Order detail', 'danger');
     } finally {
       setLoadingOrderDetail(false);
+    }
+  };
+
+  const handleCancelOrder = async (order) => {
+    if (!order?.id) return;
+    setCancellingOrder(true);
+
+    try {
+      const response = await ProductionServices.postCancelProductionOrder({
+        DocEntry: order.DocEntry ?? order.doc_entry ?? order.id,
+        UserId: getCookies('id') ?? '',
+        AddonId: getCookies('addonId') ?? ''
+      });
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to cancel Production Order');
+      showAlert(response?.data?.message || 'Production Order cancelled successfully', 'success');
+      fetchProductionOrders(orderFilters);
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to cancel Production Order', 'danger');
+    } finally {
+      setCancellingOrder(false);
+      setCancelOrder(null);
     }
   };
 
@@ -295,11 +428,11 @@ export default function ProductionOrder() {
           .map((item) => {
             const value =
               typeof item === 'object'
-                ? item.series ?? item.Series ?? item.series_code ?? item.seriesCode ?? item.value ?? item.code ?? item.id
+                ? (item.series ?? item.Series ?? item.series_code ?? item.seriesCode ?? item.value ?? item.code ?? item.id)
                 : item;
             const name =
               typeof item === 'object'
-                ? item.label ?? item.series_name ?? item.seriesName ?? item.SeriesName ?? item.name ?? item.description ?? value
+                ? (item.label ?? item.series_name ?? item.seriesName ?? item.SeriesName ?? item.name ?? item.description ?? value)
                 : item;
 
             return value == null ? null : { value, label: String(name || value), raw: item };
@@ -355,22 +488,9 @@ export default function ProductionOrder() {
 
   const handleSave = async () => {
     const plannedQuantity = Number(form.plannedQuantity);
-    const warehouse =
-      form.product?.to_whs ??
-      form.product?.whs_code ??
-      form.product?.warehouse_code ??
-      form.product?.warehouse?.code ??
-      '';
+    const warehouse = form.product?.to_whs ?? form.product?.whs_code ?? form.product?.warehouse_code ?? form.product?.warehouse?.code ?? '';
 
-    if (
-      !form.product ||
-      !(plannedQuantity > 0) ||
-      !form.series ||
-      !form.orderDate ||
-      !form.startDate ||
-      !form.dueDate ||
-      !warehouse
-    ) {
+    if (!form.product || !(plannedQuantity > 0) || !form.series || !form.orderDate || !form.startDate || !form.dueDate || !warehouse) {
       showAlert('Please complete product, planned quantity, series, dates, and warehouse data', 'warning');
       return;
     }
@@ -390,12 +510,7 @@ export default function ProductionOrder() {
       Bomid: String(form.product.bom_id ?? form.product.bomId ?? form.product.id ?? ''),
       UserId: String(getCookies('id') ?? ''),
       AddonId: String(
-        form.product.addon_id ??
-          form.product.addonId ??
-          form.product.add_on_id ??
-          form.product.addon?.id ??
-          getCookies('addonId') ??
-          ''
+        form.product.addon_id ?? form.product.addonId ?? form.product.add_on_id ?? form.product.addon?.id ?? getCookies('addonId') ?? ''
       ),
       Lines: form.product.details.map((detail) => {
         const item = getComponentItem(detail);
@@ -403,20 +518,11 @@ export default function ProductionOrder() {
         const detailType = String(detail.type ?? detail.component_type ?? '').toUpperCase();
 
         return {
-          ItemType: ['4', 'ITEM', 'I'].includes(detailType)
-            ? 'I'
-            : ['290', 'RESOURCE', 'R'].includes(detailType)
-              ? 'R'
-              : detailType,
+          ItemType: ['4', 'ITEM', 'I'].includes(detailType) ? 'I' : ['290', 'RESOURCE', 'R'].includes(detailType) ? 'R' : detailType,
           ItemCode: item.code,
           BaseQty: baseQuantity,
           WhsCode:
-            detail.whs_code ??
-            detail.warehouse_code ??
-            detail.to_whs ??
-            detail.warehouse?.code ??
-            detail.warehouse?.whs_code ??
-            warehouse,
+            detail.whs_code ?? detail.warehouse_code ?? detail.to_whs ?? detail.warehouse?.code ?? detail.warehouse?.whs_code ?? warehouse,
           IssueMethod: detail.issue_mthd ?? detail.issue_method ?? detail.issueMethod ?? '',
           OcrCode: detail.ocr_code ?? form.product.ocr_code ?? '',
           OcrCode2: detail.ocr_code2 ?? form.product.ocr_code2 ?? '',
@@ -459,6 +565,49 @@ export default function ProductionOrder() {
           </Button>
         }
       >
+        <Card className="border mb-3">
+          <Card.Body>
+            <Row className="g-3 align-items-end">
+              <Col md={6} lg={4}>
+                <Form.Label>From</Form.Label>
+                <Form.Control
+                  type="date"
+                  value={orderFilters.from}
+                  onChange={(event) => setOrderFilters((current) => ({ ...current, from: event.target.value }))}
+                />
+              </Col>
+              <Col md={6} lg={4}>
+                <Form.Label>To</Form.Label>
+                <Form.Control
+                  type="date"
+                  value={orderFilters.to}
+                  onChange={(event) => setOrderFilters((current) => ({ ...current, to: event.target.value }))}
+                />
+              </Col>
+              <Col md={6} lg={4}>
+                <Stack direction="horizontal" gap={2}>
+                  <Button className="flex-grow-1" disabled={loadingOrders} onClick={() => fetchProductionOrders()}>
+                    <i className={loadingOrders ? 'ti ti-loader-2 me-1' : 'ti ti-search me-1'} />
+                    {loadingOrders ? 'Loading...' : 'Search'}
+                  </Button>
+                  <Button
+                    variant="light-secondary"
+                    disabled={loadingOrders}
+                    aria-label="Reset production order filters"
+                    onClick={() => {
+                      const defaultFilters = createInitialOrderFilters();
+                      setOrderFilters(defaultFilters);
+                      fetchProductionOrders(defaultFilters);
+                    }}
+                  >
+                    <i className="ti ti-refresh" />
+                  </Button>
+                </Stack>
+              </Col>
+            </Row>
+          </Card.Body>
+        </Card>
+
         <Row className="g-2 align-items-end mb-3">
           <Col lg={7} md={7}>
             <Form.Label className="f-12 text-muted">Search Production Order</Form.Label>
@@ -483,7 +632,6 @@ export default function ProductionOrder() {
         <Table className="mb-0 align-middle" responsive hover>
           <thead>
             <tr>
-              <th style={{ width: 70 }}>#</th>
               <th>Order No.</th>
               <th>Product</th>
               <th className="text-end">Planned Qty</th>
@@ -492,24 +640,23 @@ export default function ProductionOrder() {
               <th>Order Date</th>
               <th>Due Date</th>
               <th>Status</th>
-              <th className="text-center" style={{ width: 90 }}>Action</th>
+              <th className="text-center">Action</th>
             </tr>
           </thead>
           <tbody>
             {loadingOrders ? (
               <tr>
-                <td colSpan={10}>
+                <td colSpan={9}>
                   <LoaderData />
                 </td>
               </tr>
             ) : paginatedOrders.length ? (
-              paginatedOrders.map((order, index) => {
+              paginatedOrders.map((order) => {
                 const status = getStatus(order.status);
 
                 return (
                   <tr key={order.id}>
-                    <td>{(Math.min(currentPage, pageCount) - 1) * pageSize + index + 1}</td>
-                    <td className="fw-semibold">{order.number || '-'}</td>
+                    <td>{order.number || '-'}</td>
                     <td>
                       <div className="fw-semibold">{order.itemCode || '-'}</div>
                       <div className="text-muted f-12">{order.itemName || '-'}</div>
@@ -522,15 +669,19 @@ export default function ProductionOrder() {
                     <td>{status ? <Badge bg={status.variant}>{status.label}</Badge> : '-'}</td>
                     <td className="text-center">
                       <Button
-                        className="rounded-circle p-0"
-                        variant="outline-primary"
                         size="sm"
-                        title="Detail"
-                        aria-label={`View Production Order ${order.number || ''} detail`}
-                        style={{ width: 32, height: 32 }}
-                        onClick={() => handleOpenDetail(order)}
+                        variant={String(actionMenu?.order?.id) === String(order.id) ? 'primary' : 'outline-primary'}
+                        aria-label={`Open actions for Production Order ${order.number || ''}`}
+                        aria-expanded={String(actionMenu?.order?.id) === String(order.id)}
+                        onClick={(event) =>
+                          setActionMenu((current) =>
+                            String(current?.order?.id) === String(order.id) ? null : { order, target: event.currentTarget }
+                          )
+                        }
                       >
-                        <i className="ti ti-eye" />
+                        <i className="ti ti-dots-vertical me-1" />
+                        Actions
+                        <i className="ti ti-chevron-down ms-1" />
                       </Button>
                     </td>
                   </tr>
@@ -538,7 +689,7 @@ export default function ProductionOrder() {
               })
             ) : (
               <tr>
-                <td colSpan={10}>
+                <td colSpan={9}>
                   <div className="text-center py-5">
                     <span className="avtar avtar-xl bg-light-primary text-primary mb-3">
                       <i className="ti ti-clipboard-text f-32" />
@@ -556,6 +707,168 @@ export default function ProductionOrder() {
           </tbody>
         </Table>
 
+        <Overlay
+          show={Boolean(actionMenu)}
+          target={actionMenu?.target}
+          placement="top-end"
+          container={typeof document !== 'undefined' ? document.body : null}
+          containerPadding={8}
+          popperConfig={actionPopperConfig}
+          rootClose
+          rootCloseEvent="mousedown"
+          onHide={() => setActionMenu(null)}
+        >
+          {({ ref, style, placement }) => {
+            const order = actionMenu?.order;
+            const canCancel = canCancelProductionOrder(order?.status);
+            return (
+              <div
+                ref={ref}
+                className="dropdown-menu show"
+                data-popper-placement={placement}
+                style={{ ...style, zIndex: 1080, minWidth: 190 }}
+              >
+                <button
+                  type="button"
+                  className="dropdown-item"
+                  onClick={() => {
+                    setActionMenu(null);
+                    if (order) handleOpenDetail(order);
+                  }}
+                >
+                  <i className="ti ti-eye text-primary me-2" /> Detail
+                </button>
+                <button
+                  type="button"
+                  className="dropdown-item"
+                  onClick={() => {
+                    setActionMenu(null);
+                    setRelationOrder(order);
+                  }}
+                >
+                  <i className="ti ti-sitemap text-info me-2" /> Relation Map
+                </button>
+                <button
+                  type="button"
+                  className="dropdown-item text-danger"
+                  disabled={!canCancel}
+                  onClick={() => {
+                    setActionMenu(null);
+                    if (order) setCancelOrder(order);
+                  }}
+                >
+                  <i className="ti ti-ban me-2" /> Cancel
+                </button>
+              </div>
+            );
+          }}
+        </Overlay>
+
+        <Modal show={Boolean(cancelOrder)} onHide={() => !cancellingOrder && setCancelOrder(null)} centered>
+          <Modal.Header closeButton={!cancellingOrder}>
+            <Modal.Title className="text-warning">
+              <i className="ti ti-alert-triangle me-2" />
+              Confirm Cancel
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            Are you sure you want to cancel Production Order <strong>{cancelOrder?.number || '-'}</strong>?
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="light-secondary" onClick={() => setCancelOrder(null)} disabled={cancellingOrder}>
+              Close
+            </Button>
+            <Button variant="danger" onClick={() => handleCancelOrder(cancelOrder)} disabled={cancellingOrder}>
+              {cancellingOrder ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />
+                  Cancelling...
+                </>
+              ) : (
+                <>
+                  <i className="ti ti-ban me-1" />
+                  Cancel Order
+                </>
+              )}
+            </Button>
+          </Modal.Footer>
+        </Modal>
+
+        <Modal show={Boolean(relationOrder)} onHide={() => setRelationOrder(null)} fullscreen>
+          <Modal.Header closeButton>
+            <Modal.Title>Relationship Map</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <div className="text-muted f-12 mb-3">Production flow (dummy data)</div>
+            <div className="d-flex flex-wrap align-items-center justify-content-center gap-3 py-4">
+              <div
+                onPointerDown={(event) => moveRelationCard('order', event)}
+                className="border rounded-3 p-3 shadow-sm bg-warning-subtle"
+                style={{
+                  minWidth: 190,
+                  cursor: 'grab',
+                  transform: `translate(${relationPositions.order?.x || 0}px, ${relationPositions.order?.y || 0}px)`
+                }}
+              >
+                <div className="fw-semibold mb-2">Production Order</div>
+                <div className="f-12">{relationOrder?.number || '-'}</div>
+                <div className="f-12">{relationOrder?.itemCode || 'E67.G'}</div>
+                <div className="f-12">{relationOrder?.status || 'Closed'}</div>
+              </div>
+              <span
+                className="text-warning fw-bold"
+                aria-hidden="true"
+                style={{
+                  fontSize: 38,
+                  lineHeight: 1,
+                  transform: `translate(${((relationPositions.order?.x || 0) + (relationPositions.issue?.x || 0)) / 2}px, ${((relationPositions.order?.y || 0) + (relationPositions.issue?.y || 0)) / 2}px)`
+                }}
+              >
+                ➜
+              </span>
+              <div
+                onPointerDown={(event) => moveRelationCard('issue', event)}
+                className="border rounded-3 p-3 shadow-sm bg-primary-subtle"
+                style={{
+                  minWidth: 190,
+                  cursor: 'grab',
+                  transform: `translate(${relationPositions.issue?.x || 0}px, ${relationPositions.issue?.y || 0}px)`
+                }}
+              >
+                <div className="fw-semibold mb-2">Issue for Production</div>
+                <div className="f-12">260810789</div>
+                <div className="f-12">11/08/26</div>
+                <div className="f-12 mt-2">IDR 3.060.000,00</div>
+              </div>
+              <span
+                className="text-warning fw-bold"
+                aria-hidden="true"
+                style={{
+                  fontSize: 38,
+                  lineHeight: 1,
+                  transform: `translate(${((relationPositions.issue?.x || 0) + (relationPositions.receipt?.x || 0)) / 2}px, ${((relationPositions.issue?.y || 0) + (relationPositions.receipt?.y || 0)) / 2}px)`
+                }}
+              >
+                ➜
+              </span>
+              <div
+                onPointerDown={(event) => moveRelationCard('receipt', event)}
+                className="border rounded-3 p-3 shadow-sm bg-info-subtle"
+                style={{
+                  minWidth: 190,
+                  cursor: 'grab',
+                  transform: `translate(${relationPositions.receipt?.x || 0}px, ${relationPositions.receipt?.y || 0}px)`
+                }}
+              >
+                <div className="fw-semibold mb-2">Receipt from Production</div>
+                <div className="f-12">260840010</div>
+                <div className="f-12">11/08/26</div>
+                <div className="f-12 mt-2">IDR 251.970.781,02</div>
+              </div>
+            </div>
+          </Modal.Body>
+        </Modal>
+
         {!loadingOrders && filteredOrders.length > 0 ? (
           <TablePagination
             currentPage={Math.min(currentPage, pageCount)}
@@ -568,13 +881,7 @@ export default function ProductionOrder() {
         ) : null}
       </MainCard>
 
-      <Modal
-        show={showDetailModal}
-        onHide={() => !loadingOrderDetail && setShowDetailModal(false)}
-        size="xl"
-        centered
-        scrollable
-      >
+      <Modal show={showDetailModal} onHide={() => !loadingOrderDetail && setShowDetailModal(false)} size="xl" centered scrollable>
         <Modal.Header closeButton={!loadingOrderDetail}>
           <Modal.Title>Production Order Detail</Modal.Title>
         </Modal.Header>
@@ -583,61 +890,55 @@ export default function ProductionOrder() {
             <LoaderData />
           ) : selectedOrder ? (
             <>
+              {false && selectedOrder.headerData && (
+                <div className="mb-4">
+                  <h6 className="mb-3">Header</h6>
+                  <Row className="g-3">
+                    {Object.entries(selectedOrder.headerData).map(([key, value]) => (
+                      <Col md={3} key={key}>
+                        <div className="text-muted f-12 text-capitalize">{formatDetailLabel(key)}</div>
+                        <div className="text-break">{formatDetailValue(value)}</div>
+                      </Col>
+                    ))}
+                  </Row>
+                </div>
+              )}
+
               <Row className="g-3 mb-4">
-                <Col md={4}>
+                <Col md={6}>
                   <div className="text-muted f-12">Production Order No.</div>
                   <div className="fw-semibold">{selectedOrder.number || '-'}</div>
                 </Col>
-                <Col md={4}>
+                <Col md={6}>
                   <div className="text-muted f-12">Product</div>
                   <div className="fw-semibold">{selectedOrder.itemCode || '-'}</div>
                   <div className="text-muted f-12">{selectedOrder.itemName || '-'}</div>
                 </Col>
-                <Col md={4}>
-                  <div className="text-muted f-12">Status</div>
-                  {getStatus(selectedOrder.status) ? (
-                    <Badge bg={getStatus(selectedOrder.status).variant}>{getStatus(selectedOrder.status).label}</Badge>
-                  ) : (
-                    '-'
-                  )}
-                </Col>
-                <Col md={3}>
-                  <div className="text-muted f-12">Type</div>
-                  <div>{selectedOrder.type || '-'}</div>
-                </Col>
-                <Col md={3}>
+                <Col md={6}>
                   <div className="text-muted f-12">Series</div>
                   <div>{selectedOrder.series || '-'}</div>
                 </Col>
-                <Col md={3}>
+                <Col md={6}>
                   <div className="text-muted f-12">Warehouse</div>
                   <div>{selectedOrder.warehouse || '-'}</div>
                 </Col>
-                <Col md={3}>
+                <Col md={6}>
                   <div className="text-muted f-12">Shift</div>
-                  <div>{selectedOrder.shift || '-'}</div>
+                  <div>{formatShift(selectedOrder.shift)}</div>
                 </Col>
-                <Col md={3}>
+                <Col md={6}>
                   <div className="text-muted f-12">Order Date</div>
                   <div>{formatDate(selectedOrder.orderDate)}</div>
                 </Col>
-                <Col md={3}>
-                  <div className="text-muted f-12">Start Date</div>
-                  <div>{formatDate(selectedOrder.startDate)}</div>
-                </Col>
-                <Col md={3}>
+                <Col md={6}>
                   <div className="text-muted f-12">Due Date</div>
                   <div>{formatDate(selectedOrder.dueDate)}</div>
                 </Col>
-                <Col md={3}>
-                  <div className="text-muted f-12">Priority</div>
-                  <div>{selectedOrder.priority === '' ? '-' : selectedOrder.priority}</div>
-                </Col>
-                <Col md={3}>
+                <Col md={6}>
                   <div className="text-muted f-12">Planned Quantity</div>
                   <div>{numberFormatter.format(Number(selectedOrder.plannedQuantity) || 0)}</div>
                 </Col>
-                <Col md={3}>
+                <Col md={6}>
                   <div className="text-muted f-12">Completed Quantity</div>
                   <div>{numberFormatter.format(Number(selectedOrder.completedQuantity) || 0)}</div>
                 </Col>
@@ -647,59 +948,83 @@ export default function ProductionOrder() {
                 </Col>
               </Row>
 
-              <h6 className="mb-3">Production Order Components</h6>
-              <Table className="mb-0 align-middle" responsive bordered hover>
-                <thead>
-                  <tr>
-                    <th style={{ width: 60 }}>#</th>
-                    <th>Type</th>
-                    <th>Item</th>
-                    <th className="text-end">Base Qty</th>
-                    <th className="text-end">Planned Qty</th>
-                    <th>Warehouse</th>
-                    <th>Issue Method</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedOrder.details.length ? (
-                    selectedOrder.details.map((detail, index) => {
-                      const item = getComponentItem(detail);
-                      const detailType = String(detail.type ?? detail.component_type ?? '');
-
-                      return (
-                        <tr key={detail.id ?? detail.detail_id ?? `${item.code}-${index}`}>
-                          <td>{index + 1}</td>
-                          <td>{detailType === '4' ? 'Item' : detailType === '290' ? 'Resource' : detailType || '-'}</td>
-                          <td>
-                            <div className="fw-semibold">{item.code || '-'}</div>
-                            <div className="text-muted f-12">{item.name || '-'}</div>
-                          </td>
-                          <td className="text-end">
-                            {numberFormatter.format(Number(detail.base_qty ?? detail.qty ?? detail.quantity) || 0)}
-                          </td>
-                          <td className="text-end">
-                            {numberFormatter.format(Number(detail.planned_qty ?? detail.planned_quantity) || 0)}
-                          </td>
-                          <td>
-                            {detail.warehouse_code ??
-                              detail.whs_code ??
-                              detail.warehouse?.code ??
-                              (typeof detail.warehouse === 'string' ? detail.warehouse : '') ??
-                              '-'}
-                          </td>
-                          <td>{detail.issue_mthd ?? detail.issue_method ?? detail.issueMethod ?? '-'}</td>
-                        </tr>
-                      );
-                    })
-                  ) : (
+              {false && <h6 className="mb-3">Production Order Components</h6>}
+              {false && (
+                <Table className="mb-0 align-middle" responsive bordered hover>
+                  <thead>
                     <tr>
-                      <td colSpan={7} className="text-center text-muted py-4">
-                        No Production Order component data found.
-                      </td>
+                      <th>Type</th>
+                      <th>Item</th>
+                      <th className="text-end">Base Qty</th>
+                      <th className="text-end">Planned Qty</th>
+                      <th>Warehouse</th>
+                      <th>Issue Method</th>
                     </tr>
-                  )}
-                </tbody>
-              </Table>
+                  </thead>
+                  <tbody>
+                    {selectedOrder.details.length ? (
+                      selectedOrder.details.map((detail, index) => {
+                        const item = getComponentItem(detail);
+                        const detailType = String(detail.type ?? detail.component_type ?? '');
+
+                        return (
+                          <tr key={detail.id ?? detail.detail_id ?? `${item.code}-${index}`}>
+                            <td>{detailType === '4' ? 'Item' : detailType === '290' ? 'Resource' : detailType || '-'}</td>
+                            <td>
+                              <div className="fw-semibold">{item.code || '-'}</div>
+                              <div className="text-muted f-12">{item.name || '-'}</div>
+                            </td>
+                            <td className="text-end">
+                              {numberFormatter.format(Number(detail.base_qty ?? detail.qty ?? detail.quantity) || 0)}
+                            </td>
+                            <td className="text-end">
+                              {numberFormatter.format(Number(detail.planned_qty ?? detail.planned_quantity) || 0)}
+                            </td>
+                            <td>
+                              {detail.warehouse_code ??
+                                detail.whs_code ??
+                                detail.warehouse?.code ??
+                                (typeof detail.warehouse === 'string' ? detail.warehouse : '') ??
+                                '-'}
+                            </td>
+                            <td>{detail.issue_mthd ?? detail.issue_method ?? detail.issueMethod ?? '-'}</td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan={6} className="text-center text-muted py-4">
+                          No Production Order component data found.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </Table>
+              )}
+
+              {selectedOrder.itemsData?.length ? (
+                <div className="mt-4">
+                  <h6 className="mb-3">Items Response</h6>
+                  <Table className="mb-0 align-middle" responsive bordered hover>
+                    <thead>
+                      <tr>
+                        {Object.keys(selectedOrder.itemsData[0]).map((key) => (
+                          <th key={key}>{formatDetailLabel(key)}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedOrder.itemsData.map((item, index) => (
+                        <tr key={item.id ?? item.LineNum ?? index}>
+                          {Object.keys(selectedOrder.itemsData[0]).map((key) => (
+                            <td key={key}>{formatDetailValue(item[key])}</td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </div>
+              ) : null}
             </>
           ) : null}
         </Modal.Body>
@@ -748,11 +1073,7 @@ export default function ProductionOrder() {
                         <InputGroup>
                           <Form.Control
                             readOnly
-                            value={
-                              form.product
-                                ? [form.product.productCode, form.product.productName].filter(Boolean).join(' - ')
-                                : ''
-                            }
+                            value={form.product ? [form.product.productCode, form.product.productName].filter(Boolean).join(' - ') : ''}
                             placeholder="Select product from Bill of Material"
                             onClick={handleOpenBomSelection}
                           />
@@ -884,7 +1205,6 @@ export default function ProductionOrder() {
           <Table className="mb-0 align-middle" responsive bordered hover>
             <thead>
               <tr>
-                <th style={{ width: 60 }}>#</th>
                 <th>Type</th>
                 <th>Item</th>
                 <th className="text-end">Base Qty</th>
@@ -897,7 +1217,7 @@ export default function ProductionOrder() {
             <tbody>
               {loadingBomDetail ? (
                 <tr>
-                  <td colSpan={8}>
+                  <td colSpan={7}>
                     <LoaderData />
                   </td>
                 </tr>
@@ -917,7 +1237,6 @@ export default function ProductionOrder() {
 
                   return (
                     <tr key={detail.id ?? detail.detail_id ?? `${item.code}-${index}`}>
-                      <td>{index + 1}</td>
                       <td>{type === '4' ? 'Item' : type === '290' ? 'Resource' : type || '-'}</td>
                       <td>
                         <div className="fw-semibold">{item.code || '-'}</div>
@@ -933,7 +1252,7 @@ export default function ProductionOrder() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={8} className="text-center text-muted py-4">
+                  <td colSpan={7} className="text-center text-muted py-4">
                     Select a product from Bill of Material to display its details.
                   </td>
                 </tr>
@@ -968,11 +1287,7 @@ export default function ProductionOrder() {
         <Modal.Body>
           <Form onSubmit={handleSearchBoms} className="mb-3">
             <InputGroup>
-              <Form.Control
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search BOM code or product"
-              />
+              <Form.Control value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search BOM code or product" />
               <Button type="submit" variant="primary" disabled={loadingBoms}>
                 <i className="ti ti-search" />
               </Button>
@@ -985,7 +1300,9 @@ export default function ProductionOrder() {
                 <th>Product</th>
                 <th>UOM</th>
                 <th>Alternate</th>
-                <th className="text-center" style={{ width: 90 }}>Action</th>
+                <th className="text-center" style={{ width: 90 }}>
+                  Action
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -1005,12 +1322,7 @@ export default function ProductionOrder() {
                     <td>{bom.uom || '-'}</td>
                     <td>{bom.alternate || '-'}</td>
                     <td className="text-center">
-                      <Button
-                        variant="success"
-                        size="sm"
-                        onClick={() => handleSelectBom(bom)}
-                        disabled={loadingBomDetail}
-                      >
+                      <Button variant="success" size="sm" onClick={() => handleSelectBom(bom)} disabled={loadingBomDetail}>
                         Select
                       </Button>
                     </td>

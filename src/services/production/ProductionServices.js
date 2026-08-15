@@ -29,8 +29,24 @@ class ProductionServices {
     return DataService.get('/production/orders', payload);
   }
 
+  getListOrderSap(payload = {}) {
+    const { from = '', to = '', whs_code = '', to_whs_code = '' } = payload;
+
+    return DataService.get('/production/get-list-pdo-sap', { from, to, whs_code, to_whs_code });
+  }
+
   getProductionOrderById(id) {
-    return DataService.get(`/production/orders/${id}`);
+    return DataService.get(`/production/orders/sap/${id}`);
+  }
+
+  cancelProductionOrder(id) {
+    return DataService.post(`/production/orders/${id}/cancel`);
+  }
+
+  postCancelProductionOrder(payload = {}) {
+    const { DocEntry = '', UserId = '', AddonId = '' } = payload;
+
+    return DataService.post('/production/orders/sap/cancel', { DocEntry, UserId, AddonId });
   }
 
   getProductionReceipts(payload = {}) {
@@ -39,6 +55,16 @@ class ProductionServices {
 
   getProductionReceiptById(id) {
     return DataService.get(`/production/receipts/${id}`);
+  }
+
+  getReceipt(payload = {}) {
+    const { from = '', to = '', whs_code = '', to_whs_code = '' } = payload;
+
+    return DataService.get('/production/receipts/sap-list', { from, to, whs_code, to_whs_code });
+  }
+
+  getReceiptDetail(id) {
+    return DataService.get(`/production/receipts/sap/${id}`);
   }
 
   postProductionReceipt(payload) {

@@ -157,23 +157,26 @@ export default function BillOfMaterial() {
 
   const uomOptions = useMemo(() => form.product?.uoms || [], [form.product]);
 
-  const fetchBoms = useCallback(async (keyword = '') => {
-    setLoading(true);
+  const fetchBoms = useCallback(
+    async (keyword = '') => {
+      setLoading(true);
 
-    try {
-      const response = await ProductionServices.getBoms({ code: '', search: keyword });
+      try {
+        const response = await ProductionServices.getBoms({ code: '', search: keyword });
 
-      if (response?.data?.success === false) {
-        throw new Error(response.data.message || 'Failed to fetch Bill of Material data');
+        if (response?.data?.success === false) {
+          throw new Error(response.data.message || 'Failed to fetch Bill of Material data');
+        }
+
+        setRows(getResponseList(response).map(normalizeBom));
+      } catch (error) {
+        showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch Bill of Material data', 'danger');
+      } finally {
+        setLoading(false);
       }
-
-      setRows(getResponseList(response).map(normalizeBom));
-    } catch (error) {
-      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch Bill of Material data', 'danger');
-    } finally {
-      setLoading(false);
-    }
-  }, [showAlert]);
+    },
+    [showAlert]
+  );
 
   useEffect(() => {
     const delayTimer = window.setTimeout(() => fetchBoms(search.trim()), search ? 500 : 0);
@@ -422,8 +425,7 @@ export default function BillOfMaterial() {
       const source = normalizeBom(getResponseItem(response));
       const rawSource = getResponseItem(response);
       const product = options.products.find((option) => String(option.value) === String(source.productNo)) || null;
-      const warehouseCode =
-        rawSource.to_whs ?? rawSource.whs_code ?? rawSource.warehouse_code ?? rawSource.warehouse?.code ?? '';
+      const warehouseCode = rawSource.to_whs ?? rawSource.whs_code ?? rawSource.warehouse_code ?? rawSource.warehouse?.code ?? '';
       const ocrCode = rawSource.ocr_code ?? rawSource.distribution_rule ?? '';
       const ocrCode2 = rawSource.ocr_code2 ?? rawSource.business_unit_code ?? '';
       const ocrCode3 = rawSource.ocr_code3 ?? rawSource.department_code ?? '';
@@ -441,8 +443,7 @@ export default function BillOfMaterial() {
           product?.uoms.find((option) => String(option.value) === String(source.uom)) ||
           (source.uom ? { value: source.uom, label: source.uom } : null),
         warehouse: options.warehouses.find((option) => String(option.value) === String(warehouseCode)) || null,
-        distributionRule:
-          options.distributionRules.find((option) => String(option.value) === String(ocrCode)) || null,
+        distributionRule: options.distributionRules.find((option) => String(option.value) === String(ocrCode)) || null,
         businessUnit: options.businessUnits.find((option) => String(option.value) === String(ocrCode2)) || null,
         department: options.departments.find((option) => String(option.value) === String(ocrCode3)) || null,
         comments: source.comments || '',
@@ -452,7 +453,7 @@ export default function BillOfMaterial() {
               const itemData = detail.item ?? {};
               const code =
                 (typeof itemData === 'object'
-                  ? itemData.code ?? itemData.item_code ?? itemData.material_code ?? itemData.resource_code ?? itemData.res_code
+                  ? (itemData.code ?? itemData.item_code ?? itemData.material_code ?? itemData.resource_code ?? itemData.res_code)
                   : null) ??
                 detail.code ??
                 detail.item_code ??
@@ -462,11 +463,7 @@ export default function BillOfMaterial() {
                 '';
               const name =
                 (typeof itemData === 'object'
-                  ? itemData.name ??
-                    itemData.item_name ??
-                    itemData.material_name ??
-                    itemData.resource_name ??
-                    itemData.res_name
+                  ? (itemData.name ?? itemData.item_name ?? itemData.material_name ?? itemData.resource_name ?? itemData.res_name)
                   : itemData) ||
                 detail.name ||
                 detail.item_name ||
@@ -480,8 +477,7 @@ export default function BillOfMaterial() {
                 id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
                 type,
                 item: code ? { value: code, label: [code, name].filter(Boolean).join(' - '), name, uom } : null,
-                quantity:
-                  detail.qty == null && detail.quantity == null ? '' : Number(detail.qty ?? detail.quantity),
+                quantity: detail.qty == null && detail.quantity == null ? '' : Number(detail.qty ?? detail.quantity),
                 issueMethod: detail.issue_mthd ?? detail.issue_method ?? detail.issueMethod ?? ''
               };
             })
@@ -506,18 +502,29 @@ export default function BillOfMaterial() {
           </Stack>
         }
         secondary={
-          <Button variant="primary" onClick={handleOpenCreateModal}>
-            <i className="ti ti-plus me-1" />
-            Create
-          </Button>
+          <Stack direction="horizontal" gap={2}>
+            <Button variant="outline-primary" onClick={() => fetchBoms(search.trim())} disabled={loading} title="Refresh">
+              <i className={`ti ti-refresh ${loading ? 'ti-spin' : ''}`} />
+            </Button>
+            <Button variant="primary" onClick={handleOpenCreateModal}>
+              <i className="ti ti-plus me-1" />
+              Create
+            </Button>
+          </Stack>
         }
       >
         <Row className="g-2 mb-3">
           <Col lg={6} md={8}>
             <InputGroup>
-              <InputGroup.Text><i className="ti ti-search" /></InputGroup.Text>
+              <InputGroup.Text>
+                <i className="ti ti-search" />
+              </InputGroup.Text>
               <Form.Control value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search BOM code or product" />
-              {search && <Button variant="outline-secondary" onClick={() => setSearch('')}><i className="ti ti-x" /></Button>}
+              {search && (
+                <Button variant="outline-secondary" onClick={() => setSearch('')}>
+                  <i className="ti ti-x" />
+                </Button>
+              )}
             </InputGroup>
           </Col>
         </Row>
@@ -526,16 +533,24 @@ export default function BillOfMaterial() {
             <tr>
               <th style={{ width: '5%' }}>#</th>
               <th style={{ width: '29%' }}>Product</th>
-              <th className="text-end" style={{ width: '10%' }}>Quantity</th>
+              <th className="text-end" style={{ width: '10%' }}>
+                Quantity
+              </th>
               <th style={{ width: '7%' }}>UOM</th>
               <th style={{ width: '24%' }}>Warehouse</th>
               <th style={{ width: '12%' }}>Alternate</th>
-              <th className="text-center" style={{ width: '13%' }}>Action</th>
+              <th className="text-center" style={{ width: '13%' }}>
+                Action
+              </th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7}><LoaderData /></td></tr>
+              <tr>
+                <td colSpan={7}>
+                  <LoaderData />
+                </td>
+              </tr>
             ) : rows.length ? (
               rows.map((item, index) => (
                 <tr key={item.id}>
@@ -630,13 +645,7 @@ export default function BillOfMaterial() {
                   if (item) handleDuplicate(item);
                 }}
               >
-                <i
-                  className={
-                    duplicatingId === item?.id
-                      ? 'ti ti-loader-2 text-info me-2'
-                      : 'ti ti-copy text-info me-2'
-                  }
-                />
+                <i className={duplicatingId === item?.id ? 'ti ti-loader-2 text-info me-2' : 'ti ti-copy text-info me-2'} />
                 Duplicate
               </button>
               <div className="dropdown-divider" />
@@ -726,7 +735,7 @@ export default function BillOfMaterial() {
                         const item = detail.item ?? {};
                         const code =
                           (typeof item === 'object'
-                            ? item.code ?? item.item_code ?? item.material_code ?? item.resource_code ?? item.res_code
+                            ? (item.code ?? item.item_code ?? item.material_code ?? item.resource_code ?? item.res_code)
                             : null) ??
                           detail.code ??
                           detail.item_code ??
@@ -736,7 +745,7 @@ export default function BillOfMaterial() {
                           '';
                         const name =
                           (typeof item === 'object'
-                            ? item.name ?? item.item_name ?? item.material_name ?? item.resource_name ?? item.res_name
+                            ? (item.name ?? item.item_name ?? item.material_name ?? item.resource_name ?? item.res_name)
                             : item) ||
                           detail.name ||
                           detail.item_name ||
@@ -748,22 +757,12 @@ export default function BillOfMaterial() {
                         const uom = detail.uom ?? detail.unit ?? detail.unit_of_msr ?? detail.invntry_uom ?? '';
                         const issueMethod = detail.issue_mthd ?? detail.issue_method ?? detail.issueMethod ?? '-';
                         const distributionRule =
-                          detail.distribution_rule_name ??
-                          detail.distribution_rule ??
-                          detail.ocr_name ??
-                          detail.ocr_code ??
-                          '-';
+                          detail.distribution_rule_name ?? detail.distribution_rule ?? detail.ocr_name ?? detail.ocr_code ?? '-';
 
                         return (
                           <tr key={detail.id ?? detail.detail_id ?? `${code}-${index}`}>
                             <td>{index + 1}</td>
-                            <td>
-                              {type === COMPONENT_TYPE_ITEM
-                                ? 'Item'
-                                : type === COMPONENT_TYPE_RESOURCE
-                                  ? 'Resource'
-                                  : type || '-'}
-                            </td>
+                            <td>{type === COMPONENT_TYPE_ITEM ? 'Item' : type === COMPONENT_TYPE_RESOURCE ? 'Resource' : type || '-'}</td>
                             <td>
                               <div className="fw-semibold">{code || '-'}</div>
                               <div className="text-muted">{name || '-'}</div>
@@ -812,7 +811,9 @@ export default function BillOfMaterial() {
           <Row className="g-3">
             <Col md={6}>
               <Form.Group>
-                <Form.Label>Product No <span className="text-danger">*</span></Form.Label>
+                <Form.Label>
+                  Product No <span className="text-danger">*</span>
+                </Form.Label>
                 <Select
                   value={form.product}
                   options={productOptions}
@@ -837,7 +838,9 @@ export default function BillOfMaterial() {
             </Col>
             <Col md={6}>
               <Form.Group>
-                <Form.Label>Quantity <span className="text-danger">*</span></Form.Label>
+                <Form.Label>
+                  Quantity <span className="text-danger">*</span>
+                </Form.Label>
                 <Form.Control
                   type="number"
                   min="0"
@@ -855,7 +858,9 @@ export default function BillOfMaterial() {
             </Col>
             <Col md={6}>
               <Form.Group>
-                <Form.Label>UOM Name <span className="text-danger">*</span></Form.Label>
+                <Form.Label>
+                  UOM Name <span className="text-danger">*</span>
+                </Form.Label>
                 <Select
                   value={form.uom}
                   options={uomOptions}
@@ -871,7 +876,9 @@ export default function BillOfMaterial() {
             </Col>
             <Col md={6}>
               <Form.Group>
-                <Form.Label>Warehouse <span className="text-danger">*</span></Form.Label>
+                <Form.Label>
+                  Warehouse <span className="text-danger">*</span>
+                </Form.Label>
                 <Select
                   value={form.warehouse}
                   options={warehouseOptions}
@@ -890,7 +897,9 @@ export default function BillOfMaterial() {
             </Col>
             <Col md={6}>
               <Form.Group>
-                <Form.Label>Distribution Rule <span className="text-danger">*</span></Form.Label>
+                <Form.Label>
+                  Distribution Rule <span className="text-danger">*</span>
+                </Form.Label>
                 <Select
                   value={form.distributionRule}
                   options={distributionRuleOptions}
@@ -959,7 +968,9 @@ export default function BillOfMaterial() {
             <Col xs={12}>
               <Stack direction="horizontal" gap={2} className="justify-content-between align-items-start mb-2">
                 <div>
-                  <Form.Label className="mb-0">Components <span className="text-danger">*</span></Form.Label>
+                  <Form.Label className="mb-0">
+                    Components <span className="text-danger">*</span>
+                  </Form.Label>
                   <div className="text-muted f-12">Add the item or resource components required for this product.</div>
                 </div>
                 <Button type="button" size="sm" variant="outline-primary" onClick={addDetailRow} disabled={loadingOptions}>
@@ -977,7 +988,9 @@ export default function BillOfMaterial() {
                       <th style={{ minWidth: 100 }}>UOM</th>
                       <th style={{ minWidth: 120 }}>Qty</th>
                       <th style={{ minWidth: 150 }}>Issue Method</th>
-                      <th className="text-center" style={{ width: 60 }}>#</th>
+                      <th className="text-center" style={{ width: 60 }}>
+                        #
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -985,17 +998,12 @@ export default function BillOfMaterial() {
                       form.details.map((detail) => {
                         const isResource = String(detail.type) === COMPONENT_TYPE_RESOURCE;
                         const sourceItems = isResource ? resourceItems : materialItems;
-                        const componentOptions = detail.type
-                          ? sourceItems.map((item) => normalizeComponentOption(item, detail.type))
-                          : [];
+                        const componentOptions = detail.type ? sourceItems.map((item) => normalizeComponentOption(item, detail.type)) : [];
 
                         return (
                           <tr key={detail.id}>
                             <td>
-                              <Form.Select
-                                value={detail.type}
-                                onChange={(event) => handleDetailTypeChange(detail.id, event.target.value)}
-                              >
+                              <Form.Select value={detail.type} onChange={(event) => handleDetailTypeChange(detail.id, event.target.value)}>
                                 <option value="">Select Type</option>
                                 <option value={COMPONENT_TYPE_ITEM}>Item</option>
                                 <option value={COMPONENT_TYPE_RESOURCE}>Resource</option>

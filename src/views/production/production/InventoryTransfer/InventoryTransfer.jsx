@@ -85,7 +85,8 @@ const getResponseDetail = (response) => {
 const formatTransferDate = (value) => {
   if (!value) return '-';
 
-  const date = new Date(value);
+  const compactDate = String(value).match(/^(\d{4})(\d{2})(\d{2})$/);
+  const date = compactDate ? new Date(Number(compactDate[1]), Number(compactDate[2]) - 1, Number(compactDate[3])) : new Date(value);
   return Number.isNaN(date.getTime())
     ? String(value)
     : date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -169,8 +170,7 @@ const normalizeProduct = (item) => {
   const code = item.item_code || item.product_code || item.code || item.ItemCode || '';
   const name = item.item_name || item.product_name || item.name || item.ItemName || '';
   const uom = item.invntry_uom || item.inventory_uom || item.sal_unit_msr || item.uom || item.unit || item.unit_msr || '';
-  const uomEntry =
-    item.uom_entry ?? item.uomEntry ?? item.UomEntry ?? item.iuom_entry ?? item.inventory_uom_entry ?? item.suom_entry ?? 0;
+  const uomEntry = item.uom_entry ?? item.uomEntry ?? item.UomEntry ?? item.iuom_entry ?? item.inventory_uom_entry ?? item.suom_entry ?? 0;
 
   return {
     value: code,
@@ -211,8 +211,7 @@ const normalizeBin = (item, index) => {
   const name = item.bin_name || item.binName || item.BinName || item.name || item.description || item.Description || item.Descr || '';
   const itemName = item.item_name || item.itemName || item.ItemName || item.product_name || item.productName || '';
   const itemCode = item.item_code || item.itemCode || item.ItemCode || item.product_code || item.productCode || '';
-  const absEntry =
-    item.AbsEntry ?? item.absEntry ?? item.abs_entry ?? item.BinAbsEntry ?? item.bin_abs_entry ?? item.id ?? code ?? index;
+  const absEntry = item.AbsEntry ?? item.absEntry ?? item.abs_entry ?? item.BinAbsEntry ?? item.bin_abs_entry ?? item.id ?? code ?? index;
   const availableQty = Number(
     item.available_qty ??
       item.availableQty ??
@@ -336,7 +335,11 @@ export default function InventoryTransfer() {
       const response = await WarehouseServices.getAllWarehouse('');
       if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch warehouses');
 
-      setWarehouseOptions(getResponseList(response).map(normalizeWarehouse).filter((option) => option.value));
+      setWarehouseOptions(
+        getResponseList(response)
+          .map(normalizeWarehouse)
+          .filter((option) => option.value)
+      );
     } catch (error) {
       setWarehouseOptions([]);
       showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch warehouses', 'danger');
@@ -421,11 +424,11 @@ export default function InventoryTransfer() {
           .map((item) => {
             const value =
               typeof item === 'object'
-                ? item.series ?? item.Series ?? item.series_code ?? item.seriesCode ?? item.value ?? item.code ?? item.id
+                ? (item.series ?? item.Series ?? item.series_code ?? item.seriesCode ?? item.value ?? item.code ?? item.id)
                 : item;
             const label =
               typeof item === 'object'
-                ? item.label ?? item.series_name ?? item.seriesName ?? item.SeriesName ?? item.name ?? item.description ?? value
+                ? (item.label ?? item.series_name ?? item.seriesName ?? item.SeriesName ?? item.name ?? item.description ?? value)
                 : item;
 
             return value == null ? null : { value, label: String(label || value), raw: item };
@@ -460,12 +463,26 @@ export default function InventoryTransfer() {
         throw new Error('Failed to fetch material, warehouse, or OCR data');
       }
 
-      setProductOptions(getResponseList(productResponse).map(normalizeProduct).filter((option) => option.value));
-      setWarehouseOptions(getResponseList(warehouseResponse).map(normalizeWarehouse).filter((option) => option.value));
+      setProductOptions(
+        getResponseList(productResponse)
+          .map(normalizeProduct)
+          .filter((option) => option.value)
+      );
+      setWarehouseOptions(
+        getResponseList(warehouseResponse)
+          .map(normalizeWarehouse)
+          .filter((option) => option.value)
+      );
       setOcrOptions({
-        branch: getResponseList(branchResponse).map(normalizeOcr).filter((option) => option.value),
-        businessUnit: getResponseList(businessUnitResponse).map(normalizeOcr).filter((option) => option.value),
-        department: getResponseList(departmentResponse).map(normalizeOcr).filter((option) => option.value)
+        branch: getResponseList(branchResponse)
+          .map(normalizeOcr)
+          .filter((option) => option.value),
+        businessUnit: getResponseList(businessUnitResponse)
+          .map(normalizeOcr)
+          .filter((option) => option.value),
+        department: getResponseList(departmentResponse)
+          .map(normalizeOcr)
+          .filter((option) => option.value)
       });
     } catch (error) {
       showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch form options', 'danger');
@@ -560,9 +577,7 @@ export default function InventoryTransfer() {
         return {
           ...line,
           fromBinQuantity: quantity,
-          binAllocations: line.binAllocations.length
-            ? [{ ...line.binAllocations[0], quantity }]
-            : []
+          binAllocations: line.binAllocations.length ? [{ ...line.binAllocations[0], quantity }] : []
         };
       })
     }));
@@ -580,9 +595,7 @@ export default function InventoryTransfer() {
         return {
           ...line,
           toBinQuantity: quantity,
-          toBinAllocations: line.toBinAllocations.length
-            ? [{ ...line.toBinAllocations[0], quantity }]
-            : []
+          toBinAllocations: line.toBinAllocations.length ? [{ ...line.toBinAllocations[0], quantity }] : []
         };
       })
     }));
@@ -805,11 +818,7 @@ export default function InventoryTransfer() {
               </Col>
               <Col lg={2}>
                 <Stack direction="horizontal" gap={2}>
-                  <Button
-                    className="flex-grow-1"
-                    disabled={loadingInventoryTransfers}
-                    onClick={() => fetchInventoryTransfers()}
-                  >
+                  <Button className="flex-grow-1" disabled={loadingInventoryTransfers} onClick={() => fetchInventoryTransfers()}>
                     <i className={loadingInventoryTransfers ? 'ti ti-loader-2 me-1' : 'ti ti-search me-1'} />
                     {loadingInventoryTransfers ? 'Loading...' : 'Search'}
                   </Button>
@@ -1477,9 +1486,7 @@ export default function InventoryTransfer() {
                         value={bin.quantity}
                         onChange={(event) =>
                           setBinRows((current) =>
-                            current.map((row, rowIndex) =>
-                              rowIndex === index ? { ...row, quantity: event.target.value } : row
-                            )
+                            current.map((row, rowIndex) => (rowIndex === index ? { ...row, quantity: event.target.value } : row))
                           )
                         }
                         isInvalid={Number(bin.quantity) < 0 || (bin.availableQty > 0 && Number(bin.quantity) > bin.availableQty)}
@@ -1513,10 +1520,7 @@ export default function InventoryTransfer() {
           <Button
             variant="primary"
             disabled={
-              loadingBins ||
-              !binRows.length ||
-              hasInvalidBinQuantity ||
-              !isQuantityEqual(allocatedBinQuantity, activeBinLine?.quantity)
+              loadingBins || !binRows.length || hasInvalidBinQuantity || !isQuantityEqual(allocatedBinQuantity, activeBinLine?.quantity)
             }
             onClick={saveBinAllocations}
           >

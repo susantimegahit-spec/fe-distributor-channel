@@ -1738,6 +1738,18 @@ body {
   }
 }
 
+.production-order-link {
+  border-radius: 0;
+  line-height: 1.35;
+  text-decoration: none;
+}
+
+.production-order-link:hover,
+.production-order-link:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
 .sm-network-status {
   position: fixed;
   inset: 0;
