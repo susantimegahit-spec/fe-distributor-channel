@@ -513,7 +513,10 @@ export default function MasterPrice() {
                             {getValue(item, ['item_name', 'name_item', 'itemName', 'product_name'])}
                           </td>
                           <td style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>
-                            {getValue(item, ['distributor_name', 'customer_name', 'card_name', 'name_customer'])}
+                            <div>{getValue(item, ['distributor_name', 'customer_name', 'card_name', 'name_customer'])}</div>
+                            <small className="text-muted">
+                              {getValue(item, ['code_customer', 'customer_code', 'distributor_code', 'card_code'])}
+                            </small>
                           </td>
                           <td>{getValue(item, ['depo'])}</td>
                           <td className="fw-semibold">{formatCurrency(getPriceValue(item))}</td>
