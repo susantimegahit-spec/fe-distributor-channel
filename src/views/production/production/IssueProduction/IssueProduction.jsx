@@ -69,7 +69,16 @@ const normalizeKey = (key) =>
   String(key || '')
     .replaceAll('_', '')
     .toLowerCase();
-const columnLabels = { itemcode: 'Item', itemname: 'Item Name', whscode: 'Warehouse', quantity: 'Quantity', qty: 'Quantity' };
+const columnLabels = {
+  itemcode: 'Item',
+  itemname: 'Item Name',
+  whscode: 'Warehouse',
+  quantity: 'Quantity',
+  qty: 'Quantity',
+  ocrcode: 'Branch',
+  ocrcode2: 'Business Unit',
+  ocrcode3: 'Department'
+};
 const formatValue = (value, key) => {
   if (value === undefined || value === null || value === '') return '-';
   if (['qty', 'quantity'].includes(normalizeKey(key))) {

@@ -4,18 +4,52 @@ import Button from 'react-bootstrap/Button';
 import Card from 'react-bootstrap/Card';
 import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
+import InputGroup from 'react-bootstrap/InputGroup';
 import Modal from 'react-bootstrap/Modal';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
+import Select from 'react-select';
 
 import MainCard from 'components/MainCard';
+import LoaderData from 'components/LoaderData';
+import DistributorServices from '../../../../services/customer-portal/DistributorServices';
 import TablePagination from 'components/TablePagination';
 import ProductionServices from '../../../../services/production/ProductionServices';
 import { useAlert } from '../../../../utils/alertContext';
+import { getCookies } from '../../../../utils/cookies';
 
 const pageSize = 10;
 const numberFormatter = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 });
+const compactSelectStyles = {
+  menuPortal: (base) => ({ ...base, zIndex: 1090 }),
+  control: (base) => ({ ...base, minHeight: 31, minWidth: 180, fontSize: '0.75rem' }),
+  valueContainer: (base) => ({ ...base, paddingTop: 0, paddingBottom: 0 }),
+  option: (base) => ({ ...base, fontSize: '0.75rem' })
+};
+const today = new Date().toLocaleDateString('en-CA');
+const createReceiptLine = () => ({
+  ItemCode: '',
+  ItemName: '',
+  BaseType: 202,
+  BaseEntry: '',
+  BaseLine: 0,
+  Quantity: '',
+  WhsCode: '',
+  UoMEntry: '',
+  OcrCode: '',
+  OcrCode2: '',
+  OcrCode3: ''
+});
+const createReceiptForm = () => ({
+  DocDate: today,
+  DocDueDate: today,
+  Comments: '',
+  Shift: 'X',
+  Unit: '',
+  Bomid: '',
+  Lines: [createReceiptLine()]
+});
 
 const formatInputDate = (date) => {
   const year = date.getFullYear();
@@ -45,6 +79,9 @@ const getResponseList = (response) => {
   if (Array.isArray(payload?.data)) return payload.data;
   if (Array.isArray(payload?.items)) return payload.items;
   if (Array.isArray(payload?.rows)) return payload.rows;
+  if (Array.isArray(payload?.boms)) return payload.boms;
+  if (Array.isArray(payload?.orders)) return payload.orders;
+  if (Array.isArray(payload?.production_orders)) return payload.production_orders;
   if (Array.isArray(payload?.receipts)) return payload.receipts;
   if (Array.isArray(payload?.production_receipts)) return payload.production_receipts;
   if (Array.isArray(payload?.documents)) return payload.documents;
@@ -90,6 +127,45 @@ const normalizeReceipt = (item = {}, index = 0) => ({
   comments: getValue(item, ['Comments', 'comments', 'remarks', 'remark'], '-'),
   raw: item
 });
+
+const normalizeProductionOrder = (item = {}, index = 0) => ({
+  id: item.DocEntry ?? item.doc_entry ?? item.id ?? index,
+  number: item.DocNum ?? item.doc_num ?? item.prod_order_no ?? item.production_order_no ?? '-',
+  itemCode: item.ItemCode ?? item.item_code ?? item.product_code ?? '',
+  itemName: item.ProdName ?? item.ItemName ?? item.item_name ?? item.product_name ?? '',
+  plannedQuantity: Number(item.PlannedQty ?? item.planned_qty ?? item.planned_quantity ?? item.quantity ?? 0),
+  completedQuantity: Number(item.CmpltQty ?? item.completed_qty ?? item.completed_quantity ?? 0),
+  warehouse: item.Warehouse ?? item.WhsCode ?? item.whs_code ?? item.warehouse_code ?? '',
+  bomId: item.Bomid ?? item.BomId ?? item.bom_id ?? item.bomId ?? '',
+  unit: item.U_Unit ?? item.Unit ?? item.unit ?? item.ocr_code2 ?? '',
+  ocrCode: item.OcrCode ?? item.ocr_code ?? '',
+  ocrCode2: item.OcrCode2 ?? item.ocr_code2 ?? '',
+  ocrCode3: item.OcrCode3 ?? item.ocr_code3 ?? '',
+  raw: item
+});
+
+const createReceiptLineFromOrder = (order) => {
+  const remainingQuantity = Math.max(order.plannedQuantity - order.completedQuantity, 0);
+  return {
+    ItemCode: order.itemCode,
+    ItemName: order.itemName,
+    BaseType: 202,
+    BaseEntry: order.id,
+    BaseLine: 0,
+    Quantity: Math.trunc(remainingQuantity || order.plannedQuantity),
+    WhsCode: order.warehouse,
+    UoMEntry: 0,
+    OcrCode: order.ocrCode,
+    OcrCode2: order.ocrCode2,
+    OcrCode3: order.ocrCode3
+  };
+};
+
+const normalizeOcr = (item = {}) => {
+  const code = item.ocr_code || item.ocrCode || item.OcrCode || item.code || '';
+  const name = item.ocr_name || item.ocrName || item.OcrName || item.name || '';
+  return { value: code, label: [code, name].filter(Boolean).join(' - ') || String(code), raw: item };
+};
 
 const normalizeColumnKey = (key) =>
   String(key || '')
@@ -141,6 +217,18 @@ export default function ReceiptProduction() {
   const [selectedReceipt, setSelectedReceipt] = useState(null);
   const [loadingReceiptDetailId, setLoadingReceiptDetailId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [showAddReceipt, setShowAddReceipt] = useState(false);
+  const [receiptForm, setReceiptForm] = useState(createReceiptForm);
+  const [savingReceipt, setSavingReceipt] = useState(false);
+  const [selectedBom, setSelectedBom] = useState(null);
+  const [showBomModal, setShowBomModal] = useState(false);
+  const [loadingBoms, setLoadingBoms] = useState(false);
+  const [loadingBomDetail, setLoadingBomDetail] = useState(false);
+  const [bomSearch, setBomSearch] = useState('');
+  const [boms, setBoms] = useState([]);
+  const [pdoFilters, setPdoFilters] = useState(initialFilters);
+  const [loadingOcr, setLoadingOcr] = useState(false);
+  const [ocrOptions, setOcrOptions] = useState({ branch: [], businessUnit: [], department: [] });
 
   const fetchReceipts = useCallback(
     async (activeFilters) => {
@@ -217,6 +305,154 @@ export default function ReceiptProduction() {
     fetchReceipts(defaultFilters);
   };
 
+  const fetchBoms = async (keyword = '', activeFilters = pdoFilters) => {
+    if (activeFilters.from && activeFilters.to && new Date(activeFilters.from) > new Date(activeFilters.to)) {
+      showAlert('Start Date cannot be after End Date', 'warning');
+      return;
+    }
+    setLoadingBoms(true);
+    try {
+      const response = await ProductionServices.getListOrderSap({
+        from: activeFilters.from || '',
+        to: activeFilters.to || '',
+        whs_code: '',
+        to_whs_code: ''
+      });
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch Production Order data');
+      const search = keyword.trim().toLowerCase();
+      const orders = getResponseList(response).map(normalizeProductionOrder);
+      setBoms(
+        search
+          ? orders.filter((order) =>
+              [order.number, order.itemCode, order.itemName].some((value) =>
+                String(value || '')
+                  .toLowerCase()
+                  .includes(search)
+              )
+            )
+          : orders
+      );
+    } catch (error) {
+      setBoms([]);
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch Production Order data', 'danger');
+    } finally {
+      setLoadingBoms(false);
+    }
+  };
+
+  const fetchOcrOptions = async () => {
+    setLoadingOcr(true);
+    try {
+      const [branchResponse, businessUnitResponse, departmentResponse] = await Promise.all([
+        DistributorServices.getOcrByType(1),
+        DistributorServices.getOcrByType(2),
+        DistributorServices.getOcrByType(3)
+      ]);
+      if ([branchResponse, businessUnitResponse, departmentResponse].some((response) => response?.data?.success === false)) {
+        throw new Error('Failed to fetch OCR data');
+      }
+      setOcrOptions({
+        branch: getResponseList(branchResponse)
+          .map(normalizeOcr)
+          .filter((option) => option.value),
+        businessUnit: getResponseList(businessUnitResponse)
+          .map(normalizeOcr)
+          .filter((option) => option.value),
+        department: getResponseList(departmentResponse)
+          .map(normalizeOcr)
+          .filter((option) => option.value)
+      });
+    } catch (error) {
+      setOcrOptions({ branch: [], businessUnit: [], department: [] });
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch OCR data', 'danger');
+    } finally {
+      setLoadingOcr(false);
+    }
+  };
+
+  const handleOpenBomSelection = () => {
+    const defaultPdoFilters = { from: filters.from, to: filters.to };
+    setBomSearch('');
+    setPdoFilters(defaultPdoFilters);
+    setShowBomModal(true);
+    fetchBoms('', defaultPdoFilters);
+  };
+
+  const handleSelectBom = async (order) => {
+    setLoadingBomDetail(true);
+    try {
+      const response = await ProductionServices.getProductionOrderById(order.id);
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch Production Order detail');
+      const payload = response?.data?.data ?? response?.data ?? {};
+      const header = payload?.header ?? payload?.Header ?? payload?.data ?? payload?.order ?? payload?.production_order ?? payload;
+      const orderDetail = normalizeProductionOrder({ ...order.raw, ...(header || {}) });
+      const lineSource = Array.isArray(payload?.items) ? payload.items[0] : null;
+      const receiptOrder = lineSource
+        ? {
+            ...orderDetail,
+            itemCode: lineSource.ItemCode ?? lineSource.item_code ?? orderDetail.itemCode,
+            itemName: lineSource.ItemName ?? lineSource.item_name ?? orderDetail.itemName,
+            warehouse: lineSource.WhsCode ?? lineSource.whs_code ?? orderDetail.warehouse,
+            ocrCode: lineSource.OcrCode ?? lineSource.ocr_code ?? orderDetail.ocrCode,
+            ocrCode2: lineSource.OcrCode2 ?? lineSource.ocr_code2 ?? orderDetail.ocrCode2,
+            ocrCode3: lineSource.OcrCode3 ?? lineSource.ocr_code3 ?? orderDetail.ocrCode3
+          }
+        : orderDetail;
+      setSelectedBom(receiptOrder);
+      setReceiptForm((current) => ({
+        ...current,
+        Bomid: String(receiptOrder.bomId || ''),
+        Unit: receiptOrder.unit || current.Unit,
+        Lines: [createReceiptLineFromOrder(receiptOrder)]
+      }));
+      setShowBomModal(false);
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch Production Order detail', 'danger');
+    } finally {
+      setLoadingBomDetail(false);
+    }
+  };
+
+  const handleSubmitReceipt = async () => {
+    const invalidLine = receiptForm.Lines.some((line) => line.BaseEntry === '' || line.BaseLine === '' || !(Number(line.Quantity) > 0));
+    if (!receiptForm.DocDate || !receiptForm.DocDueDate || !receiptForm.Lines.length || invalidLine) {
+      showAlert('Complete document dates, Base Entry, Base Line, and Quantity for every line', 'warning');
+      return;
+    }
+
+    const payload = {
+      ...receiptForm,
+      AddonId: String(getCookies('addonId') ?? ''),
+      UserId: String(getCookies('id') ?? ''),
+      Lines: receiptForm.Lines.map((line) => ({
+        BaseType: Number(line.BaseType),
+        BaseEntry: Number(line.BaseEntry),
+        BaseLine: Number(line.BaseLine),
+        Quantity: Number(line.Quantity),
+        WhsCode: line.WhsCode,
+        UoMEntry: line.UoMEntry === '' ? 0 : Number(line.UoMEntry),
+        OcrCode: line.OcrCode,
+        OcrCode2: line.OcrCode2,
+        OcrCode3: line.OcrCode3
+      }))
+    };
+
+    setSavingReceipt(true);
+    try {
+      const response = await ProductionServices.postReceipt(payload);
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to add production receipt');
+      setShowAddReceipt(false);
+      setReceiptForm(createReceiptForm());
+      setSelectedBom(null);
+      showAlert(response?.data?.message || 'Production receipt added successfully', 'success');
+      await fetchReceipts();
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to add production receipt', 'danger');
+    } finally {
+      setSavingReceipt(false);
+    }
+  };
+
   return (
     <>
       <MainCard
@@ -225,6 +461,20 @@ export default function ReceiptProduction() {
             <h5 className="mb-0">Receipt Production</h5>
             <span className="text-muted f-12">View finished goods receipts posted to SAP.</span>
           </Stack>
+        }
+        secondary={
+          <Button
+            variant="success"
+            onClick={() => {
+              setReceiptForm(createReceiptForm());
+              setSelectedBom(null);
+              setShowAddReceipt(true);
+              fetchOcrOptions();
+            }}
+          >
+            <i className="ti ti-plus me-1" />
+            Add Receipt
+          </Button>
         }
       >
         <Card className="border mb-3">
@@ -324,6 +574,221 @@ export default function ReceiptProduction() {
           />
         ) : null}
       </MainCard>
+
+      <Modal show={showAddReceipt} onHide={() => !savingReceipt && setShowAddReceipt(false)} fullscreen scrollable>
+        <Modal.Header closeButton={!savingReceipt}>
+          <Modal.Title>Add Receipt Production</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Row className="mb-4">
+            <Col md={6} lg={5}>
+              <Form.Label>Production Order (PDO)</Form.Label>
+              <InputGroup>
+                <Form.Control
+                  readOnly
+                  value={selectedBom ? [selectedBom.number, selectedBom.itemCode, selectedBom.itemName].filter(Boolean).join(' - ') : ''}
+                  placeholder="Select Production Order"
+                  onClick={handleOpenBomSelection}
+                />
+                <Button variant="outline-primary" onClick={handleOpenBomSelection}>
+                  <i className="ti ti-search me-1" /> Select PDO
+                </Button>
+              </InputGroup>
+            </Col>
+          </Row>
+          <Row className="g-3 mb-4">
+            <Col md={3}>
+              <Form.Label>Document Date *</Form.Label>
+              <Form.Control
+                type="date"
+                value={receiptForm.DocDate}
+                onChange={(event) => setReceiptForm((current) => ({ ...current, DocDate: event.target.value }))}
+              />
+            </Col>
+            <Col md={3}>
+              <Form.Label>Due Date *</Form.Label>
+              <Form.Control
+                type="date"
+                value={receiptForm.DocDueDate}
+                onChange={(event) => setReceiptForm((current) => ({ ...current, DocDueDate: event.target.value }))}
+              />
+            </Col>
+            <Col md={2}>
+              <Form.Label>Shift</Form.Label>
+              <Form.Select
+                value={receiptForm.Shift}
+                onChange={(event) => setReceiptForm((current) => ({ ...current, Shift: event.target.value }))}
+              >
+                <option value="X">All</option>
+                <option value="A">1</option>
+                <option value="B">2</option>
+                <option value="C">3</option>
+              </Form.Select>
+            </Col>
+            <Col md={2}>
+              <Form.Label>Unit</Form.Label>
+              <Form.Control
+                value={receiptForm.Unit}
+                onChange={(event) => setReceiptForm((current) => ({ ...current, Unit: event.target.value }))}
+              />
+            </Col>
+            <Col xs={12}>
+              <Form.Label>Comments</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={2}
+                value={receiptForm.Comments}
+                onChange={(event) => setReceiptForm((current) => ({ ...current, Comments: event.target.value }))}
+              />
+            </Col>
+          </Row>
+
+          <h6 className="mb-2">Items</h6>
+          <Table responsive bordered className="align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Quantity</th>
+                <th>Warehouse</th>
+                <th>Branch</th>
+                <th>Business Unit</th>
+                <th>Department</th>
+              </tr>
+            </thead>
+            <tbody>
+              {receiptForm.Lines.map((line, index) => (
+                <tr key={index}>
+                  <td style={{ minWidth: 170 }}>
+                    <div className="fw-semibold">{line.ItemCode || '-'}</div>
+                    <div className="text-muted f-12">{line.ItemName || '-'}</div>
+                  </td>
+                  {['Quantity', 'WhsCode'].map((field) => (
+                    <td key={field}>
+                      <Form.Control size="sm" type={field === 'Quantity' ? 'number' : 'text'} value={line[field]} readOnly />
+                    </td>
+                  ))}
+                  {[
+                    ['OcrCode', ocrOptions.branch, 'Select branch'],
+                    ['OcrCode2', ocrOptions.businessUnit, 'Select business unit'],
+                    ['OcrCode3', ocrOptions.department, 'Select department']
+                  ].map(([field, options, placeholder]) => (
+                    <td key={field}>
+                      <Select
+                        styles={compactSelectStyles}
+                        menuPortalTarget={document.body}
+                        menuPlacement="top"
+                        value={options.find((option) => String(option.value) === String(line[field])) || null}
+                        options={options}
+                        isLoading={loadingOcr}
+                        placeholder={placeholder}
+                        isDisabled
+                      />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" disabled={savingReceipt} onClick={() => setShowAddReceipt(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" disabled={savingReceipt} onClick={handleSubmitReceipt}>
+            {savingReceipt ? <span className="spinner-border spinner-border-sm me-2" /> : <i className="ti ti-device-floppy me-1" />}
+            {savingReceipt ? 'Saving...' : 'Save Receipt'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={showBomModal} onHide={() => !loadingBoms && !loadingBomDetail && setShowBomModal(false)} size="lg" centered scrollable>
+        <Modal.Header closeButton={!loadingBoms && !loadingBomDetail}>
+          <Modal.Title>Select Production Order</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form
+            className="mb-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              fetchBoms(bomSearch.trim(), pdoFilters);
+            }}
+          >
+            <Row className="g-3 align-items-end">
+              <Col md={4}>
+                <Form.Label>Start Date</Form.Label>
+                <Form.Control
+                  type="date"
+                  value={pdoFilters.from}
+                  onChange={(event) => setPdoFilters((current) => ({ ...current, from: event.target.value }))}
+                />
+              </Col>
+              <Col md={4}>
+                <Form.Label>End Date</Form.Label>
+                <Form.Control
+                  type="date"
+                  value={pdoFilters.to}
+                  onChange={(event) => setPdoFilters((current) => ({ ...current, to: event.target.value }))}
+                />
+              </Col>
+              <Col md={4}>
+                <Form.Label>Search PDO</Form.Label>
+                <InputGroup>
+                  <Form.Control
+                    value={bomSearch}
+                    onChange={(event) => setBomSearch(event.target.value)}
+                    placeholder="Order number or product"
+                  />
+                  <Button type="submit" disabled={loadingBoms}>
+                    <i className="ti ti-search" />
+                  </Button>
+                </InputGroup>
+              </Col>
+            </Row>
+          </Form>
+
+          <Table responsive hover className="mb-0 align-middle">
+            <thead>
+              <tr>
+                <th>Order No.</th>
+                <th>Product</th>
+                <th>Planned Qty</th>
+                <th className="text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loadingBoms ? (
+                <tr>
+                  <td colSpan={4}>
+                    <LoaderData />
+                  </td>
+                </tr>
+              ) : boms.length ? (
+                boms.map((bom) => (
+                  <tr key={bom.id}>
+                    <td className="fw-semibold">{bom.number}</td>
+                    <td>
+                      <div className="fw-semibold">{bom.itemCode || '-'}</div>
+                      <div className="text-muted f-12">{bom.itemName || '-'}</div>
+                    </td>
+                    <td>{numberFormatter.format(bom.plannedQuantity)}</td>
+                    <td className="text-center">
+                      <Button size="sm" variant="success" disabled={loadingBomDetail} onClick={() => handleSelectBom(bom)}>
+                        {loadingBomDetail ? 'Loading...' : 'Select'}
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4} className="text-center text-muted py-4">
+                    No Production Order data found for the selected date filters.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </Table>
+        </Modal.Body>
+      </Modal>
 
       <Modal show={Boolean(selectedReceipt)} onHide={() => setSelectedReceipt(null)} fullscreen>
         <Modal.Header closeButton>

@@ -30,6 +30,18 @@ class RateServices {
   deleteRate(id) {
     return DataService.delete(`ekspedisi/rates/${id}`);
   }
+
+  postApproveRates(id) {
+    return DataService.post(`ekspedisi/rates/${id}/approve`);
+  }
+
+  postRejectRates(id) {
+    return DataService.post(`ekspedisi/rates/${id}/reject`);
+  }
+
+  postBulkApprove(payload) {
+    return DataService.post('ekspedisi/rates/bulk-approve', payload);
+  }
 }
 
 export default new RateServices();

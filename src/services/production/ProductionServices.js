@@ -67,6 +67,10 @@ class ProductionServices {
     return DataService.get(`/production/receipts/sap/${id}`);
   }
 
+  postReceipt(payload) {
+    return DataService.post('/production/add-receipt-prod-sap', payload);
+  }
+
   postProductionReceipt(payload) {
     return DataService.post('/production/receipts', payload);
   }

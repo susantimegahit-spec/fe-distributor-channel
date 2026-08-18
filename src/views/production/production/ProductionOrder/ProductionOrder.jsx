@@ -123,10 +123,26 @@ const formatDetailValue = (value) => {
   return String(value);
 };
 
-const formatDetailLabel = (key) =>
-  String(key)
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    .replace(/_/g, ' ');
+const formatDetailLabel = (key) => {
+  const normalizedKey = String(key || '')
+    .replaceAll('_', '')
+    .toLowerCase();
+  const ocrLabel = {
+    ocr: 'Branch',
+    ocrcode: 'Branch',
+    ocr2: 'Business Unit',
+    ocrcode2: 'Business Unit',
+    ocr3: 'Department',
+    ocrcode3: 'Department'
+  }[normalizedKey];
+
+  return (
+    ocrLabel ||
+    String(key)
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replace(/_/g, ' ')
+  );
+};
 const formatShift = (value) => ({ A: '1', B: '2', C: '3', X: 'All' })[String(value || '').toUpperCase()] || value || '-';
 
 const normalizeBom = (item = {}, index = 0) => ({

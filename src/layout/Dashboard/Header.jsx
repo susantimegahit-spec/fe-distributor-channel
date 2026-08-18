@@ -56,6 +56,7 @@ export default function Header({ showSidebar = true }) {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [showChangePass, setShowChangePass] = useState(false);
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [loadingSubmit, setLoadingSubmit] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -63,6 +64,7 @@ export default function Header({ showSidebar = true }) {
   const [notificationError, setNotificationError] = useState('');
   const [sendingTestNotification, setSendingTestNotification] = useState(false);
   const notificationAudioContextRef = useRef(null);
+  const accountMenuRef = useRef(null);
   const knownNotificationIdsRef = useRef(new Set());
   const hasLoadedNotificationsRef = useRef(false);
   const canSubmitPassword = Boolean(oldPass && newPass && confirmPass && newPass === confirmPass);
@@ -72,6 +74,17 @@ export default function Header({ showSidebar = true }) {
     pathname.startsWith('/setting/') ||
     pathname.startsWith('/customer-portal/setting');
   const isSettingPage = pathname === '/setting' || pathname.startsWith('/setting/') || pathname.startsWith('/customer-portal/setting');
+
+  useEffect(() => {
+    if (!showAccountMenu) return undefined;
+
+    const closeAccountMenu = (event) => {
+      if (!accountMenuRef.current?.contains(event.target)) setShowAccountMenu(false);
+    };
+
+    document.addEventListener('pointerdown', closeAccountMenu, true);
+    return () => document.removeEventListener('pointerdown', closeAccountMenu, true);
+  }, [showAccountMenu]);
 
   const handleHeaderBack = () => {
     if (isSettingPage) {
@@ -419,7 +432,13 @@ export default function Header({ showSidebar = true }) {
                 </Nav.Item>
 
                 <Nav.Item className="pc-h-item pc-sidebar-popup">
-                  <Nav.Link as={Link} to="#" className="pc-head-link ms-0" id="mobile-collapse" onClick={() => handlerDrawerOpen(!drawerOpen)}>
+                  <Nav.Link
+                    as={Link}
+                    to="#"
+                    className="pc-head-link ms-0"
+                    id="mobile-collapse"
+                    onClick={() => handlerDrawerOpen(!drawerOpen)}
+                  >
                     <i className="ph ph-list" />
                   </Nav.Link>
                 </Nav.Item>
@@ -521,13 +540,20 @@ export default function Header({ showSidebar = true }) {
                 </div>
               </Dropdown.Menu>
             </Dropdown>
-            <Dropdown className="pc-h-item" align="end">
+            <Dropdown
+              ref={accountMenuRef}
+              className="pc-h-item"
+              align="end"
+              show={showAccountMenu}
+              onToggle={(isOpen) => setShowAccountMenu(isOpen)}
+              onSelect={() => setShowAccountMenu(false)}
+            >
               <Dropdown.Toggle
                 className="pc-head-link sm-account-toggle arrow-none me-0"
                 variant="link"
                 id="user-profile-dropdown"
                 aria-haspopup="true"
-                aria-expanded="false"
+                aria-expanded={showAccountMenu}
               >
                 <span className="sm-account-avatar">{userInitial}</span>
                 <span className="sm-account-toggle-text">
@@ -562,7 +588,14 @@ export default function Header({ showSidebar = true }) {
                       </span>
                     </Dropdown.Item>
                     {/* )} */}
-                    <Dropdown.Item as="button" className="sm-account-item" onClick={() => setShowChangePass(true)}>
+                    <Dropdown.Item
+                      as="button"
+                      className="sm-account-item"
+                      onClick={() => {
+                        setShowAccountMenu(false);
+                        setShowChangePass(true);
+                      }}
+                    >
                       <span className="sm-account-item-icon">
                         <i className="ph ph-lock-key" />
                       </span>

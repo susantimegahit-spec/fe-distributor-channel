@@ -278,6 +278,8 @@ export default function Rates() {
   const [rateActionMenu, setRateActionMenu] = useState(null);
   const [editForm, setEditForm] = useState(emptyEditForm);
   const [updatingRateId, setUpdatingRateId] = useState(null);
+  const [selectedRateIds, setSelectedRateIds] = useState([]);
+  const [bulkApproving, setBulkApproving] = useState(false);
   const [expeditionOptions, setExpeditionOptions] = useState([]);
   const [loadingExpeditions, setLoadingExpeditions] = useState(false);
   const [selectedExpeditionCode, setSelectedExpeditionCode] = useState(() =>
@@ -738,6 +740,52 @@ export default function Rates() {
     }
   };
 
+  const getRateId = (rate) => rate?.id ?? rate?.rate_id;
+  const isRateApproved = (rate) => String(getRateValue(rate, ['approval_status'])).toUpperCase() === 'APPROVED';
+  const visibleRateIds = rates
+    .filter((rate) => !isRateApproved(rate))
+    .map(getRateId)
+    .filter((id) => id !== null && id !== undefined)
+    .map(String);
+  const allRatesSelected = Boolean(visibleRateIds.length) && visibleRateIds.every((id) => selectedRateIds.includes(id));
+
+  const handleToggleRate = (rateId) => {
+    const normalizedId = String(rateId);
+    setSelectedRateIds((currentIds) =>
+      currentIds.includes(normalizedId) ? currentIds.filter((id) => id !== normalizedId) : [...currentIds, normalizedId]
+    );
+  };
+
+  const handleToggleAllRates = () => {
+    setSelectedRateIds(allRatesSelected ? [] : visibleRateIds);
+  };
+
+  const handleBulkApprove = async () => {
+    if (!selectedRateIds.length) return;
+
+    setBulkApproving(true);
+
+    try {
+      const rateIds = selectedRateIds.map((id) => (Number.isNaN(Number(id)) ? id : Number(id)));
+      const response = await RateServices.postBulkApprove({
+        rate_ids: rateIds,
+        notes: ''
+      });
+
+      if (response?.data?.success === false) {
+        throw new Error(response.data.message || 'Failed to approve selected rates');
+      }
+
+      showAlert(response?.data?.message || `${rateIds.length} rates approved successfully`, 'success');
+      setSelectedRateIds([]);
+      await fetchRates();
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to approve selected rates', 'danger');
+    } finally {
+      setBulkApproving(false);
+    }
+  };
+
   return (
     <>
       <MainCard
@@ -748,6 +796,14 @@ export default function Rates() {
               <span className="text-muted f-12">Kelola tarif pengiriman untuk setiap ekspedisi dan rute.</span>
             </div>
             <Stack direction="horizontal" gap={2}>
+              <Button
+                variant="success"
+                disabled={loadingRates || bulkApproving || !selectedRateIds.length}
+                onClick={handleBulkApprove}
+              >
+                <i className={bulkApproving ? 'ti ti-loader-2 me-1' : 'ti ti-checks me-1'} />
+                {bulkApproving ? 'Approving...' : `Approve All${selectedRateIds.length ? ` (${selectedRateIds.length})` : ''}`}
+              </Button>
               <Button
                 variant="outline-success"
                 disabled={loadingRates || exportingRates || !rates.length}
@@ -775,7 +831,10 @@ export default function Rates() {
               <Select
                 value={expeditionOptions.find((option) => option.value === selectedExpeditionCode) || null}
                 options={expeditionOptions}
-                onChange={(option) => setSelectedExpeditionCode(option?.value || '')}
+                onChange={(option) => {
+                  setSelectedExpeditionCode(option?.value || '');
+                  setSelectedRateIds([]);
+                }}
                 placeholder={loadingExpeditions ? 'Loading expedition...' : 'Search expedition'}
                 isLoading={loadingExpeditions}
                 isClearable
@@ -788,6 +847,16 @@ export default function Rates() {
         <Table responsive hover className="mb-0 align-middle">
           <thead>
             <tr>
+              <th className="text-center" style={{ width: 48 }}>
+                <Form.Check
+                  type="checkbox"
+                  className="m-0 d-inline-flex"
+                  checked={allRatesSelected}
+                  onChange={handleToggleAllRates}
+                  disabled={loadingRates || bulkApproving || !visibleRateIds.length}
+                  aria-label="Select all rates"
+                />
+              </th>
               <th>Origin</th>
               <th>Destination</th>
               <th>Expedition</th>
@@ -800,7 +869,7 @@ export default function Rates() {
           <tbody>
             {loadingRates ? (
               <tr>
-                <td colSpan={7}>
+                <td colSpan={8}>
                   <LoaderData />
                 </td>
               </tr>
@@ -849,12 +918,26 @@ export default function Rates() {
                         .join(' - ');
                 const serviceType = getRateValue(rate, ['service_type', 'service']);
                 const rateValue = getRateValue(rate, ['rate', 'amount', 'price']);
+                const rateId = getRateId(rate);
+                const isApproved = isRateApproved(rate);
 
                 return (
                   <tr
                     key={rate.id || rate.rate_id || `${warehouseCode}-${destination}-${index}`}
-                    className={rateValue !== '' && Number(rateValue) === 0 ? 'table-danger' : undefined}
+                    className={isApproved ? 'table-success' : rateValue !== '' && Number(rateValue) === 0 ? 'table-danger' : undefined}
                   >
+                    <td className="text-center">
+                      {!isApproved ? (
+                        <Form.Check
+                          type="checkbox"
+                          className="m-0 d-inline-flex"
+                          checked={rateId !== null && rateId !== undefined && selectedRateIds.includes(String(rateId))}
+                          onChange={() => handleToggleRate(rateId)}
+                          disabled={bulkApproving || rateId === null || rateId === undefined}
+                          aria-label={`Select rate ${warehouseCode || ''} ${destination || ''}`.trim()}
+                        />
+                      ) : null}
+                    </td>
                     <td>
                       <div>{warehouseName || '-'}</div>
                       {warehouseCode ? <small className="text-muted">{warehouseCode}</small> : null}
@@ -884,7 +967,7 @@ export default function Rates() {
                             ? 'primary'
                             : 'outline-primary'
                         }
-                        disabled={Boolean(deletingRateId || updatingRateId)}
+                        disabled={Boolean(deletingRateId || updatingRateId || bulkApproving)}
                         aria-label={`Open actions for rate ${warehouseCode || ''} ${destination || ''}`.trim()}
                         aria-expanded={
                           String(rateActionMenu?.rate?.id ?? rateActionMenu?.rate?.rate_id) ===
@@ -908,7 +991,7 @@ export default function Rates() {
               })
             ) : (
               <tr>
-                <td colSpan={7} className="text-center text-muted py-5">
+                <td colSpan={8} className="text-center text-muted py-5">
                   No rates data found.
                 </td>
               </tr>
