@@ -11,7 +11,9 @@ import Modal from 'react-bootstrap/Modal';
 import Overlay from 'react-bootstrap/Overlay';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
+import Tab from 'react-bootstrap/Tab';
 import Table from 'react-bootstrap/Table';
+import Tabs from 'react-bootstrap/Tabs';
 import Select from 'react-select';
 
 // project-imports
@@ -1147,9 +1149,9 @@ export default function UserList() {
           <Modal.Title>{formMode === 'edit' ? 'Edit User' : 'Add User'}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <Row className="g-3">
-            <Col lg={6}>
-              <Card className="border mb-0 h-100">
+          <Tabs defaultActiveKey="account" className="mb-3" mountOnEnter>
+            <Tab eventKey="account" title="Account & Access">
+              <Card className="border mb-0">
                 <Card.Header className="py-3">
                   <Stack direction="horizontal" gap={2}>
                     <i className="ti ti-user text-primary" />
@@ -1231,9 +1233,9 @@ export default function UserList() {
                   </Row>
                 </Card.Body>
               </Card>
-            </Col>
-            <Col lg={6}>
-              <Card className="border mb-0 h-100">
+            </Tab>
+            <Tab eventKey="organization" title="Organizational Assignment">
+              <Card className="border mb-0">
                 <Card.Header className="py-3">
                   <Stack direction="horizontal" gap={2}>
                     <i className="ti ti-building-warehouse text-primary" />
@@ -1342,8 +1344,8 @@ export default function UserList() {
                   </Row>
                 </Card.Body>
               </Card>
-            </Col>
-            <Col xs={12}>
+            </Tab>
+            <Tab eventKey="sap" title="SAP Assignment">
               <Card className="border mb-0">
                 <Card.Header className="py-3">
                   <Stack direction="horizontal" gap={2}>
@@ -1380,8 +1382,8 @@ export default function UserList() {
                   </Row>
                 </Card.Body>
               </Card>
-            </Col>
-          </Row>
+            </Tab>
+          </Tabs>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="danger" onClick={resetForm}>

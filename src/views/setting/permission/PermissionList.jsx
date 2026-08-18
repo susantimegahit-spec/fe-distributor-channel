@@ -35,6 +35,25 @@ const accessibleSystemOptions = [
   { value: SYSTEM_KEYS.PRODUCTION, label: 'Production' }
 ];
 
+const menuNumberByKey = (() => {
+  const numbers = new Map();
+  let number = 1;
+
+  const registerMenus = (menus, systemKey) => {
+    menus.forEach((item) => {
+      numbers.set(`${systemKey}:${item.id || item.value}`, number++);
+      if (item.children?.length) registerMenus(item.children, systemKey);
+    });
+  };
+
+  accessibleSystemOptions.forEach(({ value: systemKey }) => {
+    numbers.set(systemKey, number++);
+    registerMenus(getSystemByKey(systemKey).menu, systemKey);
+  });
+
+  return numbers;
+})();
+
 const getMasterApprovalId = (item) => item?.id || '';
 
 const getMasterApprovalName = (item) =>
@@ -48,14 +67,23 @@ const getMasterApprovalName = (item) =>
 const getMenuValue = (item) => item?.value || item?.id || '';
 const getPermissionMenuValue = (item) => item?.id || item?.value || '';
 
+const renderMenuLabel = (label, id) => (
+  <span>
+    <span className="text-muted fw-normal">{id} - </span>
+    {label}
+  </span>
+);
+
 const scopeMenuNode = (item, systemKey) => {
   const isParentNode = Boolean(item.children?.length);
   const value = getMenuValue(item);
+  const title = item.label || item.title;
+  const menuNumber = menuNumberByKey.get(`${systemKey}:${item.id || value}`);
 
   return {
     ...item,
     value: isParentNode ? `${systemKey}:${value}` : getPermissionMenuValue(item),
-    label: item.label || item.title,
+    label: renderMenuLabel(title, menuNumber),
     children: item.children?.map((child) => scopeMenuNode(child, systemKey))
   };
 };
@@ -67,7 +95,7 @@ const buildMenuNodesBySystems = (systemKeys = []) =>
     return {
       id: system.key,
       title: system.title,
-      label: system.title,
+      label: renderMenuLabel(system.title, menuNumberByKey.get(system.key)),
       value: system.key,
       type: 'group',
       selected: true,

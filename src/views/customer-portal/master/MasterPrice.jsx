@@ -23,6 +23,7 @@ import PriceServices from '../../../services/customer-portal/PriceServices';
 import ProductServices from '../../../services/customer-portal/ProductServices';
 import { useAlert } from '../../../utils/alertContext';
 import { useConfirm } from '../../../utils/confirmContext';
+import { getCookies } from '../../../utils/cookies';
 
 const pageSize = 10;
 const priceActionPopperConfig = {
@@ -82,6 +83,7 @@ const normalizeList = (response) => {
 export default function MasterPrice() {
   const { showAlert } = useAlert();
   const { showConfirm } = useConfirm();
+  const isAdministrator = Number(getCookies('role')) === 5;
   const [dataSource, setDataSource] = useState([]);
   const [loadingData, setLoadingData] = useState(false);
   const [keywords, setKeywords] = useState('');
@@ -425,10 +427,12 @@ export default function MasterPrice() {
           }
           secondary={
             <Stack direction="horizontal" gap={2} className="flex-wrap">
-              <Button onClick={openAddModal} variant="primary">
-                <i className="ti ti-plus me-1" />
-                Add Price
-              </Button>
+              {isAdministrator ? (
+                <Button onClick={openAddModal} variant="primary">
+                  <i className="ti ti-plus me-1" />
+                  Add Price
+                </Button>
+              ) : null}
               <Button onClick={fetchData} variant="light-primary" disabled={loadingData}>
                 <i className="ti ti-refresh me-1" />
                 Refresh
