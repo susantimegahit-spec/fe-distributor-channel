@@ -134,7 +134,11 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
   );
 
   return (
-    <ListGroup className={`pc-item pc-hasmenu ${open ? 'pc-trigger' : ''}`}>
+    <ListGroup
+      id={menu?.menu_key !== undefined ? String(menu.menu_key) : undefined}
+      data-menu-key={menu?.menu_key}
+      className={`pc-item pc-hasmenu ${open ? 'pc-trigger' : ''}`}
+    >
       <Link className="pc-link" to="#!" onClick={() => handleClick(true)}>
         {menu.icon && (
           <span className="pc-micon">

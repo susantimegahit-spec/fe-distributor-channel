@@ -1082,6 +1082,7 @@ export default function RewardList() {
                                   size="sm"
                                   variant="light-primary"
                                   className="rounded-circle"
+                                  data-permission-action="utility"
                                   aria-label={`${isExpanded ? 'Hide' : 'Show'} transaction summary for ${claim.claimNo}`}
                                   aria-expanded={isExpanded}
                                   onClick={() => setExpandedClaimId(isExpanded ? null : claim.id)}

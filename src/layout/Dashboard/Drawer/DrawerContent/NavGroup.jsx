@@ -124,7 +124,12 @@ export default function NavGroup(props) {
   return (
     <Fragment>
       {groupLabel && !isAlwaysOpenGroup && (
-        <li className={`pc-item pc-caption sm-sidebar-group-toggle ${groupOpen ? 'is-open' : ''}`} key={item.id}>
+        <li
+          id={item?.menu_key !== undefined ? String(item.menu_key) : undefined}
+          data-menu-key={item?.menu_key}
+          className={`pc-item pc-caption sm-sidebar-group-toggle ${groupOpen ? 'is-open' : ''}`}
+          key={item.id}
+        >
           <button
             type="button"
             onClick={() => setGroupOpen((open) => !open)}

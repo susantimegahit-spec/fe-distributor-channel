@@ -145,6 +145,7 @@ client.interceptors.response.use(
         Cookies.remove('email');
         Cookies.remove('role');
         Cookies.remove('menu');
+        Cookies.remove('actions');
         Cookies.remove('systems');
         Cookies.remove('system');
         Cookies.remove('expedition_code');

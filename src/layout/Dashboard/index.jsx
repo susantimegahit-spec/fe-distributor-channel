@@ -8,6 +8,7 @@ import Header from './Header';
 import Breadcrumbs from 'components/Breadcrumbs';
 import NavigationScroll from 'components/NavigationScroll';
 import Workspace from './Workspace';
+import ActionPermissionGuard from '../../components/ActionPermissionGuard';
 import {
   canAccessMenuItem,
   getFirstAccessibleMenuPath,
@@ -17,13 +18,13 @@ import {
   normalizeAccessibleSystems
 } from '../../systems';
 import { getCookies } from '../../utils/cookies';
+import { canUseAction, getUrlAction } from '../../utils/actionPermissions';
 
 // ==============================|| MAIN LAYOUT ||============================== //
 
 export default function MainLayout() {
   const { pathname, search } = useLocation();
-  const isWorkspaceWindow =
-    new URLSearchParams(search).get('workspaceWindow') === '1' || window.self !== window.top;
+  const isWorkspaceWindow = new URLSearchParams(search).get('workspaceWindow') === '1' || window.self !== window.top;
   const activeSystem = getSystemByPathname(pathname);
   const roleId = getCookies('role');
   const permissionMenu = getCookies('menu') || [];
@@ -41,9 +42,8 @@ export default function MainLayout() {
     pathname === '/customer-portal/master/signature';
   const showSidebar = !isSharedUtilityPath;
   const requestedMenu = activeSystem && !isSharedUtilityPath ? getMenuItemByPathname(activeSystem, pathname) : null;
-  const firstAccessibleMenuPath = activeSystem
-    ? getFirstAccessibleMenuPath(activeSystem, permissionMenu, roleId)
-    : null;
+  const firstAccessibleMenuPath = activeSystem ? getFirstAccessibleMenuPath(activeSystem, permissionMenu, roleId) : null;
+  const requestedUrlAction = getUrlAction(pathname);
 
   useEffect(() => {
     if (activeSystem?.key) {
@@ -77,13 +77,7 @@ export default function MainLayout() {
   }, [isWorkspaceWindow]);
 
   if (activeSystem && !isAdministrator && !allowedSystemKeys.has(activeSystem.key)) {
-    return (
-      <Navigate
-        to="/access-denied"
-        replace
-        state={{ requestedPath: pathname, requestedSystem: activeSystem.title }}
-      />
-    );
+    return <Navigate to="/access-denied" replace state={{ requestedPath: pathname, requestedSystem: activeSystem.title }} />;
   }
 
   if (activeSystem && !isSharedUtilityPath && !canAccessMenuItem(requestedMenu, permissionMenu, roleId)) {
@@ -106,6 +100,20 @@ export default function MainLayout() {
     );
   }
 
+  if (
+    requestedUrlAction &&
+    !canUseAction({
+      action: requestedUrlAction,
+      system: activeSystem,
+      menuItem: requestedMenu,
+      pathname,
+      roleId,
+      actionsCookie: getCookies('actions')
+    })
+  ) {
+    return <Navigate to="/access-denied" replace state={{ requestedPath: pathname, requestedAction: requestedUrlAction }} />;
+  }
+
   if (isWorkspaceWindow) {
     if (isSystemSelectorPath) {
       return null;
@@ -113,6 +121,7 @@ export default function MainLayout() {
 
     return (
       <NavigationScroll>
+        <ActionPermissionGuard />
         <div className="sm-workspace-embedded-content">
           <Outlet />
         </div>
@@ -122,11 +131,10 @@ export default function MainLayout() {
 
   return (
     <>
+      <ActionPermissionGuard />
       {showSidebar && <Drawer />}
       <Header showSidebar={showSidebar} />
-      <div
-        className={`pc-container ${!showSidebar ? 'pc-container-no-sidebar' : 'pc-container-workspace'}`}
-      >
+      <div className={`pc-container ${!showSidebar ? 'pc-container-no-sidebar' : 'pc-container-workspace'}`}>
         <div className="pc-content">
           {/* <Breadcrumbs /> */}
           <NavigationScroll>

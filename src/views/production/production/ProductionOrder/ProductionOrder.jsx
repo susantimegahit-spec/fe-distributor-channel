@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import Select from 'react-select';
 
 // react-bootstrap
 import Badge from 'react-bootstrap/Badge';
@@ -17,6 +19,10 @@ import Table from 'react-bootstrap/Table';
 import LoaderData from 'components/LoaderData';
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
+import { getItem } from '../../../../redux/production/materialReducer';
+import { getResource } from '../../../../redux/production/resourceReducer';
+import DistributorServices from '../../../../services/customer-portal/DistributorServices';
+import WarehouseServices from '../../../../services/customer-portal/WarehouseServices';
 import ProductionServices from '../../../../services/production/ProductionServices';
 import { useAlert } from '../../../../utils/alertContext';
 import { getCookies } from '../../../../utils/cookies';
@@ -24,6 +30,13 @@ import ProductionRelationMap from './ProductionRelationMap';
 
 const numberFormatter = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 });
 const pageSize = 10;
+const COMPONENT_TYPE_ITEM = '4';
+const COMPONENT_TYPE_RESOURCE = '290';
+const bomItemSelectStyles = {
+  menuPortal: (base) => ({ ...base, zIndex: 1090 }),
+  control: (base) => ({ ...base, minWidth: 230, minHeight: 31, fontSize: '0.75rem' }),
+  option: (base) => ({ ...base, fontSize: '0.75rem' })
+};
 const actionPopperConfig = {
   modifiers: [
     { name: 'offset', options: { offset: [0, 8] } },
@@ -75,6 +88,47 @@ const createInitialForm = () => ({
   dueDate: today,
   shift: 'All'
 });
+
+const createBomDetail = () => ({
+  id: `new-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  type: '4',
+  code: '',
+  item_name: '',
+  qty: '',
+  uom: '',
+  whs_code: '',
+  ocr_code: '',
+  ocr_code2: '',
+  ocr_code3: '',
+  issue_method: 'M'
+});
+
+const normalizeComponentOption = (item = {}, type) => {
+  const isResource = String(type) === COMPONENT_TYPE_RESOURCE;
+  const code = isResource
+    ? item.res_code || item.resource_code || item.code || item.ResCode || ''
+    : item.item_code || item.material_code || item.code || item.ItemCode || '';
+  const name = isResource
+    ? item.res_name || item.resource_name || item.name || item.ResName || ''
+    : item.item_name || item.material_name || item.name || item.ItemName || '';
+  const uom = isResource
+    ? item.unit_of_msr || item.unit_msr || item.uom || item.unit || item.unit_of_measure || ''
+    : item.invntry_uom || item.inventory_uom || item.uom || item.unit || item.unit_msr || '';
+
+  return { value: code, label: [code, name].filter(Boolean).join(' - ') || '-', name, uom };
+};
+
+const normalizeWarehouseOption = (item = {}) => {
+  const code = item.whs_code || item.warehouse_code || item.code || item.WhsCode || '';
+  const name = item.whs_name || item.warehouse_name || item.name || item.WhsName || '';
+  return { value: code, label: [code, name].filter(Boolean).join(' - ') || String(code) };
+};
+
+const normalizeOcrOption = (item = {}) => {
+  const code = item.ocr_code || item.ocrCode || item.OcrCode || item.code || '';
+  const name = item.ocr_name || item.ocrName || item.OcrName || item.name || '';
+  return { value: code, label: [code, name].filter(Boolean).join(' - ') || String(code) };
+};
 
 const getResponseList = (response) => {
   const payload = response?.data?.data ?? response?.data ?? [];
@@ -263,6 +317,9 @@ const canCancelProductionOrder = (status) =>
 
 export default function ProductionOrder() {
   const { showAlert } = useAlert();
+  const dispatch = useDispatch();
+  const { items: materialItems, loading: loadingMaterials } = useSelector((state) => state.productionMaterial);
+  const { items: resourceItems, loading: loadingResources } = useSelector((state) => state.productionResource);
   const [orders, setOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [orderSearch, setOrderSearch] = useState('');
@@ -280,11 +337,23 @@ export default function ProductionOrder() {
   const [loadingBoms, setLoadingBoms] = useState(false);
   const [loadingBomDetail, setLoadingBomDetail] = useState(false);
   const [loadingSeries, setLoadingSeries] = useState(false);
+  const [loadingWarehouses, setLoadingWarehouses] = useState(false);
+  const [loadingOcr, setLoadingOcr] = useState(false);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [boms, setBoms] = useState([]);
   const [seriesOptions, setSeriesOptions] = useState([]);
+  const [warehouseOptions, setWarehouseOptions] = useState([]);
+  const [ocrOptions, setOcrOptions] = useState({ ocrCode: [], ocrCode2: [], ocrCode3: [] });
   const [form, setForm] = useState(createInitialForm);
+  const materialOptions = useMemo(
+    () => materialItems.map((item) => normalizeComponentOption(item, COMPONENT_TYPE_ITEM)).filter((option) => option.value),
+    [materialItems]
+  );
+  const resourceOptions = useMemo(
+    () => resourceItems.map((item) => normalizeComponentOption(item, COMPONENT_TYPE_RESOURCE)).filter((option) => option.value),
+    [resourceItems]
+  );
 
   const fetchProductionOrders = useCallback(
     async (activeFilters) => {
@@ -446,11 +515,57 @@ export default function ProductionOrder() {
     }
   };
 
+  const fetchWarehouses = async () => {
+    if (warehouseOptions.length) return;
+    setLoadingWarehouses(true);
+    try {
+      const response = await WarehouseServices.getAllWarehouse('');
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch warehouse data');
+      setWarehouseOptions(
+        getResponseList(response)
+          .map(normalizeWarehouseOption)
+          .filter((option) => option.value)
+      );
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch warehouse data', 'danger');
+    } finally {
+      setLoadingWarehouses(false);
+    }
+  };
+
+  const fetchOcrOptions = async () => {
+    if (ocrOptions.ocrCode.length || ocrOptions.ocrCode2.length || ocrOptions.ocrCode3.length) return;
+    setLoadingOcr(true);
+    try {
+      const responses = await Promise.all([
+        DistributorServices.getOcrByType(1),
+        DistributorServices.getOcrByType(2),
+        DistributorServices.getOcrByType(3)
+      ]);
+      if (responses.some((response) => response?.data?.success === false)) throw new Error('Failed to fetch OCR data');
+      const normalizeResponse = (response) =>
+        getResponseList(response)
+          .map(normalizeOcrOption)
+          .filter((option) => option.value);
+      setOcrOptions({
+        ocrCode: normalizeResponse(responses[0]),
+        ocrCode2: normalizeResponse(responses[1]),
+        ocrCode3: normalizeResponse(responses[2])
+      });
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch OCR data', 'danger');
+    } finally {
+      setLoadingOcr(false);
+    }
+  };
+
   const handleOpenCreate = () => {
     setForm(createInitialForm());
     setSearch('');
     setShowCreateModal(true);
     fetchSeries(today);
+    fetchWarehouses();
+    fetchOcrOptions();
   };
 
   const handleOpenBomSelection = () => {
@@ -472,9 +587,15 @@ export default function ProductionOrder() {
       if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch Bill of Material detail');
 
       const bomDetail = getResponseItem(response);
+      const normalizedBom = normalizeBom(bomDetail);
+      const componentTypes = [...new Set(normalizedBom.details.map((detail) => String(detail.type ?? detail.component_type ?? '')))];
+      await Promise.all([
+        componentTypes.includes(COMPONENT_TYPE_ITEM) ? dispatch(getItem('')) : Promise.resolve(),
+        componentTypes.includes(COMPONENT_TYPE_RESOURCE) ? dispatch(getResource('')) : Promise.resolve()
+      ]);
       setForm((current) => ({
         ...current,
-        product: normalizeBom(bomDetail),
+        product: normalizedBom,
         plannedQuantity: Number(bomDetail?.qty ?? bomDetail?.quantity) || ''
       }));
       setShowBomModal(false);
@@ -485,12 +606,73 @@ export default function ProductionOrder() {
     }
   };
 
+  const updateBomDetail = (detailIndex, values) => {
+    setForm((current) => ({
+      ...current,
+      product: {
+        ...current.product,
+        details: current.product.details.map((detail, index) => (index === detailIndex ? { ...detail, ...values } : detail))
+      }
+    }));
+  };
+
+  const handleBomDetailTypeChange = async (detailIndex, type) => {
+    updateBomDetail(detailIndex, { type, item: null, code: '', item_code: '', item_name: '', uom: '' });
+    if (!type) return;
+
+    try {
+      if (type === COMPONENT_TYPE_ITEM) await dispatch(getItem(''));
+      if (type === COMPONENT_TYPE_RESOURCE) await dispatch(getResource(''));
+    } catch (error) {
+      showAlert(
+        error?.response?.data?.message ||
+          error?.message ||
+          `Failed to fetch ${type === COMPONENT_TYPE_ITEM ? 'material' : 'resource'} data`,
+        'danger'
+      );
+    }
+  };
+
+  const addBomDetail = () => {
+    if (!form.product) {
+      showAlert('Select a Bill of Material first', 'warning');
+      return;
+    }
+    setForm((current) => ({
+      ...current,
+      product: { ...current.product, details: [...current.product.details, createBomDetail()] }
+    }));
+    if (!materialItems.length) {
+      dispatch(getItem('')).catch((error) => {
+        showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch material data', 'danger');
+      });
+    }
+  };
+
+  const removeBomDetail = (detailIndex) => {
+    setForm((current) => ({
+      ...current,
+      product: { ...current.product, details: current.product.details.filter((_, index) => index !== detailIndex) }
+    }));
+  };
+
   const handleSave = async () => {
     const plannedQuantity = Number(form.plannedQuantity);
     const warehouse = form.product?.to_whs ?? form.product?.whs_code ?? form.product?.warehouse_code ?? form.product?.warehouse?.code ?? '';
 
     if (!form.product || !(plannedQuantity > 0) || !form.series || !form.orderDate || !form.startDate || !form.dueDate || !warehouse) {
       showAlert('Please complete product, planned quantity, series, dates, and warehouse data', 'warning');
+      return;
+    }
+
+    const hasInvalidBomDetail =
+      !form.product.details.length ||
+      form.product.details.some((detail) => {
+        const item = getComponentItem(detail);
+        return !detail.type || !item.code || !(Number(detail.qty ?? detail.quantity) > 0);
+      });
+    if (hasInvalidBomDetail) {
+      showAlert('Complete the type, item code, and base quantity for every Bill of Material detail', 'warning');
       return;
     }
 
@@ -521,11 +703,11 @@ export default function ProductionOrder() {
           ItemCode: item.code,
           BaseQty: baseQuantity,
           WhsCode:
-            detail.whs_code ?? detail.warehouse_code ?? detail.to_whs ?? detail.warehouse?.code ?? detail.warehouse?.whs_code ?? warehouse,
+            detail.whs_code || detail.warehouse_code || detail.to_whs || detail.warehouse?.code || detail.warehouse?.whs_code || warehouse,
           IssueMethod: detail.issue_mthd ?? detail.issue_method ?? detail.issueMethod ?? '',
-          OcrCode: detail.ocr_code ?? form.product.ocr_code ?? '',
-          OcrCode2: detail.ocr_code2 ?? form.product.ocr_code2 ?? '',
-          OcrCode3: detail.ocr_code3 ?? form.product.ocr_code3 ?? ''
+          OcrCode: detail.ocr_code ?? detail.OcrCode ?? form.product.ocr_code ?? '',
+          OcrCode2: detail.ocr_code2 ?? detail.OcrCode2 ?? form.product.ocr_code2 ?? '',
+          OcrCode3: detail.ocr_code3 ?? detail.OcrCode3 ?? form.product.ocr_code3 ?? ''
         };
       })
     };
@@ -1127,7 +1309,12 @@ export default function ProductionOrder() {
             </Col>
           </Row>
 
-          <h6 className="mb-3">Bill of Material Details</h6>
+          <Stack direction="horizontal" className="justify-content-between mb-3">
+            <h6 className="mb-0">Bill of Material Details</h6>
+            <Button size="sm" variant="outline-primary" disabled={!form.product || loadingBomDetail} onClick={addBomDetail}>
+              <i className="ti ti-plus me-1" /> Add Item
+            </Button>
+          </Stack>
           <Table className="mb-0 align-middle" responsive bordered hover>
             <thead>
               <tr>
@@ -1138,12 +1325,16 @@ export default function ProductionOrder() {
                 <th>UOM</th>
                 <th>Warehouse Code</th>
                 <th>Issue Method</th>
+                <th>Branch</th>
+                <th>Business Unit</th>
+                <th>Department</th>
+                <th className="text-center">Action</th>
               </tr>
             </thead>
             <tbody>
               {loadingBomDetail ? (
                 <tr>
-                  <td colSpan={7}>
+                  <td colSpan={11}>
                     <LoaderData />
                   </td>
                 </tr>
@@ -1154,31 +1345,149 @@ export default function ProductionOrder() {
                   const baseQuantity = Number(detail.qty ?? detail.quantity) || 0;
                   const plannedQuantity = baseQuantity * (Number(form.plannedQuantity) || 0);
                   const warehouseCode =
-                    detail.whs_code ??
-                    detail.warehouse_code ??
-                    detail.to_whs ??
-                    detail.warehouse?.code ??
-                    detail.warehouse?.whs_code ??
+                    detail.whs_code ||
+                    detail.warehouse_code ||
+                    detail.to_whs ||
+                    detail.warehouse?.code ||
+                    detail.warehouse?.whs_code ||
+                    form.product?.to_whs ||
+                    form.product?.whs_code ||
+                    form.product?.warehouse_code ||
+                    form.product?.warehouse?.code ||
+                    form.product?.warehouse?.whs_code ||
                     '-';
 
                   return (
                     <tr key={detail.id ?? detail.detail_id ?? `${item.code}-${index}`}>
-                      <td>{type === '4' ? 'Item' : type === '290' ? 'Resource' : type || '-'}</td>
-                      <td>
-                        <div className="fw-semibold">{item.code || '-'}</div>
-                        <div className="text-muted f-12">{item.name || '-'}</div>
+                      <td style={{ minWidth: 120 }}>
+                        <Form.Select size="sm" value={type} onChange={(event) => handleBomDetailTypeChange(index, event.target.value)}>
+                          <option value="4">Item</option>
+                          <option value="290">Resource</option>
+                        </Form.Select>
                       </td>
-                      <td className="text-end">{numberFormatter.format(baseQuantity)}</td>
-                      <td className="text-end">{numberFormatter.format(plannedQuantity)}</td>
-                      <td>{detail.uom ?? detail.unit ?? detail.unit_of_msr ?? detail.invntry_uom ?? '-'}</td>
-                      <td>{warehouseCode}</td>
-                      <td>{detail.issue_mthd ?? detail.issue_method ?? detail.issueMethod ?? '-'}</td>
+                      <td style={{ minWidth: 250 }}>
+                        <Select
+                          styles={bomItemSelectStyles}
+                          menuPortalTarget={document.body}
+                          options={type === COMPONENT_TYPE_RESOURCE ? resourceOptions : materialOptions}
+                          value={
+                            (type === COMPONENT_TYPE_RESOURCE ? resourceOptions : materialOptions).find(
+                              (option) => String(option.value) === String(item.code)
+                            ) || (item.code ? { value: item.code, label: [item.code, item.name].filter(Boolean).join(' - ') } : null)
+                          }
+                          isLoading={type === COMPONENT_TYPE_RESOURCE ? loadingResources : loadingMaterials}
+                          placeholder={type === COMPONENT_TYPE_RESOURCE ? 'Select resource' : 'Select material'}
+                          onChange={(option) =>
+                            updateBomDetail(index, {
+                              code: option?.value || '',
+                              item_code: option?.value || '',
+                              item_name: option?.name || '',
+                              item: option ? { code: option.value, name: option.name } : null,
+                              uom: option?.uom || ''
+                            })
+                          }
+                        />
+                      </td>
+                      <td style={{ minWidth: 110 }}>
+                        <Form.Control
+                          size="sm"
+                          type="number"
+                          min="0"
+                          step="any"
+                          value={detail.qty ?? detail.quantity ?? ''}
+                          onChange={(event) => updateBomDetail(index, { qty: event.target.value })}
+                        />
+                      </td>
+                      <td style={{ minWidth: 120 }}>
+                        <Form.Control
+                          size="sm"
+                          type="number"
+                          min="0"
+                          step="any"
+                          value={plannedQuantity || ''}
+                          onChange={(event) => {
+                            const orderQuantity = Number(form.plannedQuantity);
+                            const nextPlannedQuantity = event.target.value;
+                            updateBomDetail(index, {
+                              qty: nextPlannedQuantity === '' || !(orderQuantity > 0) ? '' : Number(nextPlannedQuantity) / orderQuantity
+                            });
+                          }}
+                        />
+                      </td>
+                      <td style={{ minWidth: 100 }}>
+                        <Form.Control
+                          size="sm"
+                          value={detail.uom ?? detail.unit ?? detail.unit_of_msr ?? detail.invntry_uom ?? ''}
+                          onChange={(event) => updateBomDetail(index, { uom: event.target.value })}
+                        />
+                      </td>
+                      <td style={{ minWidth: 130 }}>
+                        <Select
+                          styles={bomItemSelectStyles}
+                          menuPortalTarget={document.body}
+                          menuPosition="fixed"
+                          menuPlacement="top"
+                          options={warehouseOptions}
+                          value={
+                            warehouseOptions.find((option) => String(option.value) === String(warehouseCode)) ||
+                            (warehouseCode !== '-' ? { value: warehouseCode, label: warehouseCode } : null)
+                          }
+                          isLoading={loadingWarehouses}
+                          placeholder="Select warehouse"
+                          onChange={(option) => updateBomDetail(index, { whs_code: option?.value || '' })}
+                        />
+                      </td>
+                      <td style={{ minWidth: 130 }}>
+                        <Form.Select
+                          size="sm"
+                          value={detail.issue_mthd ?? detail.issue_method ?? detail.issueMethod ?? ''}
+                          onChange={(event) => updateBomDetail(index, { issue_mthd: event.target.value, issue_method: event.target.value })}
+                        >
+                          <option value="">Select method</option>
+                          <option value="M">Manual</option>
+                          <option value="B">Backflush</option>
+                        </Form.Select>
+                      </td>
+                      {[
+                        ['ocr_code', 'OcrCode', ocrOptions.ocrCode, 'Select branch'],
+                        ['ocr_code2', 'OcrCode2', ocrOptions.ocrCode2, 'Select business unit'],
+                        ['ocr_code3', 'OcrCode3', ocrOptions.ocrCode3, 'Select department']
+                      ].map(([field, apiField, options, placeholder]) => {
+                        const value = detail[field] ?? detail[apiField] ?? form.product?.[field] ?? '';
+                        return (
+                          <td key={field} style={{ minWidth: 200 }}>
+                            <Select
+                              styles={bomItemSelectStyles}
+                              menuPortalTarget={document.body}
+                              menuPosition="fixed"
+                              menuPlacement="top"
+                              options={options}
+                              value={
+                                options.find((option) => String(option.value) === String(value)) || (value ? { value, label: value } : null)
+                              }
+                              isLoading={loadingOcr}
+                              placeholder={placeholder}
+                              onChange={(option) => updateBomDetail(index, { [field]: option?.value || '' })}
+                            />
+                          </td>
+                        );
+                      })}
+                      <td className="text-center">
+                        <Button
+                          size="sm"
+                          variant="outline-danger"
+                          aria-label={`Remove ${item.code || 'BOM item'}`}
+                          onClick={() => removeBomDetail(index)}
+                        >
+                          <i className="ti ti-trash" />
+                        </Button>
+                      </td>
                     </tr>
                   );
                 })
               ) : (
                 <tr>
-                  <td colSpan={7} className="text-center text-muted py-4">
+                  <td colSpan={11} className="text-center text-muted py-4">
                     Select a product from Bill of Material to display its details.
                   </td>
                 </tr>

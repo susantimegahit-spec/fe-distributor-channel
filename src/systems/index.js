@@ -61,6 +61,33 @@ export const systems = [
   }
 ];
 
+const menuNumberByKey = (() => {
+  const numbers = new Map();
+  let number = 1;
+
+  const registerMenus = (menuItems, systemKey) => {
+    menuItems.forEach((item) => {
+      const menuKey = number++;
+      numbers.set(`${systemKey}:${item.id || item.value}`, menuKey);
+      item.menu_key = menuKey;
+      item.menuKey = menuKey;
+      if (item.children?.length) registerMenus(item.children, systemKey);
+    });
+  };
+
+  systems.forEach((system) => {
+    const menuKey = number++;
+    numbers.set(system.key, menuKey);
+    system.menu_key = menuKey;
+    system.menuKey = menuKey;
+    registerMenus(system.menu, system.key);
+  });
+
+  return numbers;
+})();
+
+export const getMenuNumber = (systemKey, menuId) => menuNumberByKey.get(menuId ? `${systemKey}:${menuId}` : systemKey);
+
 const adminRoleId = 5;
 const systemAccessAliases = {
   distributor: SYSTEM_KEYS.CUSTOMER_PORTAL,
@@ -189,7 +216,11 @@ export const canAccessSystem = (system, permissionMenu = [], roleId) => {
   const allowedMenu = normalizePermissionMenu(permissionMenu);
   const systemMenuIds = flattenMenuIds(system.menu);
 
-  return allowedMenu.includes(system.key) || allowedMenu.includes(`${system.key}:access`) || systemMenuIds.some((menuId) => allowedMenu.includes(menuId));
+  return (
+    allowedMenu.includes(system.key) ||
+    allowedMenu.includes(`${system.key}:access`) ||
+    systemMenuIds.some((menuId) => allowedMenu.includes(menuId))
+  );
 };
 
 export const getAvailableSystems = (permissionMenu = [], roleId) =>

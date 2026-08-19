@@ -23,7 +23,7 @@ import ConfirmDialog from '../../../components/ConfirmDialog';
 import LoaderButton from '../../../components/LoaderButton';
 import LoaderData from '../../../components/LoaderData';
 import RoleServices from '../../../services/setting/RoleServices';
-import { SYSTEM_KEYS, getSystemByKey, normalizeAccessibleSystems, normalizePermissionMenu } from '../../../systems';
+import { SYSTEM_KEYS, getMenuNumber, getSystemByKey, normalizeAccessibleSystems, normalizePermissionMenu } from '../../../systems';
 import { useAlert } from '../../../utils/alertContext';
 
 const pageSize = 10;
@@ -34,25 +34,6 @@ const accessibleSystemOptions = [
   { value: SYSTEM_KEYS.PICKING_LIST, label: 'Picking List' },
   { value: SYSTEM_KEYS.PRODUCTION, label: 'Production' }
 ];
-
-const menuNumberByKey = (() => {
-  const numbers = new Map();
-  let number = 1;
-
-  const registerMenus = (menus, systemKey) => {
-    menus.forEach((item) => {
-      numbers.set(`${systemKey}:${item.id || item.value}`, number++);
-      if (item.children?.length) registerMenus(item.children, systemKey);
-    });
-  };
-
-  accessibleSystemOptions.forEach(({ value: systemKey }) => {
-    numbers.set(systemKey, number++);
-    registerMenus(getSystemByKey(systemKey).menu, systemKey);
-  });
-
-  return numbers;
-})();
 
 const getMasterApprovalId = (item) => item?.id || '';
 
@@ -78,7 +59,7 @@ const scopeMenuNode = (item, systemKey) => {
   const isParentNode = Boolean(item.children?.length);
   const value = getMenuValue(item);
   const title = item.label || item.title;
-  const menuNumber = menuNumberByKey.get(`${systemKey}:${item.id || value}`);
+  const menuNumber = item.menu_key ?? getMenuNumber(systemKey, item.id || value);
 
   return {
     ...item,
@@ -95,7 +76,7 @@ const buildMenuNodesBySystems = (systemKeys = []) =>
     return {
       id: system.key,
       title: system.title,
-      label: renderMenuLabel(system.title, menuNumberByKey.get(system.key)),
+      label: renderMenuLabel(system.title, system.menu_key ?? getMenuNumber(system.key)),
       value: system.key,
       type: 'group',
       selected: true,
@@ -630,7 +611,7 @@ export default function PermissionList() {
                     <div>
                       <Form.Label className="f-12 text-muted">Permission</Form.Label>
                       <Form.Select value={masterApprovalId} onChange={(event) => setMasterApprovalId(event.target.value)}>
-                        <option value=''>Select Permission</option>
+                        <option value="">Select Permission</option>
                         {listMasterApproval.map((item) => (
                           <option key={item.id} value={item.id}>
                             {item.label || item.approval_name || item.title || `Master Approval ${item.id}`}
@@ -698,10 +679,7 @@ export default function PermissionList() {
           <Button variant="danger" onClick={resetForm}>
             Cancel
           </Button>
-          <Button
-            variant="primary"
-            onClick={() => (roleId ? handleEdit() : handleCreate())}
-          >
+          <Button variant="primary" onClick={() => (roleId ? handleEdit() : handleCreate())}>
             {loadingSubmit ? <LoaderButton /> : 'Save'}
           </Button>
         </Modal.Footer>

@@ -27,7 +27,8 @@ import WarehouseServices from '../../../services/customer-portal/WarehouseServic
 import ExpeditionServices from '../../../services/expedition/ExpeditionServices';
 import RoleServices from '../../../services/setting/RoleServices';
 import UserServices from '../../../services/setting/UserServices';
-import { SYSTEM_KEYS } from '../../../systems';
+import { SYSTEM_KEYS, systems } from '../../../systems';
+import actionRegistry from '../../../data-action.json';
 import { useAlert } from '../../../utils/alertContext';
 import { getAssignedCustomerCode } from '../../../utils/cookies';
 
@@ -46,7 +47,8 @@ const initialInput = {
   stage: '',
   accessibleSystems: [],
   distributorCodes: [],
-  distributorIds: []
+  distributorIds: [],
+  actionAssignments: {}
 };
 
 const pageSize = 10;
@@ -65,6 +67,46 @@ const accessibleSystemOptions = [
   { value: SYSTEM_KEYS.PICKING_LIST, label: 'Picking List', color: '#7048e8' },
   { value: SYSTEM_KEYS.PRODUCTION, label: 'Production', color: '#198754' }
 ];
+const userActions = actionRegistry.action_definitions.map(({ value, label }) => ({ value, label }));
+const actionRegistryByMenuId = new Map(actionRegistry.menus.map((menu) => [menu.menu_id, menu]));
+const getRegisteredMenuActions = (menuId) => actionRegistryByMenuId.get(menuId)?.actions || [];
+const flattenActionMenus = (items = [], system) =>
+  items.flatMap((item) => [
+    ...(item.type === 'item' ? [{ ...item, systemKey: system.key, systemTitle: system.title }] : []),
+    ...(item.children?.length ? flattenActionMenus(item.children, system) : [])
+  ]);
+const actionMenuOptions = systems.flatMap((system) => flattenActionMenus(system.menu, system));
+
+const normalizeActionAssignments = (value) => {
+  const assignments = Array.isArray(value) ? value : [];
+
+  return assignments.reduce((result, assignment) => {
+    const menuId = assignment?.menu_key || assignment?.menuKey || assignment?.menu_id || assignment?.menuId || assignment?.id;
+    const actions = assignment?.actions || assignment?.action || [];
+    const matchingMenu = actionMenuOptions.find((menu) => String(menu.menu_key) === String(menuId) || String(menu.id) === String(menuId));
+
+    if (matchingMenu) {
+      if (Array.isArray(actions)) {
+        result[matchingMenu.id] = actions;
+      } else if (actions && typeof actions === 'object') {
+        const normalizedActions = [
+          actions.read && 'view',
+          actions.update && 'edit',
+          actions.delete && 'delete',
+          actions.approve && 'approve',
+          actions.export && 'download'
+        ].filter(Boolean);
+        if (actions.create) {
+          normalizedActions.push(...getRegisteredMenuActions(matchingMenu.id).filter((action) => ['add', 'upload'].includes(action)));
+        }
+        result[matchingMenu.id] = [...new Set(normalizedActions)];
+      } else {
+        result[matchingMenu.id] = String(actions).split(',').filter(Boolean);
+      }
+    }
+    return result;
+  }, {});
+};
 // Temporary SAP master data. Replace these options with API data when the SAP master endpoints are available.
 const sapOriginatorOptions = [
   { value: 'SAP001', label: 'SAP001 - Sales Admin' },
@@ -128,7 +170,10 @@ const normalizeArray = (value) => {
       // Use comma-separated values from the user detail response.
     }
 
-    return normalizedValue.split(',').map((item) => item.trim()).filter(Boolean);
+    return normalizedValue
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
   }
 
   return [value];
@@ -322,9 +367,7 @@ const formatDateTime = (value) => {
   if (!value) return '-';
 
   const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? String(value)
-    : date.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
 };
 
 const isUserActive = (value) => ['1', 'true', 'active', 'aktif', 'enabled'].includes(String(value).trim().toLowerCase());
@@ -644,6 +687,7 @@ export default function UserList() {
   const selectedExpedition = listExpedition.find((item) => item.value === input.expeditionCode) || null;
   const selectedSapOriginator = sapOriginatorOptions.find((item) => item.value === input.originator) || null;
   const selectedSapStage = sapStageOptions.find((item) => item.value === input.stage) || null;
+  const availableActionMenus = actionMenuOptions.filter((item) => input.accessibleSystems.includes(item.systemKey));
   const selectedWarehouses = input.whsCodes.map(
     (code) => listWarehouse.find((warehouse) => warehouse.value === code) || { value: code, label: code }
   );
@@ -666,6 +710,58 @@ export default function UserList() {
     code_customer: isAllDistributorSelected ? listDistributor.map((item) => item.value) : input.distributorCodes,
     id_distributor: isAllDistributorSelected ? listDistributor.map((item) => item.id) : input.distributorIds
   });
+  const getActionAssignmentPayload = () =>
+    availableActionMenus
+      .map((menu) => {
+        const registeredActions = getRegisteredMenuActions(menu.id);
+        const selectedActions = (input.actionAssignments[menu.id] || []).filter((action) => registeredActions.includes(action));
+        return {
+          menu_key: menu.menu_key,
+          actions: {
+            create: selectedActions.includes('add') || selectedActions.includes('upload'),
+            read: selectedActions.includes('view'),
+            update: selectedActions.includes('edit'),
+            delete: selectedActions.includes('delete'),
+            approve: selectedActions.includes('approve'),
+            export: selectedActions.includes('download')
+          }
+        };
+      })
+      .filter((assignment) => Object.values(assignment.actions).some(Boolean));
+
+  const handleActionAssignment = (menuId, action, isChecked) => {
+    setInput((currentInput) => {
+      const currentActions = currentInput.actionAssignments[menuId] || [];
+      const actions = isChecked
+        ? [...new Set([...currentActions, action])]
+        : currentActions.filter((currentAction) => currentAction !== action);
+
+      return {
+        ...currentInput,
+        actionAssignments: {
+          ...currentInput.actionAssignments,
+          [menuId]: actions
+        }
+      };
+    });
+  };
+  const actionableMenus = availableActionMenus.filter((menu) => getRegisteredMenuActions(menu.id).length);
+  const allActionsChecked =
+    actionableMenus.length > 0 &&
+    actionableMenus.every((menu) =>
+      getRegisteredMenuActions(menu.id).every((action) => input.actionAssignments[menu.id]?.includes(action))
+    );
+  const handleCheckAllActions = (isChecked) => {
+    setInput((currentInput) => {
+      const actionAssignments = { ...currentInput.actionAssignments };
+
+      availableActionMenus.forEach((menu) => {
+        actionAssignments[menu.id] = isChecked ? getRegisteredMenuActions(menu.id) : [];
+      });
+
+      return { ...currentInput, actionAssignments };
+    });
+  };
 
   const openCreateModal = () => {
     setFormMode('create');
@@ -701,7 +797,10 @@ export default function UserList() {
       stage: String(item.stage ?? item.sap_stage ?? ''),
       accessibleSystems: getUserAccessibleSystems(item),
       distributorCodes: hasAllDistributors ? [ALL_DISTRIBUTORS_VALUE] : distributorCodes,
-      distributorIds: hasAllDistributors ? [ALL_DISTRIBUTORS_VALUE] : distributorIds
+      distributorIds: hasAllDistributors ? [ALL_DISTRIBUTORS_VALUE] : distributorIds,
+      actionAssignments: normalizeActionAssignments(
+        item.actions || item.action_assignments || item.actionAssignments || item.menu_actions || item.menuActions
+      )
     });
     setShowPassword(false);
     setShowMenu(true);
@@ -756,6 +855,7 @@ export default function UserList() {
       originator: input.originator || null,
       stage: input.stage || null,
       accessible_systems: input.accessibleSystems,
+      actions: getActionAssignmentPayload(),
       code_customer: distributorPayload.code_customer?.toString(),
       id_distributor: distributorPayload.id_distributor?.toString()
     };
@@ -787,6 +887,7 @@ export default function UserList() {
       originator: input.originator || null,
       stage: input.stage || null,
       accessible_systems: input.accessibleSystems,
+      actions: getActionAssignmentPayload(),
       code_customer: distributorPayload.code_customer?.toString(),
       id_distributor: distributorPayload.id_distributor?.toString()
     };
@@ -823,12 +924,7 @@ export default function UserList() {
   };
 
   const formIsValid = Boolean(
-    input.name &&
-      input.username &&
-      input.email &&
-      input.roleId &&
-      input.accessibleSystems.length &&
-      (formMode === 'edit' || input.password)
+    input.name && input.username && input.email && input.roleId && input.accessibleSystems.length && (formMode === 'edit' || input.password)
   );
 
   return (
@@ -1383,6 +1479,78 @@ export default function UserList() {
                 </Card.Body>
               </Card>
             </Tab>
+            <Tab eventKey="actions" title="Action Assignment">
+              <Card className="border mb-0">
+                <Card.Header className="py-3">
+                  <Stack direction="horizontal" gap={3} className="justify-content-between">
+                    <Stack direction="horizontal" gap={2}>
+                      <i className="ti ti-checkbox text-primary" />
+                      <div>
+                        <h6 className="mb-0">Action Assignment</h6>
+                        <small className="text-muted">Select the actions this user can perform on each menu.</small>
+                      </div>
+                    </Stack>
+                    <Form.Check
+                      type="switch"
+                      id="user-action-check-all"
+                      label="Check All"
+                      checked={allActionsChecked}
+                      disabled={!availableActionMenus.length}
+                      onChange={(event) => handleCheckAllActions(event.target.checked)}
+                    />
+                  </Stack>
+                </Card.Header>
+                <Card.Body className="p-0" style={{ maxHeight: 420, overflow: 'auto' }}>
+                  {availableActionMenus.length ? (
+                    <Table hover className="mb-0 align-middle text-nowrap">
+                      <thead style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--bs-body-bg)' }}>
+                        <tr>
+                          <th className="ps-3">Menu Name</th>
+                          {userActions.map((action) => (
+                            <th key={action.value} className="text-center">
+                              {action.label}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {availableActionMenus.map((menu) => (
+                          <tr key={`${menu.systemKey}-${menu.id}`}>
+                            <td className="ps-3">
+                              <div className="fw-semibold">
+                                <span className="text-muted fw-normal">{menu.menu_key} - </span>
+                                {menu.title}
+                              </div>
+                              <small className="text-muted">{menu.systemTitle}</small>
+                            </td>
+                            {userActions.map((action) => {
+                              const isRegistered = getRegisteredMenuActions(menu.id).includes(action.value);
+                              return (
+                                <td key={action.value} className="text-center">
+                                  {isRegistered ? (
+                                    <Form.Check
+                                      type="switch"
+                                      id={`user-action-${menu.systemKey}-${menu.id}-${action.value}`}
+                                      aria-label={`${action.label} ${menu.title}`}
+                                      checked={(input.actionAssignments[menu.id] || []).includes(action.value)}
+                                      onChange={(event) => handleActionAssignment(menu.id, action.value, event.target.checked)}
+                                    />
+                                  ) : (
+                                    <span className="text-muted">—</span>
+                                  )}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </Table>
+                  ) : (
+                    <div className="text-center text-muted py-5">Select an accessible system on the Account &amp; Access tab first.</div>
+                  )}
+                </Card.Body>
+              </Card>
+            </Tab>
           </Tabs>
         </Modal.Body>
         <Modal.Footer>
@@ -1495,19 +1663,11 @@ export default function UserList() {
                       </Col>
                       <Col md={4}>
                         <Form.Label className="f-12 text-muted">Business Unit</Form.Label>
-                        <div>
-                          {formatUserOcrCodes(
-                            'ocr_code2',
-                            ['ocrCode2', 'business_units', 'business_unit_codes'],
-                            listOcr2
-                          )}
-                        </div>
+                        <div>{formatUserOcrCodes('ocr_code2', ['ocrCode2', 'business_units', 'business_unit_codes'], listOcr2)}</div>
                       </Col>
                       <Col md={4}>
                         <Form.Label className="f-12 text-muted">Department</Form.Label>
-                        <div>
-                          {formatUserOcrCodes('ocr_code3', ['ocrCode3', 'departments', 'department_codes'], listOcr3)}
-                        </div>
+                        <div>{formatUserOcrCodes('ocr_code3', ['ocrCode3', 'departments', 'department_codes'], listOcr3)}</div>
                       </Col>
                       <Col xs={12}>
                         <Form.Label className="f-12 text-muted">Accessible System</Form.Label>
@@ -1530,10 +1690,7 @@ export default function UserList() {
                           <Form.Label className="f-12 text-muted">Expedition</Form.Label>
                           <div className="fw-semibold">
                             {selectedUserExpedition?.label ||
-                              [
-                                selectedUserExpeditionCode,
-                                selectedUser.expedition?.name || selectedUser.expedition?.expedition_name
-                              ]
+                              [selectedUserExpeditionCode, selectedUser.expedition?.name || selectedUser.expedition?.expedition_name]
                                 .filter(Boolean)
                                 .join(' - ') ||
                               '-'}

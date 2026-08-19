@@ -20,12 +20,7 @@ import { DataService } from '../../config/dataService';
 import LoaderButton from '../../components/LoaderButton';
 import Turnstile from 'components/Turnstile';
 import { AUTH_STATE_CHANGED_EVENT } from '../../utils/authEvents';
-import {
-  getFirstAccessibleMenuPath,
-  isAdministratorRole,
-  normalizeAccessibleSystems,
-  systems
-} from '../../systems';
+import { getFirstAccessibleMenuPath, isAdministratorRole, normalizeAccessibleSystems, systems } from '../../systems';
 import { setAccessibleSystem } from '../../redux/authReducer';
 
 // ==============================|| AUTH LOGIN FORM ||============================== //
@@ -52,7 +47,14 @@ const normalizeAssignmentValues = (value, valueKeys = []) => {
     // Use a comma-separated assignment value when the response is not JSON.
   }
 
-  return [...new Set(normalizedValue.split(',').map((item) => item.trim()).filter(Boolean))];
+  return [
+    ...new Set(
+      normalizedValue
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean)
+    )
+  ];
 };
 
 const getAssignmentValues = (userData, loginData, keys, valueKeys = keys) => {
@@ -104,6 +106,7 @@ export default function AuthLoginForm({ className }) {
 
     try {
       const response = await DataService.post('/auth/login', payload);
+      console.log('Login response:', JSON.stringify(response.data, null, 2));
 
       if (response.data.success === true) {
         sessionStorage.removeItem('dc-session-expired-redirecting');
@@ -111,12 +114,9 @@ export default function AuthLoginForm({ className }) {
         const loginData = response.data.data || {};
         const userData = loginData.user || {};
         const accessibleSystemSource =
-          loginData.accessible_system ||
-          loginData.accessible_systems ||
-          userData.accessible_system ||
-          userData.accessible_systems ||
-          [];
+          loginData.accessible_system || loginData.accessible_systems || userData.accessible_system || userData.accessible_systems || [];
         const accessibleSystems = normalizeAccessibleSystems(accessibleSystemSource);
+        const actions = loginData.actions || loginData.permissions || userData.actions || userData.custom_permissions || [];
         const customerCode = userData.customer_code || userData.code_customer || loginData.customer_code || loginData.code_customer || '';
         const expeditionData = userData.expedition || loginData.expedition || {};
         const expeditionCode =
@@ -161,6 +161,7 @@ export default function AuthLoginForm({ className }) {
         Cookies.set('email', userData.email);
         Cookies.set('role', userData.role_id);
         Cookies.set('menu', JSON.stringify(loginData?.menu));
+        Cookies.set('actions', JSON.stringify(actions));
         Cookies.set('systems', JSON.stringify(loginData?.systems || loginData?.system_permissions || []));
         Cookies.set('system', JSON.stringify(accessibleSystems));
         dispatch(setAccessibleSystem(accessibleSystems));
@@ -191,8 +192,7 @@ export default function AuthLoginForm({ className }) {
           }))
           .find(({ menuPath }) => Boolean(menuPath));
         const firstAccessibleSystem = firstSystemWithAccessibleMenu?.system || accessibleSystemList[0];
-        const firstAccessiblePath =
-          firstSystemWithAccessibleMenu?.menuPath || firstAccessibleSystem?.defaultPath || '/systems';
+        const firstAccessiblePath = firstSystemWithAccessibleMenu?.menuPath || firstAccessibleSystem?.defaultPath || '/systems';
 
         window.dispatchEvent(new Event(AUTH_STATE_CHANGED_EVENT));
         setTimeout(() => {
@@ -283,10 +283,7 @@ export default function AuthLoginForm({ className }) {
         </Form.Group>
 
         {import.meta.env.VITE_TURNSTILE_ENABLED !== 'false' && (
-          <Turnstile
-            siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'}
-            onVerify={setTurnstileToken}
-          />
+          <Turnstile siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA'} onVerify={setTurnstileToken} />
         )}
 
         <div className="d-grid sm-login-action">

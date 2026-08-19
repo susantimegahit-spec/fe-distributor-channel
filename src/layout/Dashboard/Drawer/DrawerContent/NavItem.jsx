@@ -53,7 +53,11 @@ export default function NavItem({ item }) {
     );
 
   return (
-    <li className={`pc-item ${isSelected ? 'active' : ''}`}>
+    <li
+      id={item?.menu_key !== undefined ? String(item.menu_key) : undefined}
+      data-menu-key={item?.menu_key}
+      className={`pc-item ${isSelected ? 'active' : ''}`}
+    >
       <Link className="pc-link" to={item?.url || '#'} target={itemTarget} onClick={handleClick}>
         {renderIcon()}
         {item.title}
