@@ -1,12 +1,12 @@
-const withBasePath = (path) => `/enterprise${path}`;
+const withBasePath = (path) => `/coporate${path}`;
 
 const enterpriseMenu = [
   {
     id: 'enterprise-operations',
-    title: 'Enterprise',
+    title: 'Coporate',
     type: 'group',
     value: 'enterprise-operations',
-    label: 'Enterprise',
+    label: 'Coporate',
     selected: true,
     collapsible: false,
     children: [

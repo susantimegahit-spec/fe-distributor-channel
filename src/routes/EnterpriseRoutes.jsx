@@ -1,4 +1,5 @@
 import { lazy } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
 
 // project-imports
 import Loadable from 'components/Loadable';
@@ -11,30 +12,39 @@ const Budget = Loadable(lazy(() => import('views/enterprise/budget/Budget')));
 const DepartmentList = Loadable(lazy(() => import('views/setting/department/DepartmentList')));
 const CvScreening = Loadable(lazy(() => import('views/customer-portal/cv-screening/CvScreening')));
 
+const LegacyEnterpriseRedirect = () => {
+  const location = useLocation();
+  return <Navigate to={`${location.pathname.replace(/^\/enterprise/, '/coporate')}${location.search}`} replace />;
+};
+
 const EnterpriseRoutes = {
   path: '/',
   element: <DashboardLayout />,
   errorElement: <RouteErrorBoundary />,
   children: [
     {
-      path: 'enterprise/master-data/department',
+      path: 'coporate/master-data/department',
       element: <DepartmentList />
     },
     {
-      path: 'enterprise/purchasing/request',
+      path: 'coporate/purchasing/request',
       element: <PurchaseRequest />
     },
     {
-      path: 'enterprise/purchasing/order',
+      path: 'coporate/purchasing/order',
       element: <PurchaseOrder />
     },
     {
-      path: 'enterprise/budget',
+      path: 'coporate/budget',
       element: <Budget />
     },
     {
-      path: 'enterprise/hrd/cv',
+      path: 'coporate/hrd/cv',
       element: <CvScreening />
+    },
+    {
+      path: 'enterprise/*',
+      element: <LegacyEnterpriseRedirect />
     }
   ]
 };

@@ -32,9 +32,29 @@ const numberFormatter = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 
 const pageSize = 10;
 const COMPONENT_TYPE_ITEM = '4';
 const COMPONENT_TYPE_RESOURCE = '290';
+const productionTypeOptions = [{ value: 'Special', label: 'Special' }];
+const productionStatusOptions = [{ value: 'PLANNED', label: 'Planned' }];
+const shiftOptions = ['All', 'Shift 1', 'Shift 2', 'Shift 3'].map((value) => ({ value, label: value }));
+const componentTypeOptions = [
+  { value: COMPONENT_TYPE_ITEM, label: 'Item' },
+  { value: COMPONENT_TYPE_RESOURCE, label: 'Resource' }
+];
+const issueMethodOptions = [
+  { value: 'M', label: 'Manual' },
+  { value: 'B', label: 'Backflush' }
+];
+const productionSelectStyles = {
+  menuPortal: (base) => ({ ...base, zIndex: 1090 }),
+  control: (base) => ({ ...base, minHeight: 38 })
+};
 const bomItemSelectStyles = {
   menuPortal: (base) => ({ ...base, zIndex: 1090 }),
   control: (base) => ({ ...base, minWidth: 230, minHeight: 31, fontSize: '0.75rem' }),
+  option: (base) => ({ ...base, fontSize: '0.75rem' })
+};
+const bomCompactSelectStyles = {
+  menuPortal: (base) => ({ ...base, zIndex: 1090 }),
+  control: (base) => ({ ...base, minWidth: 115, minHeight: 31, fontSize: '0.75rem' }),
   option: (base) => ({ ...base, fontSize: '0.75rem' })
 };
 const actionPopperConfig = {
@@ -1156,23 +1176,33 @@ export default function ProductionOrder() {
                     <Col md={6}>
                       <Form.Group>
                         <Form.Label>Type</Form.Label>
-                        <Form.Select
-                          value={form.type}
-                          onChange={(event) => setForm((current) => ({ ...current, type: event.target.value }))}
-                        >
-                          <option value="Special">Special</option>
-                        </Form.Select>
+                        <Select
+                          styles={productionSelectStyles}
+                          menuPortalTarget={document.body}
+                          menuPosition="fixed"
+                          menuPlacement="auto"
+                          maxMenuHeight={240}
+                          menuShouldScrollIntoView={false}
+                          options={productionTypeOptions}
+                          value={productionTypeOptions.find((option) => option.value === form.type) || null}
+                          onChange={(option) => setForm((current) => ({ ...current, type: option?.value || '' }))}
+                        />
                       </Form.Group>
                     </Col>
                     <Col md={6}>
                       <Form.Group>
                         <Form.Label>Status</Form.Label>
-                        <Form.Select
-                          value={form.status}
-                          onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))}
-                        >
-                          <option value="PLANNED">Planned</option>
-                        </Form.Select>
+                        <Select
+                          styles={productionSelectStyles}
+                          menuPortalTarget={document.body}
+                          menuPosition="fixed"
+                          menuPlacement="auto"
+                          maxMenuHeight={240}
+                          menuShouldScrollIntoView={false}
+                          options={productionStatusOptions}
+                          value={productionStatusOptions.find((option) => option.value === form.status) || null}
+                          onChange={(option) => setForm((current) => ({ ...current, status: option?.value || '' }))}
+                        />
                       </Form.Group>
                     </Col>
                     <Col xs={12}>
@@ -1240,32 +1270,37 @@ export default function ProductionOrder() {
                     <Col md={6}>
                       <Form.Group>
                         <Form.Label>Series</Form.Label>
-                        <Form.Select
-                          value={form.series}
-                          onChange={(event) => setForm((current) => ({ ...current, series: event.target.value }))}
-                          disabled={loadingSeries}
-                        >
-                          <option value="">{loadingSeries ? 'Loading series...' : 'Select series'}</option>
-                          {seriesOptions.map((option) => (
-                            <option value={option.value} key={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </Form.Select>
+                        <Select
+                          styles={productionSelectStyles}
+                          menuPortalTarget={document.body}
+                          menuPosition="fixed"
+                          menuPlacement="auto"
+                          maxMenuHeight={240}
+                          menuShouldScrollIntoView={false}
+                          options={seriesOptions}
+                          value={seriesOptions.find((option) => String(option.value) === String(form.series)) || null}
+                          isLoading={loadingSeries}
+                          isDisabled={loadingSeries}
+                          isClearable
+                          placeholder={loadingSeries ? 'Loading series...' : 'Select series'}
+                          onChange={(option) => setForm((current) => ({ ...current, series: option?.value || '' }))}
+                        />
                       </Form.Group>
                     </Col>
                     <Col md={6}>
                       <Form.Group>
                         <Form.Label>Shift</Form.Label>
-                        <Form.Select
-                          value={form.shift}
-                          onChange={(event) => setForm((current) => ({ ...current, shift: event.target.value }))}
-                        >
-                          <option value="All">All</option>
-                          <option value="Shift 1">Shift 1</option>
-                          <option value="Shift 2">Shift 2</option>
-                          <option value="Shift 3">Shift 3</option>
-                        </Form.Select>
+                        <Select
+                          styles={productionSelectStyles}
+                          menuPortalTarget={document.body}
+                          menuPosition="fixed"
+                          menuPlacement="auto"
+                          maxMenuHeight={240}
+                          menuShouldScrollIntoView={false}
+                          options={shiftOptions}
+                          value={shiftOptions.find((option) => option.value === form.shift) || null}
+                          onChange={(option) => setForm((current) => ({ ...current, shift: option?.value || '' }))}
+                        />
                       </Form.Group>
                     </Col>
                     <Col md={4}>
@@ -1360,15 +1395,26 @@ export default function ProductionOrder() {
                   return (
                     <tr key={detail.id ?? detail.detail_id ?? `${item.code}-${index}`}>
                       <td style={{ minWidth: 120 }}>
-                        <Form.Select size="sm" value={type} onChange={(event) => handleBomDetailTypeChange(index, event.target.value)}>
-                          <option value="4">Item</option>
-                          <option value="290">Resource</option>
-                        </Form.Select>
+                        <Select
+                          styles={bomCompactSelectStyles}
+                          menuPortalTarget={document.body}
+                          menuPosition="fixed"
+                          menuPlacement="auto"
+                          maxMenuHeight={240}
+                          menuShouldScrollIntoView={false}
+                          options={componentTypeOptions}
+                          value={componentTypeOptions.find((option) => option.value === type) || null}
+                          onChange={(option) => handleBomDetailTypeChange(index, option?.value || COMPONENT_TYPE_ITEM)}
+                        />
                       </td>
                       <td style={{ minWidth: 250 }}>
                         <Select
                           styles={bomItemSelectStyles}
                           menuPortalTarget={document.body}
+                          menuPosition="fixed"
+                          menuPlacement="auto"
+                          maxMenuHeight={240}
+                          menuShouldScrollIntoView={false}
                           options={type === COMPONENT_TYPE_RESOURCE ? resourceOptions : materialOptions}
                           value={
                             (type === COMPONENT_TYPE_RESOURCE ? resourceOptions : materialOptions).find(
@@ -1426,7 +1472,9 @@ export default function ProductionOrder() {
                           styles={bomItemSelectStyles}
                           menuPortalTarget={document.body}
                           menuPosition="fixed"
-                          menuPlacement="top"
+                          menuPlacement="auto"
+                          maxMenuHeight={240}
+                          menuShouldScrollIntoView={false}
                           options={warehouseOptions}
                           value={
                             warehouseOptions.find((option) => String(option.value) === String(warehouseCode)) ||
@@ -1438,15 +1486,25 @@ export default function ProductionOrder() {
                         />
                       </td>
                       <td style={{ minWidth: 130 }}>
-                        <Form.Select
-                          size="sm"
-                          value={detail.issue_mthd ?? detail.issue_method ?? detail.issueMethod ?? ''}
-                          onChange={(event) => updateBomDetail(index, { issue_mthd: event.target.value, issue_method: event.target.value })}
-                        >
-                          <option value="">Select method</option>
-                          <option value="M">Manual</option>
-                          <option value="B">Backflush</option>
-                        </Form.Select>
+                        <Select
+                          styles={bomCompactSelectStyles}
+                          menuPortalTarget={document.body}
+                          menuPosition="fixed"
+                          menuPlacement="auto"
+                          maxMenuHeight={240}
+                          menuShouldScrollIntoView={false}
+                          options={issueMethodOptions}
+                          value={
+                            issueMethodOptions.find(
+                              (option) => option.value === (detail.issue_mthd ?? detail.issue_method ?? detail.issueMethod ?? '')
+                            ) || null
+                          }
+                          isClearable
+                          placeholder="Select method"
+                          onChange={(option) =>
+                            updateBomDetail(index, { issue_mthd: option?.value || '', issue_method: option?.value || '' })
+                          }
+                        />
                       </td>
                       {[
                         ['ocr_code', 'OcrCode', ocrOptions.ocrCode, 'Select branch'],
@@ -1460,7 +1518,9 @@ export default function ProductionOrder() {
                               styles={bomItemSelectStyles}
                               menuPortalTarget={document.body}
                               menuPosition="fixed"
-                              menuPlacement="top"
+                              menuPlacement="auto"
+                              maxMenuHeight={240}
+                              menuShouldScrollIntoView={false}
                               options={options}
                               value={
                                 options.find((option) => String(option.value) === String(value)) || (value ? { value, label: value } : null)

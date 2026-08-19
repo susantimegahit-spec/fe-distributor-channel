@@ -61,8 +61,12 @@ const getRateValue = (item, keys) =>
         value !== undefined && value !== null && typeof value !== 'object' && String(value).trim() !== ''
     ) ?? '';
 
-const getServiceTypeLabel = (serviceType) =>
-  String(serviceType || '').toUpperCase() === 'FEET' ? 'CONTAINER' : serviceType;
+const getServiceTypeLabel = (serviceType) => {
+  const normalizedServiceType = String(serviceType || '').toUpperCase();
+  if (normalizedServiceType === 'FEET') return 'CONTAINER';
+  if (['TONASE', 'TONNASE', 'KG'].includes(normalizedServiceType)) return 'Kg';
+  return serviceType;
+};
 
 const formatNumber = (value) => {
   const number = Number(value);
@@ -250,8 +254,8 @@ const validateRatesWorkbook = (workbook, expeditionCode) => {
     }
 
     const serviceType = String(values.service_type).trim().toUpperCase();
-    if (!['RIT', 'TONASE', 'CONTAINER'].includes(serviceType)) {
-      throw new Error(`Row ${excelRow}: service_type must be RIT, TONASE, or CONTAINER`);
+    if (!['RIT', 'KG', 'CONTAINER'].includes(serviceType)) {
+      throw new Error(`Row ${excelRow}: service_type must be RIT, KG, or CONTAINER`);
     }
     if (String(values.expedition).trim() !== expeditionCode) {
       throw new Error(`Row ${excelRow}: expedition must match ${expeditionCode}`);
@@ -492,7 +496,7 @@ export default function Rates() {
           formatTemplateDate(validUntil),
           0,
           1000,
-          'TONASE',
+          'KG',
           0
         ]
       ];
@@ -513,7 +517,7 @@ export default function Rates() {
       ]);
       const expeditionSheet = XLSX.utils.aoa_to_sheet([['expedition_code'], [expeditionCode]]);
       const transportModeSheet = XLSX.utils.aoa_to_sheet([['transport_mode'], ['D'], ['L'], ['U']]);
-      const serviceTypeSheet = XLSX.utils.aoa_to_sheet([['service_type'], ['RIT'], ['TONASE'], ['CONTAINER']]);
+      const serviceTypeSheet = XLSX.utils.aoa_to_sheet([['service_type'], ['RIT'], ['KG'], ['CONTAINER']]);
 
       ratesSheet['!cols'] = [
         { wch: 32 },
@@ -661,7 +665,7 @@ export default function Rates() {
       valid_until: details.validUntil,
       min_kg: normalizeNumberInput(details.minKg),
       max_kg: normalizeNumberInput(details.maxKg),
-      service_type: details.serviceType,
+      service_type: ['TONASE', 'TONNASE'].includes(details.serviceType) ? 'KG' : details.serviceType,
       rate: details.rate
     });
   };
@@ -920,11 +924,12 @@ export default function Rates() {
                 const rateValue = getRateValue(rate, ['rate', 'amount', 'price']);
                 const rateId = getRateId(rate);
                 const isApproved = isRateApproved(rate);
+                const isRateUnavailable = rateValue !== '' && Number(rateValue) === 0;
 
                 return (
                   <tr
                     key={rate.id || rate.rate_id || `${warehouseCode}-${destination}-${index}`}
-                    className={isApproved ? 'table-success' : rateValue !== '' && Number(rateValue) === 0 ? 'table-danger' : undefined}
+                    className={!isApproved ? undefined : isRateUnavailable ? 'table-danger' : 'table-success'}
                   >
                     <td className="text-center">
                       {!isApproved ? (
@@ -952,10 +957,12 @@ export default function Rates() {
                     <td className="text-end">
                       {rateValue === '' ? (
                         '-'
-                      ) : Number(rateValue) === 0 ? (
-                        <Badge bg="danger">SKIP</Badge>
+                      ) : isRateUnavailable ? (
+                        <Badge bg="light" text="danger" className="border border-danger">
+                          Not Available
+                        </Badge>
                       ) : (
-                        `Rp ${formatNumber(rateValue)}`
+                        `Rp ${formatNumber(rateValue)}/${getServiceTypeLabel(serviceType) || '-'}`
                       )}
                     </td>
                     <td className="text-end">
@@ -1216,7 +1223,7 @@ export default function Rates() {
                   <Form.Select value={editForm.service_type} onChange={handleEditChange('service_type')} required>
                     <option value="">Select service type</option>
                     <option value="RIT">RIT</option>
-                    <option value="TONASE">TONASE</option>
+                    <option value="KG">Kg</option>
                     <option value="FEET">CONTAINER</option>
                   </Form.Select>
                 </Form.Group>

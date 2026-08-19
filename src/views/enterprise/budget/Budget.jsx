@@ -225,7 +225,7 @@ export default function Budget() {
           <Stack direction="horizontal" gap={3} className="flex-wrap justify-content-between w-100">
             <div>
               <h5 className="mb-0">Budget</h5>
-              <span className="text-muted f-12">Manage departmental enterprise budgets by fiscal year.</span>
+              <span className="text-muted f-12">Manage departmental corporate budgets by fiscal year.</span>
             </div>
             <Button size="sm" onClick={openCreateForm}>
               <i className="ti ti-plus me-1" /> New Budget

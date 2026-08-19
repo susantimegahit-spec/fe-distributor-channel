@@ -29,7 +29,7 @@ import { useAlert } from '../../../utils/alertContext';
 const pageSize = 10;
 const accessibleSystemOptions = [
   { value: SYSTEM_KEYS.CUSTOMER_PORTAL, label: 'Customer Portal' },
-  { value: SYSTEM_KEYS.ENTERPRISE, label: 'Enterprise' },
+  { value: SYSTEM_KEYS.ENTERPRISE, label: 'Coporate' },
   { value: SYSTEM_KEYS.EXPEDITION, label: 'Expedition' },
   { value: SYSTEM_KEYS.PICKING_LIST, label: 'Picking List' },
   { value: SYSTEM_KEYS.PRODUCTION, label: 'Production' }

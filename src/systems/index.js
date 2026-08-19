@@ -25,11 +25,11 @@ export const systems = [
   },
   {
     key: SYSTEM_KEYS.ENTERPRISE,
-    title: 'Enterprise',
-    description: 'Integrated purchasing, procurement, and enterprise budgeting workflows.',
+    title: 'Coporate',
+    description: 'Integrated purchasing, procurement, and corporate budgeting workflows.',
     icon: 'ti ti-building-skyscraper',
-    basePath: '/enterprise',
-    defaultPath: '/enterprise/purchasing/request',
+    basePath: '/coporate',
+    defaultPath: '/coporate/purchasing/request',
     menu: enterpriseMenu
   },
   {
