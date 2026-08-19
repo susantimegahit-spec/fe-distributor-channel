@@ -22,6 +22,7 @@ import Turnstile from 'components/Turnstile';
 import { AUTH_STATE_CHANGED_EVENT } from '../../utils/authEvents';
 import { getFirstAccessibleMenuPath, isAdministratorRole, normalizeAccessibleSystems, systems } from '../../systems';
 import { setAccessibleSystem } from '../../redux/authReducer';
+import { compactActionsForCookie } from '../../utils/actionPermissions';
 
 // ==============================|| AUTH LOGIN FORM ||============================== //
 
@@ -116,7 +117,26 @@ export default function AuthLoginForm({ className }) {
         const accessibleSystemSource =
           loginData.accessible_system || loginData.accessible_systems || userData.accessible_system || userData.accessible_systems || [];
         const accessibleSystems = normalizeAccessibleSystems(accessibleSystemSource);
-        const actions = loginData.actions || loginData.permissions || userData.actions || userData.custom_permissions || [];
+        const actionSources = [
+          loginData.actions,
+          loginData.action_assignments,
+          loginData.actionAssignments,
+          loginData.action_permissions,
+          loginData.actionPermissions,
+          loginData.menu_actions,
+          loginData.menuActions,
+          loginData.permissions,
+          userData.actions,
+          userData.action_assignments,
+          userData.actionAssignments,
+          userData.action_permissions,
+          userData.actionPermissions,
+          userData.menu_actions,
+          userData.menuActions,
+          userData.custom_permissions
+        ];
+        const actions =
+          actionSources.find((value) => (Array.isArray(value) ? value.length > 0 : value && Object.keys(value).length > 0)) || [];
         const customerCode = userData.customer_code || userData.code_customer || loginData.customer_code || loginData.code_customer || '';
         const expeditionData = userData.expedition || loginData.expedition || {};
         const expeditionCode =
@@ -161,7 +181,7 @@ export default function AuthLoginForm({ className }) {
         Cookies.set('email', userData.email);
         Cookies.set('role', userData.role_id);
         Cookies.set('menu', JSON.stringify(loginData?.menu));
-        Cookies.set('actions', JSON.stringify(actions));
+        Cookies.set('actions', JSON.stringify(compactActionsForCookie(actions)));
         Cookies.set('systems', JSON.stringify(loginData?.systems || loginData?.system_permissions || []));
         Cookies.set('system', JSON.stringify(accessibleSystems));
         dispatch(setAccessibleSystem(accessibleSystems));

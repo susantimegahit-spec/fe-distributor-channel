@@ -21,6 +21,7 @@ import LoaderButton from '../../../components/LoaderButton';
 import { currency } from '../../../utils/global';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import CreatableSelect from 'react-select/creatable';
+import { canUseMenuAction } from '../../../utils/actionPermissions';
 
 // #FBD43C -> soft yellow
 // #DAA919 -> dark yellow
@@ -35,7 +36,8 @@ export default function OrderPost({ cmoMode = false }) {
   const shouldLockCustomerCode = assignedCustomerCodes.length === 1;
   const isAdminSalesRole = roleNumber === 2;
   const canSelectSales = roleNumber === 2 || roleNumber === 5;
-  const canSaveDraft = cmoMode || roleNumber === 1 || roleNumber === 5;
+  const orderMenuKey = cmoMode ? ['order-cmo', 13] : ['order-list', 14];
+  const canSaveDraft = canUseMenuAction(orderMenuKey, 'create');
   const shouldShowSeriesSalesOrder = !isCustomerRole;
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -2278,7 +2280,7 @@ export default function OrderPost({ cmoMode = false }) {
                     )}
                   </>
                 ) : null}
-                {roleNumber === 2 && !cmoMode && (
+                {isAdminSalesRole && isDetailMode && !cmoMode && (
                   <Button onClick={() => handleShowConfirm('WAITING_FINANCE')} variant="primary">
                     <i className="ti ti-send" />
                     Submit

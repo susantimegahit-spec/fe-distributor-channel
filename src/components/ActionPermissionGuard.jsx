@@ -35,7 +35,17 @@ export default function ActionPermissionGuard() {
           return;
         }
 
-        const allowed = isAdministratorSetting || canUseAction({ action, system, menuItem, pathname, roleId, actionsCookie });
+        const allowed =
+          isAdministratorSetting ||
+          canUseAction({
+            action,
+            system,
+            menuItem,
+            menuKey: element.dataset.permissionMenuKey,
+            pathname,
+            roleId,
+            actionsCookie
+          });
         element.classList.toggle(HIDDEN_CLASS, !allowed);
         element.setAttribute('aria-hidden', allowed ? 'false' : 'true');
       });

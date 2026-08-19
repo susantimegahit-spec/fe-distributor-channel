@@ -22,6 +22,7 @@ import PromoServices from '../../../services/customer-portal/PromoServices';
 import RoleServices from '../../../services/setting/RoleServices';
 import { useAlert } from '../../../utils/alertContext';
 import { getAssignedCustomerCode, getAssignedCustomerCodes, getCookies } from '../../../utils/cookies';
+import { canUseMenuAction } from '../../../utils/actionPermissions';
 import ConfirmDialog from 'components/ConfirmDialog';
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
@@ -326,7 +327,6 @@ export default function RewardList() {
   );
 
   const roleNumber = Number(roleId);
-  const isAdministrator = roleNumber === 5;
   const isAdminSales = permissionApprovalName === 'WAITING_ADMIN_SALES' || roleName.includes('ADMIN_SALES');
   const isAdminDistributor = roleNumber === 1 || roleName.includes('ADMIN_DISTRIBUTOR');
   const isOmDistributor =
@@ -554,9 +554,9 @@ export default function RewardList() {
     };
   }, [claims, rewardSummary, withdraws]);
 
-  const isFinanceUser = permissionApprovalName === 'WAITING_FINANCE' || roleName.includes('FINANCE');
-  const canVerifySellOut = isFinanceUser || isAdministrator;
-  const canManageReward = isAdminDistributor;
+  const canVerifySellOut = canUseMenuAction(17, 'approve');
+  const canManageReward = canUseMenuAction(17, 'create');
+  const canDeleteClaim = canUseMenuAction(17, 'delete');
   const distributorByCode = useMemo(() => {
     const entries = listDistributor.map((distributor) => [distributor.value, distributor]);
 
@@ -769,7 +769,7 @@ export default function RewardList() {
   };
 
   const handleDeleteClaim = async () => {
-    if (!isAdministrator || !claimToDelete?.id || deletingClaimId !== null) return;
+    if (!canDeleteClaim || !claimToDelete?.id || deletingClaimId !== null) return;
 
     const claim = claimToDelete;
     setClaimToDelete(null);
@@ -1228,7 +1228,7 @@ export default function RewardList() {
                             <Badge bg={getWithdrawStatusVariant(withdraw.status)}>{withdraw.status}</Badge>
                           </td>
                           <td className="text-center">
-                            {isFinanceUser ? (
+                            {canVerifySellOut ? (
                               <Button
                                 className="rounded-circle"
                                 variant="outline-success"
@@ -1320,7 +1320,7 @@ export default function RewardList() {
                 )}
                 Detail
               </button>
-              {isAdministrator ? (
+              {canDeleteClaim ? (
                 <>
                   <div className="dropdown-divider" />
                   <button

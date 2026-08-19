@@ -199,7 +199,8 @@ const getProgramCustomers = (program) => {
   });
 };
 
-const getCustomerOptionCode = (customer) => customer?.customer_code || customer?.code_customer || customer?.distributor_code || customer?.value || '';
+const getCustomerOptionCode = (customer) =>
+  customer?.customer_code || customer?.code_customer || customer?.distributor_code || customer?.value || '';
 
 const enrichCustomerOption = (customer, customerOptionMap) => {
   const customerCode = getCustomerOptionCode(customer);
@@ -288,7 +289,10 @@ export default function MasterPromo() {
     setLoadingOptions(true);
 
     try {
-      const [itemResponse, customerResponse] = await Promise.all([ProductServices.getAllProduct(''), DistributorServices.getAllDistributor('')]);
+      const [itemResponse, customerResponse] = await Promise.all([
+        ProductServices.getAllProduct(''),
+        DistributorServices.getAllDistributor('')
+      ]);
       const itemOptions = normalizeList(itemResponse).map((item) => {
         const itemCode = item.item_code || item.code || item.itemCode || '';
         const itemName = item.item_name || item.name || item.itemName || '';
@@ -492,7 +496,13 @@ export default function MasterPromo() {
   };
 
   const handleSubmitPromo = async () => {
-    if (!promoInput.program_name || !promoInput.customer_code.length || !promoInput.items.length || !promoInput.start_date || !promoInput.end_date) {
+    if (
+      !promoInput.program_name ||
+      !promoInput.customer_code.length ||
+      !promoInput.items.length ||
+      !promoInput.start_date ||
+      !promoInput.end_date
+    ) {
       showAlert('Program name, customer, item, start date, and end date are required', 'danger');
       return;
     }
@@ -563,7 +573,13 @@ export default function MasterPromo() {
             </Stack>
           }
           secondary={
-            <Button variant="primary" onClick={handleOpenAddModal} disabled={loadingData}>
+            <Button
+              variant="primary"
+              data-permission-action="add"
+              data-permission-menu-key="10"
+              onClick={handleOpenAddModal}
+              disabled={loadingData}
+            >
               <i className="ti ti-plus me-1" />
               Add Program
             </Button>
@@ -651,7 +667,9 @@ export default function MasterPromo() {
               ) : paginatedPromos.length ? (
                 paginatedPromos.map((program) => {
                   const programItems = program.items || [];
-                  const programCustomers = (program.customer_code || []).map((customer) => enrichCustomerOption(customer, customerOptionMap));
+                  const programCustomers = (program.customer_code || []).map((customer) =>
+                    enrichCustomerOption(customer, customerOptionMap)
+                  );
 
                   return (
                     <tr key={program.id}>
@@ -697,9 +715,7 @@ export default function MasterPromo() {
                           aria-expanded={String(promoActionMenu?.program?.id) === String(program.id)}
                           onClick={(event) =>
                             setPromoActionMenu((current) =>
-                              String(current?.program?.id) === String(program.id)
-                                ? null
-                                : { program, target: event.currentTarget }
+                              String(current?.program?.id) === String(program.id) ? null : { program, target: event.currentTarget }
                             )
                           }
                         >
@@ -720,7 +736,7 @@ export default function MasterPromo() {
                       </div>
                       <h5 className="mb-1">No promo programs yet</h5>
                       <p className="text-muted mb-3">Add promo programs to manage prices and discounts per customer type.</p>
-                      <Button variant="primary" onClick={handleOpenAddModal}>
+                      <Button variant="primary" data-permission-action="add" data-permission-menu-key="10" onClick={handleOpenAddModal}>
                         <i className="ti ti-plus me-1" />
                         Add Program
                       </Button>
@@ -1075,7 +1091,13 @@ export default function MasterPromo() {
                             <td>{index + 1}</td>
                             <td className="fw-semibold">{customer.customer_code || customer.value || '-'}</td>
                             <td>{customer.customer?.depo || customer.depo || '-'}</td>
-                            <td>{customer.customer?.name || customer.customer?.customer_name || customer.customer?.name_customer || customer.label || '-'}</td>
+                            <td>
+                              {customer.customer?.name ||
+                                customer.customer?.customer_name ||
+                                customer.customer?.name_customer ||
+                                customer.label ||
+                                '-'}
+                            </td>
                           </tr>
                         ))
                       ) : (

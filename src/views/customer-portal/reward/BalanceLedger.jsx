@@ -21,6 +21,7 @@ import PromoServices from '../../../services/customer-portal/PromoServices';
 import RoleServices from '../../../services/setting/RoleServices';
 import { useAlert } from '../../../utils/alertContext';
 import { getAssignedCustomerCodes, getCookies } from '../../../utils/cookies';
+import { canUseMenuAction } from '../../../utils/actionPermissions';
 
 const pageSize = 10;
 
@@ -462,7 +463,6 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
     [permissionDetail]
   );
   const roleNumber = Number(roleId);
-  const isAdministrator = roleNumber === 5;
   const isAdminSales = permissionApprovalName === 'WAITING_ADMIN_SALES' || roleName.includes('ADMIN_SALES');
   const isAdminDistributor = roleNumber === 1 || roleName.includes('ADMIN_DISTRIBUTOR');
   const isOmDistributor =
@@ -471,8 +471,7 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
     roleName.includes('OM_DISTRIBUTOR') ||
     roleName.includes('OPERATIONAL_MANAGER');
   const showCustomerFilter = isAdminSales || (!isAdminDistributor && !isOmDistributor);
-  const isFinanceUser = permissionApprovalName === 'WAITING_FINANCE' || roleName.includes('FINANCE');
-  const canVerifySellOut = isFinanceUser || isAdministrator;
+  const canVerifySellOut = canUseMenuAction(17, 'approve');
 
   const selectedCustomerCodes = useMemo(
     () => selectedCustomers.map((item) => String(item.value || '')).filter(Boolean),
@@ -493,8 +492,8 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
       ? selectedCustomerCodes.join(',')
       : customerCode;
   const adjustmentCustomerCode = isDistributor ? customerCode : '';
-  const canCreateAdjustment = isDistributor;
-  const canCreateWithdrawal = isAdminDistributor && isDistributor;
+  const canCreateAdjustment = canUseMenuAction(17, 'create') && isDistributor;
+  const canCreateWithdrawal = canUseMenuAction(17, 'create') && isDistributor;
 
   const fetchCustomerOptions = useCallback(async () => {
     if (!showCustomerFilter && !embedded) {
@@ -1168,7 +1167,7 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
   };
 
   const handleOpenApproveWithdrawModal = (withdraw) => {
-    if (!isFinanceUser || !withdraw?.withdrawId) return;
+    if (!canVerifySellOut || !withdraw?.withdrawId) return;
 
     setSelectedWithdraw(withdraw);
     setWithdrawTransferDate(getTodayDate());
@@ -1184,7 +1183,7 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
   };
 
   const handleSubmitApproveWithdraw = async () => {
-    if (!isFinanceUser || !selectedWithdraw?.withdrawId || !withdrawTransferDate) return;
+    if (!canVerifySellOut || !selectedWithdraw?.withdrawId || !withdrawTransferDate) return;
 
     setSubmittingApproveWithdraw(true);
 
@@ -1448,7 +1447,7 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
               <th className="text-end">Debit</th>
               <th className="text-end">Outstanding</th>
               <th>Status</th>
-              {isFinanceUser ? <th className="text-center">#</th> : null}
+              {canVerifySellOut ? <th className="text-center">#</th> : null}
             </tr>
           </thead>
           <tbody>
@@ -1515,7 +1514,7 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
                       '-'
                     )}
                   </td>
-                  {isFinanceUser ? (
+                  {canVerifySellOut ? (
                     <td className="text-center">
                       {item.typeKey === 'WITHDRAW' ? (
                         <Button

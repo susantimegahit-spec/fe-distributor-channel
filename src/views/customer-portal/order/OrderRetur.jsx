@@ -11,9 +11,9 @@ import Table from 'react-bootstrap/Table';
 
 import MainCard from 'components/MainCard';
 import OrderServices from '../../../services/customer-portal/OrderServices';
-import RoleServices from '../../../services/setting/RoleServices';
 import { useAlert } from '../../../utils/alertContext';
 import { useConfirm } from '../../../utils/confirmContext';
+import { canUseMenuAction } from '../../../utils/actionPermissions';
 import { getCookies } from '../../../utils/cookies';
 
 const getList = (response) => {
@@ -69,13 +69,14 @@ const normalizeAccessValue = (value) =>
 export default function OrderRetur() {
   const { showAlert } = useAlert();
   const { showConfirm } = useConfirm();
-  const roleId = getCookies('role');
+  const roleId = Number(getCookies('role'));
+  const isAdminSales = roleId === 2;
+  const isFinance = roleId === 3;
   const [returns, setReturns] = useState([]);
   const [loading, setLoading] = useState(false);
   const [keyword, setKeyword] = useState('');
   const [selectedReturn, setSelectedReturn] = useState(null);
   const [previewAttachment, setPreviewAttachment] = useState(null);
-  const [permissionDetail, setPermissionDetail] = useState(null);
 
   useEffect(() => {
     const fetchReturns = async () => {
@@ -94,21 +95,6 @@ export default function OrderRetur() {
 
     fetchReturns();
   }, [showAlert]);
-
-  useEffect(() => {
-    const fetchRolePermission = async () => {
-      if (!roleId) return;
-
-      try {
-        const response = await RoleServices.fetchRole(roleId);
-        setPermissionDetail(response?.data?.success ? response.data.data : null);
-      } catch {
-        setPermissionDetail(null);
-      }
-    };
-
-    fetchRolePermission();
-  }, [roleId]);
 
   const filteredReturns = useMemo(() => {
     const search = keyword.trim().toLowerCase();
@@ -135,16 +121,14 @@ export default function OrderRetur() {
   const returnAttachments = Array.isArray(returnAttachmentsValue)
     ? returnAttachmentsValue
     : [returnAttachmentsValue].filter(Boolean);
-  const permissionApprovalName = normalizeAccessValue(permissionDetail?.role_menu?.approval?.name);
-  const roleName = normalizeAccessValue(permissionDetail?.name || permissionDetail?.role?.name || permissionDetail?.role_name);
-  const isAdminSales = permissionApprovalName === 'WAITING_ADMIN_SALES' || roleName.includes('ADMIN_SALES');
-  const isFinance = permissionApprovalName === 'WAITING_FINANCE' || roleName.includes('FINANCE');
   const selectedReturnStatus = normalizeAccessValue(
     getValue(selectedReturn, ['status', 'return_status', 'returnStatus'], '')
   );
   const canManageSelectedReturn =
-    (selectedReturnStatus === 'WAITING_ADMIN_SALES' && isAdminSales) ||
-    (selectedReturnStatus === 'WAITING_FINANCE' && isFinance);
+    canUseMenuAction(['order-retur', 15], 'approve') &&
+    ['WAITING_ADMIN_SALES', 'WAITING_FINANCE'].includes(selectedReturnStatus) &&
+    !(isAdminSales && selectedReturnStatus === 'WAITING_FINANCE') &&
+    !(isFinance && selectedReturnStatus === 'WAITING_ADMIN_SALES');
 
   const openReturnDetail = (index) => {
     setSelectedReturn(filteredReturns[index] || null);

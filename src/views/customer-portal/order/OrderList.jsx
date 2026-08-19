@@ -28,6 +28,7 @@ import { getCookies } from '../../../utils/cookies';
 import { useAlert } from '../../../utils/alertContext';
 import RoleServices from '../../../services/setting/RoleServices';
 import DistributorServices from '../../../services/customer-portal/DistributorServices';
+import { canUseMenuAction } from '../../../utils/actionPermissions';
 
 const statusOptions = [
   { value: '', label: 'All Statuses' },
@@ -101,21 +102,6 @@ const cmoActionPopperConfig = {
     }
   ]
 };
-
-const actionAliases = {
-  view: ['view', 'read', 'show', 'detail', 'lihat'],
-  create: ['create', 'add', 'store', 'insert', 'tambah'],
-  edit: ['edit', 'update', 'ubah'],
-  delete: ['delete', 'remove', 'destroy', 'hapus'],
-  download: ['download', 'export', 'pdf', 'print', 'unduh'],
-  attachment: ['attachment', 'document', 'file', 'lampiran']
-};
-
-const normalizeAction = (value) =>
-  String(value || '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '_');
 
 const normalizeStatus = (value) =>
   String(value || '')
@@ -1269,7 +1255,8 @@ export default function OrderList({ showOnlyCommitment = false }) {
       if (response?.data?.success) {
         const orderDetail = response.data.data;
         const shouldLoadCreditLimit =
-          normalizeStatus(orderDetail?.status || order?.status) === 'WAITING_FINANCE' && (isAdministrator || isFinanceUser);
+          normalizeStatus(orderDetail?.status || order?.status) === 'WAITING_FINANCE' &&
+          canUseMenuAction(showOnlyCommitment ? ['order-cmo', 13] : ['order-list', 14], 'approve');
         const customerCode = getOrderCustomerCode(orderDetail) || getOrderCustomerCode(order);
         setSelectedOrderDetail(orderDetail);
 
@@ -1408,93 +1395,27 @@ export default function OrderList({ showOnlyCommitment = false }) {
     }
   };
 
-  const getPermissionActionList = () => {
-    let rawAction =
-      permissionDetail?.role_menu?.approval?.action ||
-      permissionDetail?.role_menu?.approval?.actions ||
-      permissionDetail?.roleMenu?.approval?.action ||
-      permissionDetail?.permissionDetail?.actionList ||
-      permissionDetail?.actionList ||
-      [];
-    if (Number(roleId) === 5) {
-      rawAction = 'view, edit, delete, add';
-    }
-    if (Array.isArray(rawAction)) {
-      return rawAction
-        .filter((item) => item?.allowed !== false && item?.is_allowed !== false)
-        .map((item) => normalizeAction(item?.name || item?.action || item?.code || item?.value || item))
-        .filter(Boolean);
-    }
-
-    return String(rawAction)
-      .split(',')
-      .map((item) => normalizeAction(item))
-      .filter(Boolean);
-  };
-
-  const actionList = useMemo(() => getPermissionActionList(), [permissionDetail]);
-
-  const permissionApprovalName = useMemo(
-    () => (Number(roleId) === 5 ? 'ALL' : normalizeStatus(permissionDetail?.role_menu?.approval?.name)),
-    [permissionDetail, roleId]
-  );
-
-  const roleName = useMemo(
-    () => normalizeStatus(permissionDetail?.name || permissionDetail?.role?.name || permissionDetail?.role_name),
-    [permissionDetail]
-  );
-  const isAdministrator = Number(roleId) === 5;
-  const isFinanceUser = permissionApprovalName === 'WAITING_FINANCE' || roleName.includes('FINANCE');
-  const isOmDistributor =
-    Number(roleId) === 2 ||
-    permissionApprovalName === 'WAITING_OM' ||
-    roleName === 'OM' ||
-    roleName.includes('OM_DISTRIBUTOR') ||
-    roleName.includes('OPERATIONAL_MANAGER');
-  const isAsm = permissionApprovalName === 'WAITING_ASM' || roleName === 'ASM' || roleName.includes('AREA_SALES_MANAGER');
-  const isAdminSales = permissionApprovalName === 'WAITING_ADMIN_SALES' || roleName.includes('ADMIN_SALES');
-
   const hasAction = (actionName) => {
-    const aliases = actionAliases[actionName] || [actionName];
-
-    return actionList.some((action) => aliases.some((alias) => action === alias || action.includes(alias)));
+    const normalizedAction = actionName === 'attachment' ? 'download' : actionName;
+    return canUseMenuAction(showOnlyCommitment ? ['order-cmo', 13] : ['order-list', 14], normalizedAction);
   };
 
   const canCreateOrder = hasAction('create');
 
-  const isOrderStatusSameWithPermission = (order) =>
-    (Boolean(permissionApprovalName) && normalizeStatus(order.status) === permissionApprovalName) || Number(roleId) === 5;
-
-  const isOrderStatusAllowed = (order) => {
-    if (!permissionApprovalName) return true;
-
-    return isOrderStatusSameWithPermission(order);
-  };
-
   const getButtonVisibility = (order) => {
-    const view = hasAction('view') || isOmDistributor || isAsm || isFinanceUser;
+    const view = hasAction('view');
     const normalizedOrderStatus = normalizeStatus(order.status);
     const isApprovedByFinance =
       normalizedOrderStatus === 'ORDER_APPROVED' ||
       normalizedOrderStatus === 'APPROVED' ||
       normalizedOrderStatus === 'DELIVERY' ||
       normalizedOrderStatus === 'ARRIVED';
-    const canEditOrder = (hasAction('edit') || isAdminSales) && !['APPROVED', 'ARRIVED', 'ORDER_APPROVED'].includes(normalizedOrderStatus);
-
-    if (!isOrderStatusAllowed(order)) {
-      return {
-        view,
-        attachment: false,
-        download: isApprovedByFinance,
-        edit: false,
-        delete: false
-      };
-    }
+    const canEditOrder = hasAction('edit') && !['APPROVED', 'ARRIVED', 'ORDER_APPROVED'].includes(normalizedOrderStatus);
 
     return {
       view,
       attachment: hasAction('attachment') || hasAction('download'),
-      download: hasAction('download') || isApprovedByFinance,
+      download: hasAction('download') && isApprovedByFinance,
       edit: canEditOrder,
       delete: hasAction('delete')
     };
@@ -1502,9 +1423,10 @@ export default function OrderList({ showOnlyCommitment = false }) {
 
   const getAccessAction = (order) => {
     const button = getButtonVisibility(order);
-    const canCancel = isAdminSales && ['ORDER_APPROVED', 'APPROVED'].includes(normalizeStatus(order.status));
-    const canDownloadPdf = ['ORDER_APPROVED', 'APPROVED', 'DELIVERY', 'ARRIVED'].includes(normalizeStatus(order.status));
-    const canViewAttachment = Boolean(order?.id);
+    const canCancel = hasAction('delete') && ['ORDER_APPROVED', 'APPROVED'].includes(normalizeStatus(order.status));
+    const canDownloadPdf =
+      hasAction('download') && ['ORDER_APPROVED', 'APPROVED', 'DELIVERY', 'ARRIVED'].includes(normalizeStatus(order.status));
+    const canViewAttachment = hasAction('download') && Boolean(order?.id);
 
     const hasVisibleButton = button.view || canViewAttachment || canDownloadPdf || button.edit || canCancel;
 
@@ -1529,7 +1451,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
     );
   };
 
-  const canShowSelectedApprovalAction = !showOnlyCommitment && selectedOrderDetail && isOrderStatusSameWithPermission(selectedOrderDetail);
+  const canShowSelectedApprovalAction = !showOnlyCommitment && Boolean(selectedOrderDetail) && hasAction('approve');
   const nextSelectedApprovalStatus = selectedOrderDetail ? getNextApprovalStatus(selectedOrderDetail) : '';
   const selectedSapDiscounts = selectedOrderDetail ? getSapDiscounts(selectedOrderDetail) : [];
   const selectedSapDiscountTotal = selectedSapDiscounts.reduce(
@@ -1551,7 +1473,9 @@ export default function OrderList({ showOnlyCommitment = false }) {
   const selectedCreditLimit = selectedOrderDetail ? getOrderValue(selectedOrderDetail, creditLimitKeys, '') : '';
   const selectedCreditRemaining = selectedOrderDetail?.creditLimitData?.SisaCredit;
   const canShowCreditLimitInfo =
-    selectedOrderDetail && normalizeStatus(selectedOrderDetail.status) === 'WAITING_FINANCE' && (isAdministrator || isFinanceUser);
+    selectedOrderDetail &&
+    normalizeStatus(selectedOrderDetail.status) === 'WAITING_FINANCE' &&
+    canUseMenuAction(showOnlyCommitment ? ['order-cmo', 13] : ['order-list', 14], 'approve');
   const formatCreditAmount = (value) => (value !== undefined && value !== null && value !== '' ? currency(parseAmount(value)) : '-');
   return (
     <>
@@ -2299,9 +2223,10 @@ export default function OrderList({ showOnlyCommitment = false }) {
           const order = orderActionMenu?.order;
           const button = order ? getButtonVisibility(order) : {};
           const normalizedOrderStatus = normalizeStatus(order?.status);
-          const canDownloadPdf = ['ORDER_APPROVED', 'APPROVED', 'DELIVERY', 'ARRIVED'].includes(normalizedOrderStatus);
-          const canCancel = isAdminSales && ['ORDER_APPROVED', 'APPROVED'].includes(normalizedOrderStatus);
-          const canViewAttachment = Boolean(order?.id);
+          const canDownloadPdf =
+            hasAction('download') && ['ORDER_APPROVED', 'APPROVED', 'DELIVERY', 'ARRIVED'].includes(normalizedOrderStatus);
+          const canCancel = hasAction('delete') && ['ORDER_APPROVED', 'APPROVED'].includes(normalizedOrderStatus);
+          const canViewAttachment = hasAction('download') && Boolean(order?.id);
 
           return (
             <div
