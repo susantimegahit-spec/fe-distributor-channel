@@ -25,6 +25,10 @@ class ProductionServices {
     return DataService.post('/production/orders/sap', payload);
   }
 
+  putProductionOrder(id, payload) {
+    return DataService.put(`/production/orders/${id}`, payload);
+  }
+
   getProductionOrder(payload = {}) {
     return DataService.get('/production/orders', payload);
   }
