@@ -492,7 +492,7 @@ export default function PermissionList() {
                   <tr>
                     <th style={{ minWidth: 260 }}>Role Name</th>
                     <th style={{ minWidth: 180 }}>Permission</th>
-                    <th style={{ minWidth: 220 }}>Accessible System</th>
+                    <th style={{ minWidth: 220 }}>Accessible Module</th>
                     <th style={{ minWidth: 140 }}>Menu Access</th>
                     <th style={{ minWidth: 120 }}>Status</th>
                     <th className="text-center" style={{ width: 120 }}>
@@ -596,13 +596,13 @@ export default function PermissionList() {
                       />
                     </div>
                     <div>
-                      <Form.Label className="f-12 text-muted">Accessible System</Form.Label>
+                      <Form.Label className="f-12 text-muted">Accessible Module</Form.Label>
                       <Select
                         value={selectedAccessibleSystems}
                         options={accessibleSystemOptions}
                         menuPosition="fixed"
                         onChange={handleSelectAccessibleSystems}
-                        placeholder="Select accessible system"
+                        placeholder="Select accessible module"
                         isClearable
                         isMulti
                         closeMenuOnSelect={false}
@@ -646,11 +646,13 @@ export default function PermissionList() {
                 <Card.Body style={{ maxHeight: 420, overflow: 'auto' }}>
                   {selectedMenuNodes.length ? (
                     <CheckboxTree
+                      id="role-permission-menu-tree"
                       nodes={selectedMenuNodes}
                       checked={checked}
                       expanded={expanded}
                       onCheck={handleCheckMenu}
                       onExpand={(value) => setExpanded(value)}
+                      nativeCheckboxes
                       showNodeIcon={false}
                       iconsClass="fa4"
                       showExpandAll
@@ -668,7 +670,7 @@ export default function PermissionList() {
                       }}
                     />
                   ) : (
-                    <div className="text-center text-muted py-4">Select an accessible system to view available menus.</div>
+                    <div className="text-center text-muted py-4">Select an accessible module to view available menus.</div>
                   )}
                 </Card.Body>
               </Card>

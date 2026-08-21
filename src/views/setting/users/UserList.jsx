@@ -1069,7 +1069,7 @@ export default function UserList() {
                 <thead>
                   <tr>
                     <th style={{ minWidth: 220 }}>User</th>
-                    <th style={{ minWidth: 180 }}>Accessible System</th>
+                    <th style={{ minWidth: 180 }}>Accessible Module</th>
                     <th style={{ minWidth: 180 }}>Access Rights</th>
                     <th style={{ minWidth: 120 }}>Status</th>
                     <th className="text-center" style={{ width: 120 }}>
@@ -1295,13 +1295,13 @@ export default function UserList() {
                       </Form.Select>
                     </Col>
                     <Col xs={12}>
-                      <Form.Label className="f-12 text-muted">Accessible System</Form.Label>
+                      <Form.Label className="f-12 text-muted">Accessible Module</Form.Label>
                       <Select
                         value={selectedAccessibleSystems}
                         options={accessibleSystemOptions}
                         menuPosition="fixed"
                         onChange={handleSelectAccessibleSystems}
-                        placeholder="Select accessible system"
+                        placeholder="Select accessible module"
                         isClearable
                         isMulti
                         closeMenuOnSelect={false}
@@ -1546,7 +1546,7 @@ export default function UserList() {
                       </tbody>
                     </Table>
                   ) : (
-                    <div className="text-center text-muted py-5">Select an accessible system on the Account &amp; Access tab first.</div>
+                    <div className="text-center text-muted py-5">Select an accessible module on the Account &amp; Access tab first.</div>
                   )}
                 </Card.Body>
               </Card>
@@ -1670,7 +1670,7 @@ export default function UserList() {
                         <div>{formatUserOcrCodes('ocr_code3', ['ocrCode3', 'departments', 'department_codes'], listOcr3)}</div>
                       </Col>
                       <Col xs={12}>
-                        <Form.Label className="f-12 text-muted">Accessible System</Form.Label>
+                        <Form.Label className="f-12 text-muted">Accessible Module</Form.Label>
                         <Stack direction="horizontal" gap={2} className="flex-wrap">
                           {selectedUserAccessibleSystems.length ? (
                             accessibleSystemOptions

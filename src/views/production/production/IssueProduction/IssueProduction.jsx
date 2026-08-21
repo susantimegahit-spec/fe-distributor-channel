@@ -829,7 +829,7 @@ export default function IssueProduction() {
                 const issue = normalizeIssue(selectedIssue.header);
                 const items = Array.isArray(selectedIssue.items) ? selectedIssue.items : [];
                 const columns = [...new Set(items.flatMap((item) => Object.keys(item || {})))].filter(
-                  (key) => !['docentry', 'linenum'].includes(normalizeKey(key))
+                  (key) => !['docentry', 'linenum', 'baseentry'].includes(normalizeKey(key))
                 );
                 return (
                   <Stack gap={4}>

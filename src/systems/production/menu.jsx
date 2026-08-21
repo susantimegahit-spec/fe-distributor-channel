@@ -108,6 +108,16 @@ const productionMenu = [
         selected: true,
         icon: 'ti ti-transfer',
         url: withBasePath('/inventory-transfer')
+      },
+      {
+        id: 'production-change-product',
+        title: 'Change Product',
+        type: 'item',
+        value: 'production-change-product',
+        label: 'Change Product',
+        selected: true,
+        icon: 'ti ti-replace',
+        url: withBasePath('/change-product')
       }
     ]
   }

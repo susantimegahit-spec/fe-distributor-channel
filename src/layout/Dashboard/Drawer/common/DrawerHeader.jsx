@@ -71,7 +71,7 @@ export const DrawerHeader = () => {
           variant="link"
           className="b-brand sm-sidebar-brand sm-sidebar-system-toggle"
           id="sidebar-system-switcher"
-          aria-label={`Current system: ${activeSystem.title}. Click to change system.`}
+          aria-label={`Current module: ${activeSystem.title}. Click to change module.`}
         >
           <Image src={SmestaLogo} alt="SMESTA" className="sm-sidebar-logo" />
           <span className="sm-sidebar-brand-text">
@@ -82,7 +82,7 @@ export const DrawerHeader = () => {
 
         <Dropdown.Menu className="sm-system-switcher-menu">
           <Dropdown.Header className="sm-system-switcher-header">
-            <strong>Select System</strong>
+            <strong>Select Module</strong>
             <small>Switch to another workspace</small>
           </Dropdown.Header>
 
@@ -116,7 +116,7 @@ export const DrawerHeader = () => {
           {Number(roleId) === 5 && (
             <Dropdown.Item as={Link} to="/setting/permissions" className="sm-system-switcher-manage">
               <i className="ti ti-shield-lock me-1" />
-              Manage system access
+              Manage module access
             </Dropdown.Item>
           )}
         </Dropdown.Menu>

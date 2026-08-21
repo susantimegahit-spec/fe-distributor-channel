@@ -13,6 +13,7 @@ const ProductionOrder = Loadable(lazy(() => import('views/production/production/
 const ReceiptProduction = Loadable(lazy(() => import('views/production/production/ReceiptProduction/ReceiptProduction')));
 const IssueProduction = Loadable(lazy(() => import('views/production/production/IssueProduction/IssueProduction')));
 const InventoryTransfer = Loadable(lazy(() => import('views/production/production/InventoryTransfer/InventoryTransfer')));
+const ChangeProduct = Loadable(lazy(() => import('views/production/production/ChangeProduct/ChangeProduct')));
 
 const ProductionRoutes = {
   path: '/',
@@ -50,6 +51,10 @@ const ProductionRoutes = {
     {
       path: 'production/inventory-transfer',
       element: <InventoryTransfer />
+    },
+    {
+      path: 'production/change-product',
+      element: <ChangeProduct />
     }
   ]
 };
