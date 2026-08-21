@@ -304,7 +304,7 @@ export default function IssueProduction() {
   const handleOpenOrderSelection = () => {
     setSelectedOrderIds([...new Set(issueForm.Lines.map((line) => String(line.BaseEntry)))]);
     setShowOrderModal(true);
-    if (!productionOrders.length) fetchProductionOrders();
+    fetchProductionOrders();
   };
 
   const handleToggleProductionOrder = (orderId, isChecked) => {

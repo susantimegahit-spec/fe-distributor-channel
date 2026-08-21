@@ -423,7 +423,7 @@ export default function ReceiptProduction() {
     const activePdoFilters = pdoInitialized ? pdoFilters : { from: filters.from, to: filters.to };
     dispatch(setReceiptPdoSelectedIds(receiptForm.Lines.map((line) => line.BaseEntry)));
     setShowBomModal(true);
-    if (!pdoInitialized) fetchBoms('', activePdoFilters);
+    fetchBoms('', activePdoFilters);
   };
 
   const handleTogglePdo = (order, isChecked) => {
