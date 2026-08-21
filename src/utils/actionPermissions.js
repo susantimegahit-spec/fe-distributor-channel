@@ -12,6 +12,8 @@ export const ACTION_ALIASES = {
   view: 'read',
   read: 'read',
   detail: 'read',
+  approve: 'approve',
+  reject: 'approve',
   download: 'export',
   export: 'export'
 };

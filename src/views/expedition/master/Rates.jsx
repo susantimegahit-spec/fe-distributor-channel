@@ -21,6 +21,7 @@ import DestinationServices from '../../../services/expedition/DestinationService
 import ExpeditionServices from '../../../services/expedition/ExpeditionServices';
 import OriginServices from '../../../services/expedition/OriginServices';
 import RateServices from '../../../services/expedition/RateServices';
+import { canUseMenuAction } from '../../../utils/actionPermissions';
 import { useAlert } from '../../../utils/alertContext';
 import { getCookies } from '../../../utils/cookies';
 
@@ -268,6 +269,7 @@ const validateRatesWorkbook = (workbook, expeditionCode) => {
 export default function Rates() {
   const { showAlert } = useAlert();
   const isAdministrator = Number(getCookies('role')) === 5;
+  const canApproveRates = canUseMenuAction([36, 'expedition-rates'], 'approve');
   const uploadInputRef = useRef(null);
   const [downloadingTemplate, setDownloadingTemplate] = useState(false);
   const [exportingRates, setExportingRates] = useState(false);
@@ -746,14 +748,17 @@ export default function Rates() {
 
   const getRateId = (rate) => rate?.id ?? rate?.rate_id;
   const isRateApproved = (rate) => String(getRateValue(rate, ['approval_status'])).toUpperCase() === 'APPROVED';
-  const visibleRateIds = rates
-    .filter((rate) => !isRateApproved(rate))
-    .map(getRateId)
-    .filter((id) => id !== null && id !== undefined)
-    .map(String);
+  const visibleRateIds = canApproveRates
+    ? rates
+        .filter((rate) => !isRateApproved(rate))
+        .map(getRateId)
+        .filter((id) => id !== null && id !== undefined)
+        .map(String)
+    : [];
   const allRatesSelected = Boolean(visibleRateIds.length) && visibleRateIds.every((id) => selectedRateIds.includes(id));
 
   const handleToggleRate = (rateId) => {
+    if (!canApproveRates) return;
     const normalizedId = String(rateId);
     setSelectedRateIds((currentIds) =>
       currentIds.includes(normalizedId) ? currentIds.filter((id) => id !== normalizedId) : [...currentIds, normalizedId]
@@ -761,11 +766,12 @@ export default function Rates() {
   };
 
   const handleToggleAllRates = () => {
+    if (!canApproveRates) return;
     setSelectedRateIds(allRatesSelected ? [] : visibleRateIds);
   };
 
   const handleBulkApprove = async () => {
-    if (!selectedRateIds.length) return;
+    if (!canApproveRates || !selectedRateIds.length) return;
 
     setBulkApproving(true);
 
@@ -800,14 +806,17 @@ export default function Rates() {
               <span className="text-muted f-12">Kelola tarif pengiriman untuk setiap ekspedisi dan rute.</span>
             </div>
             <Stack direction="horizontal" gap={2}>
-              <Button
-                variant="success"
-                disabled={loadingRates || bulkApproving || !selectedRateIds.length}
-                onClick={handleBulkApprove}
-              >
-                <i className={bulkApproving ? 'ti ti-loader-2 me-1' : 'ti ti-checks me-1'} />
-                {bulkApproving ? 'Approving...' : `Approve All${selectedRateIds.length ? ` (${selectedRateIds.length})` : ''}`}
-              </Button>
+              {canApproveRates ? (
+                <Button
+                  variant="success"
+                  data-permission-action="approve"
+                  disabled={loadingRates || bulkApproving || !selectedRateIds.length}
+                  onClick={handleBulkApprove}
+                >
+                  <i className={bulkApproving ? 'ti ti-loader-2 me-1' : 'ti ti-checks me-1'} />
+                  {bulkApproving ? 'Approving...' : `Approve All${selectedRateIds.length ? ` (${selectedRateIds.length})` : ''}`}
+                </Button>
+              ) : null}
               <Button
                 variant="outline-success"
                 disabled={loadingRates || exportingRates || !rates.length}
@@ -851,16 +860,18 @@ export default function Rates() {
         <Table responsive hover className="mb-0 align-middle">
           <thead>
             <tr>
-              <th className="text-center" style={{ width: 48 }}>
-                <Form.Check
-                  type="checkbox"
-                  className="m-0 d-inline-flex"
-                  checked={allRatesSelected}
-                  onChange={handleToggleAllRates}
-                  disabled={loadingRates || bulkApproving || !visibleRateIds.length}
-                  aria-label="Select all rates"
-                />
-              </th>
+              {canApproveRates ? (
+                <th className="text-center" style={{ width: 48 }}>
+                  <Form.Check
+                    type="checkbox"
+                    className="m-0 d-inline-flex"
+                    checked={allRatesSelected}
+                    onChange={handleToggleAllRates}
+                    disabled={loadingRates || bulkApproving || !visibleRateIds.length}
+                    aria-label="Select all rates"
+                  />
+                </th>
+              ) : null}
               <th>Origin</th>
               <th>Destination</th>
               <th>Expedition</th>
@@ -873,7 +884,7 @@ export default function Rates() {
           <tbody>
             {loadingRates ? (
               <tr>
-                <td colSpan={8}>
+                <td colSpan={canApproveRates ? 8 : 7}>
                   <LoaderData />
                 </td>
               </tr>
@@ -931,18 +942,20 @@ export default function Rates() {
                     key={rate.id || rate.rate_id || `${warehouseCode}-${destination}-${index}`}
                     className={!isApproved ? undefined : isRateUnavailable ? 'table-danger' : 'table-success'}
                   >
-                    <td className="text-center">
-                      {!isApproved ? (
-                        <Form.Check
-                          type="checkbox"
-                          className="m-0 d-inline-flex"
-                          checked={rateId !== null && rateId !== undefined && selectedRateIds.includes(String(rateId))}
-                          onChange={() => handleToggleRate(rateId)}
-                          disabled={bulkApproving || rateId === null || rateId === undefined}
-                          aria-label={`Select rate ${warehouseCode || ''} ${destination || ''}`.trim()}
-                        />
-                      ) : null}
-                    </td>
+                    {canApproveRates ? (
+                      <td className="text-center">
+                        {!isApproved ? (
+                          <Form.Check
+                            type="checkbox"
+                            className="m-0 d-inline-flex"
+                            checked={rateId !== null && rateId !== undefined && selectedRateIds.includes(String(rateId))}
+                            onChange={() => handleToggleRate(rateId)}
+                            disabled={bulkApproving || rateId === null || rateId === undefined}
+                            aria-label={`Select rate ${warehouseCode || ''} ${destination || ''}`.trim()}
+                          />
+                        ) : null}
+                      </td>
+                    ) : null}
                     <td>
                       <div>{warehouseName || '-'}</div>
                       {warehouseCode ? <small className="text-muted">{warehouseCode}</small> : null}
@@ -998,7 +1011,7 @@ export default function Rates() {
               })
             ) : (
               <tr>
-                <td colSpan={8} className="text-center text-muted py-5">
+                <td colSpan={canApproveRates ? 8 : 7} className="text-center text-muted py-5">
                   No rates data found.
                 </td>
               </tr>
