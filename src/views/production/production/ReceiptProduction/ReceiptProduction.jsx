@@ -125,13 +125,35 @@ const normalizeReceipt = (item = {}, index = 0) => ({
   raw: item
 });
 
+const getPlannedQuantity = (item = {}, fallback = 0) =>
+  Number(
+    item.PlannedQty ?? item.PlannedQuantity ?? item.plannedQty ?? item.planned_qty ?? item.planned_quantity ?? item.quantity ?? fallback
+  );
+
+const getCompletedQuantity = (item = {}, fallback = 0) =>
+  Number(
+    item.CmpltQty ??
+      item.Cmpltqty ??
+      item.cmpltQty ??
+      item.cmpltqty ??
+      item.CompletedQty ??
+      item.completedQty ??
+      item.completed_qty ??
+      item.completed_quantity ??
+      item.cmplt_qty ??
+      item.CompleteQty ??
+      item.completeQty ??
+      item.complete_qty ??
+      fallback
+  );
+
 const normalizeProductionOrder = (item = {}, index = 0) => ({
   id: item.DocEntry ?? item.doc_entry ?? item.id ?? index,
   number: item.DocNum ?? item.doc_num ?? item.prod_order_no ?? item.production_order_no ?? '-',
   itemCode: item.ItemCode ?? item.item_code ?? item.product_code ?? '',
   itemName: item.ProdName ?? item.ItemName ?? item.item_name ?? item.product_name ?? '',
-  plannedQuantity: Number(item.PlannedQty ?? item.planned_qty ?? item.planned_quantity ?? item.quantity ?? 0),
-  completedQuantity: Number(item.CmpltQty ?? item.completed_qty ?? item.completed_quantity ?? 0),
+  plannedQuantity: getPlannedQuantity(item),
+  completedQuantity: getCompletedQuantity(item),
   warehouse: item.Warehouse ?? item.WhsCode ?? item.whs_code ?? item.warehouse_code ?? '',
   bomId: item.Bomid ?? item.BomId ?? item.bom_id ?? item.bomId ?? '',
   unit: item.U_Unit ?? item.Unit ?? item.unit ?? item.ocr_code2 ?? '',
@@ -149,7 +171,9 @@ const createReceiptLineFromOrder = (order) => {
     BaseType: 202,
     BaseEntry: order.id,
     BaseLine: 0,
-    Quantity: Math.trunc(remainingQuantity || order.plannedQuantity),
+    PlannedQty: order.plannedQuantity,
+    CmpltQty: order.completedQuantity,
+    Quantity: remainingQuantity,
     WhsCode: order.warehouse,
     UoMEntry: 0,
     OcrCode: order.ocrCode,
@@ -157,6 +181,10 @@ const createReceiptLineFromOrder = (order) => {
     OcrCode3: order.ocrCode3
   };
 };
+
+const getRemainingReceiptQuantity = (line = {}) => Math.max(Number(line.PlannedQty || 0) - Number(line.CmpltQty || 0), 0);
+const cannotPostReceiptLine = (line = {}) => Number(line.CmpltQty || 0) >= Number(line.PlannedQty || 0);
+const cannotPostProductionOrder = (order = {}) => Number(order.completedQuantity || 0) >= Number(order.plannedQuantity || 0);
 
 const normalizeOcr = (item = {}) => {
   const code = item.ocr_code || item.ocrCode || item.OcrCode || item.code || '';
@@ -398,8 +426,12 @@ export default function ReceiptProduction() {
     if (!pdoInitialized) fetchBoms('', activePdoFilters);
   };
 
-  const handleTogglePdo = (orderId, isChecked) => {
-    dispatch(toggleReceiptPdo(orderId, isChecked));
+  const handleTogglePdo = (order, isChecked) => {
+    if (isChecked && cannotPostProductionOrder(order)) {
+      showAlert(`PDO ${order.number} cannot be selected because Complete Qty is greater than or equal to Plan Qty`, 'warning');
+      return;
+    }
+    dispatch(toggleReceiptPdo(order.id, isChecked));
   };
 
   const handleDeleteReceiptLine = (lineIndex) => {
@@ -421,10 +453,18 @@ export default function ReceiptProduction() {
       showAlert('Select at least one Production Order', 'warning');
       return;
     }
+    const normalizedOrders = pdoItems.map(normalizeProductionOrder);
+    const unpostableOrders = normalizedOrders.filter(
+      (order) => selectedPdoIds.includes(String(order.id)) && cannotPostProductionOrder(order)
+    );
+    if (unpostableOrders.length) {
+      showAlert(`Complete Qty must be less than Plan Qty for PDO: ${unpostableOrders.map((order) => order.number).join(', ')}`, 'warning');
+      return;
+    }
     const existingEntryIds = receiptForm.Lines.map((line) => String(line.BaseEntry));
-    const selectedOrders = pdoItems
-      .map(normalizeProductionOrder)
-      .filter((order) => selectedPdoIds.includes(String(order.id)) && !existingEntryIds.includes(String(order.id)));
+    const selectedOrders = normalizedOrders.filter(
+      (order) => selectedPdoIds.includes(String(order.id)) && !existingEntryIds.includes(String(order.id))
+    );
 
     setLoadingBomDetail(true);
     try {
@@ -437,13 +477,16 @@ export default function ReceiptProduction() {
           const payload = response?.data?.data ?? response?.data ?? {};
           const header = payload?.header ?? payload?.Header ?? payload?.data ?? payload?.order ?? payload?.production_order ?? payload;
           const orderDetail = normalizeProductionOrder({ ...order.raw, ...(header || {}) });
-          const lineSource = Array.isArray(payload?.items) ? payload.items[0] : null;
+          const detailItems = payload?.items ?? payload?.Items ?? payload?.details ?? payload?.order_details ?? [];
+          const lineSource = Array.isArray(detailItems) ? detailItems[0] : null;
 
           return lineSource
             ? {
                 ...orderDetail,
                 itemCode: lineSource.ItemCode ?? lineSource.item_code ?? orderDetail.itemCode,
                 itemName: lineSource.ItemName ?? lineSource.item_name ?? orderDetail.itemName,
+                plannedQuantity: getPlannedQuantity(lineSource, orderDetail.plannedQuantity),
+                completedQuantity: getCompletedQuantity(lineSource, orderDetail.completedQuantity),
                 warehouse: lineSource.WhsCode ?? lineSource.whs_code ?? orderDetail.warehouse,
                 ocrCode: lineSource.OcrCode ?? lineSource.ocr_code ?? orderDetail.ocrCode,
                 ocrCode2: lineSource.OcrCode2 ?? lineSource.ocr_code2 ?? orderDetail.ocrCode2,
@@ -471,11 +514,23 @@ export default function ReceiptProduction() {
   };
 
   const handleSubmitReceipt = async () => {
+    const unpostableLines = receiptForm.Lines.filter(cannotPostReceiptLine);
+    if (unpostableLines.length) {
+      const itemCodes = unpostableLines.map((line) => line.ItemCode || `Base Entry ${line.BaseEntry}`).join(', ');
+      showAlert(`Complete Qty must be less than Plan Qty for: ${itemCodes}. These rows cannot be posted`, 'warning');
+      return;
+    }
+
     const invalidLine = receiptForm.Lines.some(
       (line) => line.BaseEntry === '' || line.BaseLine === '' || !(Number(line.Quantity) > 0) || !line.WhsCode
     );
     if (!receiptForm.DocDate || !receiptForm.DocDueDate || !receiptForm.Lines.length || invalidLine) {
       showAlert('Complete document dates, Base Entry, Base Line, Quantity, and Warehouse for every line', 'warning');
+      return;
+    }
+    const exceedsRemainingQuantity = receiptForm.Lines.some((line) => Number(line.Quantity) > getRemainingReceiptQuantity(line));
+    if (exceedsRemainingQuantity) {
+      showAlert('Quantity cannot exceed Planned Qty minus Complete Qty', 'warning');
       return;
     }
 
@@ -695,7 +750,9 @@ export default function ReceiptProduction() {
             <thead>
               <tr>
                 <th>Item</th>
-                <th>Quantity</th>
+                <th>Plan Qty</th>
+                <th>Complete Qty</th>
+                <th>Qty</th>
                 <th>Warehouse</th>
                 <th>Branch</th>
                 <th>Business Unit</th>
@@ -706,13 +763,35 @@ export default function ReceiptProduction() {
             <tbody>
               {receiptForm.Lines.length ? (
                 receiptForm.Lines.map((line, index) => (
-                  <tr key={index}>
+                  <tr key={index} className={cannotPostReceiptLine(line) ? 'table-warning' : ''}>
                     <td style={{ minWidth: 170 }}>
                       <div className="fw-semibold">{line.ItemCode || '-'}</div>
                       <div className="text-muted f-12">{line.ItemName || '-'}</div>
                     </td>
-                    <td>
-                      <Form.Control size="sm" type="number" value={line.Quantity} readOnly />
+                    <td style={{ minWidth: 120 }}>
+                      <Form.Control size="sm" type="number" value={line.PlannedQty} readOnly />
+                    </td>
+                    <td style={{ minWidth: 120 }}>
+                      <Form.Control size="sm" type="number" value={line.CmpltQty} readOnly isInvalid={cannotPostReceiptLine(line)} />
+                      {cannotPostReceiptLine(line) ? (
+                        <Form.Text className="text-danger">Complete Qty must be less than Plan Qty.</Form.Text>
+                      ) : null}
+                    </td>
+                    <td style={{ minWidth: 120 }}>
+                      <Form.Control
+                        size="sm"
+                        type="number"
+                        min="0"
+                        max={getRemainingReceiptQuantity(line)}
+                        step="any"
+                        value={line.Quantity}
+                        disabled={cannotPostReceiptLine(line)}
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          const quantity = value === '' ? '' : Math.min(Math.max(Number(value), 0), getRemainingReceiptQuantity(line));
+                          updateReceiptLine(index, { Quantity: quantity });
+                        }}
+                      />
                     </td>
                     <td style={{ minWidth: 200 }}>
                       <Select
@@ -749,8 +828,11 @@ export default function ReceiptProduction() {
                     ))}
                     <td className="text-center">
                       <Button
+                        type="button"
+                        className="btn-icon avatar-s"
                         size="sm"
                         variant="outline-danger"
+                        data-permission-action="create"
                         aria-label={`Delete ${line.ItemCode || 'item'}`}
                         onClick={() => handleDeleteReceiptLine(index)}
                       >
@@ -761,7 +843,7 @@ export default function ReceiptProduction() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="text-center text-muted py-4">
+                  <td colSpan={9} className="text-center text-muted py-4">
                     No items added. Click Add PDO to select Production Orders.
                   </td>
                 </tr>
@@ -834,25 +916,30 @@ export default function ReceiptProduction() {
                 <th>Order No.</th>
                 <th>Product</th>
                 <th>Planned Qty</th>
+                <th>Complete Qty</th>
               </tr>
             </thead>
             <tbody>
               {loadingBoms ? (
                 <tr>
-                  <td colSpan={4}>
+                  <td colSpan={5}>
                     <LoaderData />
                   </td>
                 </tr>
               ) : boms.length ? (
                 boms.map((bom) => (
-                  <tr key={bom.id}>
+                  <tr key={bom.id} className={cannotPostProductionOrder(bom) ? 'table-warning' : ''}>
                     <td className="text-center">
-                      <Form.Check
-                        type="checkbox"
-                        aria-label={`Select PDO ${bom.number}`}
-                        checked={selectedPdoIds.includes(String(bom.id))}
-                        onChange={(event) => handleTogglePdo(bom.id, event.target.checked)}
-                      />
+                      {cannotPostProductionOrder(bom) ? (
+                        <i className="ti ti-alert-triangle text-danger" title="This PDO cannot be posted" />
+                      ) : (
+                        <Form.Check
+                          type="checkbox"
+                          aria-label={`Select PDO ${bom.number}`}
+                          checked={selectedPdoIds.includes(String(bom.id))}
+                          onChange={(event) => handleTogglePdo(bom, event.target.checked)}
+                        />
+                      )}
                     </td>
                     <td className="fw-semibold">{bom.number}</td>
                     <td>
@@ -860,11 +947,19 @@ export default function ReceiptProduction() {
                       <div className="text-muted f-12">{bom.itemName || '-'}</div>
                     </td>
                     <td>{numberFormatter.format(bom.plannedQuantity)}</td>
+                    <td>
+                      <div>{numberFormatter.format(bom.completedQuantity)}</div>
+                      {cannotPostProductionOrder(bom) ? (
+                        <div className="text-danger f-12">
+                          <i className="ti ti-alert-triangle me-1" /> Cannot be posted
+                        </div>
+                      ) : null}
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="text-center text-muted py-4">
+                  <td colSpan={5} className="text-center text-muted py-4">
                     No Production Order data found for the selected date filters.
                   </td>
                 </tr>

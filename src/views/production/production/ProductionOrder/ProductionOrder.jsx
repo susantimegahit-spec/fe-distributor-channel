@@ -32,6 +32,7 @@ const numberFormatter = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 
 const pageSize = 10;
 const COMPONENT_TYPE_ITEM = '4';
 const COMPONENT_TYPE_RESOURCE = '290';
+const PRODUCTION_ORDER_BASE_TYPE = 202;
 const productionTypeOptions = [{ value: 'Special', label: 'Special' }];
 const PRODUCTION_STATUS_PLANNED = 'PLANNED';
 const PRODUCTION_STATUS_RELEASE = 'release';
@@ -361,6 +362,13 @@ const canReleaseProductionOrder = (status) =>
       .toLowerCase()
   );
 
+const canAddIssueProductionOrder = (status) =>
+  ['released', 'release', 'open', 'r', 'o', 'bost_released', 'bost_open'].includes(
+    String(status || '')
+      .trim()
+      .toLowerCase()
+  );
+
 const normalizeShiftValue = (value) => {
   const normalized = String(value || '').toUpperCase();
   if (normalized === 'A' || normalized === '1') return 'Shift 1';
@@ -421,6 +429,58 @@ const mapOrderDetailToForm = (order) => {
   };
 };
 
+const getOrderDocEntry = (order = {}) =>
+  order.DocEntry ?? order.docEntry ?? order.doc_entry ?? order.headerData?.DocEntry ?? order.headerData?.doc_entry ?? order.id;
+
+const getIssueLineQuantity = (line = {}) =>
+  line.Quantity ??
+  line.quantity ??
+  line.PlannedQty ??
+  line.planned_qty ??
+  line.PlannedQuantity ??
+  line.planned_quantity ??
+  line.RequiredQty ??
+  line.required_qty ??
+  line.BaseQty ??
+  line.base_qty ??
+  line.qty ??
+  '';
+
+const createIssuePayloadFromOrder = (order = {}) => {
+  const docEntry = getOrderDocEntry(order);
+  const lines = order.itemsData?.length ? order.itemsData : order.details || [];
+
+  return {
+    DocDate: formatDateInputValue(new Date()),
+    DocDueDate: formatDateInputValue(order.dueDate || new Date()),
+    Comments: order.comments || order.headerData?.Comments || order.headerData?.comments || '',
+    Shift: order.shift || order.headerData?.U_Shift || order.headerData?.Shift || '',
+    Unit: order.headerData?.U_Unit || order.headerData?.Unit || order.ocr_code2 || order.OcrCode2 || '',
+    Bomid: String(order.headerData?.Bomid ?? order.headerData?.bom_id ?? order.bomId ?? order.bom_id ?? ''),
+    AddonId: String(order.headerData?.AddonId ?? order.headerData?.addon_id ?? getCookies('addonId') ?? ''),
+    UserId: String(getCookies('id') ?? ''),
+    Lines: lines
+      .map((line) => {
+        const baseEntry = line.BaseEntry ?? line.base_entry ?? docEntry;
+        const baseLine = line.BaseLine ?? line.base_line ?? line.LineNum ?? line.line_num ?? '';
+        const quantity = getIssueLineQuantity(line);
+
+        return {
+          BaseType: Number(line.BaseType ?? line.base_type ?? PRODUCTION_ORDER_BASE_TYPE),
+          BaseEntry: baseEntry === '' ? '' : Number(baseEntry),
+          BaseLine: baseLine === '' ? '' : Number(baseLine),
+          Quantity: quantity === '' ? '' : Number(quantity),
+          WhsCode: line.WhsCode ?? line.whs_code ?? line.Warehouse ?? line.warehouse_code ?? order.warehouse ?? '',
+          UoMEntry: Number(line.UoMEntry ?? line.uom_entry ?? line.UomEntry ?? 0),
+          OcrCode: line.OcrCode ?? line.ocr_code ?? order.headerData?.OcrCode ?? '',
+          OcrCode2: line.OcrCode2 ?? line.ocr_code2 ?? order.headerData?.OcrCode2 ?? '',
+          OcrCode3: line.OcrCode3 ?? line.ocr_code3 ?? order.headerData?.OcrCode3 ?? ''
+        };
+      })
+      .filter((line) => line.BaseEntry !== '' && line.BaseLine !== '' && Number(line.Quantity) > 0)
+  };
+};
+
 export default function ProductionOrder() {
   const { showAlert } = useAlert();
   const dispatch = useDispatch();
@@ -437,8 +497,10 @@ export default function ProductionOrder() {
   const [actionMenu, setActionMenu] = useState(null);
   const [cancelOrder, setCancelOrder] = useState(null);
   const [cancellingOrder, setCancellingOrder] = useState(false);
+  const [issuingOrderId, setIssuingOrderId] = useState(null);
   const [relationOrder, setRelationOrder] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showAddIssueModal, setShowAddIssueModal] = useState(false);
   const [releaseOrder, setReleaseOrder] = useState(null);
   const [showBomModal, setShowBomModal] = useState(false);
   const [loadingBoms, setLoadingBoms] = useState(false);
@@ -520,6 +582,7 @@ export default function ProductionOrder() {
     const startIndex = (safePage - 1) * pageSize;
     return filteredOrders.slice(startIndex, startIndex + pageSize);
   }, [currentPage, filteredOrders, pageCount]);
+  const issueableOrders = useMemo(() => filteredOrders.filter((order) => canAddIssueProductionOrder(order.status)), [filteredOrders]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -566,6 +629,40 @@ export default function ProductionOrder() {
     } finally {
       setCancellingOrder(false);
       setCancelOrder(null);
+    }
+  };
+
+  const handleAddIssue = async (order) => {
+    if (!order?.id) return;
+
+    setActionMenu(null);
+    setIssuingOrderId(order.id);
+
+    try {
+      const response = await ProductionServices.getProductionOrderById(order.id);
+      if (response?.data?.success === false) {
+        throw new Error(response.data.message || 'Failed to fetch Production Order detail');
+      }
+
+      const orderDetail = getProductionOrderDetail(response);
+      const payload = createIssuePayloadFromOrder(orderDetail);
+      const hasInvalidLine = payload.Lines.some((line) => line.BaseEntry === '' || line.BaseLine === '' || !(Number(line.Quantity) > 0));
+
+      if (!payload.DocDate || !payload.DocDueDate || !payload.Lines.length || hasInvalidLine) {
+        throw new Error('Complete Base Entry, Base Line, Quantity, and document dates before adding issue');
+      }
+
+      const issueResponse = await ProductionServices.postIssueProduction(payload);
+      if (issueResponse?.data?.success === false) {
+        throw new Error(issueResponse.data.message || 'Failed to add production issue');
+      }
+
+      setShowAddIssueModal(false);
+      showAlert(issueResponse?.data?.message || 'Production issue added successfully', 'success');
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to add production issue', 'danger');
+    } finally {
+      setIssuingOrderId(null);
     }
   };
 
@@ -933,10 +1030,20 @@ export default function ProductionOrder() {
           </Stack>
         }
         secondary={
-          <Button variant="success" onClick={handleOpenCreate}>
-            <i className="ti ti-plus me-1" />
-            Create Production Order
-          </Button>
+          <Stack direction="horizontal" gap={2}>
+            <Button
+              variant="outline-success"
+              onClick={() => setShowAddIssueModal(true)}
+              disabled={loadingOrders || Boolean(issuingOrderId)}
+            >
+              <i className="ti ti-package-export me-1" />
+              Add Issue
+            </Button>
+            <Button variant="success" onClick={handleOpenCreate}>
+              <i className="ti ti-plus me-1" />
+              Create Production Order
+            </Button>
+          </Stack>
         }
       >
         <Card className="border mb-3">
@@ -1192,6 +1299,66 @@ export default function ProductionOrder() {
           />
         ) : null}
       </MainCard>
+
+      <Modal show={showAddIssueModal} onHide={() => !issuingOrderId && setShowAddIssueModal(false)} size="xl" centered scrollable>
+        <Modal.Header closeButton={!issuingOrderId}>
+          <Modal.Title>Add Issue Production</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Table className="mb-0 align-middle" responsive hover>
+            <thead>
+              <tr>
+                <th>Order No.</th>
+                <th>Product</th>
+                <th className="text-end">Planned Qty</th>
+                <th>Warehouse</th>
+                <th>Due Date</th>
+                <th>Status</th>
+                <th className="text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {issueableOrders.length ? (
+                issueableOrders.map((order) => {
+                  const status = getStatus(order.status);
+                  const isIssuing = String(issuingOrderId) === String(order.id);
+
+                  return (
+                    <tr key={order.id}>
+                      <td>{order.number || '-'}</td>
+                      <td>
+                        <div className="fw-semibold">{order.itemCode || '-'}</div>
+                        <div className="text-muted f-12">{order.itemName || '-'}</div>
+                      </td>
+                      <td className="text-end">{numberFormatter.format(Number(order.plannedQuantity) || 0)}</td>
+                      <td>{order.warehouse || '-'}</td>
+                      <td>{formatDate(order.dueDate)}</td>
+                      <td>{status ? <Badge bg={status.variant}>{status.label}</Badge> : '-'}</td>
+                      <td className="text-center">
+                        <Button size="sm" variant="success" disabled={Boolean(issuingOrderId)} onClick={() => handleAddIssue(order)}>
+                          <i className={isIssuing ? 'ti ti-loader-2 me-1' : 'ti ti-package-export me-1'} />
+                          {isIssuing ? 'Adding...' : 'Add Issue'}
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={7} className="text-center text-muted py-4">
+                    No released Production Order found in the current list.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </Table>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" onClick={() => setShowAddIssueModal(false)} disabled={Boolean(issuingOrderId)}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       <Modal show={showDetailModal} onHide={() => !loadingOrderDetail && setShowDetailModal(false)} size="xl" centered scrollable>
         <Modal.Header closeButton={!loadingOrderDetail}>

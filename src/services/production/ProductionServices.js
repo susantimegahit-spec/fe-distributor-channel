@@ -97,6 +97,10 @@ class ProductionServices {
     return DataService.get(`/production/issues/sap/${id}`);
   }
 
+  postIssueProduction(payload) {
+    return DataService.post('/production/add-issue-prod-sap', payload);
+  }
+
   getProductionIssueById(id) {
     return DataService.get(`/production/issues/${id}`);
   }
