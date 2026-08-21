@@ -284,9 +284,7 @@ export default function InventoryTransfer() {
   const [loadingInventoryTransfers, setLoadingInventoryTransfers] = useState(false);
   const [transferFilters, setTransferFilters] = useState({
     From: firstDayOfMonth,
-    To: today,
-    WhsCode: null,
-    ToWhsCode: null
+    To: today
   });
   const [selectedTransferDetail, setSelectedTransferDetail] = useState(null);
   const [loadingTransferDetailId, setLoadingTransferDetailId] = useState(null);
@@ -312,8 +310,8 @@ export default function InventoryTransfer() {
         const response = await ProductionWarehouseServices.getInventoryTransfer(
           filters.From || '',
           filters.To || '',
-          filters.WhsCode?.value || '',
-          filters.ToWhsCode?.value || ''
+          '',
+          ''
         );
         if (response?.data?.success === false) {
           throw new Error(response.data.message || 'Failed to fetch inventory transfers');
@@ -774,7 +772,7 @@ export default function InventoryTransfer() {
         <Card className="border mb-3">
           <Card.Body>
             <Row className="g-3 align-items-end">
-              <Col md={6} lg={2}>
+              <Col md={4}>
                 <Form.Label>From</Form.Label>
                 <Form.Control
                   type="date"
@@ -782,7 +780,7 @@ export default function InventoryTransfer() {
                   onChange={(event) => setTransferFilters((current) => ({ ...current, From: event.target.value }))}
                 />
               </Col>
-              <Col md={6} lg={2}>
+              <Col md={4}>
                 <Form.Label>To</Form.Label>
                 <Form.Control
                   type="date"
@@ -790,33 +788,7 @@ export default function InventoryTransfer() {
                   onChange={(event) => setTransferFilters((current) => ({ ...current, To: event.target.value }))}
                 />
               </Col>
-              <Col md={6} lg={3}>
-                <Form.Label>From Warehouse</Form.Label>
-                <Select
-                  styles={selectStyles}
-                  menuPortalTarget={document.body}
-                  value={transferFilters.WhsCode}
-                  options={warehouseOptions}
-                  onChange={(WhsCode) => setTransferFilters((current) => ({ ...current, WhsCode }))}
-                  placeholder="All source warehouses"
-                  isClearable
-                  isSearchable
-                />
-              </Col>
-              <Col md={6} lg={3}>
-                <Form.Label>To Warehouse</Form.Label>
-                <Select
-                  styles={selectStyles}
-                  menuPortalTarget={document.body}
-                  value={transferFilters.ToWhsCode}
-                  options={warehouseOptions}
-                  onChange={(ToWhsCode) => setTransferFilters((current) => ({ ...current, ToWhsCode }))}
-                  placeholder="All destination warehouses"
-                  isClearable
-                  isSearchable
-                />
-              </Col>
-              <Col lg={2}>
+              <Col md={4}>
                 <Stack direction="horizontal" gap={2}>
                   <Button className="flex-grow-1" disabled={loadingInventoryTransfers} onClick={() => fetchInventoryTransfers()}>
                     <i className={loadingInventoryTransfers ? 'ti ti-loader-2 me-1' : 'ti ti-search me-1'} />
@@ -827,7 +799,7 @@ export default function InventoryTransfer() {
                     disabled={loadingInventoryTransfers}
                     aria-label="Reset inventory transfer filters"
                     onClick={() => {
-                      const defaultFilters = { From: firstDayOfMonth, To: today, WhsCode: null, ToWhsCode: null };
+                      const defaultFilters = { From: firstDayOfMonth, To: today };
                       setTransferFilters(defaultFilters);
                       fetchInventoryTransfers(defaultFilters);
                     }}
