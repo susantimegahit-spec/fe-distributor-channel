@@ -1,6 +1,10 @@
 import { DataService } from '../../config/dataService';
 
 class ProductionServices {
+  getUnit() {
+    return DataService.get('/production/get-unit');
+  }
+
   getBoms(payload = {}) {
     const { code = '', search = '' } = payload;
 

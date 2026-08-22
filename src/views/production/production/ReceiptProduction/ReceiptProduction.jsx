@@ -30,6 +30,12 @@ import { getCookies } from '../../../../utils/cookies';
 
 const pageSize = 10;
 const numberFormatter = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 });
+const shiftOptions = [
+  { value: 'X', label: 'All' },
+  { value: 'A', label: '1' },
+  { value: 'B', label: '2' },
+  { value: 'C', label: '3' }
+];
 const compactSelectStyles = {
   menuPortal: (base) => ({ ...base, zIndex: 1090 }),
   control: (base) => ({ ...base, minHeight: 31, minWidth: 180, fontSize: '0.75rem' }),
@@ -82,6 +88,7 @@ const getResponseList = (response) => {
   if (Array.isArray(payload?.production_receipts)) return payload.production_receipts;
   if (Array.isArray(payload?.documents)) return payload.documents;
   if (Array.isArray(payload?.warehouses)) return payload.warehouses;
+  if (Array.isArray(payload?.units)) return payload.units;
   if (Array.isArray(payload?.value)) return payload.value;
   if (Array.isArray(payload?.results)) return payload.results;
 
@@ -170,7 +177,7 @@ const createReceiptLineFromOrder = (order) => {
     ItemName: order.itemName,
     BaseType: 202,
     BaseEntry: order.id,
-    BaseLine: 0,
+    BaseLine: order.baseLine ?? 0,
     PlannedQty: order.plannedQuantity,
     CmpltQty: order.completedQuantity,
     Quantity: remainingQuantity,
@@ -196,6 +203,13 @@ const normalizeWarehouse = (item = {}) => {
   const code = item.whs_code || item.warehouse_code || item.code || item.WhsCode || '';
   const name = item.whs_name || item.warehouse_name || item.name || item.WhsName || '';
   return { value: code, label: [code, name].filter(Boolean).join(' - ') || String(code) };
+};
+
+const normalizeUnit = (item = {}) => {
+  const value = typeof item === 'object' ? item.u_unit || item.U_Unit || item.unit || item.Unit || item.code || item.value || '' : item;
+  const label = typeof item === 'object' ? item.unit_name || item.UnitName || item.name || item.label || item.description || value : item;
+
+  return value ? { value, label: String(label) } : null;
 };
 
 const normalizeColumnKey = (key) =>
@@ -266,6 +280,8 @@ export default function ReceiptProduction() {
   const [ocrOptions, setOcrOptions] = useState({ branch: [], businessUnit: [], department: [] });
   const [loadingWarehouses, setLoadingWarehouses] = useState(false);
   const [warehouseOptions, setWarehouseOptions] = useState([]);
+  const [loadingUnits, setLoadingUnits] = useState(false);
+  const [unitOptions, setUnitOptions] = useState([]);
 
   const fetchReceipts = useCallback(
     async (activeFilters) => {
@@ -419,6 +435,22 @@ export default function ReceiptProduction() {
     }
   };
 
+  const fetchUnitOptions = async () => {
+    if (unitOptions.length) return;
+
+    setLoadingUnits(true);
+    try {
+      const response = await ProductionServices.getUnit();
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch unit data');
+      setUnitOptions(getResponseList(response).map(normalizeUnit).filter(Boolean));
+    } catch (error) {
+      setUnitOptions([]);
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch unit data', 'danger');
+    } finally {
+      setLoadingUnits(false);
+    }
+  };
+
   const handleOpenBomSelection = () => {
     const activePdoFilters = pdoInitialized ? pdoFilters : { from: filters.from, to: filters.to };
     dispatch(setReceiptPdoSelectedIds(receiptForm.Lines.map((line) => line.BaseEntry)));
@@ -468,7 +500,7 @@ export default function ReceiptProduction() {
 
     setLoadingBomDetail(true);
     try {
-      const receiptOrders = await Promise.all(
+      const receiptOrderGroups = await Promise.all(
         selectedOrders.map(async (order) => {
           const response = await ProductionServices.getProductionOrderById(order.id);
           if (response?.data?.success === false) {
@@ -476,25 +508,15 @@ export default function ReceiptProduction() {
           }
           const payload = response?.data?.data ?? response?.data ?? {};
           const header = payload?.header ?? payload?.Header ?? payload?.data ?? payload?.order ?? payload?.production_order ?? payload;
-          const orderDetail = normalizeProductionOrder({ ...order.raw, ...(header || {}) });
-          const detailItems = payload?.items ?? payload?.Items ?? payload?.details ?? payload?.order_details ?? [];
-          const lineSource = Array.isArray(detailItems) ? detailItems[0] : null;
+          const headerItems = Array.isArray(header) ? header : [header];
 
-          return lineSource
-            ? {
-                ...orderDetail,
-                itemCode: lineSource.ItemCode ?? lineSource.item_code ?? orderDetail.itemCode,
-                itemName: lineSource.ItemName ?? lineSource.item_name ?? orderDetail.itemName,
-                plannedQuantity: getPlannedQuantity(lineSource, orderDetail.plannedQuantity),
-                completedQuantity: getCompletedQuantity(lineSource, orderDetail.completedQuantity),
-                warehouse: lineSource.WhsCode ?? lineSource.whs_code ?? orderDetail.warehouse,
-                ocrCode: lineSource.OcrCode ?? lineSource.ocr_code ?? orderDetail.ocrCode,
-                ocrCode2: lineSource.OcrCode2 ?? lineSource.ocr_code2 ?? orderDetail.ocrCode2,
-                ocrCode3: lineSource.OcrCode3 ?? lineSource.ocr_code3 ?? orderDetail.ocrCode3
-              }
-            : orderDetail;
+          return headerItems.filter(Boolean).map((headerItem, index) => ({
+            ...normalizeProductionOrder({ ...order.raw, ...headerItem }),
+            baseLine: headerItem.BaseLine ?? headerItem.base_line ?? headerItem.LineNum ?? headerItem.line_num ?? index
+          }));
         })
       );
+      const receiptOrders = receiptOrderGroups.flat();
 
       setReceiptForm((current) => ({
         ...current,
@@ -583,6 +605,7 @@ export default function ReceiptProduction() {
               setShowAddReceipt(true);
               fetchOcrOptions();
               fetchWarehouseOptions();
+              fetchUnitOptions();
             }}
           >
             <i className="ti ti-plus me-1" />
@@ -712,21 +735,38 @@ export default function ReceiptProduction() {
             </Col>
             <Col md={2}>
               <Form.Label>Shift</Form.Label>
-              <Form.Select
-                value={receiptForm.Shift}
-                onChange={(event) => setReceiptForm((current) => ({ ...current, Shift: event.target.value }))}
-              >
-                <option value="X">All</option>
-                <option value="A">1</option>
-                <option value="B">2</option>
-                <option value="C">3</option>
-              </Form.Select>
+              <Select
+                styles={compactSelectStyles}
+                menuPortalTarget={document.body}
+                menuPosition="fixed"
+                menuPlacement="auto"
+                maxMenuHeight={240}
+                menuShouldScrollIntoView={false}
+                options={shiftOptions}
+                value={shiftOptions.find((option) => option.value === receiptForm.Shift) || null}
+                placeholder="Select shift"
+                onChange={(option) => setReceiptForm((current) => ({ ...current, Shift: option?.value || '' }))}
+              />
             </Col>
             <Col md={2}>
               <Form.Label>Unit</Form.Label>
-              <Form.Control
-                value={receiptForm.Unit}
-                onChange={(event) => setReceiptForm((current) => ({ ...current, Unit: event.target.value }))}
+              <Select
+                styles={compactSelectStyles}
+                menuPortalTarget={document.body}
+                menuPosition="fixed"
+                menuPlacement="auto"
+                maxMenuHeight={240}
+                menuShouldScrollIntoView={false}
+                options={unitOptions}
+                value={
+                  unitOptions.find((option) => String(option.value) === String(receiptForm.Unit)) ||
+                  (receiptForm.Unit ? { value: receiptForm.Unit, label: receiptForm.Unit } : null)
+                }
+                isLoading={loadingUnits}
+                isDisabled={loadingUnits}
+                isClearable
+                placeholder={loadingUnits ? 'Loading units...' : 'Select unit'}
+                onChange={(option) => setReceiptForm((current) => ({ ...current, Unit: option?.value || '' }))}
               />
             </Col>
             <Col xs={12}>

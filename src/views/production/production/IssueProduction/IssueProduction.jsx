@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Select from 'react-select';
 
 import Button from 'react-bootstrap/Button';
 import Card from 'react-bootstrap/Card';
@@ -18,6 +19,16 @@ import { getCookies } from '../../../../utils/cookies';
 
 const pageSize = 10;
 const numberFormatter = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 6 });
+const shiftOptions = [
+  { value: 'X', label: 'All' },
+  { value: 'A', label: '1' },
+  { value: 'B', label: '2' },
+  { value: 'C', label: '3' }
+];
+const selectStyles = {
+  menuPortal: (base) => ({ ...base, zIndex: 1090 }),
+  control: (base) => ({ ...base, minHeight: 38 })
+};
 const today = new Date().toLocaleDateString('en-CA');
 const createIssueForm = () => ({
   DocDate: today,
@@ -61,12 +72,19 @@ const getResponseList = (response) => {
     'orders',
     'production_orders',
     'documents',
+    'units',
     'value',
     'results'
   ]) {
     if (Array.isArray(payload?.[key])) return payload[key];
   }
   return [];
+};
+const normalizeUnit = (item = {}) => {
+  const value = typeof item === 'object' ? item.u_unit || item.U_Unit || item.unit || item.Unit || item.code || item.value || '' : item;
+  const label = typeof item === 'object' ? item.unit_name || item.UnitName || item.name || item.label || item.description || value : item;
+
+  return value ? { value, label: String(label) } : null;
 };
 const getResponseDetail = (response) => {
   const payload = response?.data?.data ?? response?.data;
@@ -103,12 +121,6 @@ const normalizeProductionOrder = (item = {}, index = 0) => ({
   status: getValue(item, ['ProductionOrderStatus', 'Status', 'status', 'order_status']),
   raw: item
 });
-const isIssueableOrder = (status) =>
-  ['released', 'release', 'open', 'r', 'o', 'bost_released', 'bost_open'].includes(
-    String(status || '')
-      .trim()
-      .toLowerCase()
-  );
 const getProductionOrderDetail = (response) => {
   const payload = response?.data?.data ?? response?.data ?? {};
   const header = payload?.header ?? payload?.Header ?? payload?.data ?? payload?.order ?? payload?.production_order ?? payload;
@@ -208,6 +220,8 @@ export default function IssueProduction() {
   const [orderSearch, setOrderSearch] = useState('');
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [loadingOrderDetailId, setLoadingOrderDetailId] = useState(null);
+  const [loadingUnits, setLoadingUnits] = useState(false);
+  const [unitOptions, setUnitOptions] = useState([]);
 
   const fetchIssues = useCallback(
     async (activeFilters) => {
@@ -269,17 +283,32 @@ export default function IssueProduction() {
     fetchIssues(defaults);
   };
 
+  const fetchUnitOptions = async () => {
+    if (unitOptions.length) return;
+
+    setLoadingUnits(true);
+    try {
+      const response = await ProductionServices.getUnit();
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch unit data');
+      setUnitOptions(getResponseList(response).map(normalizeUnit).filter(Boolean));
+    } catch (error) {
+      setUnitOptions([]);
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch unit data', 'danger');
+    } finally {
+      setLoadingUnits(false);
+    }
+  };
+
   const filteredProductionOrders = useMemo(() => {
     const keyword = orderSearch.trim().toLowerCase();
-    return productionOrders.filter(
-      (order) =>
-        isIssueableOrder(order.status) &&
-        (!keyword ||
-          [order.number, order.itemCode, order.itemName, order.warehouse].some((value) =>
-            String(value || '')
-              .toLowerCase()
-              .includes(keyword)
-          ))
+    if (!keyword) return productionOrders;
+
+    return productionOrders.filter((order) =>
+      [order.number, order.itemCode, order.itemName, order.warehouse].some((value) =>
+        String(value || '')
+          .toLowerCase()
+          .includes(keyword)
+      )
     );
   }, [orderSearch, productionOrders]);
 
@@ -434,6 +463,7 @@ export default function IssueProduction() {
             onClick={() => {
               setIssueForm(createIssueForm());
               setShowAddIssue(true);
+              fetchUnitOptions();
             }}
           >
             <i className="ti ti-plus me-1" />
@@ -574,21 +604,38 @@ export default function IssueProduction() {
             </Col>
             <Col md={2}>
               <Form.Label>Shift</Form.Label>
-              <Form.Select
-                value={issueForm.Shift}
-                onChange={(event) => setIssueForm((current) => ({ ...current, Shift: event.target.value }))}
-              >
-                <option value="X">All</option>
-                <option value="A">1</option>
-                <option value="B">2</option>
-                <option value="C">3</option>
-              </Form.Select>
+              <Select
+                styles={selectStyles}
+                menuPortalTarget={document.body}
+                menuPosition="fixed"
+                menuPlacement="auto"
+                maxMenuHeight={240}
+                menuShouldScrollIntoView={false}
+                options={shiftOptions}
+                value={shiftOptions.find((option) => option.value === issueForm.Shift) || null}
+                placeholder="Select shift"
+                onChange={(option) => setIssueForm((current) => ({ ...current, Shift: option?.value || '' }))}
+              />
             </Col>
             <Col md={2}>
               <Form.Label>Unit</Form.Label>
-              <Form.Control
-                value={issueForm.Unit}
-                onChange={(event) => setIssueForm((current) => ({ ...current, Unit: event.target.value }))}
+              <Select
+                styles={selectStyles}
+                menuPortalTarget={document.body}
+                menuPosition="fixed"
+                menuPlacement="auto"
+                maxMenuHeight={240}
+                menuShouldScrollIntoView={false}
+                options={unitOptions}
+                value={
+                  unitOptions.find((option) => String(option.value) === String(issueForm.Unit)) ||
+                  (issueForm.Unit ? { value: issueForm.Unit, label: issueForm.Unit } : null)
+                }
+                isLoading={loadingUnits}
+                isDisabled={loadingUnits}
+                isClearable
+                placeholder={loadingUnits ? 'Loading units...' : 'Select unit'}
+                onChange={(option) => setIssueForm((current) => ({ ...current, Unit: option?.value || '' }))}
               />
             </Col>
             <Col xs={12}>

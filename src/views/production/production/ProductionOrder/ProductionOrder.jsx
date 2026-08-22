@@ -114,6 +114,7 @@ const createInitialForm = () => ({
   type: 'Special',
   status: PRODUCTION_STATUS_PLANNED,
   product: null,
+  unit: '',
   plannedQuantity: '',
   series: '',
   orderDate: today,
@@ -163,6 +164,13 @@ const normalizeOcrOption = (item = {}) => {
   return { value: code, label: [code, name].filter(Boolean).join(' - ') || String(code) };
 };
 
+const normalizeUnitOption = (item = {}) => {
+  const value = typeof item === 'object' ? item.u_unit || item.U_Unit || item.unit || item.Unit || item.code || item.value || '' : item;
+  const label = typeof item === 'object' ? item.unit_name || item.UnitName || item.name || item.label || item.description || value : item;
+
+  return value ? { value, label: String(label), raw: item } : null;
+};
+
 const getResponseList = (response) => {
   const payload = response?.data?.data ?? response?.data ?? [];
 
@@ -174,6 +182,7 @@ const getResponseList = (response) => {
   if (Array.isArray(payload?.series)) return payload.series;
   if (Array.isArray(payload?.orders)) return payload.orders;
   if (Array.isArray(payload?.production_orders)) return payload.production_orders;
+  if (Array.isArray(payload?.units)) return payload.units;
   if (Array.isArray(payload?.value)) return payload.value;
   if (Array.isArray(payload?.results)) return payload.results;
 
@@ -421,6 +430,7 @@ const mapOrderDetailToForm = (order) => {
       })
     },
     plannedQuantity: order.plannedQuantity || '',
+    unit: order.headerData?.u_unit || order.headerData?.U_Unit || order.headerData?.Unit || order.unit || '',
     series: order.Series ?? order.series ?? order.headerData?.Series ?? '',
     orderDate: formatDateInputValue(order.orderDate),
     startDate: formatDateInputValue(order.startDate || order.orderDate),
@@ -508,12 +518,14 @@ export default function ProductionOrder() {
   const [loadingSeries, setLoadingSeries] = useState(false);
   const [loadingWarehouses, setLoadingWarehouses] = useState(false);
   const [loadingOcr, setLoadingOcr] = useState(false);
+  const [loadingUnits, setLoadingUnits] = useState(false);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [boms, setBoms] = useState([]);
   const [seriesOptions, setSeriesOptions] = useState([]);
   const [warehouseOptions, setWarehouseOptions] = useState([]);
   const [ocrOptions, setOcrOptions] = useState({ ocrCode: [], ocrCode2: [], ocrCode3: [] });
+  const [unitOptions, setUnitOptions] = useState([]);
   const [form, setForm] = useState(createInitialForm);
   const materialOptions = useMemo(
     () => materialItems.map((item) => normalizeComponentOption(item, COMPONENT_TYPE_ITEM)).filter((option) => option.value),
@@ -764,6 +776,21 @@ export default function ProductionOrder() {
     }
   };
 
+  const fetchUnits = async () => {
+    if (unitOptions.length) return;
+    setLoadingUnits(true);
+    try {
+      const response = await ProductionServices.getUnit();
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch unit data');
+      setUnitOptions(getResponseList(response).map(normalizeUnitOption).filter(Boolean));
+    } catch (error) {
+      setUnitOptions([]);
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch unit data', 'danger');
+    } finally {
+      setLoadingUnits(false);
+    }
+  };
+
   const handleOpenCreate = () => {
     setForm(createInitialForm());
     setReleaseOrder(null);
@@ -772,6 +799,7 @@ export default function ProductionOrder() {
     fetchSeries(today);
     fetchWarehouses();
     fetchOcrOptions();
+    fetchUnits();
   };
 
   const handleCloseOrderForm = () => {
@@ -795,6 +823,7 @@ export default function ProductionOrder() {
         details: []
       },
       plannedQuantity: order.plannedQuantity || '',
+      unit: order.u_unit || order.U_Unit || order.Unit || '',
       orderDate: formatDateInputValue(order.orderDate),
       startDate: formatDateInputValue(order.startDate || order.orderDate),
       dueDate: formatDateInputValue(order.dueDate),
@@ -804,6 +833,7 @@ export default function ProductionOrder() {
     setLoadingBomDetail(true);
     fetchWarehouses();
     fetchOcrOptions();
+    fetchUnits();
 
     try {
       const response = await ProductionServices.getProductionOrderById(order.id);
@@ -972,6 +1002,7 @@ export default function ProductionOrder() {
       Remarks: form.product.comments ?? form.product.remarks ?? '',
       Shift: form.shift,
       Unit: form.product.ocr_code2 ?? form.product.business_unit_code ?? form.product.unit ?? '',
+      u_unit: form.unit || '',
       Bomid: String(form.product.bom_id ?? form.product.bomId ?? form.product.id ?? ''),
       UserId: String(getCookies('id') ?? ''),
       AddonId: String(
@@ -1619,7 +1650,7 @@ export default function ProductionOrder() {
               <Card className="border mb-0 h-100">
                 <Card.Body>
                   <Row className="g-3">
-                    <Col md={6}>
+                    <Col md={4}>
                       <Form.Group>
                         <Form.Label>Series</Form.Label>
                         <Select
@@ -1639,7 +1670,7 @@ export default function ProductionOrder() {
                         />
                       </Form.Group>
                     </Col>
-                    <Col md={6}>
+                    <Col md={4}>
                       <Form.Group>
                         <Form.Label>Shift</Form.Label>
                         <Select
@@ -1652,6 +1683,26 @@ export default function ProductionOrder() {
                           options={shiftOptions}
                           value={shiftOptions.find((option) => option.value === form.shift) || null}
                           onChange={(option) => setForm((current) => ({ ...current, shift: option?.value || '' }))}
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col md={4}>
+                      <Form.Group>
+                        <Form.Label>Unit</Form.Label>
+                        <Select
+                          styles={productionSelectStyles}
+                          menuPortalTarget={document.body}
+                          menuPosition="fixed"
+                          menuPlacement="auto"
+                          maxMenuHeight={240}
+                          menuShouldScrollIntoView={false}
+                          options={unitOptions}
+                          value={unitOptions.find((option) => String(option.value) === String(form.unit)) || null}
+                          isLoading={loadingUnits}
+                          isDisabled={loadingUnits}
+                          isClearable
+                          placeholder={loadingUnits ? 'Loading units...' : 'Select unit'}
+                          onChange={(option) => setForm((current) => ({ ...current, unit: option?.value || '' }))}
                         />
                       </Form.Group>
                     </Col>
