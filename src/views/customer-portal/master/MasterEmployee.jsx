@@ -39,6 +39,7 @@ const initialSalesInput = {
   distributorName: '',
   distributorDepo: '',
   distributorId: '',
+  selectedDistributors: [],
   status: '1'
 };
 
@@ -278,6 +279,7 @@ export default function MasterEmployee() {
       distributorName,
       distributorDepo,
       distributorId: item?.distributor_id || item?.distributor?.id || '',
+      selectedDistributors: [],
       status: String(getValue(item, ['status'], '1'))
     });
     setShowAddModal(true);
@@ -294,13 +296,16 @@ export default function MasterEmployee() {
     }));
   };
 
-  const handleSelectDistributor = (option) => {
+  const handleSelectDistributor = (options) => {
+    const selectedOptions = Array.isArray(options) ? options : options ? [options] : [];
+
     setSalesInput((prevState) => ({
       ...prevState,
-      distributorCode: option?.value || '',
-      distributorName: option?.name || '',
-      distributorDepo: option?.depo || '',
-      distributorId: option?.id || ''
+      distributorCode: editingSalesId ? selectedOptions[0]?.value || '' : '',
+      distributorName: editingSalesId ? selectedOptions[0]?.name || '' : '',
+      distributorDepo: editingSalesId ? selectedOptions[0]?.depo || '' : '',
+      distributorId: editingSalesId ? selectedOptions[0]?.id || '' : '',
+      selectedDistributors: editingSalesId ? [] : selectedOptions
     }));
   };
 
@@ -328,18 +333,24 @@ export default function MasterEmployee() {
   const submitSales = async (event) => {
     event.preventDefault();
 
-    if (!salesInput.slpCode.length || !salesInput.distributorCode) {
-      showAlert('Sales name and distributor must be selected', 'danger');
+    const selectedCustomerCodes = editingSalesId
+      ? [salesInput.distributorCode].filter(Boolean)
+      : salesInput.selectedDistributors.map((distributor) => distributor.value).filter(Boolean);
+
+    if (!salesInput.slpCode.length || !selectedCustomerCodes.length) {
+      showAlert('Sales name and customer must be selected', 'danger');
       return;
     }
 
     setSubmittingSales(true);
 
-    const payloads = salesInput.slpCode.map((slpCode) => ({
-      slp_code: slpCode,
-      code_customer: salesInput.distributorCode,
-      status: Number(salesInput.status)
-    }));
+    const payloads = salesInput.slpCode.flatMap((slpCode) =>
+      selectedCustomerCodes.map((customerCode) => ({
+        slp_code: slpCode,
+        code_customer: customerCode,
+        status: Number(salesInput.status)
+      }))
+    );
 
     try {
       if (editingSalesId) {
@@ -364,7 +375,7 @@ export default function MasterEmployee() {
       if (!failedResponses.length && !rejectedResponses.length) {
         showAlert(
           fulfilledResponses.length > 1
-            ? `${fulfilledResponses.length} sales added successfully`
+            ? `${fulfilledResponses.length} sales-customer relations added successfully`
             : fulfilledResponses[0].data.message || 'Sales added successfully',
           'success'
         );
@@ -419,12 +430,10 @@ export default function MasterEmployee() {
     });
   };
 
-  const canSubmitSales = Boolean(salesInput.slpCode.length && salesInput.distributorCode && !submittingSales);
-  const submitButtonText = editingSalesId
-    ? 'Save Changes'
-    : salesInput.slpCode.length
-      ? `Save ${salesInput.slpCode.length} Sales`
-      : 'Save Sales';
+  const selectedCustomerCount = editingSalesId ? Number(Boolean(salesInput.distributorCode)) : salesInput.selectedDistributors.length;
+  const relationsToCreate = salesInput.slpCode.length * selectedCustomerCount;
+  const canSubmitSales = Boolean(salesInput.slpCode.length && selectedCustomerCount && !submittingSales);
+  const submitButtonText = editingSalesId ? 'Save Changes' : relationsToCreate ? `Save ${relationsToCreate} Relations` : 'Save Sales';
   const selectedSalesOption = salesInput.slpCode.map(
     (slpCode, index) =>
       listSales.find((item) => item.value === slpCode) || {
@@ -434,16 +443,17 @@ export default function MasterEmployee() {
         name: salesInput.slpName[index]
       }
   );
-  const selectedDistributorOption =
-    listDistributor.find((item) => item.value === salesInput.distributorCode) ||
-    (salesInput.distributorCode
-      ? {
-          value: salesInput.distributorCode,
-          label: `${salesInput.distributorCode || '-'} - ${salesInput.distributorName || '-'} - ${salesInput.distributorDepo || '-'}`,
-          id: salesInput.distributorId,
-          name: salesInput.distributorName
-        }
-      : null);
+  const selectedDistributorOption = editingSalesId
+    ? listDistributor.find((item) => item.value === salesInput.distributorCode) ||
+      (salesInput.distributorCode
+        ? {
+            value: salesInput.distributorCode,
+            label: `${salesInput.distributorCode || '-'} - ${salesInput.distributorName || '-'} - ${salesInput.distributorDepo || '-'}`,
+            id: salesInput.distributorId,
+            name: salesInput.distributorName
+          }
+        : null)
+    : salesInput.selectedDistributors;
 
   return (
     <>
@@ -816,6 +826,7 @@ export default function MasterEmployee() {
                   options={listDistributor}
                   value={selectedDistributorOption}
                   onChange={handleSelectDistributor}
+                  isMulti={!editingSalesId}
                   isClearable
                   isLoading={loadingOptions}
                   placeholder="Select distributor"
@@ -827,12 +838,28 @@ export default function MasterEmployee() {
                 <Form.Control value={salesInput.slpCode.join(', ')} disabled placeholder="Automatically filled from the selected sales" />
               </Col>
               <Col md={6}>
-                <Form.Label>Code Distributor</Form.Label>
-                <Form.Control value={salesInput.distributorCode} disabled placeholder="Automatically filled from the selected distributor" />
+                <Form.Label>Customer Code</Form.Label>
+                <Form.Control
+                  value={
+                    editingSalesId
+                      ? salesInput.distributorCode
+                      : salesInput.selectedDistributors.map((distributor) => distributor.value).join(', ')
+                  }
+                  disabled
+                  placeholder="Automatically filled from the selected customers"
+                />
               </Col>
               <Col md={6}>
-                <Form.Label>Distributor Name</Form.Label>
-                <Form.Control value={salesInput.distributorName} disabled placeholder="Automatically filled from the selected distributor" />
+                <Form.Label>Customer Name</Form.Label>
+                <Form.Control
+                  value={
+                    editingSalesId
+                      ? salesInput.distributorName
+                      : salesInput.selectedDistributors.map((distributor) => distributor.name).join(', ')
+                  }
+                  disabled
+                  placeholder="Automatically filled from the selected customers"
+                />
               </Col>
               <Col md={6}>
                 <Form.Label>Status</Form.Label>
@@ -846,7 +873,7 @@ export default function MasterEmployee() {
                   <span className="sm-inline-alert-icon">
                     <i className="ti ti-info-circle f-20" />
                   </span>
-                  <span>Select sales and distributor from master data to create a sales distributor relation.</span>
+                  <span>Select sales and one or more customers. One relation will be saved for every selected sales-customer pair.</span>
                 </div>
               </Col>
             </Row>

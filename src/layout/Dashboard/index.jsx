@@ -19,6 +19,7 @@ import {
 } from '../../systems';
 import { getCookies } from '../../utils/cookies';
 import { canUseAction, getUrlAction } from '../../utils/actionPermissions';
+import { setDocumentTitle } from '../../utils/documentTitle';
 
 // ==============================|| MAIN LAYOUT ||============================== //
 
@@ -44,6 +45,14 @@ export default function MainLayout() {
   const requestedMenu = activeSystem && !isSharedUtilityPath ? getMenuItemByPathname(activeSystem, pathname) : null;
   const firstAccessibleMenuPath = activeSystem ? getFirstAccessibleMenuPath(activeSystem, permissionMenu, roleId) : null;
   const requestedUrlAction = getUrlAction(pathname);
+
+  useEffect(() => {
+    setDocumentTitle({
+      pathname,
+      menuTitle: requestedMenu?.title,
+      systemTitle: activeSystem?.title
+    });
+  }, [activeSystem?.title, pathname, requestedMenu?.title]);
 
   useEffect(() => {
     if (activeSystem?.key) {
