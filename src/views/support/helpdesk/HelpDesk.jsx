@@ -76,7 +76,7 @@ function TicketList() {
             <h3 className="text-white mb-2">How can we help?</h3>
             <p className="mb-0 text-white-50">Create tickets, track progress, and discuss issues in one place.</p>
           </div>
-          <Button as={Link} to="/coporate/help-desk/create" variant="light" className="text-primary fw-semibold">
+          <Button as={Link} to="/corporate/help-desk/create" variant="light" className="text-primary fw-semibold">
             <i className="ti ti-plus me-1" />
             Create New Ticket
           </Button>
@@ -165,7 +165,7 @@ function TicketList() {
               {tickets.map((ticket) => (
                 <tr key={ticket.id}>
                   <td>
-                    <Link to={`/coporate/help-desk/${ticket.id}`} className="ticket-subject d-block">
+                    <Link to={`/corporate/help-desk/${ticket.id}`} className="ticket-subject d-block">
                       {ticket.subject}
                     </Link>
                     <small className="text-muted">{ticket.id}</small>
@@ -183,7 +183,7 @@ function TicketList() {
                   <td>{ticket.assignee}</td>
                   <td>{ticket.updatedAt}</td>
                   <td className="text-end">
-                    <Button as={Link} to={`/coporate/help-desk/${ticket.id}`} variant="light" size="sm">
+                    <Button as={Link} to={`/corporate/help-desk/${ticket.id}`} variant="light" size="sm">
                       <i className="ti ti-chevron-right" />
                     </Button>
                   </td>
@@ -269,13 +269,13 @@ function CreateTicket() {
     if (!canSubmit) return;
 
     showAlert('Mock ticket created successfully. No data has been sent to the backend.', 'success');
-    navigate('/coporate/help-desk/HD-MOCK-001');
+    navigate('/corporate/help-desk/HD-MOCK-001');
   };
 
   return (
     <Stack gap={3}>
       <div>
-        <Button as={Link} to="/coporate/help-desk" variant="link" className="px-0 text-decoration-none">
+        <Button as={Link} to="/corporate/help-desk" variant="link" className="px-0 text-decoration-none">
           <i className="ti ti-arrow-left me-1" />
           Back to Help Desk
         </Button>
@@ -398,7 +398,7 @@ function CreateTicket() {
                   <i className="ti ti-send me-1" />
                   Submit Ticket
                 </Button>
-                <Button type="button" variant="light" onClick={() => navigate('/coporate/help-desk')}>
+                <Button type="button" variant="light" onClick={() => navigate('/corporate/help-desk')}>
                   Cancel
                 </Button>
               </Stack>
@@ -443,7 +443,7 @@ function TicketDetail() {
   return (
     <Stack gap={3}>
       <div>
-        <Button as={Link} to="/coporate/help-desk" variant="link" className="px-0 text-decoration-none">
+        <Button as={Link} to="/corporate/help-desk" variant="link" className="px-0 text-decoration-none">
           <i className="ti ti-arrow-left me-1" />
           Back to Help Desk
         </Button>

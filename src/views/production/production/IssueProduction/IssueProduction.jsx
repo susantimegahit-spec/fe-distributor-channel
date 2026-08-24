@@ -319,7 +319,7 @@ export default function IssueProduction() {
     }
     setLoadingOrders(true);
     try {
-      const response = await ProductionServices.getListOrderSap(orderFilters);
+      const response = await ProductionServices.getListOrderSap({ ...orderFilters, status: 'Release' });
       if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch Production Order data');
       setProductionOrders(getResponseList(response).map(normalizeProductionOrder));
     } catch (error) {
@@ -474,7 +474,7 @@ export default function IssueProduction() {
         <Card className="border mb-3">
           <Card.Body>
             <Row className="g-3 align-items-end">
-              <Col md={3}>
+              <Col md={4}>
                 <Form.Label>From</Form.Label>
                 <Form.Control
                   type="date"
@@ -482,7 +482,7 @@ export default function IssueProduction() {
                   onChange={(event) => setFilters((old) => ({ ...old, from: event.target.value }))}
                 />
               </Col>
-              <Col md={3}>
+              <Col md={4}>
                 <Form.Label>To</Form.Label>
                 <Form.Control
                   type="date"
@@ -490,23 +490,7 @@ export default function IssueProduction() {
                   onChange={(event) => setFilters((old) => ({ ...old, to: event.target.value }))}
                 />
               </Col>
-              <Col md={2}>
-                <Form.Label>Warehouse</Form.Label>
-                <Form.Control
-                  value={filters.whs_code}
-                  onChange={(event) => setFilters((old) => ({ ...old, whs_code: event.target.value }))}
-                  placeholder="From warehouse"
-                />
-              </Col>
-              <Col md={2}>
-                <Form.Label>To Warehouse</Form.Label>
-                <Form.Control
-                  value={filters.to_whs_code}
-                  onChange={(event) => setFilters((old) => ({ ...old, to_whs_code: event.target.value }))}
-                  placeholder="To warehouse"
-                />
-              </Col>
-              <Col md={2}>
+              <Col md={4}>
                 <Stack direction="horizontal" gap={2}>
                   <Button className="flex-grow-1" disabled={loading} onClick={() => fetchIssues()}>
                     <i className={loading ? 'ti ti-loader-2 me-1' : 'ti ti-search me-1'} />
@@ -703,19 +687,11 @@ export default function IssueProduction() {
                       />
                     </td>
                     <td style={{ minWidth: 140 }}>
-                      <Form.Control
-                        size="sm"
-                        value={line.WhsCode}
-                        onChange={(event) => updateIssueLine(index, { WhsCode: event.target.value })}
-                      />
+                      <Form.Control size="sm" value={line.WhsCode} readOnly />
                     </td>
                     {['OcrCode', 'OcrCode2', 'OcrCode3'].map((field) => (
                       <td key={field} style={{ minWidth: 130 }}>
-                        <Form.Control
-                          size="sm"
-                          value={line[field]}
-                          onChange={(event) => updateIssueLine(index, { [field]: event.target.value })}
-                        />
+                        <Form.Control size="sm" value={line[field]} readOnly />
                       </td>
                     ))}
                     <td className="text-center">

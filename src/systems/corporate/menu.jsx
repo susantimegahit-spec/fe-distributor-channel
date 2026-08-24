@@ -1,12 +1,12 @@
-const withBasePath = (path) => `/coporate${path}`;
+const withBasePath = (path) => `/corporate${path}`;
 
 const enterpriseMenu = [
   {
     id: 'enterprise-operations',
-    title: 'Coporate',
+    title: 'Corporate',
     type: 'group',
     value: 'enterprise-operations',
-    label: 'Coporate',
+    label: 'Corporate',
     selected: true,
     collapsible: false,
     children: [
@@ -80,6 +80,16 @@ const enterpriseMenu = [
             selected: true,
             icon: 'ti ti-file-cv',
             url: withBasePath('/hrd/cv')
+          },
+          {
+            id: 'enterprise-hrd-task-management',
+            title: 'Task Management',
+            type: 'item',
+            value: 'enterprise-hrd-task-management',
+            label: 'Task Management',
+            selected: true,
+            icon: 'ti ti-list-check',
+            url: withBasePath('/hrd/task-management')
           }
         ]
       },

@@ -1,5 +1,5 @@
 import customerPortalMenu from './customer-portal/menu';
-import enterpriseMenu from './enterprise/menu';
+import enterpriseMenu from './corporate/menu';
 import expeditionMenu from './expedition/menu';
 import pickingListMenu from './picking-list/menu';
 import productionMenu from './production/menu';
@@ -25,11 +25,11 @@ export const systems = [
   },
   {
     key: SYSTEM_KEYS.ENTERPRISE,
-    title: 'Coporate',
+    title: 'Corporate',
     description: 'Integrated purchasing, procurement, and corporate budgeting workflows.',
     icon: 'ti ti-building-skyscraper',
-    basePath: '/coporate',
-    defaultPath: '/coporate/purchasing/request',
+    basePath: '/corporate',
+    defaultPath: '/corporate/purchasing/request',
     menu: enterpriseMenu
   },
   {

@@ -42,7 +42,8 @@ export const fetchReceiptPdos =
         from: filters.from || '',
         to: filters.to || '',
         whs_code: '',
-        to_whs_code: ''
+        to_whs_code: '',
+        status: 'Release'
       });
       if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch Production Order data');
 

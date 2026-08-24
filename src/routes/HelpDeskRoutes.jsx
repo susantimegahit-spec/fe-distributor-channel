@@ -12,28 +12,28 @@ const HelpDeskRoutes = {
   element: <DashboardLayout />,
   children: [
     {
-      path: 'coporate/help-desk',
+      path: 'corporate/help-desk',
       element: <HelpDesk />
     },
     {
-      path: 'coporate/help-desk/create',
+      path: 'corporate/help-desk/create',
       element: <HelpDesk view="create" />
     },
     {
-      path: 'coporate/help-desk/:ticketId',
+      path: 'corporate/help-desk/:ticketId',
       element: <HelpDesk view="detail" />
     },
     {
       path: 'help-desk',
-      element: <Navigate to="/coporate/help-desk" replace />
+      element: <Navigate to="/corporate/help-desk" replace />
     },
     {
       path: 'customer-portal/help-desk/*',
-      element: <Navigate to="/coporate/help-desk" replace />
+      element: <Navigate to="/corporate/help-desk" replace />
     },
     {
       path: 'support/help-desk/*',
-      element: <Navigate to="/coporate/help-desk" replace />
+      element: <Navigate to="/corporate/help-desk" replace />
     }
   ]
 };

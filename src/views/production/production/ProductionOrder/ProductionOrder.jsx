@@ -40,6 +40,7 @@ const productionStatusOptions = [
   { value: PRODUCTION_STATUS_PLANNED, label: 'Planned' },
   { value: PRODUCTION_STATUS_RELEASE, label: 'Release' }
 ];
+const productionOrderFilterStatusOptions = ['Release', 'Close', 'Planned'].map((value) => ({ value, label: value }));
 const shiftOptions = ['All', 'Shift 1', 'Shift 2', 'Shift 3'].map((value) => ({ value, label: value }));
 const componentTypeOptions = [
   { value: COMPONENT_TYPE_ITEM, label: 'Item' },
@@ -89,7 +90,8 @@ const createInitialOrderFilters = () => {
     from: formatInputDate(startOfWeek),
     to: formatInputDate(endOfWeek),
     whs_code: '',
-    to_whs_code: ''
+    to_whs_code: '',
+    status: ''
   };
 };
 const formatSeriesDate = (value) => String(value || '').replace(/-/g, '');
@@ -371,6 +373,13 @@ const canReleaseProductionOrder = (status) =>
       .toLowerCase()
   );
 
+const canCloseProductionOrder = (status) =>
+  ['release', 'released', 'r', 'bost_released'].includes(
+    String(status || '')
+      .trim()
+      .toLowerCase()
+  );
+
 const canAddIssueProductionOrder = (status) =>
   ['released', 'release', 'open', 'r', 'o', 'bost_released', 'bost_open'].includes(
     String(status || '')
@@ -507,6 +516,8 @@ export default function ProductionOrder() {
   const [actionMenu, setActionMenu] = useState(null);
   const [cancelOrder, setCancelOrder] = useState(null);
   const [cancellingOrder, setCancellingOrder] = useState(false);
+  const [closeOrder, setCloseOrder] = useState(null);
+  const [closingOrder, setClosingOrder] = useState(false);
   const [issuingOrderId, setIssuingOrderId] = useState(null);
   const [relationOrder, setRelationOrder] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -552,7 +563,8 @@ export default function ProductionOrder() {
           from: filters.from || '',
           to: filters.to || '',
           whs_code: filters.whs_code?.value || '',
-          to_whs_code: filters.to_whs_code?.value || ''
+          to_whs_code: filters.to_whs_code?.value || '',
+          status: filters.status?.value || filters.status || ''
         });
         if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch Production Order data');
 
@@ -641,6 +653,27 @@ export default function ProductionOrder() {
     } finally {
       setCancellingOrder(false);
       setCancelOrder(null);
+    }
+  };
+
+  const handleCloseProductionOrder = async (order) => {
+    const docEntry = getOrderDocEntry(order);
+    if (docEntry === undefined || docEntry === null || docEntry === '') {
+      showAlert('Production Order DocEntry was not found', 'danger');
+      return;
+    }
+
+    setClosingOrder(true);
+    try {
+      const response = await ProductionServices.closeProductionRelease({ DocEntry: String(docEntry) });
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to close Production Order');
+      showAlert(response?.data?.message || 'Production Order closed successfully', 'success');
+      setCloseOrder(null);
+      await fetchProductionOrders(orderFilters);
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to close Production Order', 'danger');
+    } finally {
+      setClosingOrder(false);
     }
   };
 
@@ -1080,7 +1113,7 @@ export default function ProductionOrder() {
         <Card className="border mb-3">
           <Card.Body>
             <Row className="g-3 align-items-end">
-              <Col md={6} lg={4}>
+              <Col md={6} lg={3}>
                 <Form.Label>From</Form.Label>
                 <Form.Control
                   type="date"
@@ -1088,7 +1121,7 @@ export default function ProductionOrder() {
                   onChange={(event) => setOrderFilters((current) => ({ ...current, from: event.target.value }))}
                 />
               </Col>
-              <Col md={6} lg={4}>
+              <Col md={6} lg={3}>
                 <Form.Label>To</Form.Label>
                 <Form.Control
                   type="date"
@@ -1096,7 +1129,25 @@ export default function ProductionOrder() {
                   onChange={(event) => setOrderFilters((current) => ({ ...current, to: event.target.value }))}
                 />
               </Col>
-              <Col md={6} lg={4}>
+              <Col md={6} lg={3}>
+                <Form.Label>Status</Form.Label>
+                <Select
+                  styles={productionSelectStyles}
+                  menuPortalTarget={document.body}
+                  menuPosition="fixed"
+                  menuPlacement="auto"
+                  options={productionOrderFilterStatusOptions}
+                  value={
+                    productionOrderFilterStatusOptions.find(
+                      (option) => String(option.value) === String(orderFilters.status?.value || orderFilters.status)
+                    ) || null
+                  }
+                  isClearable
+                  placeholder="All status"
+                  onChange={(option) => setOrderFilters((current) => ({ ...current, status: option || '' }))}
+                />
+              </Col>
+              <Col md={6} lg={3}>
                 <Stack direction="horizontal" gap={2}>
                   <Button className="flex-grow-1" disabled={loadingOrders} onClick={() => fetchProductionOrders()}>
                     <i className={loadingOrders ? 'ti ti-loader-2 me-1' : 'ti ti-search me-1'} />
@@ -1234,6 +1285,7 @@ export default function ProductionOrder() {
             const order = actionMenu?.order;
             const canCancel = canCancelProductionOrder(order?.status);
             const canRelease = canReleaseProductionOrder(order?.status);
+            const canClose = canCloseProductionOrder(order?.status);
             return (
               <div
                 ref={ref}
@@ -1261,16 +1313,29 @@ export default function ProductionOrder() {
                 >
                   <i className="ti ti-sitemap text-info me-2" /> Relation Map
                 </button>
-                <button
-                  type="button"
-                  className="dropdown-item"
-                  disabled={!canRelease}
-                  onClick={() => {
-                    if (order) handleOpenRelease(order);
-                  }}
-                >
-                  <i className="ti ti-player-play text-success me-2" /> Release
-                </button>
+                {canRelease ? (
+                  <button
+                    type="button"
+                    className="dropdown-item"
+                    onClick={() => {
+                      if (order) handleOpenRelease(order);
+                    }}
+                  >
+                    <i className="ti ti-player-play text-success me-2" /> Release
+                  </button>
+                ) : null}
+                {canClose ? (
+                  <button
+                    type="button"
+                    className="dropdown-item"
+                    onClick={() => {
+                      setActionMenu(null);
+                      if (order) setCloseOrder(order);
+                    }}
+                  >
+                    <i className="ti ti-lock-check text-success me-2" /> Close
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   className="dropdown-item text-danger"
@@ -1286,6 +1351,36 @@ export default function ProductionOrder() {
             );
           }}
         </Overlay>
+
+        <Modal show={Boolean(closeOrder)} onHide={() => !closingOrder && setCloseOrder(null)} centered>
+          <Modal.Header closeButton={!closingOrder}>
+            <Modal.Title>
+              <i className="ti ti-lock-check text-success me-2" />
+              Confirm Close
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            Are you sure you want to close Production Order <strong>{closeOrder?.number || '-'}</strong>?
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="light-secondary" onClick={() => setCloseOrder(null)} disabled={closingOrder}>
+              Cancel
+            </Button>
+            <Button variant="success" onClick={() => handleCloseProductionOrder(closeOrder)} disabled={closingOrder}>
+              {closingOrder ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />
+                  Closing...
+                </>
+              ) : (
+                <>
+                  <i className="ti ti-lock-check me-1" />
+                  Close Order
+                </>
+              )}
+            </Button>
+          </Modal.Footer>
+        </Modal>
 
         <Modal show={Boolean(cancelOrder)} onHide={() => !cancellingOrder && setCancelOrder(null)} centered>
           <Modal.Header closeButton={!cancellingOrder}>
@@ -1762,11 +1857,13 @@ export default function ProductionOrder() {
                 <th className="text-end">Planned Qty</th>
                 <th>UOM</th>
                 <th>Warehouse Code</th>
-                <th>Issue Method</th>
+                <th style={{ minWidth: 190 }}>Issue Method</th>
                 <th>Branch</th>
                 <th>Business Unit</th>
                 <th>Department</th>
-                <th className="text-center">Action</th>
+                <th className="text-center" style={{ minWidth: 110 }}>
+                  Action
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -1888,9 +1985,9 @@ export default function ProductionOrder() {
                           onChange={(option) => updateBomDetail(index, { whs_code: option?.value || '' })}
                         />
                       </td>
-                      <td style={{ minWidth: 130 }}>
+                      <td style={{ minWidth: 190 }}>
                         <Select
-                          styles={bomCompactSelectStyles}
+                          styles={bomItemSelectStyles}
                           menuPortalTarget={document.body}
                           menuPosition="fixed"
                           menuPlacement="auto"
@@ -1935,10 +2032,13 @@ export default function ProductionOrder() {
                           </td>
                         );
                       })}
-                      <td className="text-center">
+                      <td className="text-center" style={{ minWidth: 110 }}>
                         <Button
+                          type="button"
+                          className="btn-icon avatar-s"
                           size="sm"
                           variant="outline-danger"
+                          data-permission-action="utility"
                           aria-label={`Remove ${item.code || 'BOM item'}`}
                           onClick={() => removeBomDetail(index)}
                         >

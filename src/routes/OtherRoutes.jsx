@@ -53,7 +53,7 @@ const OtherRoutes = {
     },
     {
       path: 'cv-screening',
-      element: <Navigate to="/coporate/hrd/cv" replace />
+      element: <Navigate to="/corporate/hrd/cv" replace />
     }
   ]
 };

@@ -8,7 +8,7 @@ import Row from 'react-bootstrap/Row';
 import Spinner from 'react-bootstrap/Spinner';
 import Stack from 'react-bootstrap/Stack';
 
-import PurchasingServices from '../../../../services/enterprise/PurchasingServices';
+import PurchasingServices from '../../../../services/corporate/PurchasingServices';
 import { getCookies } from '../../../../utils/cookies';
 import { useAlert } from '../../../../utils/alertContext';
 import EnterpriseWorkspace from '../../components/EnterpriseWorkspace';

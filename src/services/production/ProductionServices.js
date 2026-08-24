@@ -38,9 +38,9 @@ class ProductionServices {
   }
 
   getListOrderSap(payload = {}) {
-    const { from = '', to = '', whs_code = '', to_whs_code = '' } = payload;
+    const { from = '', to = '', whs_code = '', to_whs_code = '', status = '' } = payload;
 
-    return DataService.get('/production/get-list-pdo-sap', { from, to, whs_code, to_whs_code });
+    return DataService.get('/production/get-list-pdo-sap', { from, to, whs_code, to_whs_code, status });
   }
 
   getProductionOrderById(id) {
@@ -55,6 +55,12 @@ class ProductionServices {
     const { DocEntry = '', UserId = '', AddonId = '' } = payload;
 
     return DataService.post('/production/orders/sap/cancel', { DocEntry, UserId, AddonId });
+  }
+
+  closeProductionRelease(payload = {}) {
+    const { DocEntry = '' } = payload;
+
+    return DataService.post('/production/close-pdo-sap', { DocEntry: String(DocEntry) });
   }
 
   getProductionReceipts(payload = {}) {

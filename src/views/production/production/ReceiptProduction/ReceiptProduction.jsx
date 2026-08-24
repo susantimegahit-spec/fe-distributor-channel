@@ -521,7 +521,7 @@ export default function ReceiptProduction() {
       setReceiptForm((current) => ({
         ...current,
         Bomid: current.Bomid || String(receiptOrders[0]?.bomId || ''),
-        Unit: current.Unit || receiptOrders[0]?.unit || '',
+        Unit: '',
         Lines: [
           ...current.Lines.filter((line) => selectedPdoIds.includes(String(line.BaseEntry))),
           ...receiptOrders.map(createReceiptLineFromOrder)

@@ -17,7 +17,7 @@ import Select from 'react-select';
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
 import DistributorServices from '../../../services/customer-portal/DistributorServices';
-import BudgetingServices from '../../../services/enterprise/BudgetingServices';
+import BudgetingServices from '../../../services/corporate/BudgetingServices';
 import { useAlert } from '../../../utils/alertContext';
 
 const PAGE_SIZE = 10;
