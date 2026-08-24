@@ -22,6 +22,7 @@ import DistributorServices from '../../../services/customer-portal/DistributorSe
 import ProductServices from '../../../services/customer-portal/ProductServices';
 import PromoServices from '../../../services/customer-portal/PromoServices';
 import { useAlert } from '../../../utils/alertContext';
+import { useConfirm } from '../../../utils/confirmContext';
 
 const pageSize = 10;
 const promoActionPopperConfig = {
@@ -247,6 +248,7 @@ const normalizeDetailResponse = (response) => {
 
 export default function MasterPromo() {
   const { showAlert } = useAlert();
+  const { showConfirm } = useConfirm();
   const [promoPrograms, setPromoPrograms] = useState([]);
   const [loadingData, setLoadingData] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -254,6 +256,7 @@ export default function MasterPromo() {
   const [loadingDetailId, setLoadingDetailId] = useState(null);
   const [loadingDetailType, setLoadingDetailType] = useState(null);
   const [editingPromoId, setEditingPromoId] = useState(null);
+  const [duplicatingPromoId, setDuplicatingPromoId] = useState(null);
   const [promoToDelete, setPromoToDelete] = useState(null);
   const [deletingPromoId, setDeletingPromoId] = useState(null);
   const [promoActionMenu, setPromoActionMenu] = useState(null);
@@ -346,14 +349,27 @@ export default function MasterPromo() {
     setPromoRules(initialPromoRules);
   };
 
-  const handleCloseModal = () => {
+  const closePromoModal = () => {
     setShowAddModal(false);
     setEditingPromoId(null);
+    setDuplicatingPromoId(null);
     resetPromoForm();
+  };
+
+  const handleCloseModal = () => {
+    if (submittingPromo) return;
+
+    showConfirm({
+      title: 'Close Promo Form?',
+      subTitle: 'Any unsaved changes in this promo form will be lost. Are you sure you want to close it?',
+      skipCountdown: true,
+      onConfirm: closePromoModal
+    });
   };
 
   const handleOpenAddModal = () => {
     setEditingPromoId(null);
+    setDuplicatingPromoId(null);
     resetPromoForm();
     setShowAddModal(true);
   };
@@ -437,6 +453,58 @@ export default function MasterPromo() {
       setShowAddModal(true);
     } catch (error) {
       showAlert(error?.message || 'Failed to fetch promo program detail', 'danger');
+    } finally {
+      setLoadingDetailId(null);
+      setLoadingDetailType(null);
+    }
+  };
+
+  const handleDuplicatePromo = async (program) => {
+    setLoadingDetailId(program.id);
+    setLoadingDetailType('duplicate');
+
+    try {
+      const response = await PromoServices.getProgramDetail(program.id);
+
+      if (response?.data?.success === false) {
+        showAlert(response.data.message || 'Failed to fetch promo program detail', 'danger');
+        return;
+      }
+
+      const detail = normalizeDetailResponse(response);
+
+      if (!detail) {
+        showAlert('Promo program detail not found', 'danger');
+        return;
+      }
+
+      const normalizedPromo = normalizePromo(detail, program.id);
+      const normalizedCustomers = normalizedPromo.customer_code.map((customer) => enrichCustomerOption(customer, customerOptionMap));
+
+      setPromoInput({
+        program_name: `${normalizedPromo.program_name} Copy`,
+        customer_code: normalizedCustomers,
+        items: normalizedPromo.items,
+        start_date: formatInputDate(normalizedPromo.start_date),
+        end_date: formatInputDate(normalizedPromo.end_date),
+        description: normalizedPromo.description
+      });
+      setPromoRules(
+        normalizedPromo.rules.length
+          ? normalizedPromo.rules.map((rule) => ({
+              customer_type: rule.customer_type || 'GT',
+              min_qty_kg: rule.min_qty_kg ?? '',
+              max_qty_kg: rule.max_qty_kg ?? '',
+              harga_promo_per_kg: rule.harga_program_per_kg ?? rule.harga_promo_per_kg ?? '',
+              diskon_per_kg: rule.diskon_per_kg ?? ''
+            }))
+          : initialPromoRules
+      );
+      setEditingPromoId(null);
+      setDuplicatingPromoId(program.id);
+      setShowAddModal(true);
+    } catch (error) {
+      showAlert(error?.message || 'Failed to duplicate promo program', 'danger');
     } finally {
       setLoadingDetailId(null);
       setLoadingDetailType(null);
@@ -553,7 +621,7 @@ export default function MasterPromo() {
       }
 
       await fetchPromos();
-      handleCloseModal();
+      closePromoModal();
       showAlert(response?.data?.message || `Promo program ${editingPromoId ? 'updated' : 'added'} successfully`, 'success');
     } catch (error) {
       showAlert(error?.message || `Failed to ${editingPromoId ? 'update' : 'add'} promo program`, 'danger');
@@ -773,6 +841,7 @@ export default function MasterPromo() {
           const program = promoActionMenu?.program;
           const isLoadingView = String(loadingDetailId) === String(program?.id) && loadingDetailType === 'view';
           const isLoadingEdit = String(loadingDetailId) === String(program?.id) && loadingDetailType === 'edit';
+          const isLoadingDuplicate = String(loadingDetailId) === String(program?.id) && loadingDetailType === 'duplicate';
           const isDeleting = String(deletingPromoId) === String(program?.id);
           const isActionDisabled = loadingDetailId !== null || deletingPromoId !== null;
 
@@ -815,6 +884,24 @@ export default function MasterPromo() {
                 )}
                 Edit
               </button>
+              <button
+                type="button"
+                className="dropdown-item"
+                data-permission-action="add"
+                data-permission-menu-key="10"
+                disabled={isActionDisabled}
+                onClick={() => {
+                  setPromoActionMenu(null);
+                  if (program) handleDuplicatePromo(program);
+                }}
+              >
+                {isLoadingDuplicate ? (
+                  <span className="spinner-border spinner-border-sm text-info me-2" aria-hidden="true" />
+                ) : (
+                  <i className="ti ti-copy text-info me-2" />
+                )}
+                Duplicate
+              </button>
               <div className="dropdown-divider" />
               <button
                 type="button"
@@ -839,7 +926,9 @@ export default function MasterPromo() {
 
       <Modal show={showAddModal} onHide={handleCloseModal} size="xl" centered fullscreen="lg-down">
         <Modal.Header closeButton>
-          <Modal.Title>{editingPromoId ? 'Edit Program Promo' : 'Add Program Promo'}</Modal.Title>
+          <Modal.Title>
+            {editingPromoId ? 'Edit Program Promo' : duplicatingPromoId ? 'Duplicate Program Promo' : 'Add Program Promo'}
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Stack gap={3}>
@@ -1017,7 +1106,7 @@ export default function MasterPromo() {
           </Stack>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="light-secondary" onClick={handleCloseModal}>
+          <Button variant="light-secondary" onClick={handleCloseModal} disabled={submittingPromo}>
             Close
           </Button>
           <Button variant="primary" onClick={handleSubmitPromo} disabled={submittingPromo}>

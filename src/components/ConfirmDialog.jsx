@@ -4,7 +4,7 @@ import { Button, Modal, Stack } from 'react-bootstrap';
 
 // ==============================|| BASIC - TABS & PILLS ||============================== //
 
-export default function ConfirmDialog({ show, title, subTitle, onSubmit, onCancel, loading = false }) {
+export default function ConfirmDialog({ show, title, subTitle, onSubmit, onCancel, loading = false, skipCountdown = false }) {
   const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
@@ -28,7 +28,7 @@ export default function ConfirmDialog({ show, title, subTitle, onSubmit, onCance
     return () => clearInterval(interval);
   }, [show]);
 
-  const isSubmitDisabled = countdown > 0 || loading;
+  const isSubmitDisabled = (!skipCountdown && countdown > 0) || loading;
 
   return (
     <Modal show={show} onHide={onCancel} centered contentClassName="border-0 shadow-lg" backdrop="static">
@@ -60,7 +60,7 @@ export default function ConfirmDialog({ show, title, subTitle, onSubmit, onCance
                 <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />
                 Processing...
               </>
-            ) : countdown > 0 ? (
+            ) : !skipCountdown && countdown > 0 ? (
               `Yes (${countdown})`
             ) : (
               'Yes'

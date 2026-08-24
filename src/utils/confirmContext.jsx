@@ -8,7 +8,8 @@ const initialConfirmState = {
   show: false,
   title: '',
   subTitle: '',
-  onConfirm: null
+  onConfirm: null,
+  skipCountdown: false
 };
 
 export const ConfirmProvider = ({ children }) => {
@@ -55,6 +56,7 @@ export const ConfirmProvider = ({ children }) => {
         title={confirmState.title}
         subTitle={confirmState.subTitle}
         loading={isSubmitting}
+        skipCountdown={confirmState.skipCountdown}
       />
     </ConfirmContext.Provider>
   );
