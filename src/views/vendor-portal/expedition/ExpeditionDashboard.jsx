@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import VendorDashboardLayout from '../shared/VendorDashboardLayout';
 import { recordVendorPortalActivity } from 'utils/vendorPortal';
@@ -114,6 +114,7 @@ const formatWeightRange = ({ min_tonnage: minimum, max_tonnage: maximum }) =>
   Number(minimum) === Number(maximum) ? formatNumber(minimum) : `${formatNumber(minimum)} - ${formatNumber(maximum)}`;
 
 export default function ExpeditionDashboard() {
+  const uploadInputRef = useRef(null);
   const [notice, setNotice] = useState('');
   const [activeTab, setActiveTab] = useState('dashboard');
 
@@ -121,6 +122,15 @@ export default function ExpeditionDashboard() {
     const detail = `${rate.warehouse_code} menuju ${rate.destination}`;
     setNotice(`Action untuk rate ${detail} siap dihubungkan ke API.`);
     recordVendorPortalActivity('EXPEDITION_RATE_ACTION', detail);
+  };
+
+  const handleRatesUpload = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setNotice(`${file.name} siap diunggah setelah service API tersedia.`);
+    recordVendorPortalActivity('EXPEDITION_RATES_UPLOAD', file.name);
+    event.target.value = '';
   };
 
   return (
@@ -237,7 +247,13 @@ export default function ExpeditionDashboard() {
               <h2>Rates pengiriman</h2>
               <p>Data sementara untuk pengembangan Vendor Portal.</p>
             </div>
-            <span className="vp-badge">DUMMY DATA</span>
+            <div className="vp-rates-tools">
+              <span className="vp-badge">DUMMY DATA</span>
+              <input ref={uploadInputRef} type="file" accept=".xlsx,.xls" onChange={handleRatesUpload} hidden />
+              <button type="button" className="vp-upload-rates" onClick={() => uploadInputRef.current?.click()}>
+                <i className="ti ti-file-upload" /> Upload Excel
+              </button>
+            </div>
           </div>
           {notice ? (
             <div className="vp-rate-notice">

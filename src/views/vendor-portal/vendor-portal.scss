@@ -900,6 +900,26 @@
   color: #8894a4;
   font-size: 9px;
 }
+.vp-rates-tools {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.vp-upload-rates {
+  padding: 8px 11px;
+  border: 0;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #173f72, #14879a);
+  color: #fff;
+  font-size: 8px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.vp-upload-rates i {
+  margin-right: 4px;
+  font-size: 11px;
+  vertical-align: -1px;
+}
 .vp-rates-state {
   min-height: 210px;
   padding: 35px;
