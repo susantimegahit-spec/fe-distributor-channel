@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 // react-bootstrap
 import Badge from 'react-bootstrap/Badge';
@@ -16,6 +16,7 @@ import Select from 'react-select';
 
 // project-imports
 import MainCard from 'components/MainCard';
+import TablePagination from 'components/TablePagination';
 import DistributorServices from '../../../../services/customer-portal/DistributorServices';
 import WarehouseServices from '../../../../services/customer-portal/WarehouseServices';
 import MaterialServices from '../../../../services/production/MaterialServices';
@@ -26,6 +27,7 @@ import { useConfirm } from '../../../../utils/confirmContext';
 
 const today = new Date().toISOString().slice(0, 10);
 const firstDayOfMonth = `${today.slice(0, 8)}01`;
+const inventoryTransferPageSize = 10;
 const numberFormatter = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 6 });
 const selectStyles = {
   menuPortal: (base) => ({ ...base, zIndex: 1080 }),
@@ -282,6 +284,7 @@ export default function InventoryTransfer() {
   const [loadingBins, setLoadingBins] = useState(false);
   const [inventoryTransfers, setInventoryTransfers] = useState([]);
   const [loadingInventoryTransfers, setLoadingInventoryTransfers] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const [transferFilters, setTransferFilters] = useState({
     From: firstDayOfMonth,
     To: today
@@ -296,6 +299,16 @@ export default function InventoryTransfer() {
   const hasInvalidBinQuantity = binRows.some(
     (bin) => Number(bin.quantity) < 0 || (bin.availableQty > 0 && Number(bin.quantity) > bin.availableQty)
   );
+  const inventoryTransferPageCount = Math.max(Math.ceil(inventoryTransfers.length / inventoryTransferPageSize), 1);
+  const paginatedInventoryTransfers = useMemo(() => {
+    const startIndex = (currentPage - 1) * inventoryTransferPageSize;
+
+    return inventoryTransfers.slice(startIndex, startIndex + inventoryTransferPageSize);
+  }, [currentPage, inventoryTransfers]);
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, inventoryTransferPageCount));
+  }, [inventoryTransferPageCount]);
 
   const fetchInventoryTransfers = useCallback(
     async (filters = transferFilters) => {
@@ -790,7 +803,14 @@ export default function InventoryTransfer() {
               </Col>
               <Col md={4}>
                 <Stack direction="horizontal" gap={2}>
-                  <Button className="flex-grow-1" disabled={loadingInventoryTransfers} onClick={() => fetchInventoryTransfers()}>
+                  <Button
+                    className="flex-grow-1"
+                    disabled={loadingInventoryTransfers}
+                    onClick={() => {
+                      setCurrentPage(1);
+                      fetchInventoryTransfers();
+                    }}
+                  >
                     <i className={loadingInventoryTransfers ? 'ti ti-loader-2 me-1' : 'ti ti-search me-1'} />
                     {loadingInventoryTransfers ? 'Loading...' : 'Search'}
                   </Button>
@@ -801,6 +821,7 @@ export default function InventoryTransfer() {
                     onClick={() => {
                       const defaultFilters = { From: firstDayOfMonth, To: today };
                       setTransferFilters(defaultFilters);
+                      setCurrentPage(1);
                       fetchInventoryTransfers(defaultFilters);
                     }}
                   >
@@ -831,8 +852,8 @@ export default function InventoryTransfer() {
                   Loading inventory transfers...
                 </td>
               </tr>
-            ) : inventoryTransfers.length ? (
-              inventoryTransfers.map((transfer, index) => {
+            ) : paginatedInventoryTransfers.length ? (
+              paginatedInventoryTransfers.map((transfer, index) => {
                 const normalizedStatus = String(transfer.status).trim().toUpperCase();
                 const canCancel = !['C', 'CLOSED', 'BOST_CLOSE', 'BOST_CLOSED', 'CANCELLED', 'CANCELED'].includes(normalizedStatus);
                 const statusVariant =
@@ -884,6 +905,16 @@ export default function InventoryTransfer() {
             )}
           </tbody>
         </Table>
+        {!loadingInventoryTransfers && inventoryTransfers.length ? (
+          <TablePagination
+            currentPage={currentPage}
+            onPageChange={setCurrentPage}
+            pageCount={inventoryTransferPageCount}
+            pageSize={inventoryTransferPageSize}
+            total={inventoryTransfers.length}
+            itemLabel="inventory transfers"
+          />
+        ) : null}
       </MainCard>
 
       <Overlay

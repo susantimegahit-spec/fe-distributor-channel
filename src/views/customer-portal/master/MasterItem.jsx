@@ -18,13 +18,13 @@ export default function MasterItem() {
   useEffect(() => {
     if (keywords) {
       const delayTimer = setTimeout(() => {
-        fetchData()
+        fetchData();
       }, 1000); // 500ms delay
 
       // Cleanup: clears old timer if user types again within 500ms
       return () => clearTimeout(delayTimer);
     } else {
-      fetchData()
+      fetchData();
     }
   }, [keywords]);
 

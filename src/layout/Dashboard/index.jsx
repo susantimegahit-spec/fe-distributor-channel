@@ -37,6 +37,7 @@ export default function MainLayout() {
     isSystemSelectorPath ||
     isAccessDeniedPath ||
     pathname === '/notifications' ||
+    pathname === '/vendor-portal-monitoring' ||
     pathname === '/setting' ||
     pathname.startsWith('/setting/') ||
     pathname.startsWith('/customer-portal/setting') ||

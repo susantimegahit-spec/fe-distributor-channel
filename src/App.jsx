@@ -10,11 +10,18 @@ import { ConfirmProvider } from './utils/confirmContext';
 import ErrorBoundary from './views/ErrorBoundary';
 import { AUTH_STATE_CHANGED_EVENT } from './utils/authEvents';
 import NetworkStatusGuard from './components/NetworkStatusGuard';
+import VendorPortalRoutes from './routes/VendorPortalRoutes';
 
 // ==============================|| APP - THEME, ROUTER, LOCAL ||============================== //
 
 const ProviderConfig = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(getCookies('isLoggedIn')));
+  const baseName = (import.meta.env.VITE_APP_BASE_NAME || '').replace(/\/$/, '');
+  const appPathname =
+    baseName && window.location.pathname.startsWith(baseName)
+      ? window.location.pathname.slice(baseName.length) || '/'
+      : window.location.pathname;
+  const isVendorPortal = appPathname === '/vendor-portal' || appPathname.startsWith('/vendor-portal/');
 
   useEffect(() => {
     const syncAuthentication = () => {
@@ -25,6 +32,8 @@ const ProviderConfig = () => {
 
     return () => window.removeEventListener(AUTH_STATE_CHANGED_EVENT, syncAuthentication);
   }, []);
+
+  if (isVendorPortal) return <RouterProvider router={VendorPortalRoutes} />;
 
   return isLoggedIn ? <RouterProvider router={router} /> : <RouterProvider router={AuthRoutes} />;
 };

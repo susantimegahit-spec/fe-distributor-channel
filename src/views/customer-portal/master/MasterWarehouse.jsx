@@ -111,7 +111,7 @@ export default function MasterWarehouse() {
             </Stack>
           }
           secondary={
-            <Button onClick={syncData} variant="primary" disabled={loadingData}>
+            <Button data-permission-action="sync" onClick={syncData} variant="primary" disabled={loadingData}>
               <i className="ti ti-refresh me-1" />
               Synchronize
             </Button>
@@ -264,7 +264,7 @@ export default function MasterWarehouse() {
                               Reset Filter
                             </Button>
                           ) : (
-                            <Button variant="primary" onClick={syncData}>
+                            <Button data-permission-action="sync" variant="primary" onClick={syncData}>
                               <i className="ti ti-refresh me-1" />
                               Synchronize
                             </Button>

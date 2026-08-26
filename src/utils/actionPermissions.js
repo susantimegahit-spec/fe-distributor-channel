@@ -15,7 +15,9 @@ export const ACTION_ALIASES = {
   approve: 'approve',
   reject: 'approve',
   download: 'export',
-  export: 'export'
+  export: 'export',
+  sync: 'sync',
+  synchronize: 'sync'
 };
 
 const normalizeKey = (value) =>
@@ -84,7 +86,8 @@ const ACTION_KEYS = {
   update: ['update', 'edit'],
   delete: ['delete', 'remove'],
   approve: ['approve'],
-  export: ['export', 'download']
+  export: ['export', 'download'],
+  sync: ['sync', 'synchronize']
 };
 
 const ACTION_BITS = {
@@ -93,7 +96,8 @@ const ACTION_BITS = {
   update: 4,
   delete: 8,
   approve: 16,
-  export: 32
+  export: 32,
+  sync: 64
 };
 
 const ROW_ACTION_KEYS = ['read', 'view', 'detail', 'update', 'edit', 'delete', 'remove', 'approve', 'export', 'download'];
@@ -109,7 +113,8 @@ const isAllowedValue = (value) => {
 
 const getActionValue = (actions, action) => {
   if (typeof actions === 'number') {
-    if (action === 'actions') return Boolean(actions & (ACTION_BITS.read | ACTION_BITS.update | ACTION_BITS.delete | ACTION_BITS.approve | ACTION_BITS.export));
+    if (action === 'actions')
+      return Boolean(actions & (ACTION_BITS.read | ACTION_BITS.update | ACTION_BITS.delete | ACTION_BITS.approve | ACTION_BITS.export));
     return Boolean(actions & (ACTION_BITS[action] || 0));
   }
 
@@ -125,7 +130,8 @@ const getActionValue = (actions, action) => {
     if (Array.isArray(actions))
       return actions.some((value) =>
         typeof value === 'object'
-          ? ROW_ACTION_KEYS.includes(normalizeKey(value.action || value.name || value.key)) && isAllowedValue(value.allowed ?? value.enabled ?? true)
+          ? ROW_ACTION_KEYS.includes(normalizeKey(value.action || value.name || value.key)) &&
+            isAllowedValue(value.allowed ?? value.enabled ?? true)
           : ROW_ACTION_KEYS.includes(normalizeKey(value))
       );
     if (!actions || typeof actions !== 'object') return false;
@@ -156,10 +162,7 @@ export const compactActionsForCookie = (rawActions) =>
     if (menuKey === undefined || menuKey === null || menuKey === '') return result;
 
     const actions = getEntryActions(entry);
-    const mask = Object.entries(ACTION_BITS).reduce(
-      (value, [action, bit]) => (getActionValue(actions, action) ? value | bit : value),
-      0
-    );
+    const mask = Object.entries(ACTION_BITS).reduce((value, [action, bit]) => (getActionValue(actions, action) ? value | bit : value), 0);
     result[String(menuKey)] = mask;
     return result;
   }, {});

@@ -10,6 +10,7 @@ import NotFound from '../views/ErrorBoundary';
 const Dashboard = Loadable(lazy(() => import('views/customer-portal/dashboard/Dashboard')));
 const SystemSelector = Loadable(lazy(() => import('views/system/SystemSelector')));
 const AccessDenied = Loadable(lazy(() => import('views/system/AccessDenied')));
+const VendorPortalMonitoring = Loadable(lazy(() => import('views/vendor-portal/VendorPortalMonitoring')));
 
 // ==============================|| NAVIGATION ROUTING ||============================== //
 
@@ -40,6 +41,10 @@ const NavigationRoutes = {
         {
           path: 'dashboard',
           element: <Navigate to="/customer-portal/dashboard" replace />
+        },
+        {
+          path: 'vendor-portal-monitoring',
+          element: <VendorPortalMonitoring />
         }
       ]
     }

@@ -67,7 +67,9 @@ const cmoStatusVariant = {
 };
 
 const getCmoStatusLabel = (status) => {
-  const normalizedStatus = String(status || '').trim().toUpperCase();
+  const normalizedStatus = String(status || '')
+    .trim()
+    .toUpperCase();
 
   if (normalizedStatus === 'DRAFT') return 'Draft';
   if (normalizedStatus === 'POSTED') return 'Posted';
@@ -76,7 +78,9 @@ const getCmoStatusLabel = (status) => {
 };
 
 const getCmoCalendarButtonClass = (status) => {
-  const normalizedStatus = String(status || '').trim().toUpperCase();
+  const normalizedStatus = String(status || '')
+    .trim()
+    .toUpperCase();
 
   if (normalizedStatus === 'DRAFT') return 'btn-light-warning';
   if (normalizedStatus === 'POSTED') return 'btn-light-success';
@@ -758,10 +762,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
 
   const createCmoPayload = (form, status = 'DRAFT') => {
     const source = form.source || {};
-    const docTotal = form.lines.reduce(
-      (total, line) => total + (Number(line.quantity) || 0) * (Number(line.unitPrice) || 0),
-      0
-    );
+    const docTotal = form.lines.reduce((total, line) => total + (Number(line.quantity) || 0) * (Number(line.unitPrice) || 0), 0);
 
     return {
       card_code: form.customerCode,
@@ -812,10 +813,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
       return;
     }
 
-    const payload = createCmoPayload(
-      { ...duplicateCmoForm, source: duplicateCmoForm.source || duplicateCmoSource || {} },
-      'DRAFT'
-    );
+    const payload = createCmoPayload({ ...duplicateCmoForm, source: duplicateCmoForm.source || duplicateCmoSource || {} }, 'DRAFT');
 
     setSavingDuplicateCmo(true);
 
@@ -1630,142 +1628,142 @@ export default function OrderList({ showOnlyCommitment = false }) {
             {commitmentLayout === 'list' ? (
               <>
                 <Table className="mb-0 align-middle" responsive hover>
-              <thead>
-                <tr>
-                  <th aria-label="Expand product details" style={{ width: 48 }} />
-                  <th>CMO / Customer</th>
-                  <th>Date</th>
-                  <th>Total Item</th>
-                  <th>Kg</th>
-                  <th>Total Order</th>
-                  <th>Status</th>
-                  <th className="text-center">Action</th>
-                </tr>
-              </thead>
-              {isLoading || isLoadingCommitment ? (
-                <tbody>
-                  <tr>
-                    <td colSpan={8}>
-                      <LoaderData />
-                    </td>
-                  </tr>
-                </tbody>
-              ) : (
-                <tbody>
-                  {paginatedCommitmentOrders.length > 0 ? (
-                    paginatedCommitmentOrders.map((order) => {
-                      const isExpanded = String(expandedCommitmentOrderId) === String(order.id);
-                      const productLines = getOrderLines(order);
-
-                      return (
-                        <Fragment key={order.id}>
-                          <tr>
-                            <td className="text-center">
-                              <Button
-                                className="rounded-circle p-0"
-                                size="sm"
-                                variant="light-primary"
-                                aria-label={isExpanded ? 'Hide product details' : 'Show product details'}
-                                aria-expanded={isExpanded}
-                                style={{ width: 32, height: 32 }}
-                                onClick={() => setExpandedCommitmentOrderId(isExpanded ? null : order.id)}
-                              >
-                                <i className={`ti ${isExpanded ? 'ti-chevron-up' : 'ti-chevron-down'}`} />
-                              </Button>
-                            </td>
-                            <td>
-                              <div className="fw-semibold text-primary">
-                                {getOrderValue(
-                                  order,
-                                  ['cmo_no', 'cmo_number', 'order_no', 'doc_num', 'document_number', 'DocNum'],
-                                  `CMO-${order.id}`
-                                )}
-                              </div>
-                              <div className="text-muted f-12">
-                                {order.depo || '-'} - {order.customer_name || order.customer_code || '-'}
-                              </div>
-                            </td>
-                            <td>{moment(order.doc_date).format('DD MMM YYYY')}</td>
-                            <td>{productLines.length}</td>
-                            <td className="fw-semibold">{formatKg(getOrderTotalKg(order))}</td>
-                            <td>{currency(order?.doc_total)}</td>
-                            <td>
-                              <Badge bg={cmoStatusVariant[normalizeStatus(order.status)] || 'secondary'}>
-                                {getCmoStatusLabel(order.status)}
-                              </Badge>
-                            </td>
-                            <td className="text-center">
-                              <Button
-                                size="sm"
-                                variant={String(cmoActionMenu?.order?.id) === String(order.id) ? 'primary' : 'outline-primary'}
-                                aria-label="Open CMO actions"
-                                aria-expanded={String(cmoActionMenu?.order?.id) === String(order.id)}
-                                onClick={(event) =>
-                                  setCmoActionMenu((current) =>
-                                    String(current?.order?.id) === String(order.id) ? null : { order, target: event.currentTarget }
-                                  )
-                                }
-                              >
-                                <i className="ti ti-dots-vertical me-1" />
-                                Actions
-                                <i className="ti ti-chevron-down ms-1" />
-                              </Button>
-                            </td>
-                          </tr>
-                          {isExpanded ? (
-                            <tr key={`${order.id}-products`} className="bg-light">
-                              <td colSpan={8} className="p-3">
-                                <div className="border rounded bg-white overflow-hidden">
-                                  <Table className="mb-0 align-middle" responsive size="sm">
-                                    <thead>
-                                      <tr>
-                                        <th>Product</th>
-                                        <th className="text-end">Qty</th>
-                                        <th className="text-end">Kg / Item</th>
-                                        <th className="text-end">Total Kg</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {productLines.length ? (
-                                        productLines.map((line, index) => {
-                                          const productName = getProductName(line);
-                                          const quantity = Number(getOrderValue(line, ['quantity', 'qty', 'Quantity'], 0)) || 0;
-                                          const kgPerItem = getKgFromProductName(productName);
-
-                                          return (
-                                            <tr key={line.id || getOrderValue(line, ['item_code', 'itemCode'], index)}>
-                                              <td>{productName}</td>
-                                              <td className="text-end">{quantity}</td>
-                                              <td className="text-end">{formatKg(kgPerItem)}</td>
-                                              <td className="text-end fw-semibold">{formatKg(kgPerItem * quantity)}</td>
-                                            </tr>
-                                          );
-                                        })
-                                      ) : (
-                                        <tr>
-                                          <td colSpan={4} className="text-center text-muted py-3">
-                                            Product details are not available.
-                                          </td>
-                                        </tr>
-                                      )}
-                                    </tbody>
-                                  </Table>
-                                </div>
-                              </td>
-                            </tr>
-                          ) : null}
-                        </Fragment>
-                      );
-                    })
-                  ) : (
+                  <thead>
                     <tr>
-                      <td colSpan={8}>
-                        <div className="text-center text-muted py-4">No draft orders found.</div>
-                      </td>
+                      <th aria-label="Expand product details" style={{ width: 48 }} />
+                      <th>CMO / Customer</th>
+                      <th>Date</th>
+                      <th>Total Item</th>
+                      <th>Kg</th>
+                      <th>Total Order</th>
+                      <th>Status</th>
+                      <th className="text-center">Action</th>
                     </tr>
+                  </thead>
+                  {isLoading || isLoadingCommitment ? (
+                    <tbody>
+                      <tr>
+                        <td colSpan={8}>
+                          <LoaderData />
+                        </td>
+                      </tr>
+                    </tbody>
+                  ) : (
+                    <tbody>
+                      {paginatedCommitmentOrders.length > 0 ? (
+                        paginatedCommitmentOrders.map((order) => {
+                          const isExpanded = String(expandedCommitmentOrderId) === String(order.id);
+                          const productLines = getOrderLines(order);
+
+                          return (
+                            <Fragment key={order.id}>
+                              <tr>
+                                <td className="text-center">
+                                  <Button
+                                    className="rounded-circle p-0"
+                                    size="sm"
+                                    variant="light-primary"
+                                    aria-label={isExpanded ? 'Hide product details' : 'Show product details'}
+                                    aria-expanded={isExpanded}
+                                    style={{ width: 32, height: 32 }}
+                                    onClick={() => setExpandedCommitmentOrderId(isExpanded ? null : order.id)}
+                                  >
+                                    <i className={`ti ${isExpanded ? 'ti-chevron-up' : 'ti-chevron-down'}`} />
+                                  </Button>
+                                </td>
+                                <td>
+                                  <div className="fw-semibold text-primary">
+                                    {getOrderValue(
+                                      order,
+                                      ['cmo_no', 'cmo_number', 'order_no', 'doc_num', 'document_number', 'DocNum'],
+                                      `CMO-${order.id}`
+                                    )}
+                                  </div>
+                                  <div className="text-muted f-12">
+                                    {order.depo || '-'} - {order.customer_name || order.customer_code || '-'}
+                                  </div>
+                                </td>
+                                <td>{moment(order.doc_date).format('DD MMM YYYY')}</td>
+                                <td>{productLines.length}</td>
+                                <td className="fw-semibold">{formatKg(getOrderTotalKg(order))}</td>
+                                <td>{currency(order?.doc_total)}</td>
+                                <td>
+                                  <Badge bg={cmoStatusVariant[normalizeStatus(order.status)] || 'secondary'}>
+                                    {getCmoStatusLabel(order.status)}
+                                  </Badge>
+                                </td>
+                                <td className="text-center">
+                                  <Button
+                                    size="sm"
+                                    variant={String(cmoActionMenu?.order?.id) === String(order.id) ? 'primary' : 'outline-primary'}
+                                    aria-label="Open CMO actions"
+                                    aria-expanded={String(cmoActionMenu?.order?.id) === String(order.id)}
+                                    onClick={(event) =>
+                                      setCmoActionMenu((current) =>
+                                        String(current?.order?.id) === String(order.id) ? null : { order, target: event.currentTarget }
+                                      )
+                                    }
+                                  >
+                                    <i className="ti ti-dots-vertical me-1" />
+                                    Actions
+                                    <i className="ti ti-chevron-down ms-1" />
+                                  </Button>
+                                </td>
+                              </tr>
+                              {isExpanded ? (
+                                <tr key={`${order.id}-products`} className="bg-light">
+                                  <td colSpan={8} className="p-3">
+                                    <div className="border rounded bg-white overflow-hidden">
+                                      <Table className="mb-0 align-middle" responsive size="sm">
+                                        <thead>
+                                          <tr>
+                                            <th>Product</th>
+                                            <th className="text-end">Qty</th>
+                                            <th className="text-end">Kg / Item</th>
+                                            <th className="text-end">Total Kg</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {productLines.length ? (
+                                            productLines.map((line, index) => {
+                                              const productName = getProductName(line);
+                                              const quantity = Number(getOrderValue(line, ['quantity', 'qty', 'Quantity'], 0)) || 0;
+                                              const kgPerItem = getKgFromProductName(productName);
+
+                                              return (
+                                                <tr key={line.id || getOrderValue(line, ['item_code', 'itemCode'], index)}>
+                                                  <td>{productName}</td>
+                                                  <td className="text-end">{quantity}</td>
+                                                  <td className="text-end">{formatKg(kgPerItem)}</td>
+                                                  <td className="text-end fw-semibold">{formatKg(kgPerItem * quantity)}</td>
+                                                </tr>
+                                              );
+                                            })
+                                          ) : (
+                                            <tr>
+                                              <td colSpan={4} className="text-center text-muted py-3">
+                                                Product details are not available.
+                                              </td>
+                                            </tr>
+                                          )}
+                                        </tbody>
+                                      </Table>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ) : null}
+                            </Fragment>
+                          );
+                        })
+                      ) : (
+                        <tr>
+                          <td colSpan={8}>
+                            <div className="text-center text-muted py-4">No draft orders found.</div>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
                   )}
-                </tbody>
-              )}
                 </Table>
                 <TablePagination
                   currentPage={commitmentCurrentPage}
@@ -1918,7 +1916,9 @@ export default function OrderList({ showOnlyCommitment = false }) {
                                       }
                                     >
                                       <span className="d-flex align-items-center gap-1 fw-semibold">
-                                        <i className={String(movingCmoId) === String(order.id) ? 'ti ti-loader-2' : 'ti ti-grip-vertical'} />
+                                        <i
+                                          className={String(movingCmoId) === String(order.id) ? 'ti ti-loader-2' : 'ti ti-grip-vertical'}
+                                        />
                                         <span className="text-truncate">{order.depo || '-'}</span>
                                       </span>
                                       <span className="d-block text-truncate">{order.customer_name || order.customer_code || '-'}</span>
@@ -2008,90 +2008,90 @@ export default function OrderList({ showOnlyCommitment = false }) {
                 </Col>
               </Row>
 
-                {orderLayout === 'list' ? (
+              {orderLayout === 'list' ? (
                 <>
                   <Table className="mb-0 align-middle" responsive hover>
-                <thead>
-                  <tr>
-                    <th>No. SO</th>
-                    <th>Depo</th>
-                    <th>Date</th>
-                    <th>Total Item</th>
-                    <th>Total Order</th>
-                    <th>Status</th>
-                    <th className="text-center">Action</th>
-                  </tr>
-                </thead>
-                {isLoading ? (
-                  <tbody>
-                    <tr>
-                      <td colSpan={8}>
-                        <LoaderData />
-                      </td>
-                    </tr>
-                  </tbody>
-                ) : (
-                  <tbody>
-                    {paginatedOrders.length > 0 ? (
-                      paginatedOrders.map((order) => (
-                        <tr key={order.id}>
-                          <td className="fw-semibold">{order.sap_doc_num ?? '-'}</td>
-                          <td>
-                            {order.depo} - {order.customer_name}
-                          </td>
-                          <td>{moment(order.doc_date).format('DD MMM YYYY')}</td>
-                          <td>{getOrderLines(order).length}</td>
-                          <td>{currency(order?.doc_total)}</td>
-                          <td>
-                            <Badge bg={statusVariant[order.status] || 'secondary'}>
-                              {getStatusLabel(order.status)}
-                              {order.status === 'DELIVERY' ? (
-                                <>
-                                  <br />
-                                  {formatOrderDate(
-                                    getOrderValue(order, [
-                                      'actual_delivery_date',
-                                      'actualDeliveryDate',
-                                      'ActualDeliveryDate',
-                                      'delivery_date'
-                                    ])
-                                  )}
-                                </>
-                              ) : null}
-                            </Badge>
-                          </td>
-                          <td className="text-center">{getAccessAction(order)}</td>
-                        </tr>
-                      ))
-                    ) : (
+                    <thead>
                       <tr>
-                        <td colSpan={8}>
-                          <div className="text-center py-5">
-                            <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
-                              <i className="ti ti-clipboard-list f-24" />
-                            </div>
-                            <h5 className="mb-1">{hasActiveFilter ? 'Order not found' : 'No orders yet'}</h5>
-                            <p className="text-muted mb-3">
-                              {hasActiveFilter
-                                ? 'Change the filter or reset the search to view other data.'
-                                : 'Start creating a new order to add distributor transactions.'}
-                            </p>
-                            {hasActiveFilter ? (
-                              <Button variant="light-primary" onClick={resetFilters}>
-                                Reset Filter
-                              </Button>
-                            ) : canCreateOrder ? (
-                              <Button variant="primary" as={Link} to={`/customer-portal/order/order-create`}>
-                                <i className="ti ti-plus me-1" />
-                                Add Order
-                              </Button>
-                            ) : null}
-                          </div>
-                        </td>
+                        <th>No. SO</th>
+                        <th>Depo</th>
+                        <th>Date</th>
+                        <th>Total Item</th>
+                        <th>Total Order</th>
+                        <th>Status</th>
+                        <th className="text-center">Action</th>
                       </tr>
+                    </thead>
+                    {isLoading ? (
+                      <tbody>
+                        <tr>
+                          <td colSpan={8}>
+                            <LoaderData />
+                          </td>
+                        </tr>
+                      </tbody>
+                    ) : (
+                      <tbody>
+                        {paginatedOrders.length > 0 ? (
+                          paginatedOrders.map((order) => (
+                            <tr key={order.id}>
+                              <td className="fw-semibold">{order.sap_doc_num ?? '-'}</td>
+                              <td>
+                                {order.depo} - {order.customer_name}
+                              </td>
+                              <td>{moment(order.doc_date).format('DD MMM YYYY')}</td>
+                              <td>{getOrderLines(order).length}</td>
+                              <td>{currency(order?.doc_total)}</td>
+                              <td>
+                                <Badge bg={statusVariant[order.status] || 'secondary'}>
+                                  {getStatusLabel(order.status)}
+                                  {order.status === 'DELIVERY' ? (
+                                    <>
+                                      <br />
+                                      {formatOrderDate(
+                                        getOrderValue(order, [
+                                          'actual_delivery_date',
+                                          'actualDeliveryDate',
+                                          'ActualDeliveryDate',
+                                          'delivery_date'
+                                        ])
+                                      )}
+                                    </>
+                                  ) : null}
+                                </Badge>
+                              </td>
+                              <td className="text-center">{getAccessAction(order)}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={8}>
+                              <div className="text-center py-5">
+                                <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
+                                  <i className="ti ti-clipboard-list f-24" />
+                                </div>
+                                <h5 className="mb-1">{hasActiveFilter ? 'Order not found' : 'No orders yet'}</h5>
+                                <p className="text-muted mb-3">
+                                  {hasActiveFilter
+                                    ? 'Change the filter or reset the search to view other data.'
+                                    : 'Start creating a new order to add distributor transactions.'}
+                                </p>
+                                {hasActiveFilter ? (
+                                  <Button variant="light-primary" onClick={resetFilters}>
+                                    Reset Filter
+                                  </Button>
+                                ) : canCreateOrder ? (
+                                  <Button variant="primary" as={Link} to={`/customer-portal/order/order-create`}>
+                                    <i className="ti ti-plus me-1" />
+                                    Add Order
+                                  </Button>
+                                ) : null}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
                     )}
-                  </tbody>
-                )}
                   </Table>
 
                   <TablePagination
@@ -2271,9 +2271,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                 >
                   <i
                     className={
-                      downloadingAttachmentId === order?.id
-                        ? 'ti ti-loader-2 text-primary me-2'
-                        : 'ti ti-paperclip text-primary me-2'
+                      downloadingAttachmentId === order?.id ? 'ti ti-loader-2 text-primary me-2' : 'ti ti-paperclip text-primary me-2'
                     }
                   />
                   Download Attachment
@@ -2426,18 +2424,11 @@ export default function OrderList({ showOnlyCommitment = false }) {
           </div>
         )}
       </Overlay>
-      <Modal
-        show={Boolean(selectedCmoCalendarDay)}
-        onHide={() => setSelectedCmoCalendarDay(null)}
-        centered
-        size="lg"
-      >
+      <Modal show={Boolean(selectedCmoCalendarDay)} onHide={() => setSelectedCmoCalendarDay(null)} centered size="lg">
         <Modal.Header closeButton>
           <div>
             <Modal.Title>CMO pada {selectedCmoCalendarDay?.date?.format('DD MMMM YYYY')}</Modal.Title>
-            <div className="text-muted f-12 mt-1">
-              {selectedCmoCalendarDay?.orders?.length || 0} data CMO pada tanggal ini
-            </div>
+            <div className="text-muted f-12 mt-1">{selectedCmoCalendarDay?.orders?.length || 0} data CMO pada tanggal ini</div>
           </div>
         </Modal.Header>
         <Modal.Body className="bg-light">
