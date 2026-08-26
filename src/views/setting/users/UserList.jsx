@@ -133,11 +133,6 @@ const sapOriginatorOptions = [
   { value: 'SAP002', label: 'SAP002 - Finance' },
   { value: 'SAP003', label: 'SAP003 - Warehouse' }
 ];
-const sapStageOptions = [
-  { value: '1', label: 'Stage 1 - Review' },
-  { value: '2', label: 'Stage 2 - Approval' },
-  { value: '3', label: 'Stage 3 - Final Approval' }
-];
 const accessibleSystemAliases = {
   distributor: SYSTEM_KEYS.CUSTOMER_PORTAL,
   'customer-portal': SYSTEM_KEYS.CUSTOMER_PORTAL,
@@ -197,6 +192,25 @@ const normalizeArray = (value) => {
   }
 
   return [value];
+};
+
+const getApprovalStageList = (response) => {
+  const queue = [response?.data?.data, response?.data];
+  const visited = new Set();
+  const listKeys = ['data', 'items', 'rows', 'stages', 'approval_stages', 'approvalStages', 'results', 'value'];
+
+  while (queue.length) {
+    const current = queue.shift();
+    if (Array.isArray(current)) return current;
+    if (!current || typeof current !== 'object' || visited.has(current)) continue;
+
+    visited.add(current);
+    listKeys.forEach((key) => {
+      if (current[key] !== undefined) queue.push(current[key]);
+    });
+  }
+
+  return [];
 };
 
 const getUserDistributors = (item) => {
@@ -410,9 +424,11 @@ export default function UserList() {
   const [listOcr2, setListOcr2] = useState([]);
   const [listOcr3, setListOcr3] = useState([]);
   const [listExpedition, setListExpedition] = useState([]);
+  const [listApprovalStage, setListApprovalStage] = useState([]);
   const [loadingWarehouse, setLoadingWarehouse] = useState(false);
   const [loadingOcr, setLoadingOcr] = useState(false);
   const [loadingExpedition, setLoadingExpedition] = useState(false);
+  const [loadingApprovalStage, setLoadingApprovalStage] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showView, setShowView] = useState(false);
   const [formMode, setFormMode] = useState('create');
@@ -437,6 +453,9 @@ export default function UserList() {
     getListWarehouse();
     getListOcrCodes();
     getListExpedition();
+    getListApprovalStage();
+    // Load all user form master data once when the page is mounted.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -458,6 +477,64 @@ export default function UserList() {
     const response = await RoleServices.fetchAllRoles();
     if (response.data.success) {
       setListRole(response.data.data);
+    }
+  };
+
+  const getListApprovalStage = async () => {
+    setLoadingApprovalStage(true);
+
+    try {
+      const response = await RoleServices.getApprovalStage();
+      if (response?.data?.success === false) {
+        throw new Error(response.data.message || 'Failed to fetch approval stage data');
+      }
+
+      const options = getApprovalStageList(response)
+        .map((stage) => {
+          if (typeof stage !== 'object' || stage === null) {
+            const value = String(stage ?? '').trim();
+            return { value, label: value };
+          }
+
+          const value = String(
+            stage.stage_id ??
+              stage.approval_stage_id ??
+              stage.id ??
+              stage.stage_code ??
+              stage.code ??
+              stage.Code ??
+              stage.value ??
+              stage.StageCode ??
+              stage.WstCode ??
+              stage.wst_code ??
+              ''
+          ).trim();
+          const name = String(
+            stage.stage_name ??
+              stage.approval_stage_name ??
+              stage.name ??
+              stage.Name ??
+              stage.description ??
+              stage.label ??
+              stage.StageName ??
+              stage.WstName ??
+              stage.wst_name ??
+              ''
+          ).trim();
+
+          return {
+            value,
+            label: [value, name].filter(Boolean).join(' - ') || '-'
+          };
+        })
+        .filter((stage) => stage.value);
+
+      setListApprovalStage(options);
+    } catch (error) {
+      setListApprovalStage([]);
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch approval stage data', 'danger');
+    } finally {
+      setLoadingApprovalStage(false);
     }
   };
 
@@ -706,7 +783,7 @@ export default function UserList() {
   const selectedAccessibleSystems = accessibleSystemOptions.filter((item) => input.accessibleSystems.includes(item.value));
   const selectedExpedition = listExpedition.find((item) => item.value === input.expeditionCode) || null;
   const selectedSapOriginator = sapOriginatorOptions.find((item) => item.value === input.originator) || null;
-  const selectedSapStage = sapStageOptions.find((item) => item.value === input.stage) || null;
+  const selectedSapStage = listApprovalStage.find((item) => item.value === input.stage) || null;
   const availableActionMenus = actionMenuOptions.filter((item) => input.accessibleSystems.includes(item.systemKey));
   const selectedWarehouses = input.whsCodes.map(
     (code) => listWarehouse.find((warehouse) => warehouse.value === code) || { value: code, label: code }
@@ -1488,12 +1565,14 @@ export default function UserList() {
                       <Form.Label className="f-12 text-muted">Stage</Form.Label>
                       <Select
                         value={selectedSapStage}
-                        options={sapStageOptions}
+                        options={listApprovalStage}
                         menuPosition="fixed"
                         onChange={(option) => setInput((currentInput) => ({ ...currentInput, stage: option?.value || '' }))}
-                        placeholder="Select Stage"
+                        placeholder={loadingApprovalStage ? 'Loading stages...' : 'Select Stage'}
+                        isLoading={loadingApprovalStage}
                         isClearable
                         isSearchable
+                        noOptionsMessage={() => 'No approval stage found'}
                       />
                     </Col>
                   </Row>

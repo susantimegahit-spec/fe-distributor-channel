@@ -1,6 +1,5 @@
 import { DataService } from '../../config/dataService';
 
-
 class RoleServices {
   fetchRole(id) {
     return DataService.get(`/roles/${id}`);
@@ -12,6 +11,10 @@ class RoleServices {
 
   getMasterApproval() {
     return DataService.get('/master-approvals');
+  }
+
+  getApprovalStage() {
+    return DataService.get('/master-approvals/stages');
   }
 
   postCreateRole(payload) {

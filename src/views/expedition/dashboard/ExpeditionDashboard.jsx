@@ -618,18 +618,15 @@ export default function ExpeditionDashboard() {
             <i className="ti ti-search me-2" /> Find
           </Button>
         </Stack>
-      </MainCard>
 
-      {activeTab === 'orders' ? (
-        <>
-          <MainCard
-            title={
-              <Stack gap={1}>
-                <h5 className="mb-0">Delivery Orders</h5>
-                <span className="text-muted f-12">Pilih rekomendasi ekspedisi berdasarkan origin, tujuan, dan berat pengiriman.</span>
-              </Stack>
-            }
-          >
+        <hr className="my-4" />
+
+        {activeTab === 'orders' ? (
+          <div>
+            <Stack gap={1} className="mb-4">
+              <h5 className="mb-0">Delivery Orders</h5>
+              <span className="text-muted f-12">Pilih rekomendasi ekspedisi berdasarkan origin, tujuan, dan berat pengiriman.</span>
+            </Stack>
             <Table responsive hover className="mb-0 align-middle">
               <thead>
                 <tr>
@@ -674,18 +671,13 @@ export default function ExpeditionDashboard() {
                 ))}
               </tbody>
             </Table>
-          </MainCard>
-        </>
-      ) : (
-        <>
-          <MainCard
-            title={
-              <Stack gap={1}>
-                <h5 className="mb-0">Expedition Dashboard</h5>
-                <span className="text-muted f-12">Find expedition recommendations based on route and shipment weight.</span>
-              </Stack>
-            }
-          >
+          </div>
+        ) : (
+          <div>
+            <Stack gap={1} className="mb-4">
+              <h5 className="mb-0">Expedition Dashboard</h5>
+              <span className="text-muted f-12">Find expedition recommendations based on route and shipment weight.</span>
+            </Stack>
             <Row className="g-3">
               <Col md={6}>
                 <Form.Group>
@@ -782,22 +774,19 @@ export default function ExpeditionDashboard() {
                 </Button>
               </Col>
             </Row>
-          </MainCard>
 
-          <MainCard
-            title={
+            <hr className="my-4" />
+
+            <Stack direction="horizontal" className="align-items-start justify-content-between mb-4" gap={3}>
               <Stack gap={1}>
                 <h5 className="mb-0">Expedition Recommendations</h5>
                 <span className="text-muted f-12">Rates are ranked based on the selected route and shipment weight.</span>
               </Stack>
-            }
-            secondary={
               <Button variant="light-secondary" disabled={loadingRatesRank} onClick={() => handleFindRates()}>
                 <i className="ti ti-refresh me-1" />
                 Refresh
               </Button>
-            }
-          >
+            </Stack>
             {originHeader || destinationHeader ? (
               <Row className="g-2 mb-3">
                 <Col md={6}>
@@ -859,9 +848,9 @@ export default function ExpeditionDashboard() {
                 )}
               </tbody>
             </Table>
-          </MainCard>
-        </>
-      )}
+          </div>
+        )}
+      </MainCard>
 
       <Modal show={showRecommendationModal} onHide={() => setShowRecommendationModal(false)} size="lg" centered>
         <Modal.Header closeButton>

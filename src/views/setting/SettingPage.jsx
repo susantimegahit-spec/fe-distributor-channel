@@ -19,6 +19,7 @@ import DocumentBuilder from './DocumentBuilder';
 import PermissionList from './permission/PermissionList';
 import UserList from './users/UserList';
 import CronJobList from './cronjob/CronJobList';
+import './setting-page.scss';
 
 const adminRoleId = 5;
 const generalSettingKey = 'dc-general-settings';
@@ -197,14 +198,22 @@ export default function SettingPage({ defaultTab = 'users' }) {
 
   return (
     <Stack gap={3}>
-      <MainCard bodyClassName="py-2">
-        <Stack direction="horizontal" gap={2} className="align-items-center flex-wrap">
-          <Nav variant="tabs" activeKey={selectedTab} onSelect={handleSelect} className="border-0 flex-grow-1">
+      <MainCard className="setting-navigation-card" bodyClassName="setting-navigation-body">
+        <Stack direction="horizontal" gap={2} className="align-items-center">
+          <Nav
+            variant="tabs"
+            activeKey={selectedTab}
+            onSelect={handleSelect}
+            className="setting-navigation border-0 flex-grow-1"
+            aria-label="Settings navigation"
+          >
             {availableTabs.map((tab) => (
               <Nav.Item key={tab.key}>
-                <Nav.Link eventKey={tab.key} className="d-flex align-items-center gap-2">
-                  <i className={tab.icon} />
-                  {tab.title}
+                <Nav.Link eventKey={tab.key} className="setting-navigation-link d-flex align-items-center gap-2">
+                  <span className="setting-navigation-icon">
+                    <i className={tab.icon} />
+                  </span>
+                  <span>{tab.title}</span>
                 </Nav.Link>
               </Nav.Item>
             ))}
