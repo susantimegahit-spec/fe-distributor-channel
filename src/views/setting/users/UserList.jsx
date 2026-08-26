@@ -77,12 +77,31 @@ const flattenActionMenus = (items = [], system) =>
   ]);
 const actionMenuOptions = systems.flatMap((system) => flattenActionMenus(system.menu, system));
 
+const isGrantedAction = (value) =>
+  value === true ||
+  value === 1 ||
+  value === '1' ||
+  String(value ?? '')
+    .trim()
+    .toLowerCase() === 'true';
+
 const normalizeActionAssignments = (value) => {
-  const assignments = Array.isArray(value) ? value : [];
+  const assignmentSource = value?.data ?? value?.action_assignments ?? value?.actionAssignments ?? value;
+  const assignments = Array.isArray(assignmentSource)
+    ? assignmentSource
+    : assignmentSource && typeof assignmentSource === 'object' && ('menu_key' in assignmentSource || 'menuKey' in assignmentSource)
+      ? [assignmentSource]
+      : assignmentSource && typeof assignmentSource === 'object'
+        ? Object.entries(assignmentSource).map(([menuKey, actions]) =>
+            actions && typeof actions === 'object' && ('menu_key' in actions || 'menuKey' in actions)
+              ? actions
+              : { menu_key: menuKey, actions }
+          )
+        : [];
 
   return assignments.reduce((result, assignment) => {
     const menuId = assignment?.menu_key || assignment?.menuKey || assignment?.menu_id || assignment?.menuId || assignment?.id;
-    const actions = assignment?.actions || assignment?.action || [];
+    const actions = assignment?.actions || assignment?.action || assignment;
     const matchingMenu = actionMenuOptions.find((menu) => String(menu.menu_key) === String(menuId) || String(menu.id) === String(menuId));
 
     if (matchingMenu) {
@@ -90,13 +109,14 @@ const normalizeActionAssignments = (value) => {
         result[matchingMenu.id] = actions;
       } else if (actions && typeof actions === 'object') {
         const normalizedActions = [
-          actions.read && 'view',
-          actions.update && 'edit',
-          actions.delete && 'delete',
-          actions.approve && 'approve',
-          actions.export && 'download'
+          isGrantedAction(actions.read) && 'view',
+          isGrantedAction(actions.update) && 'edit',
+          isGrantedAction(actions.delete) && 'delete',
+          isGrantedAction(actions.approve) && 'approve',
+          isGrantedAction(actions.export) && 'download',
+          (isGrantedAction(actions.sync) || isGrantedAction(actions.synchronize) || isGrantedAction(actions.can_sync)) && 'sync'
         ].filter(Boolean);
-        if (actions.create) {
+        if (isGrantedAction(actions.create)) {
           normalizedActions.push(...getRegisteredMenuActions(matchingMenu.id).filter((action) => ['add', 'upload'].includes(action)));
         }
         result[matchingMenu.id] = [...new Set(normalizedActions)];
@@ -723,7 +743,8 @@ export default function UserList() {
             update: selectedActions.includes('edit'),
             delete: selectedActions.includes('delete'),
             approve: selectedActions.includes('approve'),
-            export: selectedActions.includes('download')
+            export: selectedActions.includes('download'),
+            sync: selectedActions.includes('sync')
           }
         };
       })
