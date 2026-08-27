@@ -15,6 +15,17 @@ class ProductionServices {
     return DataService.post('/production/boms', payload);
   }
 
+  putBoms(id, payload) {
+    return DataService.put(`/production/boms/${id}`, payload);
+  }
+
+  postUploadBomsExcel(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    return DataService.post('/production/boms/upload-excel', formData);
+  }
+
   getBomsById(id) {
     return DataService.get(`/production/boms/${id}`);
   }
@@ -121,10 +132,6 @@ class ProductionServices {
 
   cancelProductionIssue(id) {
     return DataService.post(`/production/issues/${id}/cancel`);
-  }
-
-  putBoms(id, payload) {
-    return DataService.put(`/production/boms/${id}`, payload);
   }
 
   deleteBoms(id) {

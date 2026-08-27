@@ -80,16 +80,6 @@ const productionMenu = [
         url: withBasePath('/order')
       },
       {
-        id: 'production-receipt',
-        title: 'Receipt Production',
-        type: 'item',
-        value: 'production-receipt',
-        label: 'Receipt Production',
-        selected: true,
-        icon: 'ti ti-package-import',
-        url: withBasePath('/receipt')
-      },
-      {
         id: 'production-issue',
         title: 'Issue Production',
         type: 'item',
@@ -98,6 +88,16 @@ const productionMenu = [
         selected: true,
         icon: 'ti ti-package-export',
         url: withBasePath('/issue')
+      },
+      {
+        id: 'production-receipt',
+        title: 'Receipt Production',
+        type: 'item',
+        value: 'production-receipt',
+        label: 'Receipt Production',
+        selected: true,
+        icon: 'ti ti-package-import',
+        url: withBasePath('/receipt')
       },
       {
         id: 'production-inventory-transfer',

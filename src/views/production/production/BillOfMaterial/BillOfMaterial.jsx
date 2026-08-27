@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import Select from 'react-select';
 
@@ -16,6 +16,7 @@ import Table from 'react-bootstrap/Table';
 // project-imports
 import MainCard from 'components/MainCard';
 import LoaderData from 'components/LoaderData';
+import TablePagination from 'components/TablePagination';
 import { getItem } from '../../../../redux/production/materialReducer';
 import { getResource } from '../../../../redux/production/resourceReducer';
 import DistributorServices from '../../../../services/customer-portal/DistributorServices';
@@ -60,6 +61,7 @@ const actionPopperConfig = {
 
 const COMPONENT_TYPE_ITEM = '4';
 const COMPONENT_TYPE_RESOURCE = '290';
+const pageSize = 10;
 const numberFormatter = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 });
 
 const getResponseList = (response) => {
@@ -133,15 +135,19 @@ const normalizeBom = (item = {}, index = 0) => ({
 export default function BillOfMaterial() {
   const { showAlert } = useAlert();
   const { showConfirm } = useConfirm();
+  const uploadInputRef = useRef(null);
   const dispatch = useDispatch();
   const { items: materialItems, loading: loadingMaterials } = useSelector((state) => state.productionMaterial);
   const { items: resourceItems, loading: loadingResources } = useSelector((state) => state.productionResource);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingExcel, setUploadingExcel] = useState(false);
   const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isDuplicate, setIsDuplicate] = useState(false);
+  const [editingBomId, setEditingBomId] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [selectedBom, setSelectedBom] = useState(null);
@@ -156,6 +162,16 @@ export default function BillOfMaterial() {
   const [form, setForm] = useState(createInitialForm);
 
   const uomOptions = useMemo(() => form.product?.uoms || [], [form.product]);
+  const pageCount = Math.max(Math.ceil(rows.length / pageSize), 1);
+  const safeCurrentPage = Math.min(currentPage, pageCount);
+  const paginatedRows = useMemo(() => {
+    const start = (safeCurrentPage - 1) * pageSize;
+    return rows.slice(start, start + pageSize);
+  }, [rows, safeCurrentPage]);
+
+  useEffect(() => {
+    if (currentPage > pageCount) setCurrentPage(pageCount);
+  }, [currentPage, pageCount]);
 
   const fetchBoms = useCallback(
     async (keyword = '') => {
@@ -265,9 +281,39 @@ export default function BillOfMaterial() {
 
   const handleOpenCreateModal = () => {
     setIsDuplicate(false);
+    setEditingBomId(null);
     setForm(createInitialForm());
     setShowCreateModal(true);
     fetchFormOptions();
+  };
+
+  const handleUploadExcel = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    if (!['xlsx', 'xls'].includes(extension)) {
+      showAlert('Please select an Excel file with .xlsx or .xls extension', 'warning');
+      event.target.value = '';
+      return;
+    }
+
+    setUploadingExcel(true);
+    try {
+      const response = await ProductionServices.postUploadBomsExcel(file);
+      if (response?.data?.success === false) {
+        throw new Error(response.data.message || 'Failed to upload Bill of Material Excel file');
+      }
+
+      await fetchBoms(search.trim());
+      setCurrentPage(1);
+      showAlert(response?.data?.message || 'Bill of Material Excel file uploaded successfully', 'success');
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to upload Bill of Material Excel file', 'danger');
+    } finally {
+      setUploadingExcel(false);
+      event.target.value = '';
+    }
   };
 
   const handleProductChange = (product) => {
@@ -321,7 +367,8 @@ export default function BillOfMaterial() {
   };
 
   const handleSubmit = async () => {
-    if (!form.product || !(Number(form.quantity) > 0) || !form.uom || !form.warehouse || !form.distributionRule) {
+    const isEditing = editingBomId !== null;
+    if (!(Number(form.quantity) > 0) || !form.warehouse || (!isEditing && (!form.product || !form.uom || !form.distributionRule))) {
       showAlert('Please complete all required Bill of Material fields', 'warning');
       return;
     }
@@ -335,37 +382,56 @@ export default function BillOfMaterial() {
       return;
     }
 
-    const payload = {
-      code: form.product.value,
-      qty: Number(form.quantity),
-      to_whs: form.warehouse.value,
-      ocr_code: form.distributionRule.value,
-      ocr_code2: form.businessUnit?.value || '',
-      ocr_code3: form.department?.value || '',
-      comments: form.comments.trim(),
-      details: form.details.map((detail) => ({
-        type: Number(detail.type),
-        code: detail.item.value,
-        qty: Number(detail.quantity),
-        issue_method: detail.issueMethod,
-        ocr_code: form.distributionRule.value,
-        ocr_code2: form.businessUnit?.value || '',
-        ocr_code3: form.department?.value || ''
-      }))
-    };
+    const detailPayload = form.details.map((detail) => ({
+      type: Number(detail.type),
+      code: detail.item.value,
+      quantity: Number(detail.quantity),
+      issue_mthd: detail.issueMethod
+    }));
+    const payload = isEditing
+      ? {
+          qty: Number(form.quantity),
+          to_whs: form.warehouse.value,
+          comments: form.comments.trim(),
+          details: detailPayload
+        }
+      : {
+          code: form.product.value,
+          qty: Number(form.quantity),
+          to_whs: form.warehouse.value,
+          ocr_code: form.distributionRule.value,
+          ocr_code2: form.businessUnit?.value || '',
+          ocr_code3: form.department?.value || '',
+          comments: form.comments.trim(),
+          details: detailPayload.map((detail) => ({
+            type: detail.type,
+            code: detail.code,
+            qty: detail.quantity,
+            issue_method: detail.issue_mthd,
+            ocr_code: form.distributionRule.value,
+            ocr_code2: form.businessUnit?.value || '',
+            ocr_code3: form.department?.value || ''
+          }))
+        };
 
     setSaving(true);
     try {
-      const response = await ProductionServices.postBoms(payload);
-      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to create Bill of Material');
+      const response = isEditing ? await ProductionServices.putBoms(editingBomId, payload) : await ProductionServices.postBoms(payload);
+      if (response?.data?.success === false) {
+        throw new Error(response.data.message || `Failed to ${isEditing ? 'update' : 'create'} Bill of Material`);
+      }
 
       setShowCreateModal(false);
       setIsDuplicate(false);
+      setEditingBomId(null);
       setForm(createInitialForm());
       await fetchBoms(search.trim());
-      showAlert(response?.data?.message || 'Bill of Material created successfully', 'success');
+      showAlert(response?.data?.message || `Bill of Material ${isEditing ? 'updated' : 'created'} successfully`, 'success');
     } catch (error) {
-      showAlert(error?.response?.data?.message || error?.message || 'Failed to create Bill of Material', 'danger');
+      showAlert(
+        error?.response?.data?.message || error?.message || `Failed to ${isEditing ? 'update' : 'create'} Bill of Material`,
+        'danger'
+      );
     } finally {
       setSaving(false);
     }
@@ -409,9 +475,11 @@ export default function BillOfMaterial() {
     }
   };
 
-  const handleDuplicate = async (item) => {
+  const handleOpenExistingBom = async (item, mode) => {
+    const isEditing = mode === 'edit';
     setDuplicatingId(item.id);
-    setIsDuplicate(true);
+    setIsDuplicate(!isEditing);
+    setEditingBomId(isEditing ? item.id : null);
     setForm(createInitialForm());
     setShowCreateModal(true);
 
@@ -424,12 +492,30 @@ export default function BillOfMaterial() {
 
       const source = normalizeBom(getResponseItem(response));
       const rawSource = getResponseItem(response);
-      const product = options.products.find((option) => String(option.value) === String(source.productNo)) || null;
+      const product =
+        options.products.find((option) => String(option.value) === String(source.productNo)) ||
+        (source.productNo
+          ? {
+              value: source.productNo,
+              label: [source.productNo, source.productName].filter(Boolean).join(' - '),
+              productName: source.productName,
+              uoms: source.uom ? [{ value: source.uom, label: source.uom }] : []
+            }
+          : null);
       const warehouseCode = rawSource.to_whs ?? rawSource.whs_code ?? rawSource.warehouse_code ?? rawSource.warehouse?.code ?? '';
       const ocrCode = rawSource.ocr_code ?? rawSource.distribution_rule ?? '';
       const ocrCode2 = rawSource.ocr_code2 ?? rawSource.business_unit_code ?? '';
       const ocrCode3 = rawSource.ocr_code3 ?? rawSource.department_code ?? '';
-      const componentTypes = [...new Set(source.details.map((detail) => String(detail.type ?? detail.component_type ?? '')))];
+      const componentTypes = [
+        ...new Set(
+          source.details.map((detail) => {
+            const type = String(detail.type ?? detail.component_type ?? '');
+            if (type.toLowerCase() === 'item') return COMPONENT_TYPE_ITEM;
+            if (type.toLowerCase() === 'resource') return COMPONENT_TYPE_RESOURCE;
+            return type;
+          })
+        )
+      ];
 
       await Promise.all([
         componentTypes.includes(COMPONENT_TYPE_ITEM) ? dispatch(getItem('')) : Promise.resolve(),
@@ -442,14 +528,22 @@ export default function BillOfMaterial() {
         uom:
           product?.uoms.find((option) => String(option.value) === String(source.uom)) ||
           (source.uom ? { value: source.uom, label: source.uom } : null),
-        warehouse: options.warehouses.find((option) => String(option.value) === String(warehouseCode)) || null,
+        warehouse:
+          options.warehouses.find((option) => String(option.value) === String(warehouseCode)) ||
+          (warehouseCode ? { value: warehouseCode, label: [warehouseCode, source.warehouse].filter(Boolean).join(' - ') } : null),
         distributionRule: options.distributionRules.find((option) => String(option.value) === String(ocrCode)) || null,
         businessUnit: options.businessUnits.find((option) => String(option.value) === String(ocrCode2)) || null,
         department: options.departments.find((option) => String(option.value) === String(ocrCode3)) || null,
         comments: source.comments || '',
         details: source.details.length
           ? source.details.map((detail) => {
-              const type = String(detail.type ?? detail.component_type ?? '');
+              const rawType = String(detail.type ?? detail.component_type ?? '');
+              const type =
+                rawType.toLowerCase() === 'item'
+                  ? COMPONENT_TYPE_ITEM
+                  : rawType.toLowerCase() === 'resource'
+                    ? COMPONENT_TYPE_RESOURCE
+                    : rawType;
               const itemData = detail.item ?? {};
               const code =
                 (typeof itemData === 'object'
@@ -486,11 +580,18 @@ export default function BillOfMaterial() {
     } catch (error) {
       setShowCreateModal(false);
       setIsDuplicate(false);
-      showAlert(error?.response?.data?.message || error?.message || 'Failed to duplicate Bill of Material', 'danger');
+      setEditingBomId(null);
+      showAlert(
+        error?.response?.data?.message || error?.message || `Failed to load Bill of Material for ${isEditing ? 'editing' : 'duplication'}`,
+        'danger'
+      );
     } finally {
       setDuplicatingId(null);
     }
   };
+
+  const handleDuplicate = (item) => handleOpenExistingBom(item, 'duplicate');
+  const handleEdit = (item) => handleOpenExistingBom(item, 'edit');
 
   return (
     <>
@@ -506,6 +607,11 @@ export default function BillOfMaterial() {
             <Button variant="outline-primary" onClick={() => fetchBoms(search.trim())} disabled={loading} title="Refresh">
               <i className={`ti ti-refresh ${loading ? 'ti-spin' : ''}`} />
             </Button>
+            <Button variant="light-primary" onClick={() => uploadInputRef.current?.click()} disabled={uploadingExcel}>
+              <i className={`${uploadingExcel ? 'ti ti-loader-2' : 'ti ti-file-upload'} me-1`} />
+              {uploadingExcel ? 'Uploading...' : 'Upload Excel'}
+            </Button>
+            <Form.Control ref={uploadInputRef} type="file" accept=".xlsx,.xls" className="d-none" onChange={handleUploadExcel} />
             <Button variant="primary" onClick={handleOpenCreateModal}>
               <i className="ti ti-plus me-1" />
               Create
@@ -519,9 +625,22 @@ export default function BillOfMaterial() {
               <InputGroup.Text>
                 <i className="ti ti-search" />
               </InputGroup.Text>
-              <Form.Control value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search BOM code or product" />
+              <Form.Control
+                value={search}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setCurrentPage(1);
+                }}
+                placeholder="Search BOM code or product"
+              />
               {search && (
-                <Button variant="outline-secondary" onClick={() => setSearch('')}>
+                <Button
+                  variant="outline-secondary"
+                  onClick={() => {
+                    setSearch('');
+                    setCurrentPage(1);
+                  }}
+                >
                   <i className="ti ti-x" />
                 </Button>
               )}
@@ -551,10 +670,10 @@ export default function BillOfMaterial() {
                   <LoaderData />
                 </td>
               </tr>
-            ) : rows.length ? (
-              rows.map((item, index) => (
+            ) : paginatedRows.length ? (
+              paginatedRows.map((item, index) => (
                 <tr key={item.id}>
-                  <td>{index + 1}</td>
+                  <td>{(safeCurrentPage - 1) * pageSize + index + 1}</td>
                   <td>
                     <div className="fw-semibold">{item.productNo || '-'}</div>
                     <div className="text-muted">{item.productName || '-'}</div>
@@ -601,6 +720,14 @@ export default function BillOfMaterial() {
             )}
           </tbody>
         </Table>
+        <TablePagination
+          currentPage={safeCurrentPage}
+          onPageChange={setCurrentPage}
+          pageCount={pageCount}
+          pageSize={pageSize}
+          total={rows.length}
+          itemLabel="Bill of Materials"
+        />
       </MainCard>
 
       <Overlay
@@ -635,6 +762,18 @@ export default function BillOfMaterial() {
               >
                 <i className="ti ti-eye text-primary me-2" />
                 Detail
+              </button>
+              <button
+                type="button"
+                className="dropdown-item"
+                disabled={duplicatingId !== null}
+                onClick={() => {
+                  setActionMenu(null);
+                  if (item) handleEdit(item);
+                }}
+              >
+                <i className={duplicatingId === item?.id ? 'ti ti-loader-2 text-warning me-2' : 'ti ti-edit text-warning me-2'} />
+                Edit
               </button>
               <button
                 type="button"
@@ -797,7 +936,10 @@ export default function BillOfMaterial() {
       <Modal
         show={showCreateModal}
         onHide={() => {
-          if (!loadingOptions && !saving && duplicatingId === null) setShowCreateModal(false);
+          if (!loadingOptions && !saving && duplicatingId === null) {
+            setShowCreateModal(false);
+            setEditingBomId(null);
+          }
         }}
         size="xl"
         centered
@@ -805,7 +947,9 @@ export default function BillOfMaterial() {
         fullscreen
       >
         <Modal.Header closeButton={!loadingOptions && duplicatingId === null}>
-          <Modal.Title>{isDuplicate ? 'Duplicate Bill of Material' : 'Create Bill of Material'}</Modal.Title>
+          <Modal.Title>
+            {editingBomId !== null ? 'Edit Bill of Material' : isDuplicate ? 'Duplicate Bill of Material' : 'Create Bill of Material'}
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Row className="g-3">
@@ -825,7 +969,7 @@ export default function BillOfMaterial() {
                   isSearchable
                   isClearable
                   isLoading={loadingOptions}
-                  isDisabled={loadingOptions}
+                  isDisabled={loadingOptions || editingBomId !== null}
                   noOptionsMessage={() => 'Product not found'}
                 />
               </Form.Group>
@@ -869,7 +1013,7 @@ export default function BillOfMaterial() {
                   menuPortalTarget={document.body}
                   menuPosition="fixed"
                   placeholder={form.product ? 'Select UOM' : 'Select product first'}
-                  isDisabled={!form.product || loadingOptions}
+                  isDisabled={!form.product || loadingOptions || editingBomId !== null}
                   noOptionsMessage={() => 'UOM not found for this product'}
                 />
               </Form.Group>
@@ -911,7 +1055,7 @@ export default function BillOfMaterial() {
                   isSearchable
                   isClearable
                   isLoading={loadingOptions}
-                  isDisabled={loadingOptions}
+                  isDisabled={loadingOptions || editingBomId !== null}
                   noOptionsMessage={() => 'Distribution rule not found'}
                 />
               </Form.Group>
@@ -930,7 +1074,7 @@ export default function BillOfMaterial() {
                   isSearchable
                   isClearable
                   isLoading={loadingOptions}
-                  isDisabled={loadingOptions}
+                  isDisabled={loadingOptions || editingBomId !== null}
                   noOptionsMessage={() => 'Business unit not found'}
                 />
               </Form.Group>
@@ -949,7 +1093,7 @@ export default function BillOfMaterial() {
                   isSearchable
                   isClearable
                   isLoading={loadingOptions}
-                  isDisabled={loadingOptions}
+                  isDisabled={loadingOptions || editingBomId !== null}
                   noOptionsMessage={() => 'Department not found'}
                 />
               </Form.Group>
@@ -1086,13 +1230,16 @@ export default function BillOfMaterial() {
         <Modal.Footer>
           <Button
             variant="light-secondary"
-            onClick={() => setShowCreateModal(false)}
+            onClick={() => {
+              setShowCreateModal(false);
+              setEditingBomId(null);
+            }}
             disabled={loadingOptions || saving || duplicatingId !== null}
           >
             Close
           </Button>
           <Button variant="primary" onClick={handleSubmit} disabled={loadingOptions || saving || duplicatingId !== null}>
-            {saving ? 'Saving...' : isDuplicate ? 'Save as New' : 'Save'}
+            {saving ? 'Saving...' : editingBomId !== null ? 'Update' : isDuplicate ? 'Save as New' : 'Save'}
           </Button>
         </Modal.Footer>
       </Modal>
