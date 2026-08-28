@@ -13,9 +13,12 @@ import Table from 'react-bootstrap/Table';
 
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
+import DistributorServices from '../../../../services/customer-portal/DistributorServices';
+import WarehouseServices from '../../../../services/customer-portal/WarehouseServices';
 import ProductionServices from '../../../../services/production/ProductionServices';
 import { useAlert } from '../../../../utils/alertContext';
-import { getCookies, getOrganizationAssignmentDefault } from '../../../../utils/cookies';
+import { getCookies, getOrganizationAssignment, getOrganizationAssignmentDefault } from '../../../../utils/cookies';
+import './issue-production.scss';
 
 const pageSize = 10;
 const numberFormatter = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 6 });
@@ -37,6 +40,10 @@ const createIssueForm = () => ({
   Comments: '',
   Shift: 'X',
   Unit: '',
+  WhsCode: getOrganizationAssignmentDefault('warehouses'),
+  OcrCode: getOrganizationAssignmentDefault('branches'),
+  OcrCode2: getOrganizationAssignmentDefault('business_units'),
+  OcrCode3: getOrganizationAssignmentDefault('departments'),
   Lines: []
 });
 const formatInputDate = (date) => {
@@ -57,7 +64,7 @@ const initialFilters = () => {
   monday.setDate(now.getDate() + (now.getDay() === 0 ? -6 : 1 - now.getDay()));
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
-  return { from: formatInputDate(monday), to: formatInputDate(sunday), whs_code: '', to_whs_code: '' };
+  return { from: formatInputDate(monday), to: formatInputDate(sunday), whs_code: '', to_whs_code: '', unit: '' };
 };
 const getValue = (item, keys, fallback = '') =>
   keys.map((key) => item?.[key]).find((value) => value !== undefined && value !== null && String(value).trim() !== '') ?? fallback;
@@ -87,6 +94,16 @@ const normalizeUnit = (item = {}) => {
   const label = typeof item === 'object' ? item.unit_name || item.UnitName || item.name || item.label || item.description || value : item;
 
   return value ? { value, label: String(label) } : null;
+};
+const normalizeOcr = (item = {}) => {
+  const code = item.ocr_code || item.ocrCode || item.OcrCode || item.code || '';
+  const name = item.ocr_name || item.ocrName || item.OcrName || item.name || '';
+  return { value: code, label: [code, name].filter(Boolean).join(' - ') || String(code) };
+};
+const normalizeWarehouse = (item = {}) => {
+  const code = item.whs_code || item.warehouse_code || item.code || item.WhsCode || '';
+  const name = item.whs_name || item.warehouse_name || item.name || item.WhsName || '';
+  return { value: code, label: [code, name].filter(Boolean).join(' - ') || String(code) };
 };
 const normalizeSeries = (item = {}) => {
   const value = typeof item === 'object' ? (item.series ?? item.Series ?? item.series_code ?? item.value ?? item.code ?? item.id) : item;
@@ -128,8 +145,10 @@ const normalizeProductionOrder = (item = {}, index = 0) => ({
   itemCode: getValue(item, ['ItemCode', 'item_code', 'product_code', 'code']),
   itemName: getValue(item, ['ProdName', 'ItemName', 'item_name', 'product_name', 'name']),
   plannedQuantity: Number(getValue(item, ['PlannedQty', 'PlannedQuantity', 'planned_qty', 'planned_quantity', 'quantity'], 0)),
+  startDate: getValue(item, ['StartDate', 'startDate', 'start_date']),
   warehouse: getValue(item, ['Warehouse', 'WhsCode', 'whs_code', 'warehouse_code']),
   status: getValue(item, ['ProductionOrderStatus', 'Status', 'status', 'order_status']),
+  unit: getValue(item, ['U_Unit', 'u_unit', 'Unit', 'unit']),
   remarks: getValue(item, ['Remarks', 'remarks', 'Comments', 'comments'], '-'),
   raw: item
 });
@@ -187,22 +206,15 @@ const createIssueLine = (line = {}, header = {}, index = 0) => {
     PlannedQty: plannedQty,
     IssuedQty: issuedQty,
     Quantity: 0,
-    WhsCode: getValue(
-      line,
-      ['WhsCode', 'whs_code', 'Warehouse', 'warehouse_code'],
-      getValue(header, ['Warehouse', 'WhsCode', 'whs_code'], getOrganizationAssignmentDefault('warehouses'))
-    ),
+    WhsCode:
+      getOrganizationAssignmentDefault('warehouses') ||
+      getValue(line, ['WhsCode', 'whs_code', 'Warehouse', 'warehouse_code'], getValue(header, ['Warehouse', 'WhsCode', 'whs_code'])),
     UoMEntry: Number(getValue(line, ['UoMEntry', 'UomEntry', 'uom_entry'], 0)),
-    OcrCode: getValue(
-      line,
-      ['OcrCode', 'ocr_code'],
-      getValue(header, ['OcrCode', 'ocr_code'], getOrganizationAssignmentDefault('branches'))
-    ),
-    OcrCode2: getValue(
-      line,
-      ['OcrCode2', 'ocr_code2'],
-      getValue(header, ['OcrCode2', 'ocr_code2'], getOrganizationAssignmentDefault('business_units'))
-    ),
+    OcrCode:
+      getOrganizationAssignmentDefault('branches') || getValue(line, ['OcrCode', 'ocr_code'], getValue(header, ['OcrCode', 'ocr_code'])),
+    OcrCode2:
+      getOrganizationAssignmentDefault('business_units') ||
+      getValue(line, ['OcrCode2', 'ocr_code2'], getValue(header, ['OcrCode2', 'ocr_code2'])),
     OcrCode3:
       getOrganizationAssignmentDefault('departments') ||
       getValue(line, ['OcrCode3', 'ocr_code3'], getValue(header, ['OcrCode3', 'ocr_code3']))
@@ -233,6 +245,7 @@ const formatValue = (value, key) => {
 
 export default function IssueProduction() {
   const { showAlert } = useAlert();
+  const organizationAssignments = useMemo(() => getOrganizationAssignment(), []);
   const [issues, setIssues] = useState([]);
   const [filters, setFilters] = useState(initialFilters);
   const [loading, setLoading] = useState(false);
@@ -253,6 +266,57 @@ export default function IssueProduction() {
   const [unitOptions, setUnitOptions] = useState([]);
   const [loadingSeries, setLoadingSeries] = useState(false);
   const [seriesOptions, setSeriesOptions] = useState([]);
+  const [loadingOcr, setLoadingOcr] = useState(false);
+  const [ocrOptions, setOcrOptions] = useState({ branch: [], businessUnit: [], department: [] });
+  const [loadingWarehouses, setLoadingWarehouses] = useState(false);
+  const [warehouseOptions, setWarehouseOptions] = useState([]);
+
+  const fetchOcrOptions = async () => {
+    setLoadingOcr(true);
+    try {
+      const responses = await Promise.all([
+        DistributorServices.getOcrByType(1),
+        DistributorServices.getOcrByType(2),
+        DistributorServices.getOcrByType(3)
+      ]);
+      if (responses.some((response) => response?.data?.success === false)) throw new Error('Failed to fetch OCR data');
+      setOcrOptions({
+        branch: getResponseList(responses[0])
+          .map(normalizeOcr)
+          .filter((option) => option.value),
+        businessUnit: getResponseList(responses[1])
+          .map(normalizeOcr)
+          .filter((option) => option.value),
+        department: getResponseList(responses[2])
+          .map(normalizeOcr)
+          .filter((option) => option.value)
+      });
+    } catch (error) {
+      setOcrOptions({ branch: [], businessUnit: [], department: [] });
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch OCR data', 'danger');
+    } finally {
+      setLoadingOcr(false);
+    }
+  };
+
+  const fetchWarehouseOptions = async () => {
+    if (warehouseOptions.length) return;
+    setLoadingWarehouses(true);
+    try {
+      const response = await WarehouseServices.getAllWarehouse('');
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch warehouse data');
+      setWarehouseOptions(
+        getResponseList(response)
+          .map(normalizeWarehouse)
+          .filter((option) => option.value)
+      );
+    } catch (error) {
+      setWarehouseOptions([]);
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch warehouse data', 'danger');
+    } finally {
+      setLoadingWarehouses(false);
+    }
+  };
 
   const fetchIssues = useCallback(
     async (activeFilters) => {
@@ -352,16 +416,19 @@ export default function IssueProduction() {
 
   const filteredProductionOrders = useMemo(() => {
     const keyword = orderSearch.trim().toLowerCase();
-    if (!keyword) return productionOrders;
+    const selectedUnit = String(orderFilters.unit || '').toLowerCase();
 
-    return productionOrders.filter((order) =>
-      [order.number, order.itemCode, order.itemName, order.warehouse].some((value) =>
-        String(value || '')
-          .toLowerCase()
-          .includes(keyword)
-      )
+    return productionOrders.filter(
+      (order) =>
+        (!selectedUnit || String(order.unit || '').toLowerCase() === selectedUnit) &&
+        (!keyword ||
+          [order.number, order.itemCode, order.itemName, order.warehouse].some((value) =>
+            String(value || '')
+              .toLowerCase()
+              .includes(keyword)
+          ))
     );
-  }, [orderSearch, productionOrders]);
+  }, [orderFilters.unit, orderSearch, productionOrders]);
 
   const fetchProductionOrders = async () => {
     if (orderFilters.from && orderFilters.to && new Date(orderFilters.from) > new Date(orderFilters.to)) {
@@ -418,18 +485,33 @@ export default function IssueProduction() {
         })
       );
       const firstHeader = orderDetails[0]?.header || {};
+      const dueDate = formatInputDateValue(getValue(firstHeader, ['PostDate'], issueForm.DocDueDate));
+      const postingDate = issueForm.DocDate && issueForm.DocDate > dueDate ? dueDate : issueForm.DocDate;
 
       setIssueForm((current) => ({
         ...current,
-        DocDueDate: formatInputDateValue(getValue(firstHeader, ['PostDate'], current.DocDueDate)),
+        DocDate: postingDate,
+        DocDueDate: dueDate,
+        Series: postingDate !== current.DocDate ? '' : current.Series,
         Comments: current.Comments || getValue(firstHeader, ['Comments', 'comments', 'remarks']),
         Shift: getValue(firstHeader, ['U_Shift', 'Shift', 'shift'], current.Shift),
         Unit: getValue(firstHeader, ['U_Unit', 'Unit', 'unit', 'OcrCode2', 'ocr_code2'], current.Unit),
+        WhsCode: current.WhsCode || orderDetails[0]?.lines[0]?.WhsCode || '',
+        OcrCode: current.OcrCode || orderDetails[0]?.lines[0]?.OcrCode || '',
+        OcrCode2: current.OcrCode2 || orderDetails[0]?.lines[0]?.OcrCode2 || '',
+        OcrCode3: current.OcrCode3 || orderDetails[0]?.lines[0]?.OcrCode3 || '',
         Lines: [
           ...current.Lines.filter((line) => selectedOrderIds.includes(String(line.BaseEntry))),
           ...orderDetails.flatMap((detail) => detail.lines)
-        ]
+        ].map((line) => ({
+          ...line,
+          WhsCode: current.WhsCode || line.WhsCode,
+          OcrCode: current.OcrCode || line.OcrCode,
+          OcrCode2: current.OcrCode2 || line.OcrCode2,
+          OcrCode3: current.OcrCode3 || line.OcrCode3
+        }))
       }));
+      if (postingDate !== issueForm.DocDate) fetchSeriesOptions(postingDate);
       setShowOrderModal(false);
     } catch (error) {
       showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch Production Order detail', 'danger');
@@ -445,11 +527,23 @@ export default function IssueProduction() {
     }));
   };
 
+  const updateIssueHeaderField = (field, value) => {
+    setIssueForm((current) => ({
+      ...current,
+      [field]: value,
+      Lines: current.Lines.map((line) => ({ ...line, [field]: value }))
+    }));
+  };
+
   const handleDeleteIssueLine = (lineIndex) => {
     setIssueForm((current) => ({ ...current, Lines: current.Lines.filter((_, index) => index !== lineIndex) }));
   };
 
   const handleSubmitIssue = async () => {
+    if (issueForm.DocDate && issueForm.DocDueDate && issueForm.DocDate > issueForm.DocDueDate) {
+      showAlert('Posting Date cannot be after Due Date', 'warning');
+      return;
+    }
     const invalidLine = issueForm.Lines.some(
       (line) => !(Number(line.BaseEntry) > 0) || !Number.isFinite(Number(line.BaseLine)) || !line.WhsCode
     );
@@ -468,7 +562,11 @@ export default function IssueProduction() {
         BaseEntry: Number(line.BaseEntry),
         BaseLine: Number(line.BaseLine),
         Quantity: Number(line.Quantity),
-        UoMEntry: Number(line.UoMEntry || 0)
+        UoMEntry: Number(line.UoMEntry || 0),
+        WhsCode: issueForm.WhsCode || line.WhsCode,
+        OcrCode: issueForm.OcrCode || line.OcrCode,
+        OcrCode2: issueForm.OcrCode2 || line.OcrCode2,
+        OcrCode3: issueForm.OcrCode3 || line.OcrCode3
       }))
     };
 
@@ -502,6 +600,8 @@ export default function IssueProduction() {
             onClick={() => {
               setIssueForm(createIssueForm());
               setShowAddIssue(true);
+              fetchOcrOptions();
+              fetchWarehouseOptions();
               fetchUnitOptions();
               fetchSeriesOptions(today);
             }}
@@ -615,6 +715,7 @@ export default function IssueProduction() {
               <Form.Control
                 type="date"
                 value={issueForm.DocDate}
+                max={issueForm.DocDueDate || undefined}
                 onChange={(event) => {
                   const date = event.target.value;
                   setIssueForm((current) => ({ ...current, DocDate: date, Series: '' }));
@@ -688,6 +789,30 @@ export default function IssueProduction() {
                 onChange={(event) => setIssueForm((current) => ({ ...current, Comments: event.target.value }))}
               />
             </Col>
+            {[
+              ['WhsCode', 'warehouses', warehouseOptions, 'Warehouse', loadingWarehouses],
+              ['OcrCode', 'branches', ocrOptions.branch, 'Branch', loadingOcr],
+              ['OcrCode2', 'business_units', ocrOptions.businessUnit, 'Business Unit', loadingOcr],
+              ['OcrCode3', 'departments', ocrOptions.department, 'Department', loadingOcr]
+            ].map(([field, assignmentKey, options, label, isLoading]) => (
+              <Col md={3} key={field}>
+                <Form.Label>{label}</Form.Label>
+                <Select
+                  styles={selectStyles}
+                  menuPortalTarget={document.body}
+                  menuPosition="fixed"
+                  options={options}
+                  value={
+                    options.find((option) => String(option.value) === String(issueForm[field])) ||
+                    (issueForm[field] ? { value: issueForm[field], label: issueForm[field] } : null)
+                  }
+                  isLoading={isLoading}
+                  isDisabled={isLoading || organizationAssignments[assignmentKey].length > 0}
+                  placeholder={`Select ${label.toLowerCase()}`}
+                  onChange={(option) => updateIssueHeaderField(field, option?.value || '')}
+                />
+              </Col>
+            ))}
           </Row>
 
           <Stack direction="horizontal" className="justify-content-between mb-2">
@@ -703,10 +828,6 @@ export default function IssueProduction() {
                 <th>Planned Qty</th>
                 <th>Issued Qty</th>
                 <th>Qty</th>
-                <th>Warehouse</th>
-                <th>Branch</th>
-                <th>Business Unit</th>
-                <th>Department</th>
                 <th className="text-center">Action</th>
               </tr>
             </thead>
@@ -737,14 +858,6 @@ export default function IssueProduction() {
                         }}
                       />
                     </td>
-                    <td style={{ minWidth: 140 }}>
-                      <Form.Control size="sm" value={line.WhsCode} readOnly />
-                    </td>
-                    {['OcrCode', 'OcrCode2', 'OcrCode3'].map((field) => (
-                      <td key={field} style={{ minWidth: 130 }}>
-                        <Form.Control size="sm" value={line[field]} readOnly />
-                      </td>
-                    ))}
                     <td className="text-center">
                       <Button
                         type="button"
@@ -762,7 +875,7 @@ export default function IssueProduction() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={9} className="text-center text-muted py-4">
+                  <td colSpan={5} className="text-center text-muted py-4">
                     No items added. Click Add PDO to select a Production Order.
                   </td>
                 </tr>
@@ -785,6 +898,9 @@ export default function IssueProduction() {
         show={showOrderModal}
         onHide={() => !loadingOrders && !loadingOrderDetailId && setShowOrderModal(false)}
         size="xl"
+        className="production-nested-modal"
+        backdropClassName="production-nested-modal-backdrop"
+        dialogClassName="issue-pdo-selection-modal"
         centered
         scrollable
       >
@@ -800,7 +916,7 @@ export default function IssueProduction() {
             }}
           >
             <Row className="g-3 align-items-end">
-              <Col md={4}>
+              <Col md={3}>
                 <Form.Label>Start Date</Form.Label>
                 <Form.Control
                   type="date"
@@ -808,7 +924,7 @@ export default function IssueProduction() {
                   onChange={(event) => setOrderFilters((current) => ({ ...current, from: event.target.value }))}
                 />
               </Col>
-              <Col md={4}>
+              <Col md={3}>
                 <Form.Label>End Date</Form.Label>
                 <Form.Control
                   type="date"
@@ -816,7 +932,19 @@ export default function IssueProduction() {
                   onChange={(event) => setOrderFilters((current) => ({ ...current, to: event.target.value }))}
                 />
               </Col>
-              <Col md={4}>
+              <Col md={3}>
+                <Form.Label>Unit</Form.Label>
+                <Select
+                  styles={selectStyles}
+                  options={unitOptions}
+                  value={unitOptions.find((option) => String(option.value) === String(orderFilters.unit)) || null}
+                  isLoading={loadingUnits}
+                  isClearable
+                  placeholder="All units"
+                  onChange={(option) => setOrderFilters((current) => ({ ...current, unit: option?.value || '' }))}
+                />
+              </Col>
+              <Col md={3}>
                 <Form.Label>Search PDO</Form.Label>
                 <InputGroup>
                   <Form.Control
@@ -839,6 +967,7 @@ export default function IssueProduction() {
                 </th>
                 <th>Order No.</th>
                 <th>Product</th>
+                <th>Start Date</th>
                 <th>Planned Qty</th>
                 <th>Remarks</th>
               </tr>
@@ -846,7 +975,7 @@ export default function IssueProduction() {
             <tbody>
               {loadingOrders ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-4">
+                  <td colSpan={6} className="text-center py-4">
                     <span className="spinner-border spinner-border-sm me-2" /> Loading Production Orders...
                   </td>
                 </tr>
@@ -885,6 +1014,7 @@ export default function IssueProduction() {
                         <div className="fw-semibold">{order.itemCode || '-'}</div>
                         <div className="text-muted f-12">{order.itemName || '-'}</div>
                       </td>
+                      <td>{formatDate(order.startDate)}</td>
                       <td>{numberFormatter.format(order.plannedQuantity)}</td>
                       <td>{order.remarks || '-'}</td>
                     </tr>
@@ -892,7 +1022,7 @@ export default function IssueProduction() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={5} className="text-center text-muted py-4">
+                  <td colSpan={6} className="text-center text-muted py-4">
                     No released Production Order found for the selected filters.
                   </td>
                 </tr>
@@ -927,6 +1057,10 @@ export default function IssueProduction() {
                 const columns = [...new Set(items.flatMap((item) => Object.keys(item || {})))].filter(
                   (key) => !['docentry', 'linenum', 'baseentry'].includes(normalizeKey(key))
                 );
+                const itemCodeKey = columns.find((key) => ['item', 'itemcode', 'itemno'].includes(normalizeKey(key)));
+                const itemNameKey = columns.find((key) => ['itemname', 'itemdescription'].includes(normalizeKey(key)));
+                const detailColumns = columns.filter((key) => key !== itemCodeKey && key !== itemNameKey);
+                const hasItemColumn = Boolean(itemCodeKey || itemNameKey);
                 return (
                   <Stack gap={4}>
                     <Card className="border mb-0">
@@ -964,7 +1098,8 @@ export default function IssueProduction() {
                           <thead>
                             <tr>
                               <th>#</th>
-                              {columns.map((key) => (
+                              {hasItemColumn ? <th>Item</th> : null}
+                              {detailColumns.map((key) => (
                                 <th key={key}>{columnLabels[normalizeKey(key)] || key}</th>
                               ))}
                             </tr>
@@ -974,14 +1109,25 @@ export default function IssueProduction() {
                               items.map((item, index) => (
                                 <tr key={item?.LineNum ?? item?.line_num ?? index}>
                                   <td>{index + 1}</td>
-                                  {columns.map((key) => (
+                                  {hasItemColumn ? (
+                                    <td style={{ minWidth: 220 }}>
+                                      <div className="fw-semibold">{itemCodeKey ? formatValue(item[itemCodeKey], itemCodeKey) : '-'}</div>
+                                      <div className="text-muted f-12">
+                                        {itemNameKey ? formatValue(item[itemNameKey], itemNameKey) : '-'}
+                                      </div>
+                                    </td>
+                                  ) : null}
+                                  {detailColumns.map((key) => (
                                     <td key={key}>{formatValue(item[key], key)}</td>
                                   ))}
                                 </tr>
                               ))
                             ) : (
                               <tr>
-                                <td colSpan={Math.max(columns.length + 1, 1)} className="text-center text-muted py-4">
+                                <td
+                                  colSpan={Math.max(detailColumns.length + (hasItemColumn ? 1 : 0) + 1, 1)}
+                                  className="text-center text-muted py-4"
+                                >
                                   No issue item detail found.
                                 </td>
                               </tr>

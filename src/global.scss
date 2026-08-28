@@ -41,6 +41,30 @@ body {
   opacity: 1;
 }
 
+// Bootstrap renders modal backdrops in a body-level portal. Keep the Production
+// workspace visible but blurred behind every modal, including stacked modals.
+[data-system-theme='production'] .modal-backdrop {
+  background-color: rgba(8, 18, 38, 0.42);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+[data-system-theme='production'] .modal-backdrop.show {
+  opacity: 1;
+}
+
+// A nested modal needs its own layer above the fullscreen parent modal.
+[data-system-theme='production'] .production-nested-modal-backdrop {
+  z-index: 1060;
+  background-color: rgba(8, 18, 38, 0.34);
+  -webkit-backdrop-filter: blur(7px);
+  backdrop-filter: blur(7px);
+}
+
+[data-system-theme='production'] .production-nested-modal {
+  z-index: 1065;
+}
+
 .modal-content {
   --bs-modal-border-radius: 14px;
   --bs-modal-inner-border-radius: 13px;

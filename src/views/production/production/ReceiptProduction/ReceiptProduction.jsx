@@ -26,7 +26,8 @@ import {
   toggleReceiptPdo
 } from '../../../../redux/production/receiptPdoReducer';
 import { useAlert } from '../../../../utils/alertContext';
-import { getCookies, getOrganizationAssignmentDefault } from '../../../../utils/cookies';
+import { getCookies, getOrganizationAssignment, getOrganizationAssignmentDefault } from '../../../../utils/cookies';
+import './receipt-production.scss';
 
 const pageSize = 10;
 const numberFormatter = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 });
@@ -51,6 +52,10 @@ const createReceiptForm = () => ({
   Shift: 'X',
   Unit: '',
   Bomid: '',
+  WhsCode: getOrganizationAssignmentDefault('warehouses'),
+  OcrCode: getOrganizationAssignmentDefault('branches'),
+  OcrCode2: getOrganizationAssignmentDefault('business_units'),
+  OcrCode3: getOrganizationAssignmentDefault('departments'),
   Lines: []
 });
 
@@ -183,10 +188,10 @@ const createReceiptLineFromOrder = (order) => {
     PlannedQty: order.plannedQuantity,
     CmpltQty: order.completedQuantity,
     Quantity: remainingQuantity,
-    WhsCode: order.warehouse || getOrganizationAssignmentDefault('warehouses'),
+    WhsCode: getOrganizationAssignmentDefault('warehouses') || order.warehouse,
     UoMEntry: 0,
-    OcrCode: order.ocrCode || getOrganizationAssignmentDefault('branches'),
-    OcrCode2: order.ocrCode2 || getOrganizationAssignmentDefault('business_units'),
+    OcrCode: getOrganizationAssignmentDefault('branches') || order.ocrCode,
+    OcrCode2: getOrganizationAssignmentDefault('business_units') || order.ocrCode2,
     OcrCode3: getOrganizationAssignmentDefault('departments') || order.ocrCode3
   };
 };
@@ -268,6 +273,7 @@ const formatDate = (value) => {
 
 export default function ReceiptProduction() {
   const { showAlert } = useAlert();
+  const organizationAssignments = useMemo(() => getOrganizationAssignment(), []);
   const dispatch = useDispatch();
   const {
     items: pdoItems,
@@ -374,18 +380,20 @@ export default function ReceiptProduction() {
 
   const boms = useMemo(() => {
     const search = bomSearch.trim().toLowerCase();
+    const selectedUnit = String(pdoFilters.unit || '').toLowerCase();
     const orders = pdoItems.map(normalizeProductionOrder);
 
-    return search
-      ? orders.filter((order) =>
+    return orders.filter(
+      (order) =>
+        (!selectedUnit || String(order.unit || '').toLowerCase() === selectedUnit) &&
+        (!search ||
           [order.number, order.itemCode, order.itemName].some((value) =>
             String(value || '')
               .toLowerCase()
               .includes(search)
-          )
-        )
-      : orders;
-  }, [bomSearch, pdoItems]);
+          ))
+    );
+  }, [bomSearch, pdoFilters.unit, pdoItems]);
 
   const fetchBoms = async (keyword = bomSearch, activeFilters = pdoFilters) => {
     if (activeFilters.from && activeFilters.to && new Date(activeFilters.from) > new Date(activeFilters.to)) {
@@ -486,7 +494,7 @@ export default function ReceiptProduction() {
   };
 
   const handleOpenBomSelection = () => {
-    const activePdoFilters = pdoInitialized ? pdoFilters : { from: filters.from, to: filters.to };
+    const activePdoFilters = pdoInitialized ? pdoFilters : { from: filters.from, to: filters.to, unit: '' };
     dispatch(setReceiptPdoSelectedIds(receiptForm.Lines.map((line) => line.BaseEntry)));
     setShowBomModal(true);
     fetchBoms('', activePdoFilters);
@@ -511,6 +519,14 @@ export default function ReceiptProduction() {
     setReceiptForm((current) => ({
       ...current,
       Lines: current.Lines.map((line, index) => (index === lineIndex ? { ...line, ...values } : line))
+    }));
+  };
+
+  const updateReceiptHeaderField = (field, value) => {
+    setReceiptForm((current) => ({
+      ...current,
+      [field]: value,
+      Lines: current.Lines.map((line) => ({ ...line, [field]: value }))
     }));
   };
 
@@ -556,10 +572,20 @@ export default function ReceiptProduction() {
         ...current,
         Bomid: current.Bomid || String(receiptOrders[0]?.bomId || ''),
         Unit: '',
+        WhsCode: current.WhsCode || receiptOrders[0]?.warehouse || '',
+        OcrCode: current.OcrCode || receiptOrders[0]?.ocrCode || '',
+        OcrCode2: current.OcrCode2 || receiptOrders[0]?.ocrCode2 || '',
+        OcrCode3: current.OcrCode3 || receiptOrders[0]?.ocrCode3 || '',
         Lines: [
           ...current.Lines.filter((line) => selectedPdoIds.includes(String(line.BaseEntry))),
           ...receiptOrders.map(createReceiptLineFromOrder)
-        ]
+        ].map((line) => ({
+          ...line,
+          WhsCode: current.WhsCode || line.WhsCode,
+          OcrCode: current.OcrCode || line.OcrCode,
+          OcrCode2: current.OcrCode2 || line.OcrCode2,
+          OcrCode3: current.OcrCode3 || line.OcrCode3
+        }))
       }));
       setShowBomModal(false);
     } catch (error) {
@@ -599,11 +625,11 @@ export default function ReceiptProduction() {
         BaseEntry: Number(line.BaseEntry),
         BaseLine: Number(line.BaseLine),
         Quantity: Number(line.Quantity),
-        WhsCode: line.WhsCode,
+        WhsCode: receiptForm.WhsCode || line.WhsCode,
         UoMEntry: line.UoMEntry === '' ? 0 : Number(line.UoMEntry),
-        OcrCode: line.OcrCode,
-        OcrCode2: line.OcrCode2,
-        OcrCode3: line.OcrCode3
+        OcrCode: receiptForm.OcrCode || line.OcrCode,
+        OcrCode2: receiptForm.OcrCode2 || line.OcrCode2,
+        OcrCode3: receiptForm.OcrCode3 || line.OcrCode3
       }))
     };
 
@@ -834,6 +860,30 @@ export default function ReceiptProduction() {
                 onChange={(event) => setReceiptForm((current) => ({ ...current, Comments: event.target.value }))}
               />
             </Col>
+            {[
+              ['WhsCode', 'warehouses', warehouseOptions, 'Warehouse', loadingWarehouses],
+              ['OcrCode', 'branches', ocrOptions.branch, 'Branch', loadingOcr],
+              ['OcrCode2', 'business_units', ocrOptions.businessUnit, 'Business Unit', loadingOcr],
+              ['OcrCode3', 'departments', ocrOptions.department, 'Department', loadingOcr]
+            ].map(([field, assignmentKey, options, label, isLoading]) => (
+              <Col md={3} key={field}>
+                <Form.Label>{label}</Form.Label>
+                <Select
+                  styles={compactSelectStyles}
+                  menuPortalTarget={document.body}
+                  menuPosition="fixed"
+                  options={options}
+                  value={
+                    options.find((option) => String(option.value) === String(receiptForm[field])) ||
+                    (receiptForm[field] ? { value: receiptForm[field], label: receiptForm[field] } : null)
+                  }
+                  isLoading={isLoading}
+                  isDisabled={isLoading || organizationAssignments[assignmentKey].length > 0}
+                  placeholder={`Select ${label.toLowerCase()}`}
+                  onChange={(option) => updateReceiptHeaderField(field, option?.value || '')}
+                />
+              </Col>
+            ))}
           </Row>
 
           <Stack direction="horizontal" className="justify-content-between mb-2">
@@ -849,10 +899,6 @@ export default function ReceiptProduction() {
                 <th>Plan Qty</th>
                 <th>Complete Qty</th>
                 <th>Qty</th>
-                <th>Warehouse</th>
-                <th>Branch</th>
-                <th>Business Unit</th>
-                <th>Department</th>
                 <th className="text-center">Action</th>
               </tr>
             </thead>
@@ -889,39 +935,6 @@ export default function ReceiptProduction() {
                         }}
                       />
                     </td>
-                    <td style={{ minWidth: 200 }}>
-                      <Select
-                        styles={compactSelectStyles}
-                        menuPortalTarget={document.body}
-                        menuPlacement="auto"
-                        options={warehouseOptions}
-                        value={
-                          warehouseOptions.find((option) => String(option.value) === String(line.WhsCode)) ||
-                          (line.WhsCode ? { value: line.WhsCode, label: line.WhsCode } : null)
-                        }
-                        isLoading={loadingWarehouses}
-                        placeholder="Select warehouse"
-                        onChange={(option) => updateReceiptLine(index, { WhsCode: option?.value || '' })}
-                      />
-                    </td>
-                    {[
-                      ['OcrCode', ocrOptions.branch, 'Select branch'],
-                      ['OcrCode2', ocrOptions.businessUnit, 'Select business unit'],
-                      ['OcrCode3', ocrOptions.department, 'Select department']
-                    ].map(([field, options, placeholder]) => (
-                      <td key={field}>
-                        <Select
-                          styles={compactSelectStyles}
-                          menuPortalTarget={document.body}
-                          menuPlacement="top"
-                          value={options.find((option) => String(option.value) === String(line[field])) || null}
-                          options={options}
-                          isLoading={loadingOcr}
-                          placeholder={placeholder}
-                          isDisabled
-                        />
-                      </td>
-                    ))}
                     <td className="text-center">
                       <Button
                         type="button"
@@ -939,7 +952,7 @@ export default function ReceiptProduction() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={9} className="text-center text-muted py-4">
+                  <td colSpan={5} className="text-center text-muted py-4">
                     No items added. Click Add PDO to select Production Orders.
                   </td>
                 </tr>
@@ -958,7 +971,16 @@ export default function ReceiptProduction() {
         </Modal.Footer>
       </Modal>
 
-      <Modal show={showBomModal} onHide={() => !loadingBoms && !loadingBomDetail && setShowBomModal(false)} size="lg" centered scrollable>
+      <Modal
+        show={showBomModal}
+        onHide={() => !loadingBoms && !loadingBomDetail && setShowBomModal(false)}
+        size="xl"
+        className="production-nested-modal"
+        backdropClassName="production-nested-modal-backdrop"
+        dialogClassName="receipt-pdo-selection-modal"
+        centered
+        scrollable
+      >
         <Modal.Header closeButton={!loadingBoms && !loadingBomDetail}>
           <Modal.Title>Select Production Order</Modal.Title>
         </Modal.Header>
@@ -971,7 +993,7 @@ export default function ReceiptProduction() {
             }}
           >
             <Row className="g-3 align-items-end">
-              <Col md={4}>
+              <Col md={3}>
                 <Form.Label>Start Date</Form.Label>
                 <Form.Control
                   type="date"
@@ -979,7 +1001,7 @@ export default function ReceiptProduction() {
                   onChange={(event) => dispatch(setReceiptPdoFilters({ ...pdoFilters, from: event.target.value }))}
                 />
               </Col>
-              <Col md={4}>
+              <Col md={3}>
                 <Form.Label>End Date</Form.Label>
                 <Form.Control
                   type="date"
@@ -987,7 +1009,19 @@ export default function ReceiptProduction() {
                   onChange={(event) => dispatch(setReceiptPdoFilters({ ...pdoFilters, to: event.target.value }))}
                 />
               </Col>
-              <Col md={4}>
+              <Col md={3}>
+                <Form.Label>Unit</Form.Label>
+                <Select
+                  styles={compactSelectStyles}
+                  options={unitOptions}
+                  value={unitOptions.find((option) => String(option.value) === String(pdoFilters.unit)) || null}
+                  isLoading={loadingUnits}
+                  isClearable
+                  placeholder="All units"
+                  onChange={(option) => dispatch(setReceiptPdoFilters({ ...pdoFilters, unit: option?.value || '' }))}
+                />
+              </Col>
+              <Col md={3}>
                 <Form.Label>Search PDO</Form.Label>
                 <InputGroup>
                   <Form.Control

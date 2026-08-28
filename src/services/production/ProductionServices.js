@@ -49,9 +49,9 @@ class ProductionServices {
   }
 
   getListOrderSap(payload = {}) {
-    const { from = '', to = '', whs_code = '', to_whs_code = '', status = '' } = payload;
+    const { from = '', to = '', whs_code = '', to_whs_code = '', status = '', unit = '' } = payload;
 
-    return DataService.get('/production/get-list-pdo-sap', { from, to, whs_code, to_whs_code, status });
+    return DataService.get('/production/get-list-pdo-sap', { from, to, whs_code, to_whs_code, status, unit, u_unit: unit });
   }
 
   getProductionOrderById(id) {

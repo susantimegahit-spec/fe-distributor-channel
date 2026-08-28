@@ -10,7 +10,7 @@ const TOGGLE_SELECTED_ID = 'production/receipt-pdo/TOGGLE_SELECTED_ID';
 
 const initialState = {
   items: [],
-  filters: { from: '', to: '' },
+  filters: { from: '', to: '', unit: '' },
   search: '',
   selectedIds: [],
   loading: false,
@@ -43,7 +43,8 @@ export const fetchReceiptPdos =
         to: filters.to || '',
         whs_code: '',
         to_whs_code: '',
-        status: 'Release'
+        status: 'Release',
+        unit: filters.unit || ''
       });
       if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch Production Order data');
 

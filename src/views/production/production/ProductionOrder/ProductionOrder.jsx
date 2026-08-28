@@ -25,7 +25,7 @@ import DistributorServices from '../../../../services/customer-portal/Distributo
 import WarehouseServices from '../../../../services/customer-portal/WarehouseServices';
 import ProductionServices from '../../../../services/production/ProductionServices';
 import { useAlert } from '../../../../utils/alertContext';
-import { getCookies, getOrganizationAssignmentDefault } from '../../../../utils/cookies';
+import { getCookies, getOrganizationAssignment, getOrganizationAssignmentDefault } from '../../../../utils/cookies';
 import ProductionRelationMap from './ProductionRelationMap';
 
 const numberFormatter = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 });
@@ -382,6 +382,13 @@ const canReleaseProductionOrder = (status) =>
       .toLowerCase()
   );
 
+const canEditProductionOrder = (status) =>
+  ['planned', 'p', 'bost_planned', 'bopos_planned'].includes(
+    String(status || '')
+      .trim()
+      .toLowerCase()
+  );
+
 const canCloseProductionOrder = (status) =>
   ['release', 'released', 'r', 'bost_released'].includes(
     String(status || '')
@@ -404,13 +411,24 @@ const normalizeShiftValue = (value) => {
   return value || 'All';
 };
 
+const normalizeProductionStatusValue = (value) => {
+  const status = String(value || '')
+    .trim()
+    .toLowerCase();
+  if (['planned', 'p', 'bost_planned', 'bopos_planned'].includes(status)) return PRODUCTION_STATUS_PLANNED;
+  if (['release', 'released', 'r', 'open', 'o', 'bost_released', 'bost_open'].includes(status)) return PRODUCTION_STATUS_RELEASE;
+  return value || PRODUCTION_STATUS_PLANNED;
+};
+
 const mapOrderDetailToForm = (order) => {
   const details = order.itemsData?.length ? order.itemsData : order.details || [];
 
   return {
     ...createInitialForm(),
     type: order.type || 'Special',
-    status: PRODUCTION_STATUS_RELEASE,
+    status: normalizeProductionStatusValue(
+      order.status ?? order.ProductionOrderStatus ?? order.Status ?? order.headerData?.ProductionOrderStatus ?? order.headerData?.Status
+    ),
     product: {
       ...order.headerData,
       id: order.id,
@@ -534,6 +552,7 @@ export default function ProductionOrder() {
   const [duplicatingOrderId, setDuplicatingOrderId] = useState(null);
   const [showAddIssueModal, setShowAddIssueModal] = useState(false);
   const [releaseOrder, setReleaseOrder] = useState(null);
+  const [editOrder, setEditOrder] = useState(null);
   const [showBomModal, setShowBomModal] = useState(false);
   const [loadingBoms, setLoadingBoms] = useState(false);
   const [loadingBomDetail, setLoadingBomDetail] = useState(false);
@@ -549,6 +568,7 @@ export default function ProductionOrder() {
   const [ocrOptions, setOcrOptions] = useState({ ocrCode: [], ocrCode2: [], ocrCode3: [] });
   const [unitOptions, setUnitOptions] = useState([]);
   const [form, setForm] = useState(createInitialForm);
+  const organizationAssignments = useMemo(() => getOrganizationAssignment(), []);
   const materialOptions = useMemo(
     () => materialItems.map((item) => normalizeComponentOption(item, COMPONENT_TYPE_ITEM)).filter((option) => option.value),
     [materialItems]
@@ -558,6 +578,40 @@ export default function ProductionOrder() {
     [resourceItems]
   );
   const isReleaseMode = Boolean(releaseOrder);
+  const isEditMode = Boolean(editOrder);
+
+  useEffect(() => {
+    if (!isReleaseMode && !isEditMode) return;
+
+    setForm((current) => {
+      if (!current.product?.details?.length) return current;
+      let changed = false;
+      const details = current.product.details.map((detail) => {
+        const currentUom = detail.uom ?? detail.unit ?? detail.unit_of_msr ?? detail.invntry_uom ?? '';
+        if (String(currentUom).trim()) return detail;
+
+        const item = getComponentItem(detail);
+        const options = String(detail.type ?? detail.component_type) === COMPONENT_TYPE_RESOURCE ? resourceOptions : materialOptions;
+        const normalizedName = String(item.name || '')
+          .trim()
+          .toLowerCase();
+        const matchedOption =
+          options.find(
+            (option) =>
+              normalizedName &&
+              String(option.name || '')
+                .trim()
+                .toLowerCase() === normalizedName
+          ) || options.find((option) => String(option.value) === String(item.code));
+
+        if (!matchedOption?.uom) return detail;
+        changed = true;
+        return { ...detail, uom: matchedOption.uom };
+      });
+
+      return changed ? { ...current, product: { ...current.product, details } } : current;
+    });
+  }, [editOrder, isEditMode, isReleaseMode, materialOptions, releaseOrder, resourceOptions]);
 
   const fetchProductionOrders = useCallback(
     async (activeFilters) => {
@@ -838,6 +892,7 @@ export default function ProductionOrder() {
   const handleOpenCreate = () => {
     setForm(createInitialForm());
     setReleaseOrder(null);
+    setEditOrder(null);
     setIsDuplicate(false);
     setSearch('');
     setShowCreateModal(true);
@@ -850,6 +905,7 @@ export default function ProductionOrder() {
   const handleCloseOrderForm = () => {
     setShowCreateModal(false);
     setReleaseOrder(null);
+    setEditOrder(null);
     setIsDuplicate(false);
     setForm(createInitialForm());
   };
@@ -859,6 +915,7 @@ export default function ProductionOrder() {
 
     setActionMenu(null);
     setReleaseOrder(null);
+    setEditOrder(null);
     setIsDuplicate(true);
     setDuplicatingOrderId(order.id);
     setLoadingBomDetail(true);
@@ -910,6 +967,7 @@ export default function ProductionOrder() {
 
     setActionMenu(null);
     setReleaseOrder(order);
+    setEditOrder(null);
     setIsDuplicate(false);
     setForm({
       ...createInitialForm(),
@@ -941,7 +999,7 @@ export default function ProductionOrder() {
 
       const orderDetail = getProductionOrderDetail(response);
       setReleaseOrder(orderDetail);
-      setForm(mapOrderDetailToForm(orderDetail));
+      setForm({ ...mapOrderDetailToForm(orderDetail), status: PRODUCTION_STATUS_RELEASE });
       fetchSeries(formatDateInputValue(orderDetail.orderDate));
 
       const componentTypes = [
@@ -959,6 +1017,52 @@ export default function ProductionOrder() {
     } catch (error) {
       setShowCreateModal(false);
       setReleaseOrder(null);
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch Production Order detail', 'danger');
+    } finally {
+      setLoadingBomDetail(false);
+    }
+  };
+
+  const handleOpenEdit = async (order) => {
+    if (!order?.id) return;
+
+    setActionMenu(null);
+    setReleaseOrder(null);
+    setEditOrder(order);
+    setIsDuplicate(false);
+    setForm(createInitialForm());
+    setShowCreateModal(true);
+    setLoadingBomDetail(true);
+    fetchWarehouses();
+    fetchOcrOptions();
+    fetchUnits();
+
+    try {
+      const response = await ProductionServices.getProductionOrderById(order.id);
+      if (response?.data?.success === false) {
+        throw new Error(response.data.message || 'Failed to fetch Production Order detail');
+      }
+
+      const orderDetail = getProductionOrderDetail(response);
+      setEditOrder(orderDetail);
+      setForm(mapOrderDetailToForm(orderDetail));
+      fetchSeries(formatDateInputValue(orderDetail.orderDate));
+
+      const componentTypes = [
+        ...new Set(
+          (orderDetail.itemsData?.length ? orderDetail.itemsData : orderDetail.details || []).map((detail) => {
+            const itemType = String(detail.ItemType ?? detail.item_type ?? detail.type ?? detail.component_type ?? '').toUpperCase();
+            return ['R', 'RESOURCE', COMPONENT_TYPE_RESOURCE].includes(itemType) ? COMPONENT_TYPE_RESOURCE : COMPONENT_TYPE_ITEM;
+          })
+        )
+      ];
+      await Promise.all([
+        componentTypes.includes(COMPONENT_TYPE_ITEM) ? dispatch(getItem('')) : Promise.resolve(),
+        componentTypes.includes(COMPONENT_TYPE_RESOURCE) ? dispatch(getResource('')) : Promise.resolve()
+      ]);
+    } catch (error) {
+      setShowCreateModal(false);
+      setEditOrder(null);
       showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch Production Order detail', 'danger');
     } finally {
       setLoadingBomDetail(false);
@@ -996,21 +1100,26 @@ export default function ProductionOrder() {
         componentTypes.includes(COMPONENT_TYPE_ITEM) ? dispatch(getItem('')) : Promise.resolve(),
         componentTypes.includes(COMPONENT_TYPE_RESOURCE) ? dispatch(getResource('')) : Promise.resolve()
       ]);
+      const warehouseCode = getOrganizationAssignmentDefault('warehouses') || normalizedBom.whs_code || normalizedBom.to_whs;
+      const branchCode = getOrganizationAssignmentDefault('branches') || normalizedBom.ocr_code;
+      const businessUnitCode = getOrganizationAssignmentDefault('business_units') || normalizedBom.ocr_code2;
+      const departmentCode = getOrganizationAssignmentDefault('departments') || normalizedBom.ocr_code3;
       setForm((current) => ({
         ...current,
         product: {
           ...normalizedBom,
-          whs_code: normalizedBom.whs_code || normalizedBom.to_whs || getOrganizationAssignmentDefault('warehouses'),
-          ocr_code: normalizedBom.ocr_code || getOrganizationAssignmentDefault('branches'),
-          ocr_code2: normalizedBom.ocr_code2 || getOrganizationAssignmentDefault('business_units'),
-          ocr_code3: getOrganizationAssignmentDefault('departments') || normalizedBom.ocr_code3,
+          whs_code: warehouseCode,
+          to_whs: warehouseCode,
+          ocr_code: branchCode,
+          ocr_code2: businessUnitCode,
+          ocr_code3: departmentCode,
           details: normalizedBom.details.map((detail) => ({
             ...detail,
             type: normalizeComponentType(detail.ItemType ?? detail.item_type ?? detail.type ?? detail.component_type),
-            whs_code: detail.whs_code || detail.warehouse_code || getOrganizationAssignmentDefault('warehouses'),
-            ocr_code: detail.ocr_code || detail.OcrCode || getOrganizationAssignmentDefault('branches'),
-            ocr_code2: detail.ocr_code2 || detail.OcrCode2 || getOrganizationAssignmentDefault('business_units'),
-            ocr_code3: getOrganizationAssignmentDefault('departments') || detail.ocr_code3 || detail.OcrCode3
+            whs_code: warehouseCode,
+            ocr_code: branchCode,
+            ocr_code2: businessUnitCode,
+            ocr_code3: departmentCode
           }))
         },
         plannedQuantity: Number(bomDetail?.qty ?? bomDetail?.quantity) || ''
@@ -1031,6 +1140,39 @@ export default function ProductionOrder() {
         details: current.product.details.map((detail, index) => (index === detailIndex ? { ...detail, ...values } : detail))
       }
     }));
+  };
+
+  const updateHeaderWarehouse = (option) => {
+    const warehouseCode = option?.value || '';
+    setForm((current) =>
+      current.product
+        ? {
+            ...current,
+            product: {
+              ...current.product,
+              whs_code: warehouseCode,
+              to_whs: warehouseCode,
+              details: current.product.details.map((detail) => ({ ...detail, whs_code: warehouseCode }))
+            }
+          }
+        : current
+    );
+  };
+
+  const updateHeaderDistributionRole = (field, option) => {
+    const value = option?.value || '';
+    setForm((current) =>
+      current.product
+        ? {
+            ...current,
+            product: {
+              ...current.product,
+              [field]: value,
+              details: current.product.details.map((detail) => ({ ...detail, [field]: value }))
+            }
+          }
+        : current
+    );
   };
 
   const handleBomDetailTypeChange = async (detailIndex, type) => {
@@ -1057,7 +1199,19 @@ export default function ProductionOrder() {
     }
     setForm((current) => ({
       ...current,
-      product: { ...current.product, details: [...current.product.details, createBomDetail()] }
+      product: {
+        ...current.product,
+        details: [
+          ...current.product.details,
+          {
+            ...createBomDetail(),
+            whs_code: current.product.whs_code || current.product.to_whs || '',
+            ocr_code: current.product.ocr_code || '',
+            ocr_code2: current.product.ocr_code2 || '',
+            ocr_code3: current.product.ocr_code3 || ''
+          }
+        ]
+      }
     }));
     if (!materialItems.length) {
       dispatch(getItem('')).catch((error) => {
@@ -1075,7 +1229,13 @@ export default function ProductionOrder() {
 
   const handleSave = async () => {
     const plannedQuantity = Number(form.plannedQuantity);
-    const warehouse = form.product?.to_whs ?? form.product?.whs_code ?? form.product?.warehouse_code ?? form.product?.warehouse?.code ?? '';
+    const warehouse =
+      organizationAssignments.warehouses[0] ||
+      form.product?.to_whs ||
+      form.product?.whs_code ||
+      form.product?.warehouse_code ||
+      form.product?.warehouse?.code ||
+      '';
 
     if (!form.product || !(plannedQuantity > 0) || !form.series || !form.orderDate || !form.startDate || !form.dueDate || !warehouse) {
       showAlert('Please complete product, planned quantity, series, dates, and warehouse data', 'warning');
@@ -1094,6 +1254,9 @@ export default function ProductionOrder() {
     }
 
     const series = Number(form.series);
+    const selectedSeries = seriesOptions.find((option) => String(option.value) === String(form.series));
+    const seriesName =
+      selectedSeries?.raw?.series_name ?? selectedSeries?.raw?.seriesName ?? selectedSeries?.raw?.SeriesName ?? selectedSeries?.label ?? '';
     const formatPayloadDate = (date) => `${date}T00:00:00`;
     const status = isReleaseMode ? PRODUCTION_STATUS_RELEASE : form.status || PRODUCTION_STATUS_PLANNED;
     const orderId =
@@ -1101,9 +1264,13 @@ export default function ProductionOrder() {
       releaseOrder?.DocEntry ??
       releaseOrder?.doc_entry ??
       releaseOrder?.headerData?.DocEntry ??
+      editOrder?.id ??
+      editOrder?.DocEntry ??
+      editOrder?.doc_entry ??
+      editOrder?.headerData?.DocEntry ??
       form.product?.DocEntry ??
       form.product?.doc_entry;
-    if (isReleaseMode && !orderId) {
+    if ((isReleaseMode || isEditMode) && !orderId) {
       showAlert('Production Order id was not found', 'danger');
       return;
     }
@@ -1111,6 +1278,7 @@ export default function ProductionOrder() {
     const payload = {
       ItemCode: form.product.productCode,
       Series: Number.isFinite(series) ? series : form.series,
+      series_name: seriesName,
       Status: status,
       ProductionOrderStatus: status,
       PlannedQty: plannedQuantity,
@@ -1136,39 +1304,66 @@ export default function ProductionOrder() {
           ItemCode: item.code,
           BaseQty: baseQuantity,
           WhsCode:
-            detail.whs_code || detail.warehouse_code || detail.to_whs || detail.warehouse?.code || detail.warehouse?.whs_code || warehouse,
+            organizationAssignments.warehouses[0] ||
+            detail.whs_code ||
+            detail.warehouse_code ||
+            detail.to_whs ||
+            detail.warehouse?.code ||
+            detail.warehouse?.whs_code ||
+            warehouse,
           IssueMethod: detail.issue_mthd ?? detail.issue_method ?? detail.issueMethod ?? '',
-          OcrCode: detail.ocr_code ?? detail.OcrCode ?? form.product.ocr_code ?? '',
-          OcrCode2: detail.ocr_code2 ?? detail.OcrCode2 ?? form.product.ocr_code2 ?? '',
-          OcrCode3: detail.ocr_code3 ?? detail.OcrCode3 ?? form.product.ocr_code3 ?? ''
+          OcrCode: organizationAssignments.branches[0] || detail.ocr_code || detail.OcrCode || form.product.ocr_code || '',
+          OcrCode2: organizationAssignments.business_units[0] || detail.ocr_code2 || detail.OcrCode2 || form.product.ocr_code2 || '',
+          OcrCode3: organizationAssignments.departments[0] || detail.ocr_code3 || detail.OcrCode3 || form.product.ocr_code3 || ''
         };
       })
     };
 
     setSaving(true);
     try {
-      const response = isReleaseMode
-        ? await ProductionServices.putProductionOrder(orderId, payload)
-        : await ProductionServices.postProductionOrder(payload);
+      const response =
+        isReleaseMode || isEditMode
+          ? await ProductionServices.putProductionOrder(orderId, payload)
+          : await ProductionServices.postProductionOrder(payload);
       if (response?.data?.success === false) {
-        throw new Error(response.data.message || `Failed to ${isReleaseMode ? 'release' : 'create'} Production Order`);
+        throw new Error(
+          response.data.message || `Failed to ${isReleaseMode ? 'release' : isEditMode ? 'update' : 'create'} Production Order`
+        );
       }
 
       setShowCreateModal(false);
       setReleaseOrder(null);
+      setEditOrder(null);
       setIsDuplicate(false);
       setForm(createInitialForm());
-      showAlert(response?.data?.message || `Production Order ${isReleaseMode ? 'released' : 'created'} successfully`, 'success');
+      showAlert(
+        response?.data?.message || `Production Order ${isReleaseMode ? 'released' : isEditMode ? 'updated' : 'created'} successfully`,
+        'success'
+      );
       await fetchProductionOrders();
     } catch (error) {
       showAlert(
-        error?.response?.data?.message || error?.message || `Failed to ${isReleaseMode ? 'release' : 'create'} Production Order`,
+        error?.response?.data?.message ||
+          error?.message ||
+          `Failed to ${isReleaseMode ? 'release' : isEditMode ? 'update' : 'create'} Production Order`,
         'danger'
       );
     } finally {
       setSaving(false);
     }
   };
+
+  const headerDetail = form.product?.details?.[0] || {};
+  const headerWarehouseCode =
+    organizationAssignments.warehouses[0] ||
+    headerDetail.whs_code ||
+    headerDetail.warehouse_code ||
+    form.product?.to_whs ||
+    form.product?.whs_code ||
+    form.product?.warehouse_code ||
+    '';
+  const getHeaderDistributionValue = (field, apiField, assignmentKey) =>
+    organizationAssignments[assignmentKey]?.[0] || headerDetail[field] || headerDetail[apiField] || form.product?.[field] || '';
 
   return (
     <>
@@ -1289,7 +1484,7 @@ export default function ProductionOrder() {
               <th>Posting Date</th>
               <th>Due Date</th>
               <th>Status</th>
-              <th className="text-center">Action</th>
+              <th className="text-center">#</th>
             </tr>
           </thead>
           <tbody>
@@ -1371,6 +1566,7 @@ export default function ProductionOrder() {
             const order = actionMenu?.order;
             const canCancel = canCancelProductionOrder(order?.status);
             const canRelease = canReleaseProductionOrder(order?.status);
+            const canEdit = canEditProductionOrder(order?.status);
             const canClose = canCloseProductionOrder(order?.status);
             return (
               <div
@@ -1414,6 +1610,19 @@ export default function ProductionOrder() {
                   />{' '}
                   Duplicate
                 </button>
+                {canEdit ? (
+                  <button
+                    type="button"
+                    className="dropdown-item"
+                    data-permission-action="edit"
+                    data-permission-menu-key="50"
+                    onClick={() => {
+                      if (order) handleOpenEdit(order);
+                    }}
+                  >
+                    <i className="ti ti-edit text-warning me-2" /> Edit
+                  </button>
+                ) : null}
                 {canRelease ? (
                   <button
                     type="button"
@@ -1541,7 +1750,7 @@ export default function ProductionOrder() {
                 <th>Warehouse</th>
                 <th>Due Date</th>
                 <th>Status</th>
-                <th className="text-center">Action</th>
+                <th className="text-center">#</th>
               </tr>
             </thead>
             <tbody>
@@ -1744,7 +1953,13 @@ export default function ProductionOrder() {
       <Modal show={showCreateModal} onHide={() => !loadingBomDetail && !saving && handleCloseOrderForm()} fullscreen scrollable>
         <Modal.Header closeButton={!loadingBomDetail && !saving}>
           <Modal.Title>
-            {isReleaseMode ? 'Release Production Order' : isDuplicate ? 'Duplicate Production Order' : 'Create Production Order'}
+            {isReleaseMode
+              ? 'Release Production Order'
+              : isEditMode
+                ? 'Edit Production Order'
+                : isDuplicate
+                  ? 'Duplicate Production Order'
+                  : 'Create Production Order'}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
@@ -1781,7 +1996,7 @@ export default function ProductionOrder() {
                           menuShouldScrollIntoView={false}
                           options={isReleaseMode ? productionStatusOptions : plannedProductionStatusOptions}
                           value={productionStatusOptions.find((option) => option.value === form.status) || null}
-                          isDisabled={isReleaseMode}
+                          isDisabled={isReleaseMode || isEditMode}
                           onChange={(option) => setForm((current) => ({ ...current, status: option?.value || '' }))}
                         />
                       </Form.Group>
@@ -1794,9 +2009,9 @@ export default function ProductionOrder() {
                             readOnly
                             value={form.product ? [form.product.productCode, form.product.productName].filter(Boolean).join(' - ') : ''}
                             placeholder="Select product from Bill of Material"
-                            onClick={isReleaseMode ? undefined : handleOpenBomSelection}
+                            onClick={isReleaseMode || isEditMode ? undefined : handleOpenBomSelection}
                           />
-                          <Button variant="outline-primary" onClick={handleOpenBomSelection} disabled={isReleaseMode}>
+                          <Button variant="outline-primary" onClick={handleOpenBomSelection} disabled={isReleaseMode || isEditMode}>
                             <i className="ti ti-search me-1" />
                             Select BOM
                           </Button>
@@ -1944,6 +2159,80 @@ export default function ProductionOrder() {
                 </Card.Body>
               </Card>
             </Col>
+
+            <Col xs={12}>
+              <Card className="border mb-0">
+                <Card.Header className="py-3">
+                  <h6 className="mb-0">Warehouse &amp; Distribution Role</h6>
+                </Card.Header>
+                <Card.Body>
+                  <Row className="g-3 align-items-start">
+                    <Col lg={4}>
+                      <Form.Group>
+                        <Form.Label>Warehouse</Form.Label>
+                        <Select
+                          styles={productionSelectStyles}
+                          menuPortalTarget={document.body}
+                          menuPosition="fixed"
+                          menuPlacement="auto"
+                          maxMenuHeight={240}
+                          menuShouldScrollIntoView={false}
+                          options={warehouseOptions}
+                          value={
+                            warehouseOptions.find((option) => String(option.value) === String(headerWarehouseCode)) ||
+                            (headerWarehouseCode ? { value: headerWarehouseCode, label: headerWarehouseCode } : null)
+                          }
+                          isLoading={loadingWarehouses}
+                          isDisabled={!form.product || loadingWarehouses || organizationAssignments.warehouses.length > 0}
+                          placeholder="Select warehouse"
+                          onChange={updateHeaderWarehouse}
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col lg={8}>
+                      <Row className="g-3">
+                        {[
+                          ['ocr_code', 'OcrCode', ocrOptions.ocrCode, 'Branch', 'Select branch'],
+                          ['ocr_code2', 'OcrCode2', ocrOptions.ocrCode2, 'Business Unit', 'Select business unit'],
+                          ['ocr_code3', 'OcrCode3', ocrOptions.ocrCode3, 'Department', 'Select department']
+                        ].map(([field, apiField, options, label, placeholder]) => {
+                          const assignmentKey = {
+                            ocr_code: 'branches',
+                            ocr_code2: 'business_units',
+                            ocr_code3: 'departments'
+                          }[field];
+                          const value = getHeaderDistributionValue(field, apiField, assignmentKey);
+                          return (
+                            <Col md={4} key={field}>
+                              <Form.Group>
+                                <Form.Label className="text-muted f-12">{label}</Form.Label>
+                                <Select
+                                  styles={productionSelectStyles}
+                                  menuPortalTarget={document.body}
+                                  menuPosition="fixed"
+                                  menuPlacement="auto"
+                                  maxMenuHeight={240}
+                                  menuShouldScrollIntoView={false}
+                                  options={options}
+                                  value={
+                                    options.find((option) => String(option.value) === String(value)) ||
+                                    (value ? { value, label: value } : null)
+                                  }
+                                  isLoading={loadingOcr}
+                                  isDisabled={!form.product || loadingOcr || organizationAssignments[assignmentKey].length > 0}
+                                  placeholder={placeholder}
+                                  onChange={(option) => updateHeaderDistributionRole(field, option)}
+                                />
+                              </Form.Group>
+                            </Col>
+                          );
+                        })}
+                      </Row>
+                    </Col>
+                  </Row>
+                </Card.Body>
+              </Card>
+            </Col>
           </Row>
 
           <Stack direction="horizontal" className="justify-content-between mb-3">
@@ -1960,20 +2249,16 @@ export default function ProductionOrder() {
                 <th className="text-end">Base Qty</th>
                 <th className="text-end">Planned Qty</th>
                 <th>UOM</th>
-                <th>Warehouse Code</th>
                 <th style={{ minWidth: 190 }}>Issue Method</th>
-                <th>Branch</th>
-                <th>Business Unit</th>
-                <th>Department</th>
                 <th className="text-center" style={{ minWidth: 110 }}>
-                  Action
+                  #
                 </th>
               </tr>
             </thead>
             <tbody>
               {loadingBomDetail ? (
                 <tr>
-                  <td colSpan={11}>
+                  <td colSpan={7}>
                     <LoaderData />
                   </td>
                 </tr>
@@ -1983,19 +2268,6 @@ export default function ProductionOrder() {
                   const type = String(detail.type ?? detail.component_type ?? '');
                   const baseQuantity = Number(detail.qty ?? detail.quantity) || 0;
                   const plannedQuantity = baseQuantity * (Number(form.plannedQuantity) || 0);
-                  const warehouseCode =
-                    detail.whs_code ||
-                    detail.warehouse_code ||
-                    detail.to_whs ||
-                    detail.warehouse?.code ||
-                    detail.warehouse?.whs_code ||
-                    form.product?.to_whs ||
-                    form.product?.whs_code ||
-                    form.product?.warehouse_code ||
-                    form.product?.warehouse?.code ||
-                    form.product?.warehouse?.whs_code ||
-                    '-';
-
                   return (
                     <tr key={detail.id ?? detail.detail_id ?? `${item.code}-${index}`}>
                       <td style={{ minWidth: 120 }}>
@@ -2071,24 +2343,6 @@ export default function ProductionOrder() {
                           onChange={(event) => updateBomDetail(index, { uom: event.target.value })}
                         />
                       </td>
-                      <td style={{ minWidth: 130 }}>
-                        <Select
-                          styles={bomItemSelectStyles}
-                          menuPortalTarget={document.body}
-                          menuPosition="fixed"
-                          menuPlacement="auto"
-                          maxMenuHeight={240}
-                          menuShouldScrollIntoView={false}
-                          options={warehouseOptions}
-                          value={
-                            warehouseOptions.find((option) => String(option.value) === String(warehouseCode)) ||
-                            (warehouseCode !== '-' ? { value: warehouseCode, label: warehouseCode } : null)
-                          }
-                          isLoading={loadingWarehouses}
-                          placeholder="Select warehouse"
-                          onChange={(option) => updateBomDetail(index, { whs_code: option?.value || '' })}
-                        />
-                      </td>
                       <td style={{ minWidth: 190 }}>
                         <Select
                           styles={bomItemSelectStyles}
@@ -2110,32 +2364,6 @@ export default function ProductionOrder() {
                           }
                         />
                       </td>
-                      {[
-                        ['ocr_code', 'OcrCode', ocrOptions.ocrCode, 'Select branch'],
-                        ['ocr_code2', 'OcrCode2', ocrOptions.ocrCode2, 'Select business unit'],
-                        ['ocr_code3', 'OcrCode3', ocrOptions.ocrCode3, 'Select department']
-                      ].map(([field, apiField, options, placeholder]) => {
-                        const value = detail[field] ?? detail[apiField] ?? form.product?.[field] ?? '';
-                        return (
-                          <td key={field} style={{ minWidth: 200 }}>
-                            <Select
-                              styles={bomItemSelectStyles}
-                              menuPortalTarget={document.body}
-                              menuPosition="fixed"
-                              menuPlacement="auto"
-                              maxMenuHeight={240}
-                              menuShouldScrollIntoView={false}
-                              options={options}
-                              value={
-                                options.find((option) => String(option.value) === String(value)) || (value ? { value, label: value } : null)
-                              }
-                              isLoading={loadingOcr}
-                              placeholder={placeholder}
-                              onChange={(option) => updateBomDetail(index, { [field]: option?.value || '' })}
-                            />
-                          </td>
-                        );
-                      })}
                       <td className="text-center" style={{ minWidth: 110 }}>
                         <Button
                           type="button"
@@ -2154,7 +2382,7 @@ export default function ProductionOrder() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={11} className="text-center text-muted py-4">
+                  <td colSpan={7} className="text-center text-muted py-4">
                     Select a product from Bill of Material to display its details.
                   </td>
                 </tr>
@@ -2178,19 +2406,27 @@ export default function ProductionOrder() {
             {saving ? (
               <>
                 <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />
-                {isReleaseMode ? 'Releasing...' : 'Saving...'}
+                {isReleaseMode ? 'Releasing...' : isEditMode ? 'Updating...' : 'Saving...'}
               </>
             ) : (
               <>
                 <i className={isReleaseMode ? 'ti ti-player-play me-1' : 'ti ti-device-floppy me-1'} />
-                {isReleaseMode ? 'Release' : isDuplicate ? 'Save as New' : 'Save'}
+                {isReleaseMode ? 'Release' : isEditMode ? 'Update' : isDuplicate ? 'Save as New' : 'Save'}
               </>
             )}
           </Button>
         </Modal.Footer>
       </Modal>
 
-      <Modal show={showBomModal} onHide={() => !loadingBomDetail && setShowBomModal(false)} size="lg" centered scrollable>
+      <Modal
+        show={showBomModal}
+        onHide={() => !loadingBomDetail && setShowBomModal(false)}
+        size="lg"
+        className="production-nested-modal"
+        backdropClassName="production-nested-modal-backdrop"
+        centered
+        scrollable
+      >
         <Modal.Header closeButton={!loadingBomDetail}>
           <Modal.Title>Select Bill of Material</Modal.Title>
         </Modal.Header>
@@ -2211,7 +2447,7 @@ export default function ProductionOrder() {
                 <th>UOM</th>
                 <th>Alternate</th>
                 <th className="text-center" style={{ width: 90 }}>
-                  Action
+                  #
                 </th>
               </tr>
             </thead>
