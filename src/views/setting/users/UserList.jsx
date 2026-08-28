@@ -215,14 +215,20 @@ const getApprovalStageList = (response) => {
 
 const getUserDistributors = (item) => {
   const distributors =
-    item?.distributors || item?.user_distributors || item?.userDistributors || item?.distributor_users || item?.distributorUsers || [];
+    item?.distributors ||
+    item?.user_distributors ||
+    item?.userDistributors ||
+    item?.distributor_users ||
+    item?.distributorUsers ||
+    item?.organization_assignment?.distributors ||
+    [];
 
   if (Array.isArray(distributors) && distributors.length) {
     return distributors.map((distributor) => {
       const source = distributor?.distributor || distributor;
 
       return {
-        ...source,
+        ...(source && typeof source === 'object' ? source : {}),
         id: source?.id || distributor?.id_distributor || distributor?.distributor_id || distributor?.id || '',
         code:
           source?.code_customer ||
@@ -231,7 +237,7 @@ const getUserDistributors = (item) => {
           distributor?.code_customer ||
           distributor?.customer_code ||
           distributor?.distributor_code ||
-          '',
+          (typeof source === 'string' || typeof source === 'number' ? String(source) : ''),
         name:
           source?.name ||
           source?.name_distributor ||
@@ -357,6 +363,7 @@ const getUserExpeditionCode = (item) =>
   item?.code_expedition ||
   item?.expedition?.code ||
   item?.expedition?.expedition_code ||
+  normalizeArray(item?.organization_assignment?.expeditions)[0] ||
   '';
 
 const getWarehouseCodeValue = (item) => {
@@ -374,7 +381,8 @@ const getUserWarehouseCodes = (item) =>
       item?.warehouses ||
       item?.warehouse ||
       item?.warehouse_code ||
-      item?.warehouseCode
+      item?.warehouseCode ||
+      item?.organization_assignment?.warehouses
   )
     .map(getWarehouseCodeValue)
     .map((code) => code.trim())
@@ -387,7 +395,8 @@ const getOcrCodeValue = (item, key) => {
 };
 
 const getUserOcrCodes = (item, key, aliases = []) => {
-  const source = [item?.[key], ...aliases.map((alias) => item?.[alias])].find(
+  const organizationKey = { ocr_code: 'branches', ocr_code2: 'business_units', ocr_code3: 'departments' }[key];
+  const source = [item?.[key], ...aliases.map((alias) => item?.[alias]), item?.organization_assignment?.[organizationKey]].find(
     (value) => value !== undefined && value !== null && value !== ''
   );
 
@@ -807,6 +816,14 @@ export default function UserList() {
     code_customer: isAllDistributorSelected ? listDistributor.map((item) => item.value) : input.distributorCodes,
     id_distributor: isAllDistributorSelected ? listDistributor.map((item) => item.id) : input.distributorIds
   });
+  const getOrganizationAssignmentPayload = (distributorCodes) => ({
+    warehouses: input.whsCodes.map(String),
+    branches: input.ocrCodes.map(String),
+    business_units: input.ocrCodes2.map(String),
+    departments: input.ocrCodes3.map(String),
+    expeditions: input.expeditionCode ? [String(input.expeditionCode)] : [],
+    distributors: normalizeArray(distributorCodes).map(String)
+  });
   const getActionAssignmentPayload = () =>
     availableActionMenus
       .map((menu) => {
@@ -954,6 +971,7 @@ export default function UserList() {
       stage: input.stage || null,
       accessible_systems: input.accessibleSystems,
       actions: getActionAssignmentPayload(),
+      organization_assignment: getOrganizationAssignmentPayload(distributorPayload.code_customer),
       code_customer: distributorPayload.code_customer?.toString(),
       id_distributor: distributorPayload.id_distributor?.toString()
     };
@@ -986,6 +1004,7 @@ export default function UserList() {
       stage: input.stage || null,
       accessible_systems: input.accessibleSystems,
       actions: getActionAssignmentPayload(),
+      organization_assignment: getOrganizationAssignmentPayload(distributorPayload.code_customer),
       code_customer: distributorPayload.code_customer?.toString(),
       id_distributor: distributorPayload.id_distributor?.toString()
     };

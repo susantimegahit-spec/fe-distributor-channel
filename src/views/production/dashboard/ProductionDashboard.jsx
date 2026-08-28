@@ -16,12 +16,26 @@ import MaterialServices from '../../../services/production/MaterialServices';
 import ProductionServices from '../../../services/production/ProductionServices';
 import { useAlert } from '../../../utils/alertContext';
 
-const statusVariant = {
-  Planned: 'secondary',
-  Release: 'warning',
-  'In Progress': 'warning',
-  Completed: 'success',
-  Close: 'success'
+const getStatusVariant = (status) => {
+  const normalizedStatus = String(status || '')
+    .trim()
+    .toLowerCase();
+
+  return (
+    {
+      planned: 'warning',
+      release: 'success',
+      released: 'success',
+      'in progress': 'info',
+      in_progress: 'info',
+      completed: 'success',
+      close: 'secondary',
+      closed: 'secondary',
+      cancel: 'danger',
+      cancelled: 'danger',
+      canceled: 'danger'
+    }[normalizedStatus] || 'secondary'
+  );
 };
 
 const getResponseList = (response) => {
@@ -237,7 +251,7 @@ export default function ProductionDashboard() {
                       </td>
                       <td>{formatDate(order.dueDate)}</td>
                       <td>
-                        <Badge bg={statusVariant[order.status] || 'secondary'}>{order.status}</Badge>
+                        <Badge bg={getStatusVariant(order.status)}>{order.status}</Badge>
                       </td>
                     </tr>
                   );

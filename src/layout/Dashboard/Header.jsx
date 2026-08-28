@@ -225,6 +225,7 @@ export default function Header({ showSidebar = true }) {
       Cookies.remove('ocr_code');
       Cookies.remove('ocr_code2');
       Cookies.remove('ocr_code3');
+      Cookies.remove('organization_assignment');
       dispatch(destroyAuthState());
       Cookies.remove('customerCode');
       Cookies.remove('distributorName');

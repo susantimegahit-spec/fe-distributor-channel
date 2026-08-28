@@ -25,6 +25,7 @@ import WarehouseServices from '../../../../services/customer-portal/WarehouseSer
 import ProductionServices from '../../../../services/production/ProductionServices';
 import { useAlert } from '../../../../utils/alertContext';
 import { useConfirm } from '../../../../utils/confirmContext';
+import { getOrganizationAssignmentDefault } from '../../../../utils/cookies';
 
 const createDetailRow = () => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -279,12 +280,25 @@ export default function BillOfMaterial() {
     }
   };
 
-  const handleOpenCreateModal = () => {
+  const handleOpenCreateModal = async () => {
     setIsDuplicate(false);
     setEditingBomId(null);
     setForm(createInitialForm());
     setShowCreateModal(true);
-    fetchFormOptions();
+    const options = await fetchFormOptions();
+    if (!options) return;
+
+    const findDefaultOption = (items, assignmentKey) => {
+      const defaultValue = getOrganizationAssignmentDefault(assignmentKey);
+      return items.find((option) => String(option.value) === String(defaultValue)) || null;
+    };
+    setForm((current) => ({
+      ...current,
+      warehouse: current.warehouse || findDefaultOption(options.warehouses, 'warehouses'),
+      distributionRule: current.distributionRule || findDefaultOption(options.distributionRules, 'branches'),
+      businessUnit: current.businessUnit || findDefaultOption(options.businessUnits, 'business_units'),
+      department: current.department || findDefaultOption(options.departments, 'departments')
+    }));
   };
 
   const handleUploadExcel = async (event) => {

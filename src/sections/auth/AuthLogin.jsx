@@ -114,6 +114,7 @@ export default function AuthLoginForm({ className }) {
         sessionStorage.removeItem('dc-browser-workspace-v1');
         const loginData = response.data.data || {};
         const userData = loginData.user || {};
+        const organizationAssignment = userData.organization_assignment || loginData.organization_assignment || {};
         const accessibleSystemSource =
           loginData.accessible_system || loginData.accessible_systems || userData.accessible_system || userData.accessible_systems || [];
         const accessibleSystems = normalizeAccessibleSystems(accessibleSystemSource);
@@ -137,7 +138,13 @@ export default function AuthLoginForm({ className }) {
         ];
         const actions =
           actionSources.find((value) => (Array.isArray(value) ? value.length > 0 : value && Object.keys(value).length > 0)) || [];
-        const customerCode = userData.customer_code || userData.code_customer || loginData.customer_code || loginData.code_customer || '';
+        const organizationDistributors = normalizeAssignmentValues(organizationAssignment.distributors);
+        const customerCode =
+          userData.customer_code ||
+          userData.code_customer ||
+          loginData.customer_code ||
+          loginData.code_customer ||
+          organizationDistributors.join(',');
         const expeditionData = userData.expedition || loginData.expedition || {};
         const expeditionCode =
           userData.expedition_code ||
@@ -148,31 +155,40 @@ export default function AuthLoginForm({ className }) {
           loginData.code_expedition ||
           expeditionData.code ||
           expeditionData.expedition_code ||
+          normalizeAssignmentValues(organizationAssignment.expeditions)[0] ||
           '';
-        const warehouseCodes = getAssignmentValues(
-          userData,
-          loginData,
-          ['whs_code', 'whsCodes', 'warehouse_codes', 'warehouses', 'warehouse'],
-          ['whs_code', 'whsCode', 'warehouse_code', 'code', 'value']
-        );
-        const ocrCodes = getAssignmentValues(
-          userData,
-          loginData,
-          ['ocr_code', 'ocrCode', 'branches', 'branch_codes'],
-          ['ocr_code', 'ocrCode', 'code', 'value']
-        );
-        const ocrCodes2 = getAssignmentValues(
-          userData,
-          loginData,
-          ['ocr_code2', 'ocrCode2', 'business_units', 'business_unit_codes'],
-          ['ocr_code2', 'ocrCode2', 'ocr_code', 'code', 'value']
-        );
-        const ocrCodes3 = getAssignmentValues(
-          userData,
-          loginData,
-          ['ocr_code3', 'ocrCode3', 'departments', 'department_codes'],
-          ['ocr_code3', 'ocrCode3', 'ocr_code', 'code', 'value']
-        );
+        const warehouseCodes = normalizeAssignmentValues(organizationAssignment.warehouses).length
+          ? normalizeAssignmentValues(organizationAssignment.warehouses)
+          : getAssignmentValues(
+              userData,
+              loginData,
+              ['whs_code', 'whsCodes', 'warehouse_codes', 'warehouses', 'warehouse'],
+              ['whs_code', 'whsCode', 'warehouse_code', 'code', 'value']
+            );
+        const ocrCodes = normalizeAssignmentValues(organizationAssignment.branches).length
+          ? normalizeAssignmentValues(organizationAssignment.branches)
+          : getAssignmentValues(
+              userData,
+              loginData,
+              ['ocr_code', 'ocrCode', 'branches', 'branch_codes'],
+              ['ocr_code', 'ocrCode', 'code', 'value']
+            );
+        const ocrCodes2 = normalizeAssignmentValues(organizationAssignment.business_units).length
+          ? normalizeAssignmentValues(organizationAssignment.business_units)
+          : getAssignmentValues(
+              userData,
+              loginData,
+              ['ocr_code2', 'ocrCode2', 'business_units', 'business_unit_codes'],
+              ['ocr_code2', 'ocrCode2', 'ocr_code', 'code', 'value']
+            );
+        const ocrCodes3 = normalizeAssignmentValues(organizationAssignment.departments).length
+          ? normalizeAssignmentValues(organizationAssignment.departments)
+          : getAssignmentValues(
+              userData,
+              loginData,
+              ['ocr_code3', 'ocrCode3', 'departments', 'department_codes'],
+              ['ocr_code3', 'ocrCode3', 'ocr_code', 'code', 'value']
+            );
 
         Cookies.set('isLoggedIn', true);
         Cookies.set('accessToken', loginData.access_token);
@@ -199,6 +215,17 @@ export default function AuthLoginForm({ className }) {
         setAssignmentCookie('ocr_code', ocrCodes);
         setAssignmentCookie('ocr_code2', ocrCodes2);
         setAssignmentCookie('ocr_code3', ocrCodes3);
+        Cookies.set(
+          'organization_assignment',
+          JSON.stringify({
+            warehouses: warehouseCodes,
+            branches: ocrCodes,
+            business_units: ocrCodes2,
+            departments: ocrCodes3,
+            expeditions: normalizeAssignmentValues(organizationAssignment.expeditions || expeditionCode),
+            distributors: normalizeAssignmentValues(organizationAssignment.distributors || customerCode)
+          })
+        );
         Cookies.set('distributorName', userData?.name_distributor);
         Cookies.set('distributorId', userData?.id_distributor);
         const permissionMenu = Array.isArray(loginData?.menu) ? loginData.menu : [];

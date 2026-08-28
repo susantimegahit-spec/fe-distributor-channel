@@ -15,7 +15,7 @@ import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
 import ProductionServices from '../../../../services/production/ProductionServices';
 import { useAlert } from '../../../../utils/alertContext';
-import { getCookies } from '../../../../utils/cookies';
+import { getCookies, getOrganizationAssignmentDefault } from '../../../../utils/cookies';
 
 const pageSize = 10;
 const numberFormatter = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 6 });
@@ -33,6 +33,7 @@ const today = new Date().toLocaleDateString('en-CA');
 const createIssueForm = () => ({
   DocDate: today,
   DocDueDate: today,
+  Series: '',
   Comments: '',
   Shift: 'X',
   Unit: '',
@@ -72,6 +73,7 @@ const getResponseList = (response) => {
     'orders',
     'production_orders',
     'documents',
+    'series',
     'units',
     'value',
     'results'
@@ -85,6 +87,15 @@ const normalizeUnit = (item = {}) => {
   const label = typeof item === 'object' ? item.unit_name || item.UnitName || item.name || item.label || item.description || value : item;
 
   return value ? { value, label: String(label) } : null;
+};
+const normalizeSeries = (item = {}) => {
+  const value = typeof item === 'object' ? (item.series ?? item.Series ?? item.series_code ?? item.value ?? item.code ?? item.id) : item;
+  const label =
+    typeof item === 'object'
+      ? (item.label ?? item.series_name ?? item.seriesName ?? item.SeriesName ?? item.name ?? item.description ?? value)
+      : item;
+
+  return value === undefined || value === null || value === '' ? null : { value, label: String(label) };
 };
 const getResponseDetail = (response) => {
   const payload = response?.data?.data ?? response?.data;
@@ -119,6 +130,7 @@ const normalizeProductionOrder = (item = {}, index = 0) => ({
   plannedQuantity: Number(getValue(item, ['PlannedQty', 'PlannedQuantity', 'planned_qty', 'planned_quantity', 'quantity'], 0)),
   warehouse: getValue(item, ['Warehouse', 'WhsCode', 'whs_code', 'warehouse_code']),
   status: getValue(item, ['ProductionOrderStatus', 'Status', 'status', 'order_status']),
+  remarks: getValue(item, ['Remarks', 'remarks', 'Comments', 'comments'], '-'),
   raw: item
 });
 const getProductionOrderDetail = (response) => {
@@ -157,8 +169,11 @@ const getIssueIssuedQuantity = (line = {}) =>
       0
     )
   );
-const getRemainingIssueQuantity = (line = {}) => Math.max(Number(line.PlannedQty || 0) - Number(line.IssuedQty || 0), 0);
-const cannotPostIssueLine = (line = {}) => Number(line.IssuedQty || 0) >= Number(line.PlannedQty || 0);
+const isBackflushIssueLine = (line = {}) =>
+  [
+    getValue(line, ['IssueMethod', 'issueMethod', 'issue_method', 'issue_mthd', 'IssueMthd']),
+    getValue(line, ['IssueType', 'issueType', 'issue_type'])
+  ].some((value) => String(value).trim().toUpperCase() === 'B');
 const createIssueLine = (line = {}, header = {}, index = 0) => {
   const plannedQty = getIssuePlannedQuantity(line);
   const issuedQty = getIssueIssuedQuantity(line);
@@ -171,12 +186,26 @@ const createIssueLine = (line = {}, header = {}, index = 0) => {
     BaseLine: Number(getValue(line, ['BaseLine', 'base_line', 'LineNum', 'line_num'], index)),
     PlannedQty: plannedQty,
     IssuedQty: issuedQty,
-    Quantity: Math.max(plannedQty - issuedQty, 0),
-    WhsCode: getValue(line, ['WhsCode', 'whs_code', 'Warehouse', 'warehouse_code'], getValue(header, ['Warehouse', 'WhsCode', 'whs_code'])),
+    Quantity: 0,
+    WhsCode: getValue(
+      line,
+      ['WhsCode', 'whs_code', 'Warehouse', 'warehouse_code'],
+      getValue(header, ['Warehouse', 'WhsCode', 'whs_code'], getOrganizationAssignmentDefault('warehouses'))
+    ),
     UoMEntry: Number(getValue(line, ['UoMEntry', 'UomEntry', 'uom_entry'], 0)),
-    OcrCode: getValue(line, ['OcrCode', 'ocr_code'], getValue(header, ['OcrCode', 'ocr_code'])),
-    OcrCode2: getValue(line, ['OcrCode2', 'ocr_code2'], getValue(header, ['OcrCode2', 'ocr_code2'])),
-    OcrCode3: getValue(line, ['OcrCode3', 'ocr_code3'], getValue(header, ['OcrCode3', 'ocr_code3']))
+    OcrCode: getValue(
+      line,
+      ['OcrCode', 'ocr_code'],
+      getValue(header, ['OcrCode', 'ocr_code'], getOrganizationAssignmentDefault('branches'))
+    ),
+    OcrCode2: getValue(
+      line,
+      ['OcrCode2', 'ocr_code2'],
+      getValue(header, ['OcrCode2', 'ocr_code2'], getOrganizationAssignmentDefault('business_units'))
+    ),
+    OcrCode3:
+      getOrganizationAssignmentDefault('departments') ||
+      getValue(line, ['OcrCode3', 'ocr_code3'], getValue(header, ['OcrCode3', 'ocr_code3']))
   };
 };
 const normalizeKey = (key) =>
@@ -222,6 +251,8 @@ export default function IssueProduction() {
   const [loadingOrderDetailId, setLoadingOrderDetailId] = useState(null);
   const [loadingUnits, setLoadingUnits] = useState(false);
   const [unitOptions, setUnitOptions] = useState([]);
+  const [loadingSeries, setLoadingSeries] = useState(false);
+  const [seriesOptions, setSeriesOptions] = useState([]);
 
   const fetchIssues = useCallback(
     async (activeFilters) => {
@@ -299,6 +330,26 @@ export default function IssueProduction() {
     }
   };
 
+  const fetchSeriesOptions = async (date) => {
+    const formattedDate = String(date || '').replace(/-/g, '');
+    if (!formattedDate) {
+      setSeriesOptions([]);
+      return;
+    }
+
+    setLoadingSeries(true);
+    try {
+      const response = await ProductionServices.getSeries(formattedDate, 60);
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch series data');
+      setSeriesOptions(getResponseList(response).map(normalizeSeries).filter(Boolean));
+    } catch (error) {
+      setSeriesOptions([]);
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch series data', 'danger');
+    } finally {
+      setLoadingSeries(false);
+    }
+  };
+
   const filteredProductionOrders = useMemo(() => {
     const keyword = orderSearch.trim().toLowerCase();
     if (!keyword) return productionOrders;
@@ -361,8 +412,8 @@ export default function IssueProduction() {
             throw new Error(response.data.message || `Failed to fetch Production Order ${order.number}`);
           }
           const { header, items } = getProductionOrderDetail(response);
-          const lines = items.map((line, index) => createIssueLine(line, header, index));
-          if (!lines.length) throw new Error(`No material lines were found in Production Order ${order.number}`);
+          const lines = items.flatMap((line, index) => (isBackflushIssueLine(line) ? [] : [createIssueLine(line, header, index)]));
+          if (!lines.length) throw new Error(`No non-backflush material lines were found in Production Order ${order.number}`);
           return { header, lines };
         })
       );
@@ -370,7 +421,7 @@ export default function IssueProduction() {
 
       setIssueForm((current) => ({
         ...current,
-        DocDueDate: formatInputDateValue(getValue(firstHeader, ['DueDate', 'due_date'], current.DocDueDate)),
+        DocDueDate: formatInputDateValue(getValue(firstHeader, ['PostDate'], current.DocDueDate)),
         Comments: current.Comments || getValue(firstHeader, ['Comments', 'comments', 'remarks']),
         Shift: getValue(firstHeader, ['U_Shift', 'Shift', 'shift'], current.Shift),
         Unit: getValue(firstHeader, ['U_Unit', 'Unit', 'unit', 'OcrCode2', 'ocr_code2'], current.Unit),
@@ -399,23 +450,11 @@ export default function IssueProduction() {
   };
 
   const handleSubmitIssue = async () => {
-    const unpostableLines = issueForm.Lines.filter(cannotPostIssueLine);
-    if (unpostableLines.length) {
-      const itemCodes = unpostableLines.map((line) => line.ItemCode || `Base Entry ${line.BaseEntry}`).join(', ');
-      showAlert(`Issued Qty must be less than Planned Qty for: ${itemCodes}. These rows cannot be posted`, 'warning');
-      return;
-    }
-
     const invalidLine = issueForm.Lines.some(
-      (line) => !(Number(line.BaseEntry) > 0) || !Number.isFinite(Number(line.BaseLine)) || !(Number(line.Quantity) > 0) || !line.WhsCode
+      (line) => !(Number(line.BaseEntry) > 0) || !Number.isFinite(Number(line.BaseLine)) || !line.WhsCode
     );
-    if (!issueForm.DocDate || !issueForm.DocDueDate || !issueForm.Lines.length || invalidLine) {
-      showAlert('Complete document dates, Base Entry, Base Line, Quantity, and Warehouse for every line', 'warning');
-      return;
-    }
-    const exceedsRemainingQuantity = issueForm.Lines.some((line) => Number(line.Quantity) > getRemainingIssueQuantity(line));
-    if (exceedsRemainingQuantity) {
-      showAlert('Quantity cannot exceed Planned Qty minus Issued Qty', 'warning');
+    if (!issueForm.DocDate || !issueForm.DocDueDate || !issueForm.Series || !issueForm.Lines.length || invalidLine) {
+      showAlert('Complete document dates, Series, Base Entry, Base Line, and Warehouse for every line', 'warning');
       return;
     }
 
@@ -464,6 +503,7 @@ export default function IssueProduction() {
               setIssueForm(createIssueForm());
               setShowAddIssue(true);
               fetchUnitOptions();
+              fetchSeriesOptions(today);
             }}
           >
             <i className="ti ti-plus me-1" />
@@ -571,19 +611,36 @@ export default function IssueProduction() {
         <Modal.Body>
           <Row className="g-3 mb-4">
             <Col md={3}>
-              <Form.Label>Document Date *</Form.Label>
+              <Form.Label>Posting Date *</Form.Label>
               <Form.Control
                 type="date"
                 value={issueForm.DocDate}
-                onChange={(event) => setIssueForm((current) => ({ ...current, DocDate: event.target.value }))}
+                onChange={(event) => {
+                  const date = event.target.value;
+                  setIssueForm((current) => ({ ...current, DocDate: date, Series: '' }));
+                  fetchSeriesOptions(date);
+                }}
               />
             </Col>
             <Col md={3}>
               <Form.Label>Due Date *</Form.Label>
-              <Form.Control
-                type="date"
-                value={issueForm.DocDueDate}
-                onChange={(event) => setIssueForm((current) => ({ ...current, DocDueDate: event.target.value }))}
+              <Form.Control type="date" value={issueForm.DocDueDate} readOnly />
+            </Col>
+            <Col md={2}>
+              <Form.Label>Series *</Form.Label>
+              <Select
+                styles={selectStyles}
+                menuPortalTarget={document.body}
+                menuPosition="fixed"
+                menuPlacement="auto"
+                maxMenuHeight={240}
+                menuShouldScrollIntoView={false}
+                options={seriesOptions}
+                value={seriesOptions.find((option) => String(option.value) === String(issueForm.Series)) || null}
+                isLoading={loadingSeries}
+                isDisabled={loadingSeries}
+                placeholder={loadingSeries ? 'Loading series...' : 'Select series'}
+                onChange={(option) => setIssueForm((current) => ({ ...current, Series: option?.value || '' }))}
               />
             </Col>
             <Col md={2}>
@@ -656,7 +713,7 @@ export default function IssueProduction() {
             <tbody>
               {issueForm.Lines.length ? (
                 issueForm.Lines.map((line, index) => (
-                  <tr key={`${line.BaseEntry}-${line.BaseLine}-${index}`} className={cannotPostIssueLine(line) ? 'table-warning' : ''}>
+                  <tr key={`${line.BaseEntry}-${line.BaseLine}-${index}`}>
                     <td style={{ minWidth: 180 }}>
                       <div className="fw-semibold">{line.ItemCode || '-'}</div>
                       <div className="text-muted f-12">{line.ItemName || '-'}</div>
@@ -665,23 +722,17 @@ export default function IssueProduction() {
                       <Form.Control size="sm" type="number" value={line.PlannedQty} readOnly />
                     </td>
                     <td style={{ minWidth: 120 }}>
-                      <Form.Control size="sm" type="number" value={line.IssuedQty} readOnly isInvalid={cannotPostIssueLine(line)} />
-                      {cannotPostIssueLine(line) ? (
-                        <Form.Text className="text-danger">Issued Qty must be less than Planned Qty.</Form.Text>
-                      ) : null}
+                      <Form.Control size="sm" type="number" value={line.IssuedQty} readOnly />
                     </td>
                     <td style={{ minWidth: 120 }}>
                       <Form.Control
                         size="sm"
                         type="number"
-                        min="0"
-                        max={getRemainingIssueQuantity(line)}
                         step="any"
                         value={line.Quantity}
-                        disabled={cannotPostIssueLine(line)}
                         onChange={(event) => {
                           const value = event.target.value;
-                          const quantity = value === '' ? '' : Math.min(Math.max(Number(value), 0), getRemainingIssueQuantity(line));
+                          const quantity = value === '' ? '' : Number(value);
                           updateIssueLine(index, { Quantity: quantity });
                         }}
                       />
@@ -723,7 +774,7 @@ export default function IssueProduction() {
           <Button variant="light-secondary" disabled={savingIssue} onClick={() => setShowAddIssue(false)}>
             Cancel
           </Button>
-          <Button variant="primary" disabled={savingIssue} onClick={handleSubmitIssue}>
+          <Button variant="primary" disabled={savingIssue || loadingSeries} onClick={handleSubmitIssue}>
             {savingIssue ? <span className="spinner-border spinner-border-sm me-2" /> : <i className="ti ti-device-floppy me-1" />}
             {savingIssue ? 'Saving...' : 'Save Issue'}
           </Button>
@@ -733,7 +784,7 @@ export default function IssueProduction() {
       <Modal
         show={showOrderModal}
         onHide={() => !loadingOrders && !loadingOrderDetailId && setShowOrderModal(false)}
-        size="lg"
+        size="xl"
         centered
         scrollable
       >
@@ -789,37 +840,59 @@ export default function IssueProduction() {
                 <th>Order No.</th>
                 <th>Product</th>
                 <th>Planned Qty</th>
+                <th>Remarks</th>
               </tr>
             </thead>
             <tbody>
               {loadingOrders ? (
                 <tr>
-                  <td colSpan={4} className="text-center py-4">
+                  <td colSpan={5} className="text-center py-4">
                     <span className="spinner-border spinner-border-sm me-2" /> Loading Production Orders...
                   </td>
                 </tr>
               ) : filteredProductionOrders.length ? (
-                filteredProductionOrders.map((order) => (
-                  <tr key={order.id}>
-                    <td className="text-center">
-                      <Form.Check
-                        type="checkbox"
-                        aria-label={`Select PDO ${order.number}`}
-                        checked={selectedOrderIds.includes(String(order.id))}
-                        onChange={(event) => handleToggleProductionOrder(order.id, event.target.checked)}
-                      />
-                    </td>
-                    <td className="fw-semibold">{order.number}</td>
-                    <td>
-                      <div className="fw-semibold">{order.itemCode || '-'}</div>
-                      <div className="text-muted f-12">{order.itemName || '-'}</div>
-                    </td>
-                    <td>{numberFormatter.format(order.plannedQuantity)}</td>
-                  </tr>
-                ))
+                filteredProductionOrders.map((order) => {
+                  const isSelected = selectedOrderIds.includes(String(order.id));
+                  const toggleSelection = () => handleToggleProductionOrder(order.id, !isSelected);
+
+                  return (
+                    <tr
+                      key={order.id}
+                      className={isSelected ? 'table-primary' : ''}
+                      role="checkbox"
+                      aria-checked={isSelected}
+                      tabIndex={0}
+                      style={{ cursor: 'pointer' }}
+                      onClick={toggleSelection}
+                      onKeyDown={(event) => {
+                        if (['Enter', ' '].includes(event.key)) {
+                          event.preventDefault();
+                          toggleSelection();
+                        }
+                      }}
+                    >
+                      <td className="text-center">
+                        <Form.Check
+                          type="checkbox"
+                          aria-label={`Select PDO ${order.number}`}
+                          checked={isSelected}
+                          onClick={(event) => event.stopPropagation()}
+                          onChange={(event) => handleToggleProductionOrder(order.id, event.target.checked)}
+                        />
+                      </td>
+                      <td className="fw-semibold">{order.number}</td>
+                      <td>
+                        <div className="fw-semibold">{order.itemCode || '-'}</div>
+                        <div className="text-muted f-12">{order.itemName || '-'}</div>
+                      </td>
+                      <td>{numberFormatter.format(order.plannedQuantity)}</td>
+                      <td>{order.remarks || '-'}</td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
-                  <td colSpan={4} className="text-center text-muted py-4">
+                  <td colSpan={5} className="text-center text-muted py-4">
                     No released Production Order found for the selected filters.
                   </td>
                 </tr>

@@ -26,7 +26,7 @@ import {
   toggleReceiptPdo
 } from '../../../../redux/production/receiptPdoReducer';
 import { useAlert } from '../../../../utils/alertContext';
-import { getCookies } from '../../../../utils/cookies';
+import { getCookies, getOrganizationAssignmentDefault } from '../../../../utils/cookies';
 
 const pageSize = 10;
 const numberFormatter = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 });
@@ -46,6 +46,7 @@ const today = new Date().toLocaleDateString('en-CA');
 const createReceiptForm = () => ({
   DocDate: today,
   DocDueDate: today,
+  Series: '',
   Comments: '',
   Shift: 'X',
   Unit: '',
@@ -87,6 +88,7 @@ const getResponseList = (response) => {
   if (Array.isArray(payload?.receipts)) return payload.receipts;
   if (Array.isArray(payload?.production_receipts)) return payload.production_receipts;
   if (Array.isArray(payload?.documents)) return payload.documents;
+  if (Array.isArray(payload?.series)) return payload.series;
   if (Array.isArray(payload?.warehouses)) return payload.warehouses;
   if (Array.isArray(payload?.units)) return payload.units;
   if (Array.isArray(payload?.value)) return payload.value;
@@ -181,11 +183,11 @@ const createReceiptLineFromOrder = (order) => {
     PlannedQty: order.plannedQuantity,
     CmpltQty: order.completedQuantity,
     Quantity: remainingQuantity,
-    WhsCode: order.warehouse,
+    WhsCode: order.warehouse || getOrganizationAssignmentDefault('warehouses'),
     UoMEntry: 0,
-    OcrCode: order.ocrCode,
-    OcrCode2: order.ocrCode2,
-    OcrCode3: order.ocrCode3
+    OcrCode: order.ocrCode || getOrganizationAssignmentDefault('branches'),
+    OcrCode2: order.ocrCode2 || getOrganizationAssignmentDefault('business_units'),
+    OcrCode3: getOrganizationAssignmentDefault('departments') || order.ocrCode3
   };
 };
 
@@ -210,6 +212,16 @@ const normalizeUnit = (item = {}) => {
   const label = typeof item === 'object' ? item.unit_name || item.UnitName || item.name || item.label || item.description || value : item;
 
   return value ? { value, label: String(label) } : null;
+};
+
+const normalizeSeries = (item = {}) => {
+  const value = typeof item === 'object' ? (item.series ?? item.Series ?? item.series_code ?? item.value ?? item.code ?? item.id) : item;
+  const label =
+    typeof item === 'object'
+      ? (item.label ?? item.series_name ?? item.seriesName ?? item.SeriesName ?? item.name ?? item.description ?? value)
+      : item;
+
+  return value === undefined || value === null || value === '' ? null : { value, label: String(label) };
 };
 
 const normalizeColumnKey = (key) =>
@@ -282,6 +294,8 @@ export default function ReceiptProduction() {
   const [warehouseOptions, setWarehouseOptions] = useState([]);
   const [loadingUnits, setLoadingUnits] = useState(false);
   const [unitOptions, setUnitOptions] = useState([]);
+  const [loadingSeries, setLoadingSeries] = useState(false);
+  const [seriesOptions, setSeriesOptions] = useState([]);
 
   const fetchReceipts = useCallback(
     async (activeFilters) => {
@@ -451,6 +465,26 @@ export default function ReceiptProduction() {
     }
   };
 
+  const fetchSeriesOptions = async (date) => {
+    const formattedDate = String(date || '').replace(/-/g, '');
+    if (!formattedDate) {
+      setSeriesOptions([]);
+      return;
+    }
+
+    setLoadingSeries(true);
+    try {
+      const response = await ProductionServices.getSeries(formattedDate, 59);
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch series data');
+      setSeriesOptions(getResponseList(response).map(normalizeSeries).filter(Boolean));
+    } catch (error) {
+      setSeriesOptions([]);
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch series data', 'danger');
+    } finally {
+      setLoadingSeries(false);
+    }
+  };
+
   const handleOpenBomSelection = () => {
     const activePdoFilters = pdoInitialized ? pdoFilters : { from: filters.from, to: filters.to };
     dispatch(setReceiptPdoSelectedIds(receiptForm.Lines.map((line) => line.BaseEntry)));
@@ -546,8 +580,8 @@ export default function ReceiptProduction() {
     const invalidLine = receiptForm.Lines.some(
       (line) => line.BaseEntry === '' || line.BaseLine === '' || !(Number(line.Quantity) > 0) || !line.WhsCode
     );
-    if (!receiptForm.DocDate || !receiptForm.DocDueDate || !receiptForm.Lines.length || invalidLine) {
-      showAlert('Complete document dates, Base Entry, Base Line, Quantity, and Warehouse for every line', 'warning');
+    if (!receiptForm.DocDate || !receiptForm.DocDueDate || !receiptForm.Series || !receiptForm.Lines.length || invalidLine) {
+      showAlert('Complete document dates, Series, Base Entry, Base Line, Quantity, and Warehouse for every line', 'warning');
       return;
     }
     const exceedsRemainingQuantity = receiptForm.Lines.some((line) => Number(line.Quantity) > getRemainingReceiptQuantity(line));
@@ -606,6 +640,7 @@ export default function ReceiptProduction() {
               fetchOcrOptions();
               fetchWarehouseOptions();
               fetchUnitOptions();
+              fetchSeriesOptions(today);
             }}
           >
             <i className="ti ti-plus me-1" />
@@ -718,11 +753,15 @@ export default function ReceiptProduction() {
         <Modal.Body>
           <Row className="g-3 mb-4">
             <Col md={3}>
-              <Form.Label>Document Date *</Form.Label>
+              <Form.Label>Posting Date *</Form.Label>
               <Form.Control
                 type="date"
                 value={receiptForm.DocDate}
-                onChange={(event) => setReceiptForm((current) => ({ ...current, DocDate: event.target.value }))}
+                onChange={(event) => {
+                  const date = event.target.value;
+                  setReceiptForm((current) => ({ ...current, DocDate: date, Series: '' }));
+                  fetchSeriesOptions(date);
+                }}
               />
             </Col>
             <Col md={3}>
@@ -731,6 +770,23 @@ export default function ReceiptProduction() {
                 type="date"
                 value={receiptForm.DocDueDate}
                 onChange={(event) => setReceiptForm((current) => ({ ...current, DocDueDate: event.target.value }))}
+              />
+            </Col>
+            <Col md={2}>
+              <Form.Label>Series *</Form.Label>
+              <Select
+                styles={compactSelectStyles}
+                menuPortalTarget={document.body}
+                menuPosition="fixed"
+                menuPlacement="auto"
+                maxMenuHeight={240}
+                menuShouldScrollIntoView={false}
+                options={seriesOptions}
+                value={seriesOptions.find((option) => String(option.value) === String(receiptForm.Series)) || null}
+                isLoading={loadingSeries}
+                isDisabled={loadingSeries}
+                placeholder={loadingSeries ? 'Loading series...' : 'Select series'}
+                onChange={(option) => setReceiptForm((current) => ({ ...current, Series: option?.value || '' }))}
               />
             </Col>
             <Col md={2}>
@@ -895,7 +951,7 @@ export default function ReceiptProduction() {
           <Button variant="light-secondary" disabled={savingReceipt} onClick={() => setShowAddReceipt(false)}>
             Cancel
           </Button>
-          <Button variant="primary" disabled={savingReceipt} onClick={handleSubmitReceipt}>
+          <Button variant="primary" disabled={savingReceipt || loadingSeries} onClick={handleSubmitReceipt}>
             {savingReceipt ? <span className="spinner-border spinner-border-sm me-2" /> : <i className="ti ti-device-floppy me-1" />}
             {savingReceipt ? 'Saving...' : 'Save Receipt'}
           </Button>
@@ -967,36 +1023,60 @@ export default function ReceiptProduction() {
                   </td>
                 </tr>
               ) : boms.length ? (
-                boms.map((bom) => (
-                  <tr key={bom.id} className={cannotPostProductionOrder(bom) ? 'table-warning' : ''}>
-                    <td className="text-center">
-                      {cannotPostProductionOrder(bom) ? (
-                        <i className="ti ti-alert-triangle text-danger" title="This PDO cannot be posted" />
-                      ) : (
-                        <Form.Check
-                          type="checkbox"
-                          aria-label={`Select PDO ${bom.number}`}
-                          checked={selectedPdoIds.includes(String(bom.id))}
-                          onChange={(event) => handleTogglePdo(bom, event.target.checked)}
-                        />
-                      )}
-                    </td>
-                    <td className="fw-semibold">{bom.number}</td>
-                    <td>
-                      <div className="fw-semibold">{bom.itemCode || '-'}</div>
-                      <div className="text-muted f-12">{bom.itemName || '-'}</div>
-                    </td>
-                    <td>{numberFormatter.format(bom.plannedQuantity)}</td>
-                    <td>
-                      <div>{numberFormatter.format(bom.completedQuantity)}</div>
-                      {cannotPostProductionOrder(bom) ? (
-                        <div className="text-danger f-12">
-                          <i className="ti ti-alert-triangle me-1" /> Cannot be posted
-                        </div>
-                      ) : null}
-                    </td>
-                  </tr>
-                ))
+                boms.map((bom) => {
+                  const cannotSelect = cannotPostProductionOrder(bom);
+                  const isSelected = selectedPdoIds.includes(String(bom.id));
+                  const toggleSelection = () => {
+                    if (!cannotSelect) handleTogglePdo(bom, !isSelected);
+                  };
+
+                  return (
+                    <tr
+                      key={bom.id}
+                      className={cannotSelect ? 'table-warning' : isSelected ? 'table-primary' : ''}
+                      role="checkbox"
+                      aria-checked={isSelected}
+                      aria-disabled={cannotSelect}
+                      tabIndex={cannotSelect ? -1 : 0}
+                      style={{ cursor: cannotSelect ? 'not-allowed' : 'pointer' }}
+                      onClick={toggleSelection}
+                      onKeyDown={(event) => {
+                        if (!cannotSelect && ['Enter', ' '].includes(event.key)) {
+                          event.preventDefault();
+                          toggleSelection();
+                        }
+                      }}
+                    >
+                      <td className="text-center">
+                        {cannotSelect ? (
+                          <i className="ti ti-alert-triangle text-danger" title="This PDO cannot be posted" />
+                        ) : (
+                          <Form.Check
+                            type="checkbox"
+                            aria-label={`Select PDO ${bom.number}`}
+                            checked={isSelected}
+                            onClick={(event) => event.stopPropagation()}
+                            onChange={(event) => handleTogglePdo(bom, event.target.checked)}
+                          />
+                        )}
+                      </td>
+                      <td className="fw-semibold">{bom.number}</td>
+                      <td>
+                        <div className="fw-semibold">{bom.itemCode || '-'}</div>
+                        <div className="text-muted f-12">{bom.itemName || '-'}</div>
+                      </td>
+                      <td>{numberFormatter.format(bom.plannedQuantity)}</td>
+                      <td>
+                        <div>{numberFormatter.format(bom.completedQuantity)}</div>
+                        {cannotSelect ? (
+                          <div className="text-danger f-12">
+                            <i className="ti ti-alert-triangle me-1" /> Cannot be posted
+                          </div>
+                        ) : null}
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan={5} className="text-center text-muted py-4">

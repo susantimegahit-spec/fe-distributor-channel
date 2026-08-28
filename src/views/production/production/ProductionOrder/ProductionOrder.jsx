@@ -25,7 +25,7 @@ import DistributorServices from '../../../../services/customer-portal/Distributo
 import WarehouseServices from '../../../../services/customer-portal/WarehouseServices';
 import ProductionServices from '../../../../services/production/ProductionServices';
 import { useAlert } from '../../../../utils/alertContext';
-import { getCookies } from '../../../../utils/cookies';
+import { getCookies, getOrganizationAssignmentDefault } from '../../../../utils/cookies';
 import ProductionRelationMap from './ProductionRelationMap';
 
 const numberFormatter = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 });
@@ -40,6 +40,7 @@ const productionStatusOptions = [
   { value: PRODUCTION_STATUS_PLANNED, label: 'Planned' },
   { value: PRODUCTION_STATUS_RELEASE, label: 'Release' }
 ];
+const plannedProductionStatusOptions = productionStatusOptions.filter((option) => option.value === PRODUCTION_STATUS_PLANNED);
 const productionOrderFilterStatusOptions = ['Release', 'Close', 'Planned'].map((value) => ({ value, label: value }));
 const shiftOptions = ['All', 'Shift 1', 'Shift 2', 'Shift 3'].map((value) => ({ value, label: value }));
 const componentTypeOptions = [
@@ -50,6 +51,14 @@ const issueMethodOptions = [
   { value: 'M', label: 'Manual' },
   { value: 'B', label: 'Backflush' }
 ];
+const normalizeComponentType = (value) => {
+  const normalizedValue = String(value ?? '')
+    .trim()
+    .toUpperCase();
+  if (['I', 'ITEM', COMPONENT_TYPE_ITEM].includes(normalizedValue)) return COMPONENT_TYPE_ITEM;
+  if (['R', 'RESOURCE', COMPONENT_TYPE_RESOURCE].includes(normalizedValue)) return COMPONENT_TYPE_RESOURCE;
+  return normalizedValue;
+};
 const productionSelectStyles = {
   menuPortal: (base) => ({ ...base, zIndex: 1090 }),
   control: (base) => ({ ...base, minHeight: 38 })
@@ -132,10 +141,10 @@ const createBomDetail = () => ({
   item_name: '',
   qty: '',
   uom: '',
-  whs_code: '',
-  ocr_code: '',
-  ocr_code2: '',
-  ocr_code3: '',
+  whs_code: getOrganizationAssignmentDefault('warehouses'),
+  ocr_code: getOrganizationAssignmentDefault('branches'),
+  ocr_code2: getOrganizationAssignmentDefault('business_units'),
+  ocr_code3: getOrganizationAssignmentDefault('departments'),
   issue_method: 'M'
 });
 
@@ -521,6 +530,8 @@ export default function ProductionOrder() {
   const [issuingOrderId, setIssuingOrderId] = useState(null);
   const [relationOrder, setRelationOrder] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isDuplicate, setIsDuplicate] = useState(false);
+  const [duplicatingOrderId, setDuplicatingOrderId] = useState(null);
   const [showAddIssueModal, setShowAddIssueModal] = useState(false);
   const [releaseOrder, setReleaseOrder] = useState(null);
   const [showBomModal, setShowBomModal] = useState(false);
@@ -827,6 +838,7 @@ export default function ProductionOrder() {
   const handleOpenCreate = () => {
     setForm(createInitialForm());
     setReleaseOrder(null);
+    setIsDuplicate(false);
     setSearch('');
     setShowCreateModal(true);
     fetchSeries(today);
@@ -838,7 +850,59 @@ export default function ProductionOrder() {
   const handleCloseOrderForm = () => {
     setShowCreateModal(false);
     setReleaseOrder(null);
+    setIsDuplicate(false);
     setForm(createInitialForm());
+  };
+
+  const handleDuplicate = async (order) => {
+    if (!order?.id) return;
+
+    setActionMenu(null);
+    setReleaseOrder(null);
+    setIsDuplicate(true);
+    setDuplicatingOrderId(order.id);
+    setLoadingBomDetail(true);
+    setForm(createInitialForm());
+    setShowCreateModal(true);
+    fetchWarehouses();
+    fetchOcrOptions();
+    fetchUnits();
+
+    try {
+      const response = await ProductionServices.getProductionOrderById(order.id);
+      if (response?.data?.success === false) {
+        throw new Error(response.data.message || 'Failed to fetch Production Order detail');
+      }
+
+      const orderDetail = getProductionOrderDetail(response);
+      const duplicateForm = mapOrderDetailToForm(orderDetail);
+      duplicateForm.status = PRODUCTION_STATUS_PLANNED;
+      duplicateForm.product = {
+        ...duplicateForm.product,
+        bom_id:
+          orderDetail.headerData?.Bomid ??
+          orderDetail.headerData?.BomId ??
+          orderDetail.headerData?.bom_id ??
+          orderDetail.bomId ??
+          orderDetail.bom_id ??
+          ''
+      };
+      setForm(duplicateForm);
+      fetchSeries(duplicateForm.orderDate);
+
+      const componentTypes = [...new Set(duplicateForm.product.details.map((detail) => detail.type))];
+      await Promise.all([
+        componentTypes.includes(COMPONENT_TYPE_ITEM) ? dispatch(getItem('')) : Promise.resolve(),
+        componentTypes.includes(COMPONENT_TYPE_RESOURCE) ? dispatch(getResource('')) : Promise.resolve()
+      ]);
+    } catch (error) {
+      setShowCreateModal(false);
+      setIsDuplicate(false);
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to load Production Order for duplication', 'danger');
+    } finally {
+      setDuplicatingOrderId(null);
+      setLoadingBomDetail(false);
+    }
   };
 
   const handleOpenRelease = async (order) => {
@@ -846,6 +910,7 @@ export default function ProductionOrder() {
 
     setActionMenu(null);
     setReleaseOrder(order);
+    setIsDuplicate(false);
     setForm({
       ...createInitialForm(),
       status: PRODUCTION_STATUS_RELEASE,
@@ -920,14 +985,34 @@ export default function ProductionOrder() {
 
       const bomDetail = getResponseItem(response);
       const normalizedBom = normalizeBom(bomDetail);
-      const componentTypes = [...new Set(normalizedBom.details.map((detail) => String(detail.type ?? detail.component_type ?? '')))];
+      const componentTypes = [
+        ...new Set(
+          normalizedBom.details.map((detail) =>
+            normalizeComponentType(detail.ItemType ?? detail.item_type ?? detail.type ?? detail.component_type)
+          )
+        )
+      ];
       await Promise.all([
         componentTypes.includes(COMPONENT_TYPE_ITEM) ? dispatch(getItem('')) : Promise.resolve(),
         componentTypes.includes(COMPONENT_TYPE_RESOURCE) ? dispatch(getResource('')) : Promise.resolve()
       ]);
       setForm((current) => ({
         ...current,
-        product: normalizedBom,
+        product: {
+          ...normalizedBom,
+          whs_code: normalizedBom.whs_code || normalizedBom.to_whs || getOrganizationAssignmentDefault('warehouses'),
+          ocr_code: normalizedBom.ocr_code || getOrganizationAssignmentDefault('branches'),
+          ocr_code2: normalizedBom.ocr_code2 || getOrganizationAssignmentDefault('business_units'),
+          ocr_code3: getOrganizationAssignmentDefault('departments') || normalizedBom.ocr_code3,
+          details: normalizedBom.details.map((detail) => ({
+            ...detail,
+            type: normalizeComponentType(detail.ItemType ?? detail.item_type ?? detail.type ?? detail.component_type),
+            whs_code: detail.whs_code || detail.warehouse_code || getOrganizationAssignmentDefault('warehouses'),
+            ocr_code: detail.ocr_code || detail.OcrCode || getOrganizationAssignmentDefault('branches'),
+            ocr_code2: detail.ocr_code2 || detail.OcrCode2 || getOrganizationAssignmentDefault('business_units'),
+            ocr_code3: getOrganizationAssignmentDefault('departments') || detail.ocr_code3 || detail.OcrCode3
+          }))
+        },
         plannedQuantity: Number(bomDetail?.qty ?? bomDetail?.quantity) || ''
       }));
       setShowBomModal(false);
@@ -1071,6 +1156,7 @@ export default function ProductionOrder() {
 
       setShowCreateModal(false);
       setReleaseOrder(null);
+      setIsDuplicate(false);
       setForm(createInitialForm());
       showAlert(response?.data?.message || `Production Order ${isReleaseMode ? 'released' : 'created'} successfully`, 'success');
       await fetchProductionOrders();
@@ -1200,7 +1286,7 @@ export default function ProductionOrder() {
               <th className="text-end">Planned Qty</th>
               <th className="text-end">Completed Qty</th>
               <th>Warehouse</th>
-              <th>Order Date</th>
+              <th>Posting Date</th>
               <th>Due Date</th>
               <th>Status</th>
               <th className="text-center">Action</th>
@@ -1312,6 +1398,21 @@ export default function ProductionOrder() {
                   }}
                 >
                   <i className="ti ti-sitemap text-info me-2" /> Relation Map
+                </button>
+                <button
+                  type="button"
+                  className="dropdown-item"
+                  disabled={duplicatingOrderId !== null}
+                  onClick={() => {
+                    if (order) handleDuplicate(order);
+                  }}
+                >
+                  <i
+                    className={
+                      String(duplicatingOrderId) === String(order?.id) ? 'ti ti-loader-2 text-info me-2' : 'ti ti-copy text-info me-2'
+                    }
+                  />{' '}
+                  Duplicate
                 </button>
                 {canRelease ? (
                   <button
@@ -1642,7 +1743,9 @@ export default function ProductionOrder() {
 
       <Modal show={showCreateModal} onHide={() => !loadingBomDetail && !saving && handleCloseOrderForm()} fullscreen scrollable>
         <Modal.Header closeButton={!loadingBomDetail && !saving}>
-          <Modal.Title>{isReleaseMode ? 'Release Production Order' : 'Create Production Order'}</Modal.Title>
+          <Modal.Title>
+            {isReleaseMode ? 'Release Production Order' : isDuplicate ? 'Duplicate Production Order' : 'Create Production Order'}
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Row className="g-3 mb-3">
@@ -1676,7 +1779,7 @@ export default function ProductionOrder() {
                           menuPlacement="auto"
                           maxMenuHeight={240}
                           menuShouldScrollIntoView={false}
-                          options={productionStatusOptions}
+                          options={isReleaseMode ? productionStatusOptions : plannedProductionStatusOptions}
                           value={productionStatusOptions.find((option) => option.value === form.status) || null}
                           isDisabled={isReleaseMode}
                           onChange={(option) => setForm((current) => ({ ...current, status: option?.value || '' }))}
@@ -1708,6 +1811,7 @@ export default function ProductionOrder() {
                           min="0"
                           step="any"
                           value={form.plannedQuantity}
+                          disabled
                           onChange={(event) =>
                             setForm((current) => ({
                               ...current,
@@ -1803,7 +1907,7 @@ export default function ProductionOrder() {
                     </Col>
                     <Col md={4}>
                       <Form.Group>
-                        <Form.Label>Order Date</Form.Label>
+                        <Form.Label>Posting Date</Form.Label>
                         <Form.Control
                           type="date"
                           value={form.orderDate}
@@ -2059,10 +2163,18 @@ export default function ProductionOrder() {
           </Table>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="light-secondary" onClick={handleCloseOrderForm} disabled={loadingBomDetail || saving}>
+          <Button
+            variant="light-secondary"
+            onClick={handleCloseOrderForm}
+            disabled={loadingBomDetail || saving || duplicatingOrderId !== null}
+          >
             Close
           </Button>
-          <Button variant="success" onClick={handleSave} disabled={loadingBomDetail || loadingSeries || saving}>
+          <Button
+            variant="success"
+            onClick={handleSave}
+            disabled={loadingBomDetail || loadingSeries || saving || duplicatingOrderId !== null}
+          >
             {saving ? (
               <>
                 <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />
@@ -2071,7 +2183,7 @@ export default function ProductionOrder() {
             ) : (
               <>
                 <i className={isReleaseMode ? 'ti ti-player-play me-1' : 'ti ti-device-floppy me-1'} />
-                {isReleaseMode ? 'Release' : 'Save'}
+                {isReleaseMode ? 'Release' : isDuplicate ? 'Save as New' : 'Save'}
               </>
             )}
           </Button>

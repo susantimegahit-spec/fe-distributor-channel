@@ -24,6 +24,7 @@ import ProductionServices from '../../../../services/production/ProductionServic
 import ProductionWarehouseServices from '../../../../services/production/WarehouseServices';
 import { useAlert } from '../../../../utils/alertContext';
 import { useConfirm } from '../../../../utils/confirmContext';
+import { getOrganizationAssignment, getOrganizationAssignmentDefault } from '../../../../utils/cookies';
 
 const today = new Date().toISOString().slice(0, 10);
 const firstDayOfMonth = `${today.slice(0, 8)}01`;
@@ -320,12 +321,7 @@ export default function InventoryTransfer() {
       setLoadingInventoryTransfers(true);
 
       try {
-        const response = await ProductionWarehouseServices.getInventoryTransfer(
-          filters.From || '',
-          filters.To || '',
-          '',
-          ''
-        );
+        const response = await ProductionWarehouseServices.getInventoryTransfer(filters.From || '', filters.To || '', '', '');
         if (response?.data?.success === false) {
           throw new Error(response.data.message || 'Failed to fetch inventory transfers');
         }
@@ -474,17 +470,13 @@ export default function InventoryTransfer() {
         throw new Error('Failed to fetch material, warehouse, or OCR data');
       }
 
-      setProductOptions(
-        getResponseList(productResponse)
-          .map(normalizeProduct)
-          .filter((option) => option.value)
-      );
-      setWarehouseOptions(
-        getResponseList(warehouseResponse)
-          .map(normalizeWarehouse)
-          .filter((option) => option.value)
-      );
-      setOcrOptions({
+      const nextProductOptions = getResponseList(productResponse)
+        .map(normalizeProduct)
+        .filter((option) => option.value);
+      const nextWarehouseOptions = getResponseList(warehouseResponse)
+        .map(normalizeWarehouse)
+        .filter((option) => option.value);
+      const nextOcrOptions = {
         branch: getResponseList(branchResponse)
           .map(normalizeOcr)
           .filter((option) => option.value),
@@ -494,9 +486,14 @@ export default function InventoryTransfer() {
         department: getResponseList(departmentResponse)
           .map(normalizeOcr)
           .filter((option) => option.value)
-      });
+      };
+      setProductOptions(nextProductOptions);
+      setWarehouseOptions(nextWarehouseOptions);
+      setOcrOptions(nextOcrOptions);
+      return { warehouses: nextWarehouseOptions, ocr: nextOcrOptions };
     } catch (error) {
       showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch form options', 'danger');
+      return null;
     } finally {
       setLoadingOptions(false);
     }
@@ -529,11 +526,29 @@ export default function InventoryTransfer() {
     }
   };
 
-  const openCreateModal = () => {
+  const openCreateModal = async () => {
     setForm(createInitialForm());
     setToBinHeaderOptions([]);
     setShowCreateModal(true);
-    fetchFormOptions();
+    const options = await fetchFormOptions();
+    if (options) {
+      const assignments = getOrganizationAssignment();
+      const findOption = (items, value) => items.find((option) => String(option.value) === String(value)) || null;
+      const fromWarehouse = findOption(options.warehouses, assignments.warehouses[0]);
+      const toWarehouse = findOption(options.warehouses, assignments.warehouses[1] || assignments.warehouses[0]);
+      setForm((current) => ({
+        ...current,
+        fromWarehouse: current.fromWarehouse || fromWarehouse,
+        toWarehouse: current.toWarehouse || toWarehouse,
+        lines: current.lines.map((line) => ({
+          ...line,
+          ocrCode: line.ocrCode || findOption(options.ocr.branch, getOrganizationAssignmentDefault('branches')),
+          ocrCode2: line.ocrCode2 || findOption(options.ocr.businessUnit, getOrganizationAssignmentDefault('business_units')),
+          ocrCode3: line.ocrCode3 || findOption(options.ocr.department, getOrganizationAssignmentDefault('departments'))
+        }))
+      }));
+      if (toWarehouse) fetchToBinHeaders(toWarehouse.value);
+    }
     fetchSeries(today);
   };
 
@@ -566,7 +581,22 @@ export default function InventoryTransfer() {
   };
 
   const addLine = () => {
-    setForm((current) => ({ ...current, lines: [...current.lines, createLine()] }));
+    const findOption = (items, assignmentKey) => {
+      const value = getOrganizationAssignmentDefault(assignmentKey);
+      return items.find((option) => String(option.value) === String(value)) || null;
+    };
+    setForm((current) => ({
+      ...current,
+      lines: [
+        ...current.lines,
+        {
+          ...createLine(),
+          ocrCode: findOption(ocrOptions.branch, 'branches'),
+          ocrCode2: findOption(ocrOptions.businessUnit, 'business_units'),
+          ocrCode3: findOption(ocrOptions.department, 'departments')
+        }
+      ]
+    }));
   };
 
   const removeLine = (lineIndex) => {
