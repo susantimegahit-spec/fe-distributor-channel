@@ -8,6 +8,7 @@ import { RouteErrorBoundary } from 'views/ErrorBoundary';
 const ProductionDashboard = Loadable(lazy(() => import('views/production/dashboard/ProductionDashboard')));
 const Material = Loadable(lazy(() => import('views/production/master/material/Material')));
 const Resource = Loadable(lazy(() => import('views/production/master/resource/Resource')));
+const Warehouse = Loadable(lazy(() => import('views/production/master/warehouse/Warehouse')));
 const BillOfMaterial = Loadable(lazy(() => import('views/production/production/BillOfMaterial/BillOfMaterial')));
 const ProductionOrder = Loadable(lazy(() => import('views/production/production/ProductionOrder/ProductionOrder')));
 const ReceiptProduction = Loadable(lazy(() => import('views/production/production/ReceiptProduction/ReceiptProduction')));
@@ -31,6 +32,10 @@ const ProductionRoutes = {
     {
       path: 'production/master/resource',
       element: <Resource />
+    },
+    {
+      path: 'production/master/warehouse',
+      element: <Warehouse />
     },
     {
       path: 'production/bill-of-material',

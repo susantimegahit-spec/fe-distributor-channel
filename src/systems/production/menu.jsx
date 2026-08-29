@@ -48,6 +48,16 @@ const productionMenu = [
         selected: true,
         icon: 'ti ti-settings-automation',
         url: withBasePath('/master/resource')
+      },
+      {
+        id: 'production-warehouse',
+        title: 'Warehouse',
+        type: 'item',
+        value: 'production-warehouse',
+        label: 'Warehouse',
+        selected: true,
+        icon: 'ti ti-building-warehouse',
+        url: withBasePath('/master/warehouse')
       }
     ]
   },

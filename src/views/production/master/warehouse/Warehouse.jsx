@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import Select from 'react-select';
 
 // react-bootstrap
 import Badge from 'react-bootstrap/Badge';
@@ -15,17 +16,94 @@ import Table from 'react-bootstrap/Table';
 // project-imports
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
-import LoaderData from '../../../components/LoaderData';
-import WarehouseServices from '../../../services/customer-portal/WarehouseServices';
-import { useAlert } from '../../../utils/alertContext';
+import LoaderData from 'components/LoaderData';
+import WarehouseServices from 'services/customer-portal/WarehouseServices';
+import ProductionServices from 'services/production/ProductionServices';
+import { useAlert } from 'utils/alertContext';
 
-export default function MasterWarehouse() {
+const selectStyles = { menuPortal: (base) => ({ ...base, zIndex: 1090 }) };
+
+const getResponseList = (response) => {
+  const payload = response?.data?.data ?? response?.data ?? [];
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.items)) return payload.items;
+  return [];
+};
+
+const normalizeUnitOption = (item = {}) => {
+  const value =
+    typeof item === 'object'
+      ? item.id ||
+        item.master_unit_id ||
+        item.masterUnitId ||
+        item.value ||
+        item.u_unit ||
+        item.U_Unit ||
+        item.unit ||
+        item.Unit ||
+        item.code ||
+        ''
+      : item;
+  const label =
+    typeof item === 'object'
+      ? item.unit_name || item.UnitName || item.name || item.label || item.description || String(value)
+      : item;
+  return value ? { value, label: String(label) } : null;
+};
+
+const getWarehouseUnitValue = (item) => {
+  const unit = item.unit ?? item.business_unit ?? item.businessUnit;
+  if (unit && typeof unit === 'object') return unit.id ?? unit.master_unit_id ?? unit.masterUnitId ?? unit.value ?? unit.code ?? '';
+  return item.master_unit_id ?? item.masterUnitId ?? item.u_unit ?? item.U_Unit ?? item.unit_code ?? item.business_unit_code ?? unit ?? '';
+};
+
+const getWarehouseUnit = (item) => {
+  const unit = item.unit ?? item.business_unit ?? item.businessUnit;
+  if (unit && typeof unit === 'object') {
+    const code = unit.code ?? unit.value ?? unit.unit_code ?? unit.ocr_code2 ?? '';
+    const name = unit.name ?? unit.label ?? unit.unit_name ?? unit.description ?? '';
+    return [code, name].filter(Boolean).join(' - ');
+  }
+
+  return (
+    item.unit_name ??
+    item.unitName ??
+    item.UnitName ??
+    item.business_unit_name ??
+    item.businessUnitName ??
+    item.u_unit ??
+    item.U_Unit ??
+    item.unit_code ??
+    item.Unit ??
+    unit ??
+    ''
+  );
+};
+
+const normalizeWarehouse = (item) => ({
+  ...item,
+  id: item.id ?? item.warehouse_id ?? item.warehouseId,
+  whs_code: item.whs_code ?? item.whsCode ?? item.WhsCode ?? item.warehouse_code ?? item.warehouseCode ?? item.code ?? '',
+  whs_name: item.whs_name ?? item.whsName ?? item.WhsName ?? item.warehouse_name ?? item.warehouseName ?? item.name ?? '',
+  status: Number(item.status ?? item.is_active ?? item.isActive ?? 0),
+  master_unit_id: item.master_unit_id ?? item.masterUnitId ?? '',
+  unit: getWarehouseUnit(item),
+  unitValue: getWarehouseUnitValue(item)
+});
+
+export default function Warehouse() {
   const { showAlert } = useAlert();
   const [dataSource, setDataSource] = useState([]);
   const [loadingData, setLoadingData] = useState(false);
   const [keywords, setKeywords] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedWarehouse, setSelectedWarehouse] = useState(null);
+  const [editingWarehouse, setEditingWarehouse] = useState(null);
+  const [editForm, setEditForm] = useState({ whs_code: '', whs_name: '', master_unit_id: '', status: '1' });
+  const [unitOptions, setUnitOptions] = useState([]);
+  const [loadingUnits, setLoadingUnits] = useState(false);
+  const [savingWarehouse, setSavingWarehouse] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 10;
 
@@ -51,7 +129,7 @@ export default function MasterWarehouse() {
     setLoadingData(true);
     const response = await WarehouseServices.getAllWarehouse(keywords);
     if (response.data.success) {
-      setDataSource(response.data.data);
+      setDataSource((response.data.data || []).map(normalizeWarehouse));
       setLoadingData(false);
     } else {
       setLoadingData(false);
@@ -100,6 +178,59 @@ export default function MasterWarehouse() {
     setSelectedStatus('');
   };
 
+  const fetchUnits = async () => {
+    setLoadingUnits(true);
+    try {
+      const response = await ProductionServices.getUnit();
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch unit data');
+      setUnitOptions(getResponseList(response).map(normalizeUnitOption).filter(Boolean));
+    } catch (error) {
+      setUnitOptions([]);
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch unit data', 'danger');
+    } finally {
+      setLoadingUnits(false);
+    }
+  };
+
+  const openEditWarehouse = (warehouse) => {
+    setEditingWarehouse(warehouse);
+    setEditForm({
+      whs_code: warehouse.whs_code || '',
+      whs_name: warehouse.whs_name || '',
+      master_unit_id: warehouse.unitValue || '',
+      status: String(warehouse.status ?? 1)
+    });
+    fetchUnits();
+  };
+
+  const updateWarehouse = async (event) => {
+    event.preventDefault();
+    const warehouseId = editingWarehouse?.id;
+    if (!warehouseId) {
+      showAlert('Warehouse ID not found', 'danger');
+      return;
+    }
+
+    setSavingWarehouse(true);
+    try {
+      const response = await WarehouseServices.updateWarehouse(warehouseId, {
+        whs_code: editForm.whs_code,
+        whs_name: editForm.whs_name.trim(),
+        master_unit_id: editForm.master_unit_id,
+        status: Number(editForm.status)
+      });
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to update warehouse');
+
+      showAlert(response?.data?.message || 'Warehouse updated successfully', 'success');
+      setEditingWarehouse(null);
+      await fetchData();
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to update warehouse', 'danger');
+    } finally {
+      setSavingWarehouse(false);
+    }
+  };
+
   return (
     <>
       <Stack gap={3}>
@@ -111,7 +242,7 @@ export default function MasterWarehouse() {
             </Stack>
           }
           secondary={
-            <Button data-permission-action="sync" onClick={syncData} variant="primary" disabled={loadingData}>
+            <Button data-permission-action="sync" data-permission-menu-key="47" onClick={syncData} variant="primary" disabled={loadingData}>
               <i className="ti ti-refresh me-1" />
               Synchronize
             </Button>
@@ -208,7 +339,7 @@ export default function MasterWarehouse() {
             {loadingData ? (
               <tbody>
                 <tr>
-                  <td colSpan={3}>
+                  <td colSpan={5}>
                     <LoaderData />
                   </td>
                 </tr>
@@ -219,7 +350,11 @@ export default function MasterWarehouse() {
                   <tr>
                     <th style={{ minWidth: 160 }}>Code Warehouse</th>
                     <th style={{ minWidth: 260 }}>Warehouse Name</th>
+                    <th style={{ minWidth: 180 }}>Unit</th>
                     <th style={{ minWidth: 120 }}>Status</th>
+                    <th className="text-center" style={{ width: 80 }}>
+                      #
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -243,12 +378,28 @@ export default function MasterWarehouse() {
                           )}
                         </td>
                         <td style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>{item.whs_name || '-'}</td>
+                        <td>{item.master_unit_id || '-'}</td>
                         <td>{item.status === 1 ? <Badge bg="success">Active</Badge> : <Badge bg="secondary">Inactive</Badge>}</td>
+                        <td className="text-center">
+                          <Button
+                            type="button"
+                            className="btn-icon avatar-s"
+                            size="sm"
+                            variant="outline-primary"
+                            data-permission-action="edit"
+                            data-permission-menu-key="47"
+                            onClick={() => openEditWarehouse(item)}
+                            title="Edit warehouse"
+                            aria-label={`Edit warehouse ${item.whs_code || item.id}`}
+                          >
+                            <i className="ti ti-pencil" />
+                          </Button>
+                        </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={3}>
+                      <td colSpan={5}>
                         <div className="text-center py-5">
                           <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                             <i className="ti ti-building-warehouse f-24" />
@@ -264,7 +415,7 @@ export default function MasterWarehouse() {
                               Reset Filter
                             </Button>
                           ) : (
-                            <Button data-permission-action="sync" variant="primary" onClick={syncData}>
+                            <Button data-permission-action="sync" data-permission-menu-key="47" variant="primary" onClick={syncData}>
                               <i className="ti ti-refresh me-1" />
                               Synchronize
                             </Button>
@@ -308,6 +459,10 @@ export default function MasterWarehouse() {
                 <Form.Label className="f-12 text-muted">Warehouse Name</Form.Label>
                 <div>{selectedWarehouse.whs_name || '-'}</div>
               </Col>
+              <Col md={12}>
+                <Form.Label className="f-12 text-muted">Unit</Form.Label>
+                <div>{selectedWarehouse.master_unit_id || '-'}</div>
+              </Col>
             </Row>
           )}
         </Modal.Body>
@@ -316,6 +471,65 @@ export default function MasterWarehouse() {
             Close
           </Button>
         </Modal.Footer>
+      </Modal>
+
+      <Modal show={Boolean(editingWarehouse)} onHide={() => !savingWarehouse && setEditingWarehouse(null)} centered>
+        <Form onSubmit={updateWarehouse}>
+          <Modal.Header closeButton={!savingWarehouse}>
+            <Modal.Title>Edit Warehouse</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <Stack gap={3}>
+              <div>
+                <Form.Label>Code Warehouse</Form.Label>
+                <Form.Control value={editForm.whs_code} readOnly />
+              </div>
+              <div>
+                <Form.Label>Warehouse Name</Form.Label>
+                <Form.Control value={editForm.whs_name} readOnly />
+              </div>
+              <div>
+                <Form.Label>Unit</Form.Label>
+                <Select
+                  styles={selectStyles}
+                  menuPortalTarget={document.body}
+                  menuPosition="fixed"
+                  options={unitOptions}
+                  value={unitOptions.find((option) => String(option.value) === String(editForm.master_unit_id)) || null}
+                  isLoading={loadingUnits}
+                  isDisabled={loadingUnits || savingWarehouse}
+                  isClearable
+                  placeholder={loadingUnits ? 'Loading units...' : 'Select unit'}
+                  onChange={(option) => setEditForm((current) => ({ ...current, master_unit_id: option?.value || '' }))}
+                />
+              </div>
+              <div>
+                <Form.Label>Status</Form.Label>
+                <Form.Select
+                  value={editForm.status}
+                  onChange={(event) => setEditForm((current) => ({ ...current, status: event.target.value }))}
+                  disabled={savingWarehouse}
+                >
+                  <option value="1">Active</option>
+                  <option value="0">Inactive</option>
+                </Form.Select>
+              </div>
+            </Stack>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="light-secondary" onClick={() => setEditingWarehouse(null)} disabled={savingWarehouse}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" disabled={savingWarehouse}>
+              {savingWarehouse ? (
+                <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />
+              ) : (
+                <i className="ti ti-device-floppy me-1" />
+              )}
+              {savingWarehouse ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </Modal.Footer>
+        </Form>
       </Modal>
     </>
   );

@@ -70,16 +70,6 @@ const listMenu = [
         url: '/master/employee'
       },
       {
-        id: 'master-warehouse',
-        title: 'Warehouse List',
-        type: 'item',
-        value: 'master-warehouse',
-        label: 'Warehouse List',
-        selected: true,
-        icon: 'ti ti-building-warehouse',
-        url: '/master/warehouse'
-      },
-      {
         id: 'master-promo',
         title: 'Promo Program',
         type: 'item',
@@ -88,7 +78,7 @@ const listMenu = [
         selected: true,
         icon: 'ti ti-discount-2',
         url: '/master/promo'
-      },
+      }
       // {
       //   id: 'master-buying-price',
       //   title: 'Buying Price List',

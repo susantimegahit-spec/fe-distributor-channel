@@ -71,16 +71,6 @@ const customerPortalMenu = [
         url: withBasePath('/master/employee')
       },
       {
-        id: 'master-warehouse',
-        title: 'Warehouses',
-        type: 'item',
-        value: 'master-warehouse',
-        label: 'Warehouses',
-        selected: true,
-        icon: 'ti ti-building-warehouse',
-        url: withBasePath('/master/warehouse')
-      },
-      {
         id: 'master-promo',
         title: 'Promo Program',
         type: 'item',

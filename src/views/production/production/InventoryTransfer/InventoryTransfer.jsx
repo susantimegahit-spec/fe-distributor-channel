@@ -165,6 +165,9 @@ const createInitialForm = () => ({
   fromWarehouse: null,
   toWarehouse: null,
   toBinLocation: null,
+  ocrCode: null,
+  ocrCode2: null,
+  ocrCode3: null,
   comments: '',
   lines: [createLine()]
 });
@@ -536,15 +539,21 @@ export default function InventoryTransfer() {
       const findOption = (items, value) => items.find((option) => String(option.value) === String(value)) || null;
       const fromWarehouse = findOption(options.warehouses, assignments.warehouses[0]);
       const toWarehouse = findOption(options.warehouses, assignments.warehouses[1] || assignments.warehouses[0]);
+      const ocrCode = findOption(options.ocr.branch, getOrganizationAssignmentDefault('branches'));
+      const ocrCode2 = findOption(options.ocr.businessUnit, getOrganizationAssignmentDefault('business_units'));
+      const ocrCode3 = findOption(options.ocr.department, getOrganizationAssignmentDefault('departments'));
       setForm((current) => ({
         ...current,
         fromWarehouse: current.fromWarehouse || fromWarehouse,
         toWarehouse: current.toWarehouse || toWarehouse,
+        ocrCode: current.ocrCode || ocrCode,
+        ocrCode2: current.ocrCode2 || ocrCode2,
+        ocrCode3: current.ocrCode3 || ocrCode3,
         lines: current.lines.map((line) => ({
           ...line,
-          ocrCode: line.ocrCode || findOption(options.ocr.branch, getOrganizationAssignmentDefault('branches')),
-          ocrCode2: line.ocrCode2 || findOption(options.ocr.businessUnit, getOrganizationAssignmentDefault('business_units')),
-          ocrCode3: line.ocrCode3 || findOption(options.ocr.department, getOrganizationAssignmentDefault('departments'))
+          ocrCode: line.ocrCode || ocrCode,
+          ocrCode2: line.ocrCode2 || ocrCode2,
+          ocrCode3: line.ocrCode3 || ocrCode3
         }))
       }));
       if (toWarehouse) fetchToBinHeaders(toWarehouse.value);
@@ -580,20 +589,24 @@ export default function InventoryTransfer() {
     });
   };
 
+  const updateHeaderOcr = (field, value) => {
+    setForm((current) => ({
+      ...current,
+      [field]: value,
+      lines: current.lines.map((line) => ({ ...line, [field]: value }))
+    }));
+  };
+
   const addLine = () => {
-    const findOption = (items, assignmentKey) => {
-      const value = getOrganizationAssignmentDefault(assignmentKey);
-      return items.find((option) => String(option.value) === String(value)) || null;
-    };
     setForm((current) => ({
       ...current,
       lines: [
         ...current.lines,
         {
           ...createLine(),
-          ocrCode: findOption(ocrOptions.branch, 'branches'),
-          ocrCode2: findOption(ocrOptions.businessUnit, 'business_units'),
-          ocrCode3: findOption(ocrOptions.department, 'departments')
+          ocrCode: current.ocrCode,
+          ocrCode2: current.ocrCode2,
+          ocrCode3: current.ocrCode3
         }
       ]
     }));
@@ -763,9 +776,9 @@ export default function InventoryTransfer() {
         Filler: form.fromWarehouse.value,
         ToWhsCode: form.toWarehouse.value,
         UseBaseUn: 'y',
-        OcrCode: line.ocrCode?.value || '',
-        OcrCode2: line.ocrCode2?.value || '',
-        OcrCode3: line.ocrCode3?.value || '',
+        OcrCode: form.ocrCode?.value || line.ocrCode?.value || '',
+        OcrCode2: form.ocrCode2?.value || line.ocrCode2?.value || '',
+        OcrCode3: form.ocrCode3?.value || line.ocrCode3?.value || '',
         Lines_BinFROM: line.binAllocations.map((bin) => ({
           AbsEntry: Number.isNaN(Number(bin.id)) ? bin.id : Number(bin.id),
           Quantity: Number(bin.quantity)
@@ -1243,6 +1256,55 @@ export default function InventoryTransfer() {
                       </Row>
                     </div>
                   </Col>
+                  <Col xs={12}>
+                    <div className="border rounded p-3">
+                      <h6 className="mb-3">Organizational Information</h6>
+                      <Row className="g-3">
+                        <Col lg={4}>
+                          <Form.Label>Branch</Form.Label>
+                          <Select
+                            styles={selectStyles}
+                            menuPortalTarget={document.body}
+                            value={form.ocrCode}
+                            options={ocrOptions.branch}
+                            isLoading={loadingOptions}
+                            onChange={(ocrCode) => updateHeaderOcr('ocrCode', ocrCode)}
+                            placeholder="Select branch"
+                            isClearable
+                            isSearchable
+                          />
+                        </Col>
+                        <Col lg={4}>
+                          <Form.Label>Business Unit</Form.Label>
+                          <Select
+                            styles={selectStyles}
+                            menuPortalTarget={document.body}
+                            value={form.ocrCode2}
+                            options={ocrOptions.businessUnit}
+                            isLoading={loadingOptions}
+                            onChange={(ocrCode2) => updateHeaderOcr('ocrCode2', ocrCode2)}
+                            placeholder="Select unit"
+                            isClearable
+                            isSearchable
+                          />
+                        </Col>
+                        <Col lg={4}>
+                          <Form.Label>Department</Form.Label>
+                          <Select
+                            styles={selectStyles}
+                            menuPortalTarget={document.body}
+                            value={form.ocrCode3}
+                            options={ocrOptions.department}
+                            isLoading={loadingOptions}
+                            onChange={(ocrCode3) => updateHeaderOcr('ocrCode3', ocrCode3)}
+                            placeholder="Select department"
+                            isClearable
+                            isSearchable
+                          />
+                        </Col>
+                      </Row>
+                    </div>
+                  </Col>
                 </Row>
               </Card.Body>
             </Card>
@@ -1266,12 +1328,11 @@ export default function InventoryTransfer() {
                       <th style={{ minWidth: 210 }}>Item Description</th>
                       <th style={{ minWidth: 105 }}>Qty</th>
                       <th style={{ minWidth: 90 }}>UOM</th>
-                      <th style={{ minWidth: 190 }}>Branch</th>
-                      <th style={{ minWidth: 190 }}>Business Unit</th>
-                      <th style={{ minWidth: 190 }}>Department</th>
                       <th style={{ minWidth: 180 }}>From Bin Locations</th>
                       <th style={{ minWidth: 180 }}>To Bin Locations</th>
-                      <th style={{ width: 55 }} />
+                      <th className="text-center" style={{ width: 55 }}>
+                        #
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1320,48 +1381,6 @@ export default function InventoryTransfer() {
                           </td>
                           <td>
                             <Form.Control size="sm" value={line.uom} readOnly placeholder="UOM" />
-                          </td>
-                          <td>
-                            <Select
-                              styles={compactSelectStyles}
-                              menuPortalTarget={document.body}
-                              menuPlacement="top"
-                              value={line.ocrCode}
-                              options={ocrOptions.branch}
-                              isLoading={loadingOptions}
-                              onChange={(ocrCode) => updateLine(lineIndex, { ocrCode })}
-                              placeholder="Select branch"
-                              isClearable
-                              isSearchable
-                            />
-                          </td>
-                          <td>
-                            <Select
-                              styles={compactSelectStyles}
-                              menuPortalTarget={document.body}
-                              menuPlacement="top"
-                              value={line.ocrCode2}
-                              options={ocrOptions.businessUnit}
-                              isLoading={loadingOptions}
-                              onChange={(ocrCode2) => updateLine(lineIndex, { ocrCode2 })}
-                              placeholder="Select unit"
-                              isClearable
-                              isSearchable
-                            />
-                          </td>
-                          <td>
-                            <Select
-                              styles={compactSelectStyles}
-                              menuPortalTarget={document.body}
-                              menuPlacement="top"
-                              value={line.ocrCode3}
-                              options={ocrOptions.department}
-                              isLoading={loadingOptions}
-                              onChange={(ocrCode3) => updateLine(lineIndex, { ocrCode3 })}
-                              placeholder="Select department"
-                              isClearable
-                              isSearchable
-                            />
                           </td>
                           <td>
                             <InputGroup size="sm">
@@ -1417,12 +1436,14 @@ export default function InventoryTransfer() {
                           </td>
                           <td className="text-center">
                             <Button
-                              className="rounded-circle"
+                              type="button"
+                              className="btn-icon avatar-s"
                               variant="outline-danger"
                               size="sm"
                               disabled={form.lines.length === 1}
                               onClick={() => removeLine(lineIndex)}
-                              aria-label="Remove item"
+                              title="Delete row"
+                              aria-label={`Delete row ${lineIndex + 1}`}
                             >
                               <i className="ti ti-trash" />
                             </Button>

@@ -10,7 +10,6 @@ const MasterPrice = Loadable(lazy(() => import('views/customer-portal/master/Mas
 const MasterBuyingPrice = Loadable(lazy(() => import('views/customer-portal/master/MasterBuyingPrice')));
 const MasterDistributor = Loadable(lazy(() => import('views/customer-portal/master/MasterDistributor')));
 const MasterEmployee = Loadable(lazy(() => import('views/customer-portal/master/MasterEmployee')));
-const MasterWarehouse = Loadable(lazy(() => import('views/customer-portal/master/MasterWarehouse')));
 const MasterPromo = Loadable(lazy(() => import('views/customer-portal/master/MasterPromo')));
 const MasterTarget = Loadable(lazy(() => import('views/customer-portal/master/MasterTarget')));
 const MasterSignature = Loadable(lazy(() => import('views/setting/MasterSignature')));
@@ -41,7 +40,7 @@ const MasterRoutes = {
     },
     {
       path: 'customer-portal/master/warehouse',
-      element: <MasterWarehouse />
+      element: <Navigate to="/production/master/warehouse" replace />
     },
     {
       path: 'customer-portal/master/promo',
@@ -77,7 +76,7 @@ const MasterRoutes = {
     },
     {
       path: 'master/warehouse',
-      element: <Navigate to="/customer-portal/master/warehouse" replace />
+      element: <Navigate to="/production/master/warehouse" replace />
     },
     {
       path: 'master/promo',

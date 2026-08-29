@@ -126,6 +126,7 @@ const createInitialForm = () => ({
   status: PRODUCTION_STATUS_PLANNED,
   product: null,
   unit: '',
+  warehouse: '',
   plannedQuantity: '',
   series: '',
   orderDate: today,
@@ -467,6 +468,7 @@ const mapOrderDetailToForm = (order) => {
     },
     plannedQuantity: order.plannedQuantity || '',
     unit: order.headerData?.u_unit || order.headerData?.U_Unit || order.headerData?.Unit || order.unit || '',
+    warehouse: order.warehouse || '',
     series: order.Series ?? order.series ?? order.headerData?.Series ?? '',
     orderDate: formatDateInputValue(order.orderDate),
     startDate: formatDateInputValue(order.startDate || order.orderDate),
@@ -556,6 +558,7 @@ export default function ProductionOrder() {
   const [showBomModal, setShowBomModal] = useState(false);
   const [loadingBoms, setLoadingBoms] = useState(false);
   const [loadingBomDetail, setLoadingBomDetail] = useState(false);
+  const [selectingBomId, setSelectingBomId] = useState(null);
   const [loadingSeries, setLoadingSeries] = useState(false);
   const [loadingWarehouses, setLoadingWarehouses] = useState(false);
   const [loadingOcr, setLoadingOcr] = useState(false);
@@ -848,6 +851,58 @@ export default function ProductionOrder() {
     }
   };
 
+  const handleUnitChange = async (option) => {
+    const unit = option?.value || '';
+    const masterUnitId = option?.raw?.id ?? option?.raw?.master_unit_id ?? option?.raw?.masterUnitId ?? option?.value ?? '';
+
+    setForm((current) => ({
+      ...current,
+      unit,
+      warehouse: '',
+      product: current.product
+        ? {
+            ...current.product,
+            whs_code: '',
+            to_whs: '',
+            details: current.product.details.map((detail) => ({ ...detail, whs_code: '' }))
+          }
+        : current.product
+    }));
+    if (!masterUnitId) {
+      setWarehouseOptions([]);
+      return;
+    }
+
+    setLoadingWarehouses(true);
+    try {
+      const response = await WarehouseServices.getWarehouseByUnit(masterUnitId);
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch warehouse data');
+      const options = getResponseList(response)
+        .map(normalizeWarehouseOption)
+        .filter((warehouse) => warehouse.value);
+      const selectedWarehouse = options[0] || null;
+      setWarehouseOptions(options);
+      setForm((current) => ({
+        ...current,
+        unit,
+        warehouse: selectedWarehouse?.value || '',
+        product: current.product
+          ? {
+              ...current.product,
+              whs_code: selectedWarehouse?.value || '',
+              to_whs: selectedWarehouse?.value || '',
+              details: current.product.details.map((detail) => ({ ...detail, whs_code: selectedWarehouse?.value || '' }))
+            }
+          : current.product
+      }));
+    } catch (error) {
+      setWarehouseOptions([]);
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch warehouse data by unit', 'danger');
+    } finally {
+      setLoadingWarehouses(false);
+    }
+  };
+
   const fetchOcrOptions = async () => {
     if (ocrOptions.ocrCode.length || ocrOptions.ocrCode2.length || ocrOptions.ocrCode3.length) return;
     setLoadingOcr(true);
@@ -980,6 +1035,7 @@ export default function ProductionOrder() {
       },
       plannedQuantity: order.plannedQuantity || '',
       unit: order.u_unit || order.U_Unit || order.Unit || '',
+      warehouse: order.warehouse || '',
       orderDate: formatDateInputValue(order.orderDate),
       startDate: formatDateInputValue(order.startDate || order.orderDate),
       dueDate: formatDateInputValue(order.dueDate),
@@ -1082,6 +1138,7 @@ export default function ProductionOrder() {
 
   const handleSelectBom = async (bom) => {
     setLoadingBomDetail(true);
+    setSelectingBomId(bom.id);
 
     try {
       const response = await ProductionServices.getBomsById(bom.id);
@@ -1100,35 +1157,40 @@ export default function ProductionOrder() {
         componentTypes.includes(COMPONENT_TYPE_ITEM) ? dispatch(getItem('')) : Promise.resolve(),
         componentTypes.includes(COMPONENT_TYPE_RESOURCE) ? dispatch(getResource('')) : Promise.resolve()
       ]);
-      const warehouseCode = getOrganizationAssignmentDefault('warehouses') || normalizedBom.whs_code || normalizedBom.to_whs;
+      const defaultWarehouseCode = getOrganizationAssignmentDefault('warehouses') || normalizedBom.whs_code || normalizedBom.to_whs;
       const branchCode = getOrganizationAssignmentDefault('branches') || normalizedBom.ocr_code;
       const businessUnitCode = getOrganizationAssignmentDefault('business_units') || normalizedBom.ocr_code2;
       const departmentCode = getOrganizationAssignmentDefault('departments') || normalizedBom.ocr_code3;
-      setForm((current) => ({
-        ...current,
-        product: {
-          ...normalizedBom,
-          whs_code: warehouseCode,
-          to_whs: warehouseCode,
-          ocr_code: branchCode,
-          ocr_code2: businessUnitCode,
-          ocr_code3: departmentCode,
-          details: normalizedBom.details.map((detail) => ({
-            ...detail,
-            type: normalizeComponentType(detail.ItemType ?? detail.item_type ?? detail.type ?? detail.component_type),
+      setForm((current) => {
+        const warehouseCode = current.warehouse || defaultWarehouseCode;
+        return {
+          ...current,
+          warehouse: warehouseCode,
+          product: {
+            ...normalizedBom,
             whs_code: warehouseCode,
+            to_whs: warehouseCode,
             ocr_code: branchCode,
             ocr_code2: businessUnitCode,
-            ocr_code3: departmentCode
-          }))
-        },
-        plannedQuantity: Number(bomDetail?.qty ?? bomDetail?.quantity) || ''
-      }));
+            ocr_code3: departmentCode,
+            details: normalizedBom.details.map((detail) => ({
+              ...detail,
+              type: normalizeComponentType(detail.ItemType ?? detail.item_type ?? detail.type ?? detail.component_type),
+              whs_code: warehouseCode,
+              ocr_code: branchCode,
+              ocr_code2: businessUnitCode,
+              ocr_code3: departmentCode
+            }))
+          },
+          plannedQuantity: Number(bomDetail?.qty ?? bomDetail?.quantity) || ''
+        };
+      });
       setShowBomModal(false);
     } catch (error) {
       showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch Bill of Material detail', 'danger');
     } finally {
       setLoadingBomDetail(false);
+      setSelectingBomId(null);
     }
   };
 
@@ -1148,6 +1210,7 @@ export default function ProductionOrder() {
       current.product
         ? {
             ...current,
+            warehouse: warehouseCode,
             product: {
               ...current.product,
               whs_code: warehouseCode,
@@ -1155,7 +1218,7 @@ export default function ProductionOrder() {
               details: current.product.details.map((detail) => ({ ...detail, whs_code: warehouseCode }))
             }
           }
-        : current
+        : { ...current, warehouse: warehouseCode }
     );
   };
 
@@ -1230,6 +1293,7 @@ export default function ProductionOrder() {
   const handleSave = async () => {
     const plannedQuantity = Number(form.plannedQuantity);
     const warehouse =
+      form.warehouse ||
       organizationAssignments.warehouses[0] ||
       form.product?.to_whs ||
       form.product?.whs_code ||
@@ -1304,6 +1368,7 @@ export default function ProductionOrder() {
           ItemCode: item.code,
           BaseQty: baseQuantity,
           WhsCode:
+            form.warehouse ||
             organizationAssignments.warehouses[0] ||
             detail.whs_code ||
             detail.warehouse_code ||
@@ -1355,6 +1420,7 @@ export default function ProductionOrder() {
 
   const headerDetail = form.product?.details?.[0] || {};
   const headerWarehouseCode =
+    form.warehouse ||
     organizationAssignments.warehouses[0] ||
     headerDetail.whs_code ||
     headerDetail.warehouse_code ||
@@ -2116,7 +2182,7 @@ export default function ProductionOrder() {
                           isDisabled={loadingUnits}
                           isClearable
                           placeholder={loadingUnits ? 'Loading units...' : 'Select unit'}
-                          onChange={(option) => setForm((current) => ({ ...current, unit: option?.value || '' }))}
+                          onChange={handleUnitChange}
                         />
                       </Form.Group>
                     </Col>
@@ -2183,8 +2249,8 @@ export default function ProductionOrder() {
                             (headerWarehouseCode ? { value: headerWarehouseCode, label: headerWarehouseCode } : null)
                           }
                           isLoading={loadingWarehouses}
-                          isDisabled={!form.product || loadingWarehouses || organizationAssignments.warehouses.length > 0}
-                          placeholder="Select warehouse"
+                          isDisabled={!form.unit || !form.product || loadingWarehouses}
+                          placeholder={form.unit ? 'Select warehouse' : 'Select unit first'}
                           onChange={updateHeaderWarehouse}
                         />
                       </Form.Group>
@@ -2469,7 +2535,14 @@ export default function ProductionOrder() {
                     <td>{bom.alternate || '-'}</td>
                     <td className="text-center">
                       <Button variant="success" size="sm" onClick={() => handleSelectBom(bom)} disabled={loadingBomDetail}>
-                        Select
+                        {String(selectingBomId) === String(bom.id) ? (
+                          <>
+                            <span className="spinner-border spinner-border-sm me-1" aria-hidden="true" />
+                            Loading...
+                          </>
+                        ) : (
+                          'Select'
+                        )}
                       </Button>
                     </td>
                   </tr>
