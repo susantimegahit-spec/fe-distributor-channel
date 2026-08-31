@@ -1,6 +1,5 @@
 import { DataService } from '../../config/dataService';
 
-
 class UserServices {
   // getAllUser() {
   //   return DataService.get(`/roles/${id}`);

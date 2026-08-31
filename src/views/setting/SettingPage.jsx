@@ -19,6 +19,7 @@ import DocumentBuilder from './DocumentBuilder';
 import PermissionList from './permission/PermissionList';
 import UserList from './users/UserList';
 import CronJobList from './cronjob/CronJobList';
+import NotificationSettings from './notification/NotificationSettings';
 import './setting-page.scss';
 
 const adminRoleId = 5;
@@ -30,7 +31,8 @@ const tabs = [
   { key: 'permissions', title: 'Access Control', icon: 'ti ti-shield-lock' },
   { key: 'signatures', title: 'Signatures', icon: 'ti ti-signature' },
   { key: 'document-builder', title: 'Document Builder', icon: 'ti ti-file-text', adminOnly: true },
-  { key: 'cronjobs', title: 'Automation', icon: 'ti ti-alarm', adminOnly: true }
+  { key: 'cronjobs', title: 'Automation', icon: 'ti ti-alarm', adminOnly: true },
+  { key: 'notifications', title: 'Notifications', icon: 'ti ti-bell-cog' }
 ];
 
 const canAccessTab = (tab, isAdministrator) => !tab.adminOnly || isAdministrator;
@@ -155,7 +157,7 @@ export default function SettingPage({ defaultTab = 'users' }) {
   const roleId = getCookies('role');
   const isAdministrator = Number(roleId) === adminRoleId;
   const availableTabs = useMemo(() => {
-    const roleTabs = isAdministrator ? tabs : tabs.filter((tab) => tab.key === 'signatures');
+    const roleTabs = isAdministrator ? tabs : tabs.filter((tab) => ['signatures', 'notifications'].includes(tab.key));
 
     return roleTabs.filter((tab) => canAccessTab(tab, isAdministrator));
   }, [isAdministrator]);
@@ -185,6 +187,8 @@ export default function SettingPage({ defaultTab = 'users' }) {
         return <DocumentBuilder />;
       case 'cronjobs':
         return <CronJobList />;
+      case 'notifications':
+        return <NotificationSettings />;
       case 'users':
       default:
         return <UserList />;
