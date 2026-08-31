@@ -9,8 +9,8 @@ class NotificationSettingServices {
     return DataService.put('/notifications/settings', payload);
   }
 
-  connectTelegram() {
-    return DataService.get('/notifications/telegram/connect-link');
+  postConnectTelegram(payload) {
+    return DataService.post('/notifications/telegram/recipients', payload);
   }
 }
 

@@ -43,6 +43,18 @@ export default function NotificationSettings() {
     loadSettings();
   }, [showAlert]);
 
+  useEffect(() => {
+    if (window.Telegram?.Login) return undefined;
+    const script = document.createElement('script');
+    script.id = 'telegram-login-widget-sdk';
+    script.src = 'https://telegram.org/js/telegram-widget.js?22';
+    script.async = true;
+    document.body.appendChild(script);
+    return () => {
+      if (!window.Telegram?.Login) script.remove();
+    };
+  }, []);
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSaving(true);
@@ -61,30 +73,52 @@ export default function NotificationSettings() {
     }
   };
 
-  const handleConnectTelegram = async () => {
-    const connectWindow = window.open('', '_blank');
-    setConnectingTelegram(true);
-
-    try {
-      const response = await NotificationSettingServices.connectTelegram();
-      if (!response.data.success) throw new Error(response.data.message);
-
-      const data = response.data.data;
-      const connectLink = typeof data === 'string' ? data : data?.connect_link || data?.connect_url || data?.url || data?.link;
-
-      if (!connectLink) throw new Error('Telegram connection link was not found in the response.');
-
-      if (connectWindow) {
-        connectWindow.location.href = connectLink;
-      } else {
-        window.location.href = connectLink;
-      }
-    } catch (error) {
-      connectWindow?.close();
-      showAlert(error.response?.data?.message || error.message || 'Failed to connect Telegram', 'danger');
-    } finally {
-      setConnectingTelegram(false);
+  const handleConnectTelegram = () => {
+    const botId = import.meta.env.VITE_TELEGRAM_BOT_ID;
+    if (!botId) {
+      showAlert('VITE_TELEGRAM_BOT_ID is not configured.', 'danger');
+      return;
     }
+    if (!/^\d+$/.test(String(botId))) {
+      showAlert('Telegram Bot ID must be numeric. Use the numeric ID from your bot token, not a connection ID.', 'danger');
+      return;
+    }
+    if (!window.Telegram?.Login?.auth) {
+      showAlert('Telegram Login is still loading. Please try again.', 'warning');
+      return;
+    }
+
+    setConnectingTelegram(true);
+    window.Telegram.Login.auth({ bot_id: Number(botId), request_access: 'write' }, async (telegramUser) => {
+      if (!telegramUser?.id) {
+        setConnectingTelegram(false);
+        return;
+      }
+
+      const recipientName =
+        [telegramUser.first_name, telegramUser.last_name].filter(Boolean).join(' ') || telegramUser.username || 'Telegram';
+
+      try {
+        const response = await NotificationSettingServices.postConnectTelegram({
+          telegram_chat_id: String(telegramUser.id),
+          recipient_name: recipientName,
+          chat_type: 'private',
+          is_active: true
+        });
+        if (!response.data.success) throw new Error(response.data.message);
+
+        setSettings((current) => ({
+          ...current,
+          telegramEnabled: true,
+          telegramChatId: String(telegramUser.id)
+        }));
+        showAlert('Telegram connected successfully', 'success');
+      } catch (error) {
+        showAlert(error.response?.data?.message || error.message || 'Failed to connect Telegram', 'danger');
+      } finally {
+        setConnectingTelegram(false);
+      }
+    });
   };
 
   return (
