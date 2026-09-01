@@ -29,7 +29,19 @@ const normalizeOrganizationAssignmentValues = (value) => {
   if (Array.isArray(value)) return [...new Set(value.flatMap(normalizeOrganizationAssignmentValues).filter(Boolean))];
   if (value === undefined || value === null || value === '') return [];
   if (typeof value === 'object') {
-    const nestedValue = value.value ?? value.code ?? value.whs_code ?? value.ocr_code ?? value.code_customer;
+    const nestedValue =
+      value.value ??
+      value.id ??
+      value.master_unit_id ??
+      value.masterUnitId ??
+      value.unit_code ??
+      value.unitCode ??
+      value.u_unit ??
+      value.U_Unit ??
+      value.code ??
+      value.whs_code ??
+      value.ocr_code ??
+      value.code_customer;
     return normalizeOrganizationAssignmentValues(nestedValue);
   }
 
@@ -43,6 +55,7 @@ const getOrganizationAssignment = () => {
   const assignment = getCookies('organization_assignment') || {};
 
   return {
+    units: normalizeOrganizationAssignmentValues(assignment.units ?? getCookies('units')),
     warehouses: normalizeOrganizationAssignmentValues(assignment.warehouses ?? getCookies('whs_code')),
     branches: normalizeOrganizationAssignmentValues(assignment.branches ?? getCookies('ocr_code')),
     business_units: normalizeOrganizationAssignmentValues(assignment.business_units ?? getCookies('ocr_code2')),

@@ -25,6 +25,7 @@ import LoaderData from '../../../components/LoaderData';
 import DistributorServices from '../../../services/customer-portal/DistributorServices';
 import WarehouseServices from '../../../services/customer-portal/WarehouseServices';
 import ExpeditionServices from '../../../services/expedition/ExpeditionServices';
+import ProductionServices from '../../../services/production/ProductionServices';
 import RoleServices from '../../../services/setting/RoleServices';
 import UserServices from '../../../services/setting/UserServices';
 import { SYSTEM_KEYS, systems } from '../../../systems';
@@ -39,6 +40,7 @@ const initialInput = {
   password: '',
   roleId: '',
   expeditionCode: '',
+  unitCodes: [],
   whsCodes: [],
   ocrCodes: [],
   ocrCodes2: [],
@@ -388,6 +390,11 @@ const getUserWarehouseCodes = (item) =>
     .map((code) => code.trim())
     .filter(Boolean);
 
+const getUserUnitCodes = (item) =>
+  normalizeArray(item?.u_unit || item?.U_Unit || item?.unit_codes || item?.unitCodes || item?.units || item?.organization_assignment?.units)
+    .map((value) => String(value?.u_unit ?? value?.U_Unit ?? value?.unit ?? value?.code ?? value?.value ?? value).trim())
+    .filter(Boolean);
+
 const getOcrCodeValue = (item, key) => {
   if (typeof item === 'string' || typeof item === 'number') return String(item);
 
@@ -429,12 +436,14 @@ export default function UserList() {
   const [listRole, setListRole] = useState([]);
   const [listDistributor, setListDistributor] = useState([]);
   const [listWarehouse, setListWarehouse] = useState([]);
+  const [listUnit, setListUnit] = useState([]);
   const [listOcr1, setListOcr1] = useState([]);
   const [listOcr2, setListOcr2] = useState([]);
   const [listOcr3, setListOcr3] = useState([]);
   const [listExpedition, setListExpedition] = useState([]);
   const [listApprovalStage, setListApprovalStage] = useState([]);
   const [loadingWarehouse, setLoadingWarehouse] = useState(false);
+  const [loadingUnit, setLoadingUnit] = useState(false);
   const [loadingOcr, setLoadingOcr] = useState(false);
   const [loadingExpedition, setLoadingExpedition] = useState(false);
   const [loadingApprovalStage, setLoadingApprovalStage] = useState(false);
@@ -460,6 +469,7 @@ export default function UserList() {
     getListRole();
     getListDistributor();
     getListWarehouse();
+    getListUnit();
     getListOcrCodes();
     getListExpedition();
     getListApprovalStage();
@@ -616,12 +626,29 @@ export default function UserList() {
           .map((warehouse) => {
             const code = String(warehouse.whs_code ?? warehouse.warehouse_code ?? warehouse.code ?? '').trim();
             const name = String(warehouse.whs_name ?? warehouse.warehouse_name ?? warehouse.name ?? '').trim();
+            const unit = warehouse.unit ?? warehouse.business_unit ?? warehouse.businessUnit;
+            const unitValues = [
+              warehouse.master_unit_id,
+              warehouse.masterUnitId,
+              warehouse.u_unit,
+              warehouse.U_Unit,
+              warehouse.unit_code,
+              warehouse.business_unit_code,
+              typeof unit === 'object' ? unit?.id : unit,
+              typeof unit === 'object' ? unit?.master_unit_id : '',
+              typeof unit === 'object' ? unit?.masterUnitId : '',
+              typeof unit === 'object' ? unit?.value : '',
+              typeof unit === 'object' ? unit?.code : ''
+            ]
+              .map((value) => String(value ?? '').trim())
+              .filter(Boolean);
 
             return {
               value: code,
               label: [code, name].filter(Boolean).join(' - ') || '-',
               code,
-              name
+              name,
+              unitValues: [...new Set(unitValues)]
             };
           })
           .filter((warehouse) => warehouse.value)
@@ -631,6 +658,45 @@ export default function UserList() {
       showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch warehouse data', 'danger');
     } finally {
       setLoadingWarehouse(false);
+    }
+  };
+
+  const getListUnit = async () => {
+    setLoadingUnit(true);
+    try {
+      const response = await ProductionServices.getUnit();
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch unit data');
+
+      const payload = response?.data?.data ?? response?.data ?? [];
+      const units = Array.isArray(payload) ? payload : (payload?.data ?? payload?.items ?? payload?.units ?? []);
+      setListUnit(
+        (Array.isArray(units) ? units : [])
+          .map((unit) => {
+            const value = String(
+              unit?.id ??
+                unit?.master_unit_id ??
+                unit?.masterUnitId ??
+                unit?.value ??
+                unit?.u_unit ??
+                unit?.U_Unit ??
+                unit?.unit ??
+                unit?.Unit ??
+                unit?.code ??
+                unit
+            ).trim();
+            const name = String(unit?.unit_name ?? unit?.UnitName ?? unit?.name ?? unit?.label ?? unit?.description ?? '').trim();
+            const aliases = [unit?.id, unit?.master_unit_id, unit?.masterUnitId, unit?.value, unit?.code, unit?.u_unit, unit?.U_Unit, value]
+              .map((alias) => String(alias ?? '').trim())
+              .filter(Boolean);
+            return { value, label: [value, name].filter(Boolean).join(' - ') || value, aliases: [...new Set(aliases)] };
+          })
+          .filter((unit) => unit.value)
+      );
+    } catch (error) {
+      setListUnit([]);
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch unit data', 'danger');
+    } finally {
+      setLoadingUnit(false);
     }
   };
 
@@ -777,6 +843,20 @@ export default function UserList() {
     });
   };
 
+  const handleSelectUnit = (options) => {
+    const selectedOptions = options || [];
+    const selectedUnitValues = new Set(selectedOptions.flatMap((option) => option.aliases || [option.value]).map(String));
+    const matchingWarehouseCodes = listWarehouse
+      .filter((warehouse) => warehouse.unitValues.some((value) => selectedUnitValues.has(String(value))))
+      .map((warehouse) => warehouse.value);
+
+    setInput((currentInput) => ({
+      ...currentInput,
+      unitCodes: selectedOptions.map((option) => option.value),
+      whsCodes: matchingWarehouseCodes
+    }));
+  };
+
   const handleSelectOcr = (field) => (options) => {
     setInput((currentInput) => ({
       ...currentInput,
@@ -796,6 +876,9 @@ export default function UserList() {
   const availableActionMenus = actionMenuOptions.filter((item) => input.accessibleSystems.includes(item.systemKey));
   const selectedWarehouses = input.whsCodes.map(
     (code) => listWarehouse.find((warehouse) => warehouse.value === code) || { value: code, label: code }
+  );
+  const selectedUnits = input.unitCodes.map(
+    (code) => listUnit.find((unit) => unit.value === code || unit.aliases?.includes(String(code))) || { value: code, label: code }
   );
   const getSelectedOcrOptions = (codes, options) =>
     codes.map((code) => options.find((option) => option.value === code) || { value: code, label: code });
@@ -817,6 +900,7 @@ export default function UserList() {
     id_distributor: isAllDistributorSelected ? listDistributor.map((item) => item.id) : input.distributorIds
   });
   const getOrganizationAssignmentPayload = (distributorCodes) => ({
+    units: input.unitCodes.map(String),
     warehouses: input.whsCodes.map(String),
     branches: input.ocrCodes.map(String),
     business_units: input.ocrCodes2.map(String),
@@ -904,6 +988,7 @@ export default function UserList() {
       password: '',
       roleId: item.role?.id || item.role_id || '',
       expeditionCode: String(getUserExpeditionCode(item) || ''),
+      unitCodes: getUserUnitCodes(item),
       whsCodes: getUserWarehouseCodes(item),
       ocrCodes: getUserOcrCodes(item, 'ocr_code', ['ocrCode', 'branches', 'branch_codes']),
       ocrCodes2: getUserOcrCodes(item, 'ocr_code2', ['ocrCode2', 'business_units', 'business_unit_codes']),
@@ -963,6 +1048,7 @@ export default function UserList() {
       password: input.password,
       role_id: input.roleId,
       expedition_code: input.expeditionCode || null,
+      units: input.unitCodes,
       whs_code: input.whsCodes,
       ocr_code: input.ocrCodes,
       ocr_code2: input.ocrCodes2,
@@ -996,6 +1082,7 @@ export default function UserList() {
       email: input.email,
       role_id: input.roleId,
       expedition_code: input.expeditionCode || null,
+      units: input.unitCodes,
       whs_code: input.whsCodes,
       ocr_code: input.ocrCodes,
       ocr_code2: input.ocrCodes2,
@@ -1461,7 +1548,23 @@ export default function UserList() {
                     <small>Leave a field blank to grant access to all values in that category.</small>
                   </div>
                   <Row className="g-3">
-                    <Col xs={12}>
+                    <Col md={6}>
+                      <Form.Label className="f-12 text-muted">Unit</Form.Label>
+                      <Select
+                        value={selectedUnits}
+                        options={listUnit}
+                        menuPosition="fixed"
+                        onChange={handleSelectUnit}
+                        placeholder={loadingUnit ? 'Loading units...' : 'Select unit'}
+                        isLoading={loadingUnit}
+                        isClearable
+                        isSearchable
+                        isMulti
+                        closeMenuOnSelect={false}
+                        noOptionsMessage={() => 'No unit found'}
+                      />
+                    </Col>
+                    <Col md={6}>
                       <Form.Label className="f-12 text-muted">Warehouse</Form.Label>
                       <Select
                         value={selectedWarehouses}

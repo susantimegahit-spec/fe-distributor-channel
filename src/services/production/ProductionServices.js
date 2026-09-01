@@ -1,8 +1,35 @@
 import { DataService } from '../../config/dataService';
+import { getOrganizationAssignment } from '../../utils/cookies';
+
+const getAssignedProductionUnit = (requestedUnit = '') => {
+  const assignedUnits = getOrganizationAssignment().units;
+  if (!assignedUnits.length) return requestedUnit;
+
+  const normalizedRequestedUnit = String(requestedUnit ?? '').trim();
+  if (normalizedRequestedUnit && assignedUnits.includes(normalizedRequestedUnit)) return normalizedRequestedUnit;
+
+  return assignedUnits.join(',');
+};
 
 class ProductionServices {
   getUnit() {
     return DataService.get('/production/get-unit');
+  }
+
+  getItemStock(payload = {}) {
+    const { CustomQuery = '', item_codes = [], WhsCode = '' } = payload;
+    const data = { WhsCode };
+
+    if (CustomQuery) data.CustomQuery = CustomQuery;
+    if (Array.isArray(item_codes) && item_codes.length) data.item_codes = item_codes;
+
+    return DataService.post('/warehouses/stock-by-item', data);
+  }
+
+  searchBin(payload = {}) {
+    const { CustomQuery = '' } = payload;
+
+    return DataService.post('/warehouses/search-bin', { CustomQuery });
   }
 
   getBoms(payload = {}) {
@@ -50,8 +77,17 @@ class ProductionServices {
 
   getListOrderSap(payload = {}) {
     const { from = '', to = '', whs_code = '', to_whs_code = '', status = '', unit = '' } = payload;
+    const productionUnit = getAssignedProductionUnit(unit);
 
-    return DataService.get('/production/get-list-pdo-sap', { from, to, whs_code, to_whs_code, status, unit, u_unit: unit });
+    return DataService.get('/production/get-list-pdo-sap', {
+      from,
+      to,
+      whs_code,
+      to_whs_code,
+      status,
+      unit: productionUnit,
+      u_unit: productionUnit
+    });
   }
 
   getProductionOrderById(id) {

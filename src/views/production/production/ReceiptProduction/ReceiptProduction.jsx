@@ -102,6 +102,28 @@ const getResponseList = (response) => {
   return [];
 };
 
+const getStockResponseList = (response) => {
+  const list = getResponseList(response);
+  if (list.length) return list;
+
+  const payload = response?.data?.data ?? response?.data;
+  return payload && typeof payload === 'object' ? [payload] : [];
+};
+
+const getStockKey = (itemCode, warehouseCode) => `${String(warehouseCode || '').trim()}::${String(itemCode || '').trim()}`;
+
+const normalizeItemStock = (item = {}, fallbackWarehouse = '') => ({
+  itemCode: getValue(item, ['ItemCode', 'itemCode', 'item_code', 'code']),
+  warehouseCode: getValue(item, ['WhsCode', 'whsCode', 'whs_code', 'Warehouse', 'warehouse_code'], fallbackWarehouse),
+  stock: Number(
+    getValue(
+      item,
+      ['OnHand', 'onHand', 'on_hand', 'OnHandQty', 'onHandQty', 'on_hand_qty', 'Stock', 'stock', 'Quantity', 'quantity', 'qty'],
+      0
+    )
+  )
+});
+
 const getResponseDetail = (response) => {
   const payload = response?.data?.data ?? response?.data;
   const detail = payload?.data && !Array.isArray(payload.data) ? payload.data : payload;
@@ -169,6 +191,8 @@ const normalizeProductionOrder = (item = {}, index = 0) => ({
   plannedQuantity: getPlannedQuantity(item),
   completedQuantity: getCompletedQuantity(item),
   warehouse: item.Warehouse ?? item.WhsCode ?? item.whs_code ?? item.warehouse_code ?? '',
+  uom: item.UomCode ?? item.UoMCode ?? item.UomName ?? item.UoMName ?? item.uom_code ?? item.uom ?? item.unit_of_measure ?? '',
+  uomEntry: Number(item.UoMEntry ?? item.UomEntry ?? item.uom_entry ?? item.uomEntry ?? 0),
   bomId: item.Bomid ?? item.BomId ?? item.bom_id ?? item.bomId ?? '',
   unit: item.U_Unit ?? item.Unit ?? item.unit ?? item.ocr_code2 ?? '',
   ocrCode: item.OcrCode ?? item.ocr_code ?? '',
@@ -189,7 +213,8 @@ const createReceiptLineFromOrder = (order) => {
     CmpltQty: order.completedQuantity,
     Quantity: remainingQuantity,
     WhsCode: getOrganizationAssignmentDefault('warehouses') || order.warehouse,
-    UoMEntry: 0,
+    UomCode: order.uom,
+    UoMEntry: order.uomEntry,
     OcrCode: getOrganizationAssignmentDefault('branches') || order.ocrCode,
     OcrCode2: getOrganizationAssignmentDefault('business_units') || order.ocrCode2,
     OcrCode3: getOrganizationAssignmentDefault('departments') || order.ocrCode3
@@ -302,6 +327,69 @@ export default function ReceiptProduction() {
   const [unitOptions, setUnitOptions] = useState([]);
   const [loadingSeries, setLoadingSeries] = useState(false);
   const [seriesOptions, setSeriesOptions] = useState([]);
+  const [itemStocks, setItemStocks] = useState({});
+  const [loadingItemStocks, setLoadingItemStocks] = useState(false);
+
+  const stockRequests = useMemo(() => {
+    const requests = receiptForm.Lines.reduce((groups, line) => {
+      const itemCode = String(line.ItemCode || '').trim();
+      const warehouseCode = String(line.WhsCode || receiptForm.WhsCode || '').trim();
+      if (!itemCode || !warehouseCode) return groups;
+
+      if (!groups[warehouseCode]) groups[warehouseCode] = new Set();
+      groups[warehouseCode].add(itemCode);
+      return groups;
+    }, {});
+
+    return Object.entries(requests).map(([WhsCode, itemCodes]) => ({ WhsCode, item_codes: [...itemCodes].sort() }));
+  }, [receiptForm.Lines, receiptForm.WhsCode]);
+  const stockRequestKey = JSON.stringify(stockRequests);
+
+  useEffect(() => {
+    let active = true;
+
+    const fetchItemStocks = async () => {
+      if (!stockRequests.length) {
+        setItemStocks({});
+        setLoadingItemStocks(false);
+        return;
+      }
+
+      setLoadingItemStocks(true);
+      try {
+        const responses = await Promise.all(
+          stockRequests.map(async (request) => ({
+            warehouseCode: request.WhsCode,
+            response: await ProductionServices.getItemStock(request)
+          }))
+        );
+        if (!active) return;
+
+        const stocks = {};
+        responses.forEach(({ warehouseCode, response }) => {
+          if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch item stock');
+          getStockResponseList(response).forEach((item) => {
+            const normalized = normalizeItemStock(item, warehouseCode);
+            if (normalized.itemCode) stocks[getStockKey(normalized.itemCode, normalized.warehouseCode)] = normalized.stock;
+          });
+        });
+        setItemStocks(stocks);
+      } catch (error) {
+        if (!active) return;
+        setItemStocks({});
+        showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch item stock', 'danger');
+      } finally {
+        if (active) setLoadingItemStocks(false);
+      }
+    };
+
+    fetchItemStocks();
+    return () => {
+      active = false;
+    };
+    // stockRequestKey represents the unique item and warehouse combinations.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stockRequestKey]);
 
   const fetchReceipts = useCallback(
     async (activeFilters) => {
@@ -505,6 +593,28 @@ export default function ReceiptProduction() {
       showAlert(`PDO ${order.number} cannot be selected because Complete Qty is greater than or equal to Plan Qty`, 'warning');
       return;
     }
+    if (isChecked) {
+      const unit = String(order.unit || '').trim();
+      if (!unit) {
+        showAlert(`PDO ${order.number} does not have a unit`, 'warning');
+        return;
+      }
+      const normalizedOrders = pdoItems.map(normalizeProductionOrder);
+      const activeUnits = new Set(
+        [
+          receiptForm.Unit,
+          ...normalizedOrders
+            .filter((item) => selectedPdoIds.includes(String(item.id)) && String(item.id) !== String(order.id))
+            .map((item) => item.unit)
+        ]
+          .map((value) => String(value || '').trim())
+          .filter(Boolean)
+      );
+      if (activeUnits.size && !activeUnits.has(unit)) {
+        showAlert('Selected Production Orders must be from the same unit', 'warning');
+        return;
+      }
+    }
     dispatch(toggleReceiptPdo(order.id, isChecked));
   };
 
@@ -536,6 +646,18 @@ export default function ReceiptProduction() {
       return;
     }
     const normalizedOrders = pdoItems.map(normalizeProductionOrder);
+    const checkedOrders = normalizedOrders.filter((order) => selectedPdoIds.includes(String(order.id)));
+    if (checkedOrders.some((order) => !String(order.unit || '').trim())) {
+      showAlert('Every selected Production Order must have a unit', 'warning');
+      return;
+    }
+    const selectedUnits = new Set(
+      [receiptForm.Unit, ...checkedOrders.map((order) => order.unit)].map((unit) => String(unit || '').trim()).filter(Boolean)
+    );
+    if (selectedUnits.size > 1) {
+      showAlert('Selected Production Orders must be from the same unit', 'warning');
+      return;
+    }
     const unpostableOrders = normalizedOrders.filter(
       (order) => selectedPdoIds.includes(String(order.id)) && cannotPostProductionOrder(order)
     );
@@ -571,7 +693,7 @@ export default function ReceiptProduction() {
       setReceiptForm((current) => ({
         ...current,
         Bomid: current.Bomid || String(receiptOrders[0]?.bomId || ''),
-        Unit: '',
+        Unit: current.Unit || receiptOrders[0]?.unit || '',
         WhsCode: current.WhsCode || receiptOrders[0]?.warehouse || '',
         OcrCode: current.OcrCode || receiptOrders[0]?.ocrCode || '',
         OcrCode2: current.OcrCode2 || receiptOrders[0]?.ocrCode2 || '',
@@ -662,6 +784,7 @@ export default function ReceiptProduction() {
             variant="success"
             onClick={() => {
               setReceiptForm(createReceiptForm());
+              setItemStocks({});
               setShowAddReceipt(true);
               fetchOcrOptions();
               fetchWarehouseOptions();
@@ -896,8 +1019,10 @@ export default function ReceiptProduction() {
             <thead>
               <tr>
                 <th>Item</th>
+                <th>UOM</th>
                 <th>Plan Qty</th>
                 <th>Complete Qty</th>
+                <th>Stock</th>
                 <th>Qty</th>
                 <th className="text-center">Action</th>
               </tr>
@@ -910,6 +1035,7 @@ export default function ReceiptProduction() {
                       <div className="fw-semibold">{line.ItemCode || '-'}</div>
                       <div className="text-muted f-12">{line.ItemName || '-'}</div>
                     </td>
+                    <td style={{ minWidth: 100 }}>{line.UomCode || '-'}</td>
                     <td style={{ minWidth: 120 }}>
                       <Form.Control size="sm" type="number" value={line.PlannedQty} readOnly />
                     </td>
@@ -918,6 +1044,17 @@ export default function ReceiptProduction() {
                       {cannotPostReceiptLine(line) ? (
                         <Form.Text className="text-danger">Complete Qty must be less than Plan Qty.</Form.Text>
                       ) : null}
+                    </td>
+                    <td style={{ minWidth: 120 }}>
+                      <Form.Control
+                        size="sm"
+                        value={
+                          loadingItemStocks
+                            ? 'Loading...'
+                            : (itemStocks[getStockKey(line.ItemCode, line.WhsCode || receiptForm.WhsCode)] ?? '-')
+                        }
+                        readOnly
+                      />
                     </td>
                     <td style={{ minWidth: 120 }}>
                       <Form.Control
@@ -952,7 +1089,7 @@ export default function ReceiptProduction() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="text-center text-muted py-4">
+                  <td colSpan={7} className="text-center text-muted py-4">
                     No items added. Click Add PDO to select Production Orders.
                   </td>
                 </tr>

@@ -114,7 +114,10 @@ export default function AuthLoginForm({ className }) {
         sessionStorage.removeItem('dc-browser-workspace-v1');
         const loginData = response.data.data || {};
         const userData = loginData.user || {};
-        const organizationAssignment = userData.organization_assignment || loginData.organization_assignment || {};
+        const organizationAssignment = {
+          ...(loginData.organization_assignment || {}),
+          ...(userData.organization_assignment || {})
+        };
         const accessibleSystemSource =
           loginData.accessible_system || loginData.accessible_systems || userData.accessible_system || userData.accessible_systems || [];
         const accessibleSystems = normalizeAccessibleSystems(accessibleSystemSource);
@@ -189,6 +192,39 @@ export default function AuthLoginForm({ className }) {
               ['ocr_code3', 'ocrCode3', 'departments', 'department_codes'],
               ['ocr_code3', 'ocrCode3', 'ocr_code', 'code', 'value']
             );
+        const organizationUnits = normalizeAssignmentValues(organizationAssignment.units, [
+          'unit_code',
+          'unitCode',
+          'u_unit',
+          'U_Unit',
+          'unit',
+          'Unit',
+          'code',
+          'value',
+          'master_unit_id',
+          'masterUnitId',
+          'id'
+        ]);
+        const unitCodes = organizationUnits.length
+          ? organizationUnits
+          : getAssignmentValues(
+              userData,
+              loginData,
+              ['units', 'unit_codes', 'unitCodes', 'user_units', 'userUnits', 'unit'],
+              [
+                'unit_code',
+                'unitCode',
+                'u_unit',
+                'U_Unit',
+                'unit',
+                'Unit',
+                'code',
+                'value',
+                'master_unit_id',
+                'masterUnitId',
+                'id'
+              ]
+            );
 
         Cookies.set('isLoggedIn', true);
         Cookies.set('accessToken', loginData.access_token);
@@ -215,9 +251,11 @@ export default function AuthLoginForm({ className }) {
         setAssignmentCookie('ocr_code', ocrCodes);
         setAssignmentCookie('ocr_code2', ocrCodes2);
         setAssignmentCookie('ocr_code3', ocrCodes3);
+        setAssignmentCookie('units', unitCodes);
         Cookies.set(
           'organization_assignment',
           JSON.stringify({
+            units: unitCodes,
             warehouses: warehouseCodes,
             branches: ocrCodes,
             business_units: ocrCodes2,

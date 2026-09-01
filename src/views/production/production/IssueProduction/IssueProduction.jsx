@@ -17,7 +17,7 @@ import DistributorServices from '../../../../services/customer-portal/Distributo
 import WarehouseServices from '../../../../services/customer-portal/WarehouseServices';
 import ProductionServices from '../../../../services/production/ProductionServices';
 import { useAlert } from '../../../../utils/alertContext';
-import { getCookies, getOrganizationAssignment, getOrganizationAssignmentDefault } from '../../../../utils/cookies';
+import { getCookies, getOrganizationAssignmentDefault } from '../../../../utils/cookies';
 import './issue-production.scss';
 
 const pageSize = 10;
@@ -89,6 +89,25 @@ const getResponseList = (response) => {
   }
   return [];
 };
+const getStockResponseList = (response) => {
+  const list = getResponseList(response);
+  if (list.length) return list;
+
+  const payload = response?.data?.data ?? response?.data;
+  return payload && typeof payload === 'object' ? [payload] : [];
+};
+const getStockKey = (itemCode, warehouseCode) => `${String(warehouseCode || '').trim()}::${String(itemCode || '').trim()}`;
+const normalizeItemStock = (item = {}, fallbackWarehouse = '') => ({
+  itemCode: getValue(item, ['ItemCode', 'itemCode', 'item_code', 'code']),
+  warehouseCode: getValue(item, ['WhsCode', 'whsCode', 'whs_code', 'Warehouse', 'warehouse_code'], fallbackWarehouse),
+  stock: Number(
+    getValue(
+      item,
+      ['OnHand', 'onHand', 'on_hand', 'OnHandQty', 'onHandQty', 'on_hand_qty', 'Stock', 'stock', 'Quantity', 'quantity', 'qty'],
+      0
+    )
+  )
+});
 const normalizeUnit = (item = {}) => {
   const value = typeof item === 'object' ? item.u_unit || item.U_Unit || item.unit || item.Unit || item.code || item.value || '' : item;
   const label = typeof item === 'object' ? item.unit_name || item.UnitName || item.name || item.label || item.description || value : item;
@@ -107,13 +126,18 @@ const normalizeWarehouse = (item = {}) => {
 };
 const normalizeSeries = (item = {}) => {
   const value = typeof item === 'object' ? (item.series ?? item.Series ?? item.series_code ?? item.value ?? item.code ?? item.id) : item;
-  const label =
+  const name =
     typeof item === 'object'
-      ? (item.label ?? item.series_name ?? item.seriesName ?? item.SeriesName ?? item.name ?? item.description ?? value)
+      ? (item.series_name ?? item.seriesName ?? item.SeriesName ?? item.name ?? item.label ?? item.description ?? value)
       : item;
+  const label = typeof item === 'object' ? (item.label ?? name) : name;
 
-  return value === undefined || value === null || value === '' ? null : { value, label: String(label) };
+  return value === undefined || value === null || value === '' ? null : { value, label: String(label), name: String(name), raw: item };
 };
+const normalizeSeriesName = (value) =>
+  String(value || '')
+    .trim()
+    .toLowerCase();
 const getResponseDetail = (response) => {
   const payload = response?.data?.data ?? response?.data;
   const detail = payload?.data && !Array.isArray(payload.data) ? payload.data : payload;
@@ -245,7 +269,6 @@ const formatValue = (value, key) => {
 
 export default function IssueProduction() {
   const { showAlert } = useAlert();
-  const organizationAssignments = useMemo(() => getOrganizationAssignment(), []);
   const [issues, setIssues] = useState([]);
   const [filters, setFilters] = useState(initialFilters);
   const [loading, setLoading] = useState(false);
@@ -270,6 +293,69 @@ export default function IssueProduction() {
   const [ocrOptions, setOcrOptions] = useState({ branch: [], businessUnit: [], department: [] });
   const [loadingWarehouses, setLoadingWarehouses] = useState(false);
   const [warehouseOptions, setWarehouseOptions] = useState([]);
+  const [itemStocks, setItemStocks] = useState({});
+  const [loadingItemStocks, setLoadingItemStocks] = useState(false);
+
+  const stockRequests = useMemo(() => {
+    const requests = issueForm.Lines.reduce((groups, line) => {
+      const itemCode = String(line.ItemCode || '').trim();
+      const warehouseCode = String(line.WhsCode || issueForm.WhsCode || '').trim();
+      if (!itemCode || !warehouseCode) return groups;
+
+      if (!groups[warehouseCode]) groups[warehouseCode] = new Set();
+      groups[warehouseCode].add(itemCode);
+      return groups;
+    }, {});
+
+    return Object.entries(requests).map(([WhsCode, itemCodes]) => ({ WhsCode, item_codes: [...itemCodes].sort() }));
+  }, [issueForm.Lines, issueForm.WhsCode]);
+  const stockRequestKey = JSON.stringify(stockRequests);
+
+  useEffect(() => {
+    let active = true;
+
+    const fetchItemStocks = async () => {
+      if (!stockRequests.length) {
+        setItemStocks({});
+        setLoadingItemStocks(false);
+        return;
+      }
+
+      setLoadingItemStocks(true);
+      try {
+        const responses = await Promise.all(
+          stockRequests.map(async (request) => ({
+            warehouseCode: request.WhsCode,
+            response: await ProductionServices.getItemStock(request)
+          }))
+        );
+        if (!active) return;
+
+        const stocks = {};
+        responses.forEach(({ warehouseCode, response }) => {
+          if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch item stock');
+          getStockResponseList(response).forEach((item) => {
+            const normalized = normalizeItemStock(item, warehouseCode);
+            if (normalized.itemCode) stocks[getStockKey(normalized.itemCode, normalized.warehouseCode)] = normalized.stock;
+          });
+        });
+        setItemStocks(stocks);
+      } catch (error) {
+        if (!active) return;
+        setItemStocks({});
+        showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch item stock', 'danger');
+      } finally {
+        if (active) setLoadingItemStocks(false);
+      }
+    };
+
+    fetchItemStocks();
+    return () => {
+      active = false;
+    };
+    // stockRequestKey represents the unique item and warehouse combinations.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stockRequestKey]);
 
   const fetchOcrOptions = async () => {
     setLoadingOcr(true);
@@ -398,17 +484,20 @@ export default function IssueProduction() {
     const formattedDate = String(date || '').replace(/-/g, '');
     if (!formattedDate) {
       setSeriesOptions([]);
-      return;
+      return [];
     }
 
     setLoadingSeries(true);
     try {
       const response = await ProductionServices.getSeries(formattedDate, 60);
       if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch series data');
-      setSeriesOptions(getResponseList(response).map(normalizeSeries).filter(Boolean));
+      const options = getResponseList(response).map(normalizeSeries).filter(Boolean);
+      setSeriesOptions(options);
+      return options;
     } catch (error) {
       setSeriesOptions([]);
       showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch series data', 'danger');
+      return [];
     } finally {
       setLoadingSeries(false);
     }
@@ -454,14 +543,48 @@ export default function IssueProduction() {
     fetchProductionOrders();
   };
 
-  const handleToggleProductionOrder = (orderId, isChecked) => {
-    const normalizedId = String(orderId);
+  const handleToggleProductionOrder = (order, isChecked) => {
+    const normalizedId = String(order.id);
+    if (isChecked) {
+      const unit = String(order.unit || '').trim();
+      if (!unit) {
+        showAlert(`PDO ${order.number} does not have a unit`, 'warning');
+        return;
+      }
+      const activeUnits = new Set(
+        [
+          issueForm.Unit,
+          ...productionOrders
+            .filter((item) => selectedOrderIds.includes(String(item.id)) && String(item.id) !== normalizedId)
+            .map((item) => item.unit)
+        ]
+          .map((value) => String(value || '').trim())
+          .filter(Boolean)
+      );
+      if (activeUnits.size && !activeUnits.has(unit)) {
+        showAlert('Selected Production Orders must be from the same unit', 'warning');
+        return;
+      }
+    }
     setSelectedOrderIds((current) => (isChecked ? [...new Set([...current, normalizedId])] : current.filter((id) => id !== normalizedId)));
   };
 
   const handleAddSelectedProductionOrders = async () => {
     if (!selectedOrderIds.length) {
       showAlert('Select at least one Production Order', 'warning');
+      return;
+    }
+
+    const checkedOrders = productionOrders.filter((order) => selectedOrderIds.includes(String(order.id)));
+    if (checkedOrders.some((order) => !String(order.unit || '').trim())) {
+      showAlert('Every selected Production Order must have a unit', 'warning');
+      return;
+    }
+    const selectedUnits = new Set(
+      [issueForm.Unit, ...checkedOrders.map((order) => order.unit)].map((unit) => String(unit || '').trim()).filter(Boolean)
+    );
+    if (selectedUnits.size > 1) {
+      showAlert('Selected Production Orders must be from the same unit', 'warning');
       return;
     }
 
@@ -487,12 +610,20 @@ export default function IssueProduction() {
       const firstHeader = orderDetails[0]?.header || {};
       const dueDate = formatInputDateValue(getValue(firstHeader, ['PostDate'], issueForm.DocDueDate));
       const postingDate = issueForm.DocDate && issueForm.DocDate > dueDate ? dueDate : issueForm.DocDate;
+      const pdoSeries = getValue(firstHeader, ['Series', 'series', 'series_code', 'seriesCode']);
+      const pdoSeriesName = getValue(firstHeader, ['SeriesName', 'seriesName', 'series_name']);
+      const availableSeries = await fetchSeriesOptions(postingDate);
+      const matchingSeries = availableSeries.find(
+        (option) =>
+          (pdoSeriesName && normalizeSeriesName(option.name) === normalizeSeriesName(pdoSeriesName)) ||
+          (!pdoSeriesName && pdoSeries && String(option.value) === String(pdoSeries))
+      );
 
       setIssueForm((current) => ({
         ...current,
         DocDate: postingDate,
         DocDueDate: dueDate,
-        Series: postingDate !== current.DocDate ? '' : current.Series,
+        Series: matchingSeries?.value || (postingDate !== current.DocDate ? '' : current.Series),
         Comments: current.Comments || getValue(firstHeader, ['Comments', 'comments', 'remarks']),
         Shift: getValue(firstHeader, ['U_Shift', 'Shift', 'shift'], current.Shift),
         Unit: getValue(firstHeader, ['U_Unit', 'Unit', 'unit', 'OcrCode2', 'ocr_code2'], current.Unit),
@@ -511,7 +642,6 @@ export default function IssueProduction() {
           OcrCode3: current.OcrCode3 || line.OcrCode3
         }))
       }));
-      if (postingDate !== issueForm.DocDate) fetchSeriesOptions(postingDate);
       setShowOrderModal(false);
     } catch (error) {
       showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch Production Order detail', 'danger');
@@ -524,14 +654,6 @@ export default function IssueProduction() {
     setIssueForm((current) => ({
       ...current,
       Lines: current.Lines.map((line, index) => (index === lineIndex ? { ...line, ...values } : line))
-    }));
-  };
-
-  const updateIssueHeaderField = (field, value) => {
-    setIssueForm((current) => ({
-      ...current,
-      [field]: value,
-      Lines: current.Lines.map((line) => ({ ...line, [field]: value }))
     }));
   };
 
@@ -599,6 +721,7 @@ export default function IssueProduction() {
             variant="success"
             onClick={() => {
               setIssueForm(createIssueForm());
+              setItemStocks({});
               setShowAddIssue(true);
               fetchOcrOptions();
               fetchWarehouseOptions();
@@ -739,7 +862,7 @@ export default function IssueProduction() {
                 options={seriesOptions}
                 value={seriesOptions.find((option) => String(option.value) === String(issueForm.Series)) || null}
                 isLoading={loadingSeries}
-                isDisabled={loadingSeries}
+                isDisabled
                 placeholder={loadingSeries ? 'Loading series...' : 'Select series'}
                 onChange={(option) => setIssueForm((current) => ({ ...current, Series: option?.value || '' }))}
               />
@@ -755,6 +878,7 @@ export default function IssueProduction() {
                 menuShouldScrollIntoView={false}
                 options={shiftOptions}
                 value={shiftOptions.find((option) => option.value === issueForm.Shift) || null}
+                isDisabled
                 placeholder="Select shift"
                 onChange={(option) => setIssueForm((current) => ({ ...current, Shift: option?.value || '' }))}
               />
@@ -774,27 +898,21 @@ export default function IssueProduction() {
                   (issueForm.Unit ? { value: issueForm.Unit, label: issueForm.Unit } : null)
                 }
                 isLoading={loadingUnits}
-                isDisabled={loadingUnits}
-                isClearable
+                isDisabled
                 placeholder={loadingUnits ? 'Loading units...' : 'Select unit'}
                 onChange={(option) => setIssueForm((current) => ({ ...current, Unit: option?.value || '' }))}
               />
             </Col>
             <Col xs={12}>
               <Form.Label>Comments</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={2}
-                value={issueForm.Comments}
-                onChange={(event) => setIssueForm((current) => ({ ...current, Comments: event.target.value }))}
-              />
+              <Form.Control as="textarea" rows={2} value={issueForm.Comments} readOnly />
             </Col>
             {[
-              ['WhsCode', 'warehouses', warehouseOptions, 'Warehouse', loadingWarehouses],
-              ['OcrCode', 'branches', ocrOptions.branch, 'Branch', loadingOcr],
-              ['OcrCode2', 'business_units', ocrOptions.businessUnit, 'Business Unit', loadingOcr],
-              ['OcrCode3', 'departments', ocrOptions.department, 'Department', loadingOcr]
-            ].map(([field, assignmentKey, options, label, isLoading]) => (
+              ['WhsCode', warehouseOptions, 'Warehouse', loadingWarehouses],
+              ['OcrCode', ocrOptions.branch, 'Branch', loadingOcr],
+              ['OcrCode2', ocrOptions.businessUnit, 'Business Unit', loadingOcr],
+              ['OcrCode3', ocrOptions.department, 'Department', loadingOcr]
+            ].map(([field, options, label, isLoading]) => (
               <Col md={3} key={field}>
                 <Form.Label>{label}</Form.Label>
                 <Select
@@ -807,9 +925,8 @@ export default function IssueProduction() {
                     (issueForm[field] ? { value: issueForm[field], label: issueForm[field] } : null)
                   }
                   isLoading={isLoading}
-                  isDisabled={isLoading || organizationAssignments[assignmentKey].length > 0}
+                  isDisabled
                   placeholder={`Select ${label.toLowerCase()}`}
-                  onChange={(option) => updateIssueHeaderField(field, option?.value || '')}
                 />
               </Col>
             ))}
@@ -827,6 +944,7 @@ export default function IssueProduction() {
                 <th>Item</th>
                 <th>Planned Qty</th>
                 <th>Issued Qty</th>
+                <th>Stock</th>
                 <th>Qty</th>
                 <th className="text-center">Action</th>
               </tr>
@@ -844,6 +962,17 @@ export default function IssueProduction() {
                     </td>
                     <td style={{ minWidth: 120 }}>
                       <Form.Control size="sm" type="number" value={line.IssuedQty} readOnly />
+                    </td>
+                    <td style={{ minWidth: 120 }}>
+                      <Form.Control
+                        size="sm"
+                        value={
+                          loadingItemStocks
+                            ? 'Loading...'
+                            : (itemStocks[getStockKey(line.ItemCode, line.WhsCode || issueForm.WhsCode)] ?? '-')
+                        }
+                        readOnly
+                      />
                     </td>
                     <td style={{ minWidth: 120 }}>
                       <Form.Control
@@ -875,7 +1004,7 @@ export default function IssueProduction() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="text-center text-muted py-4">
+                  <td colSpan={6} className="text-center text-muted py-4">
                     No items added. Click Add PDO to select a Production Order.
                   </td>
                 </tr>
@@ -982,7 +1111,7 @@ export default function IssueProduction() {
               ) : filteredProductionOrders.length ? (
                 filteredProductionOrders.map((order) => {
                   const isSelected = selectedOrderIds.includes(String(order.id));
-                  const toggleSelection = () => handleToggleProductionOrder(order.id, !isSelected);
+                  const toggleSelection = () => handleToggleProductionOrder(order, !isSelected);
 
                   return (
                     <tr
@@ -1006,7 +1135,7 @@ export default function IssueProduction() {
                           aria-label={`Select PDO ${order.number}`}
                           checked={isSelected}
                           onClick={(event) => event.stopPropagation()}
-                          onChange={(event) => handleToggleProductionOrder(order.id, event.target.checked)}
+                          onChange={(event) => handleToggleProductionOrder(order, event.target.checked)}
                         />
                       </td>
                       <td className="fw-semibold">{order.number}</td>
