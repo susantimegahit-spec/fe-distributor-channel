@@ -2017,7 +2017,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                         <th>Depo</th>
                         <th>Date</th>
                         <th>Total Item</th>
-                        <th>Total Order</th>
+                        <th>Total Order (Kg)</th>
                         <th>Status</th>
                         <th className="text-center">Action</th>
                       </tr>
@@ -2041,7 +2041,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                               </td>
                               <td>{moment(order.doc_date).format('DD MMM YYYY')}</td>
                               <td>{getOrderLines(order).length}</td>
-                              <td>{currency(order?.doc_total)}</td>
+                              <td className="fw-semibold">{formatKg(getOrderTotalKg(order))}</td>
                               <td>
                                 <Badge bg={statusVariant[order.status] || 'secondary'}>
                                   {getStatusLabel(order.status)}
