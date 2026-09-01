@@ -275,6 +275,7 @@ export default function IssueProduction() {
   const [loadingDetailId, setLoadingDetailId] = useState(null);
   const [selectedIssue, setSelectedIssue] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [issueSort, setIssueSort] = useState({ key: '', direction: 'asc' });
   const [showAddIssue, setShowAddIssue] = useState(false);
   const [issueForm, setIssueForm] = useState(createIssueForm);
   const [savingIssue, setSavingIssue] = useState(false);
@@ -432,11 +433,58 @@ export default function IssueProduction() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const pageCount = Math.max(Math.ceil(issues.length / pageSize), 1);
+  const sortedIssues = useMemo(() => {
+    if (!issueSort.key) return issues;
+
+    return [...issues].sort((left, right) => {
+      const getValue = (issue) =>
+        issueSort.key === 'documentDate' ? new Date(issue.documentDate || 0).getTime() || 0 : issue[issueSort.key] || '';
+      const leftValue = getValue(left);
+      const rightValue = getValue(right);
+      const comparison =
+        typeof leftValue === 'number' && typeof rightValue === 'number'
+          ? leftValue - rightValue
+          : String(leftValue).localeCompare(String(rightValue), 'id-ID', { numeric: true, sensitivity: 'base' });
+      return issueSort.direction === 'asc' ? comparison : -comparison;
+    });
+  }, [issueSort, issues]);
+
+  const handleIssueSort = (key) => {
+    setIssueSort((current) => ({ key, direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc' }));
+    setCurrentPage(1);
+  };
+
+  const renderIssueSortableHeader = (label, key) => {
+    const ascending = issueSort.key === key && issueSort.direction === 'asc';
+    const descending = issueSort.key === key && issueSort.direction === 'desc';
+
+    return (
+      <button
+        type="button"
+        className="btn btn-link link-dark text-decoration-none fw-semibold p-0 text-nowrap"
+        onClick={() => handleIssueSort(key)}
+        aria-label={`Sort by ${label}`}
+      >
+        {label}
+        <span className="d-inline-flex flex-column align-middle ms-1" style={{ gap: 0, lineHeight: 0 }} aria-hidden="true">
+          <i
+            className={`ti ti-triangle ${ascending ? 'text-primary' : 'text-muted'}`}
+            style={{ fontSize: '0.55rem', lineHeight: '0.55rem' }}
+          />
+          <i
+            className={`ti ti-triangle ${descending ? 'text-primary' : 'text-muted'}`}
+            style={{ fontSize: '0.55rem', lineHeight: '0.55rem', marginTop: -3, transform: 'rotate(180deg)' }}
+          />
+        </span>
+      </button>
+    );
+  };
+
+  const pageCount = Math.max(Math.ceil(sortedIssues.length / pageSize), 1);
   const paginatedIssues = useMemo(() => {
     const start = (Math.min(currentPage, pageCount) - 1) * pageSize;
-    return issues.slice(start, start + pageSize);
-  }, [currentPage, issues, pageCount]);
+    return sortedIssues.slice(start, start + pageSize);
+  }, [currentPage, pageCount, sortedIssues]);
 
   const handleViewDetail = async (issue) => {
     const docEntry = issue?.raw?.DocEntry ?? issue?.raw?.docEntry ?? issue?.raw?.doc_entry ?? issue?.id;
@@ -771,11 +819,11 @@ export default function IssueProduction() {
         <Table responsive hover className="mb-0 align-middle">
           <thead>
             <tr>
-              <th>Doc. No.</th>
-              <th>Doc. Date</th>
-              <th>Shift</th>
-              <th>Unit</th>
-              <th>Comment</th>
+              <th>{renderIssueSortableHeader('Doc. No.', 'documentNumber')}</th>
+              <th>{renderIssueSortableHeader('Doc. Date', 'documentDate')}</th>
+              <th>{renderIssueSortableHeader('Shift', 'shift')}</th>
+              <th>{renderIssueSortableHeader('Unit', 'unit')}</th>
+              <th>{renderIssueSortableHeader('Comment', 'comments')}</th>
             </tr>
           </thead>
           <tbody>

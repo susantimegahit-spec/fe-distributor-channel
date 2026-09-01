@@ -211,10 +211,7 @@ const normalizeProductionOrder = (item = {}, index = 0) => ({
   bomId: item.Bomid ?? item.BomId ?? item.bom_id ?? item.bomId ?? '',
   unit: getValue(item, ['U_Unit', 'u_unit', 'Unit', 'unit', 'OcrCode2', 'ocr_code2']),
   ocrCode: getValue(item, ['OcrCode', 'ocrCode', 'ocr_code', 'Ocr', 'ocr', 'branch_code', 'branchCode']),
-  ocrCode2: getValue(
-    item,
-    ['OcrCode2', 'ocrCode2', 'ocr_code2', 'Ocr2', 'ocr2', 'business_unit_code', 'businessUnitCode']
-  ),
+  ocrCode2: getValue(item, ['OcrCode2', 'ocrCode2', 'ocr_code2', 'Ocr2', 'ocr2', 'business_unit_code', 'businessUnitCode']),
   ocrCode3: getValue(item, ['OcrCode3', 'ocrCode3', 'ocr_code3', 'Ocr3', 'ocr3', 'department_code', 'departmentCode']),
   raw: item
 });
@@ -337,6 +334,7 @@ export default function ReceiptProduction() {
   const [selectedReceipt, setSelectedReceipt] = useState(null);
   const [loadingReceiptDetailId, setLoadingReceiptDetailId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [receiptSort, setReceiptSort] = useState({ key: '', direction: 'asc' });
   const [showAddReceipt, setShowAddReceipt] = useState(false);
   const [receiptForm, setReceiptForm] = useState(createReceiptForm);
   const [savingReceipt, setSavingReceipt] = useState(false);
@@ -451,12 +449,59 @@ export default function ReceiptProduction() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const pageCount = Math.max(Math.ceil(receipts.length / pageSize), 1);
+  const sortedReceipts = useMemo(() => {
+    if (!receiptSort.key) return receipts;
+
+    return [...receipts].sort((left, right) => {
+      const getValue = (receipt) =>
+        receiptSort.key === 'documentDate' ? new Date(receipt.documentDate || 0).getTime() || 0 : receipt[receiptSort.key] || '';
+      const leftValue = getValue(left);
+      const rightValue = getValue(right);
+      const comparison =
+        typeof leftValue === 'number' && typeof rightValue === 'number'
+          ? leftValue - rightValue
+          : String(leftValue).localeCompare(String(rightValue), 'id-ID', { numeric: true, sensitivity: 'base' });
+      return receiptSort.direction === 'asc' ? comparison : -comparison;
+    });
+  }, [receiptSort, receipts]);
+
+  const handleReceiptSort = (key) => {
+    setReceiptSort((current) => ({ key, direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc' }));
+    setCurrentPage(1);
+  };
+
+  const renderReceiptSortableHeader = (label, key) => {
+    const ascending = receiptSort.key === key && receiptSort.direction === 'asc';
+    const descending = receiptSort.key === key && receiptSort.direction === 'desc';
+
+    return (
+      <button
+        type="button"
+        className="btn btn-link link-dark text-decoration-none fw-semibold p-0 text-nowrap"
+        onClick={() => handleReceiptSort(key)}
+        aria-label={`Sort by ${label}`}
+      >
+        {label}
+        <span className="d-inline-flex flex-column align-middle ms-1" style={{ gap: 0, lineHeight: 0 }} aria-hidden="true">
+          <i
+            className={`ti ti-triangle ${ascending ? 'text-primary' : 'text-muted'}`}
+            style={{ fontSize: '0.55rem', lineHeight: '0.55rem' }}
+          />
+          <i
+            className={`ti ti-triangle ${descending ? 'text-primary' : 'text-muted'}`}
+            style={{ fontSize: '0.55rem', lineHeight: '0.55rem', marginTop: -3, transform: 'rotate(180deg)' }}
+          />
+        </span>
+      </button>
+    );
+  };
+
+  const pageCount = Math.max(Math.ceil(sortedReceipts.length / pageSize), 1);
   const paginatedReceipts = useMemo(() => {
     const safePage = Math.min(currentPage, pageCount);
     const startIndex = (safePage - 1) * pageSize;
-    return receipts.slice(startIndex, startIndex + pageSize);
-  }, [currentPage, pageCount, receipts]);
+    return sortedReceipts.slice(startIndex, startIndex + pageSize);
+  }, [currentPage, pageCount, sortedReceipts]);
 
   useEffect(() => {
     if (currentPage > pageCount) setCurrentPage(pageCount);
@@ -717,15 +762,7 @@ export default function ReceiptProduction() {
       const firstHeader = orderDetails[0]?.header || {};
       const pdoSources = [firstHeader, orderDetails[0]?.firstDetail, orderDetails[0]?.raw, orderDetails[0]?.raw?.headerData];
       const pdoWarehouse = getValueFromSources(pdoSources, ['Warehouse', 'WhsCode', 'whs_code', 'warehouse_code', 'warehouse']);
-      const pdoBranch = getValueFromSources(pdoSources, [
-        'OcrCode',
-        'ocrCode',
-        'ocr_code',
-        'Ocr',
-        'ocr',
-        'branch_code',
-        'branchCode'
-      ]);
+      const pdoBranch = getValueFromSources(pdoSources, ['OcrCode', 'ocrCode', 'ocr_code', 'Ocr', 'ocr', 'branch_code', 'branchCode']);
       const pdoBusinessUnit = getValueFromSources(pdoSources, [
         'OcrCode2',
         'ocrCode2',
@@ -904,11 +941,11 @@ export default function ReceiptProduction() {
         <Table responsive hover className="mb-0 align-middle">
           <thead>
             <tr>
-              <th>Doc. No.</th>
-              <th>Doc. Date</th>
-              <th>Shift</th>
-              <th>Unit</th>
-              <th>Comment</th>
+              <th>{renderReceiptSortableHeader('Doc. No.', 'documentNumber')}</th>
+              <th>{renderReceiptSortableHeader('Doc. Date', 'documentDate')}</th>
+              <th>{renderReceiptSortableHeader('Shift', 'shift')}</th>
+              <th>{renderReceiptSortableHeader('Unit', 'unit')}</th>
+              <th>{renderReceiptSortableHeader('Comment', 'comments')}</th>
             </tr>
           </thead>
           <tbody>

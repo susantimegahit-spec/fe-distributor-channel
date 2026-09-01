@@ -89,7 +89,7 @@ const getCmoCalendarButtonClass = (status) => {
 };
 
 const pageSize = 10;
-const commitmentPageSize = 5;
+const commitmentPageSize = 10;
 const cmoActionPopperConfig = {
   modifiers: [
     {
@@ -242,6 +242,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
   const [isLoadingCommitment, setIsLoadingCommitment] = useState(false);
   const [exportingCmo, setExportingCmo] = useState(false);
   const [commitmentCurrentPage, setCommitmentCurrentPage] = useState(1);
+  const [commitmentSort, setCommitmentSort] = useState({ key: '', direction: 'asc' });
   const [commitmentLayout, setCommitmentLayout] = useState('list');
   const [commitmentCalendarMonth, setCommitmentCalendarMonth] = useState(() => moment().startOf('month'));
   const [selectedCmoCalendarDay, setSelectedCmoCalendarDay] = useState(null);
@@ -274,6 +275,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
   const [isLoadingCreditLimit, setIsLoadingCreditLimit] = useState(false);
   const [creditLimitError, setCreditLimitError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [orderSort, setOrderSort] = useState({ key: '', direction: 'asc' });
   const [orderLayout, setOrderLayout] = useState('list');
   const [orderCalendarMonth, setOrderCalendarMonth] = useState(() => moment().startOf('month'));
   const [permissionDetail, setPermissionDetail] = useState(null);
@@ -309,12 +311,6 @@ export default function OrderList({ showOnlyCommitment = false }) {
     });
   }, [date, distributor, keywords, orders, status]);
 
-  const commitmentPageCount = Math.max(Math.ceil(commitmentMonthlyOrders.length / commitmentPageSize), 1);
-  const paginatedCommitmentOrders = useMemo(() => {
-    const startIndex = (commitmentCurrentPage - 1) * commitmentPageSize;
-
-    return commitmentMonthlyOrders.slice(startIndex, startIndex + commitmentPageSize);
-  }, [commitmentCurrentPage, commitmentMonthlyOrders]);
   const commitmentCalendarDays = useMemo(() => {
     const calendarStart = commitmentCalendarMonth.clone().startOf('month').startOf('week');
 
@@ -412,12 +408,6 @@ export default function OrderList({ showOnlyCommitment = false }) {
   );
 
   const hasActiveFilter = Boolean(keywords || distributor || status || date);
-  const pageCount = Math.max(Math.ceil(filteredOrders.length / pageSize), 1);
-  const paginatedOrders = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize;
-
-    return filteredOrders.slice(startIndex, startIndex + pageSize);
-  }, [currentPage, filteredOrders]);
   const orderCalendarDays = useMemo(() => {
     const calendarStart = orderCalendarMonth.clone().startOf('month').startOf('week');
 
@@ -695,6 +685,158 @@ export default function OrderList({ showOnlyCommitment = false }) {
     }, 0);
 
   const formatKg = (value) => `${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 }).format(Number(value) || 0)} Kg`;
+
+  const sortedCommitmentOrders = useMemo(() => {
+    if (!commitmentSort.key) return commitmentMonthlyOrders;
+
+    const getSortValue = (order) => {
+      switch (commitmentSort.key) {
+        case 'cmoCustomer':
+          return `${getOrderValue(order, ['cmo_no', 'cmo_number', 'order_no', 'doc_num', 'document_number', 'DocNum'], '')} ${getOrderValue(
+            order,
+            ['customer_name', 'customerName', 'customer_code', 'customerCode'],
+            ''
+          )}`;
+        case 'date':
+          return moment(getOrderValue(order, ['doc_date', 'docDate', 'date'], null)).valueOf() || 0;
+        case 'totalItem':
+          return getOrderLines(order).length;
+        case 'kg':
+          return getOrderTotalKg(order);
+        case 'totalOrder':
+          return Number(getOrderValue(order, ['doc_total', 'docTotal', 'total', 'total_order', 'totalOrder'], 0)) || 0;
+        case 'status':
+          return getCmoStatusLabel(order.status);
+        default:
+          return '';
+      }
+    };
+
+    const direction = commitmentSort.direction === 'asc' ? 1 : -1;
+    return [...commitmentMonthlyOrders].sort((left, right) => {
+      const leftValue = getSortValue(left);
+      const rightValue = getSortValue(right);
+      if (typeof leftValue === 'number' && typeof rightValue === 'number') return (leftValue - rightValue) * direction;
+      return String(leftValue).localeCompare(String(rightValue), 'id-ID', { numeric: true, sensitivity: 'base' }) * direction;
+    });
+  }, [commitmentMonthlyOrders, commitmentSort]);
+
+  const commitmentPageCount = Math.max(Math.ceil(sortedCommitmentOrders.length / commitmentPageSize), 1);
+  const paginatedCommitmentOrders = useMemo(() => {
+    const startIndex = (commitmentCurrentPage - 1) * commitmentPageSize;
+    return sortedCommitmentOrders.slice(startIndex, startIndex + commitmentPageSize);
+  }, [commitmentCurrentPage, sortedCommitmentOrders]);
+
+  const handleCommitmentSort = (key) => {
+    setCommitmentSort((current) => ({
+      key,
+      direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc'
+    }));
+    setCommitmentCurrentPage(1);
+  };
+
+  const sortedOrders = useMemo(() => {
+    if (!orderSort.key) return filteredOrders;
+
+    const getSortValue = (order) => {
+      switch (orderSort.key) {
+        case 'soNumber':
+          return getOrderValue(order, ['sap_doc_num', 'sapDocNum', 'order_no', 'orderNo', 'doc_num', 'docNum'], '');
+        case 'depo':
+          return `${getOrderValue(order, ['depo'], '')} ${getOrderValue(order, ['customer_name', 'customerName'], '')}`;
+        case 'date':
+          return moment(getOrderValue(order, ['doc_date', 'docDate', 'date'], null)).valueOf() || 0;
+        case 'totalItem':
+          return getOrderLines(order).length;
+        case 'totalKg':
+          return getOrderTotalKg(order);
+        case 'status':
+          return getStatusLabel(order.status);
+        default:
+          return '';
+      }
+    };
+
+    const direction = orderSort.direction === 'asc' ? 1 : -1;
+    return [...filteredOrders].sort((left, right) => {
+      const leftValue = getSortValue(left);
+      const rightValue = getSortValue(right);
+      if (typeof leftValue === 'number' && typeof rightValue === 'number') return (leftValue - rightValue) * direction;
+      return String(leftValue).localeCompare(String(rightValue), 'id-ID', { numeric: true, sensitivity: 'base' }) * direction;
+    });
+  }, [filteredOrders, orderSort]);
+
+  const pageCount = Math.max(Math.ceil(sortedOrders.length / pageSize), 1);
+  const paginatedOrders = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return sortedOrders.slice(startIndex, startIndex + pageSize);
+  }, [currentPage, sortedOrders]);
+
+  const handleOrderSort = (key) => {
+    setOrderSort((current) => ({
+      key,
+      direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc'
+    }));
+    setCurrentPage(1);
+  };
+
+  const renderSortableOrderHeader = (label, key) => {
+    const isActive = orderSort.key === key;
+    const isAscending = isActive && orderSort.direction === 'asc';
+    const isDescending = isActive && orderSort.direction === 'desc';
+
+    return (
+      <button
+        type="button"
+        className="btn btn-link link-dark text-decoration-none fw-semibold p-0 text-nowrap"
+        onClick={() => handleOrderSort(key)}
+        aria-label={`Sort ${label} ${isActive && orderSort.direction === 'asc' ? 'descending' : 'ascending'}`}
+      >
+        {label}
+        <span
+          className="d-inline-flex flex-column align-middle ms-1"
+          style={{ gap: 0, lineHeight: 0 }}
+          aria-hidden="true"
+        >
+          <i
+            className={`ti ti-triangle ${isAscending ? 'text-primary' : 'text-muted'}`}
+            style={{ fontSize: '0.55rem', lineHeight: '0.55rem' }}
+          />
+          <i
+            className={`ti ti-triangle ${isDescending ? 'text-primary' : 'text-muted'}`}
+            style={{ fontSize: '0.55rem', lineHeight: '0.55rem', marginTop: -3, transform: 'rotate(180deg)' }}
+          />
+        </span>
+      </button>
+    );
+  };
+
+  const renderSortableCommitmentHeader = (label, key) => {
+    const isActive = commitmentSort.key === key;
+    const isAscending = isActive && commitmentSort.direction === 'asc';
+    const isDescending = isActive && commitmentSort.direction === 'desc';
+
+    return (
+      <button
+        type="button"
+        className="btn btn-link link-dark text-decoration-none fw-semibold p-0 text-nowrap"
+        onClick={() => handleCommitmentSort(key)}
+        aria-label={`Sort ${label} ${isActive && commitmentSort.direction === 'asc' ? 'descending' : 'ascending'}`}
+      >
+        {label}
+        <span className="d-inline-flex flex-column align-middle ms-1" style={{ gap: 0, lineHeight: 0 }} aria-hidden="true">
+          <i
+            className={`ti ti-triangle ${isAscending ? 'text-primary' : 'text-muted'}`}
+            style={{ fontSize: '0.55rem', lineHeight: '0.55rem' }}
+          />
+          <i
+            className={`ti ti-triangle ${isDescending ? 'text-primary' : 'text-muted'}`}
+            style={{ fontSize: '0.55rem', lineHeight: '0.55rem', marginTop: -3, transform: 'rotate(180deg)' }}
+          />
+        </span>
+      </button>
+    );
+  };
 
   const createDuplicateCmoForm = (order = {}) => ({
     customerCode: getOrderCustomerCode(order),
@@ -1631,12 +1773,12 @@ export default function OrderList({ showOnlyCommitment = false }) {
                   <thead>
                     <tr>
                       <th aria-label="Expand product details" style={{ width: 48 }} />
-                      <th>CMO / Customer</th>
-                      <th>Date</th>
-                      <th>Total Item</th>
-                      <th>Kg</th>
-                      <th>Total Order</th>
-                      <th>Status</th>
+                      <th>{renderSortableCommitmentHeader('CMO / Customer', 'cmoCustomer')}</th>
+                      <th>{renderSortableCommitmentHeader('Date', 'date')}</th>
+                      <th>{renderSortableCommitmentHeader('Total Item', 'totalItem')}</th>
+                      <th>{renderSortableCommitmentHeader('Kg', 'kg')}</th>
+                      <th>{renderSortableCommitmentHeader('Total Order', 'totalOrder')}</th>
+                      <th>{renderSortableCommitmentHeader('Status', 'status')}</th>
                       <th className="text-center">Action</th>
                     </tr>
                   </thead>
@@ -2013,12 +2155,12 @@ export default function OrderList({ showOnlyCommitment = false }) {
                   <Table className="mb-0 align-middle" responsive hover>
                     <thead>
                       <tr>
-                        <th>No. SO</th>
-                        <th>Depo</th>
-                        <th>Date</th>
-                        <th>Total Item</th>
-                        <th>Total Order (Kg)</th>
-                        <th>Status</th>
+                        <th>{renderSortableOrderHeader('No. SO', 'soNumber')}</th>
+                        <th>{renderSortableOrderHeader('Depo', 'depo')}</th>
+                        <th>{renderSortableOrderHeader('Date', 'date')}</th>
+                        <th>{renderSortableOrderHeader('Total Item', 'totalItem')}</th>
+                        <th>{renderSortableOrderHeader('Total Order (Kg)', 'totalKg')}</th>
+                        <th>{renderSortableOrderHeader('Status', 'status')}</th>
                         <th className="text-center">Action</th>
                       </tr>
                     </thead>

@@ -540,6 +540,7 @@ export default function ProductionOrder() {
   const [orderSearch, setOrderSearch] = useState('');
   const [orderFilters, setOrderFilters] = useState(createInitialOrderFilters);
   const [currentPage, setCurrentPage] = useState(1);
+  const [orderSort, setOrderSort] = useState({ key: '', direction: 'asc' });
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [loadingOrderDetail, setLoadingOrderDetail] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -669,12 +670,74 @@ export default function ProductionOrder() {
     );
   }, [orderSearch, orders]);
 
-  const pageCount = Math.max(Math.ceil(filteredOrders.length / pageSize), 1);
+  const sortedOrders = useMemo(() => {
+    if (!orderSort.key) return filteredOrders;
+
+    const getSortValue = (order) => {
+      switch (orderSort.key) {
+        case 'product':
+          return `${order.itemCode || ''} ${order.itemName || ''}`;
+        case 'plannedQuantity':
+        case 'completedQuantity':
+          return Number(order[orderSort.key]) || 0;
+        case 'orderDate':
+        case 'dueDate':
+          return new Date(order[orderSort.key] || 0).getTime() || 0;
+        case 'status':
+          return getStatus(order.status)?.label || order.status || '';
+        default:
+          return order[orderSort.key] || '';
+      }
+    };
+
+    return [...filteredOrders].sort((left, right) => {
+      const leftValue = getSortValue(left);
+      const rightValue = getSortValue(right);
+      const comparison =
+        typeof leftValue === 'number' && typeof rightValue === 'number'
+          ? leftValue - rightValue
+          : String(leftValue).localeCompare(String(rightValue), 'id-ID', { numeric: true, sensitivity: 'base' });
+      return orderSort.direction === 'asc' ? comparison : -comparison;
+    });
+  }, [filteredOrders, orderSort]);
+
+  const handleOrderSort = (key) => {
+    setOrderSort((current) => ({ key, direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc' }));
+    setCurrentPage(1);
+  };
+
+  const renderOrderSortableHeader = (label, key, alignment = 'start') => {
+    const ascending = orderSort.key === key && orderSort.direction === 'asc';
+    const descending = orderSort.key === key && orderSort.direction === 'desc';
+
+    return (
+      <button
+        type="button"
+        className={`btn btn-link link-dark text-decoration-none fw-semibold p-0 text-nowrap ${alignment === 'end' ? 'float-end' : ''}`}
+        onClick={() => handleOrderSort(key)}
+        aria-label={`Sort by ${label}`}
+      >
+        {label}
+        <span className="d-inline-flex flex-column align-middle ms-1" style={{ gap: 0, lineHeight: 0 }} aria-hidden="true">
+          <i
+            className={`ti ti-triangle ${ascending ? 'text-primary' : 'text-muted'}`}
+            style={{ fontSize: '0.55rem', lineHeight: '0.55rem' }}
+          />
+          <i
+            className={`ti ti-triangle ${descending ? 'text-primary' : 'text-muted'}`}
+            style={{ fontSize: '0.55rem', lineHeight: '0.55rem', marginTop: -3, transform: 'rotate(180deg)' }}
+          />
+        </span>
+      </button>
+    );
+  };
+
+  const pageCount = Math.max(Math.ceil(sortedOrders.length / pageSize), 1);
   const paginatedOrders = useMemo(() => {
     const safePage = Math.min(currentPage, pageCount);
     const startIndex = (safePage - 1) * pageSize;
-    return filteredOrders.slice(startIndex, startIndex + pageSize);
-  }, [currentPage, filteredOrders, pageCount]);
+    return sortedOrders.slice(startIndex, startIndex + pageSize);
+  }, [currentPage, pageCount, sortedOrders]);
   const issueableOrders = useMemo(() => filteredOrders.filter((order) => canAddIssueProductionOrder(order.status)), [filteredOrders]);
 
   useEffect(() => {
@@ -957,7 +1020,11 @@ export default function ProductionOrder() {
                 unit?.Unit,
                 unit?.code
               ]
-                .map((value) => String(value ?? '').trim().toLowerCase())
+                .map((value) =>
+                  String(value ?? '')
+                    .trim()
+                    .toLowerCase()
+                )
                 .filter(Boolean);
 
               return aliases.some((alias) => assignedUnits.has(alias));
@@ -1570,14 +1637,14 @@ export default function ProductionOrder() {
         <Table className="mb-0 align-middle" responsive hover>
           <thead>
             <tr>
-              <th>Order No.</th>
-              <th>Product</th>
-              <th className="text-end">Planned Qty</th>
-              <th className="text-end">Completed Qty</th>
-              <th>Unit</th>
-              <th>Posting Date</th>
-              <th>Due Date</th>
-              <th>Status</th>
+              <th>{renderOrderSortableHeader('Order No.', 'number')}</th>
+              <th>{renderOrderSortableHeader('Product', 'product')}</th>
+              <th className="text-end">{renderOrderSortableHeader('Planned Qty', 'plannedQuantity', 'end')}</th>
+              <th className="text-end">{renderOrderSortableHeader('Completed Qty', 'completedQuantity', 'end')}</th>
+              <th>{renderOrderSortableHeader('Unit', 'unit')}</th>
+              <th>{renderOrderSortableHeader('Posting Date', 'orderDate')}</th>
+              <th>{renderOrderSortableHeader('Due Date', 'dueDate')}</th>
+              <th>{renderOrderSortableHeader('Status', 'status')}</th>
               <th className="text-center">#</th>
             </tr>
           </thead>
