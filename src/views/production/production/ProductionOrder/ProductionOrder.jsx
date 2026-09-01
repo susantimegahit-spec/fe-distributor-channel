@@ -335,6 +335,7 @@ const normalizeProductionOrder = (item = {}, index = 0) => ({
     item.whs_code ||
     item.warehouse_code ||
     '',
+  unit: item.U_Unit || item.u_unit || item.Unit || item.unit || item.OcrCode2 || item.ocr_code2 || '',
   status: item.ProductionOrderStatus || item.Status || item.status || item.order_status || '',
   orderDate:
     item.PostingDate || item.PostDate || item.DocDate || item.post_date || item.order_date || item.posting_date || item.created_at || '',
@@ -584,7 +585,7 @@ export default function ProductionOrder() {
   const isEditMode = Boolean(editOrder);
 
   useEffect(() => {
-    if (!isReleaseMode && !isEditMode) return;
+    if (!isReleaseMode && !isEditMode && !isDuplicate) return;
 
     setForm((current) => {
       if (!current.product?.details?.length) return current;
@@ -614,7 +615,7 @@ export default function ProductionOrder() {
 
       return changed ? { ...current, product: { ...current.product, details } } : current;
     });
-  }, [editOrder, isEditMode, isReleaseMode, materialOptions, releaseOrder, resourceOptions]);
+  }, [editOrder, isDuplicate, isEditMode, isReleaseMode, materialOptions, releaseOrder, resourceOptions]);
 
   const fetchProductionOrders = useCallback(
     async (activeFilters) => {
@@ -660,7 +661,7 @@ export default function ProductionOrder() {
     if (!keyword) return orders;
 
     return orders.filter((order) =>
-      [order.number, order.itemCode, order.itemName, order.warehouse, order.status].some((value) =>
+      [order.number, order.itemCode, order.itemName, order.unit, order.status].some((value) =>
         String(value || '')
           .toLowerCase()
           .includes(keyword)
@@ -1556,7 +1557,7 @@ export default function ProductionOrder() {
                 type="search"
                 value={orderSearch}
                 onChange={(event) => setOrderSearch(event.target.value)}
-                placeholder="Order number, product, warehouse, or status"
+                placeholder="Order number, product, unit, or status"
               />
             </InputGroup>
           </Col>
@@ -1573,7 +1574,7 @@ export default function ProductionOrder() {
               <th>Product</th>
               <th className="text-end">Planned Qty</th>
               <th className="text-end">Completed Qty</th>
-              <th>Warehouse</th>
+              <th>Unit</th>
               <th>Posting Date</th>
               <th>Due Date</th>
               <th>Status</th>
@@ -1600,7 +1601,7 @@ export default function ProductionOrder() {
                     </td>
                     <td className="text-end">{numberFormatter.format(Number(order.plannedQuantity) || 0)}</td>
                     <td className="text-end">{numberFormatter.format(Number(order.completedQuantity) || 0)}</td>
-                    <td>{order.warehouse || '-'}</td>
+                    <td>{order.unit || '-'}</td>
                     <td>{formatDate(order.orderDate)}</td>
                     <td>{formatDate(order.dueDate)}</td>
                     <td>{status ? <Badge bg={status.variant}>{status.label}</Badge> : '-'}</td>
@@ -2420,6 +2421,7 @@ export default function ProductionOrder() {
                           min="0"
                           step="any"
                           value={plannedQuantity || ''}
+                          readOnly={!isEditMode && !isReleaseMode}
                           onChange={(event) => {
                             const orderQuantity = Number(form.plannedQuantity);
                             const nextPlannedQuantity = event.target.value;

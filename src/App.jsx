@@ -7,6 +7,7 @@ import { getCookies } from './utils/cookies';
 import AuthRoutes from './routes/AuthRoutes';
 import { AlertProvider } from './utils/alertContext';
 import { ConfirmProvider } from './utils/confirmContext';
+import SapConnectionRetryDialog from './components/SapConnectionRetryDialog';
 import ErrorBoundary from './views/ErrorBoundary';
 import { AUTH_STATE_CHANGED_EVENT } from './utils/authEvents';
 import NetworkStatusGuard from './components/NetworkStatusGuard';
@@ -43,6 +44,7 @@ function App() {
     <ErrorBoundary>
       <AlertProvider>
         <ConfirmProvider>
+          <SapConnectionRetryDialog />
           <NetworkStatusGuard>
             <ProviderConfig />
           </NetworkStatusGuard>

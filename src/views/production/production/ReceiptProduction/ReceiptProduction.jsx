@@ -26,7 +26,7 @@ import {
   toggleReceiptPdo
 } from '../../../../redux/production/receiptPdoReducer';
 import { useAlert } from '../../../../utils/alertContext';
-import { getCookies, getOrganizationAssignment, getOrganizationAssignmentDefault } from '../../../../utils/cookies';
+import { getCookies, getOrganizationAssignmentDefault } from '../../../../utils/cookies';
 import './receipt-production.scss';
 
 const pageSize = 10;
@@ -64,6 +64,13 @@ const formatInputDate = (date) => {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+};
+
+const formatInputDateValue = (value) => {
+  if (!value) return today;
+  const compact = String(value).match(/^(\d{4})(\d{2})(\d{2})$/);
+  const date = compact ? new Date(Number(compact[1]), Number(compact[2]) - 1, Number(compact[3])) : new Date(value);
+  return Number.isNaN(date.getTime()) ? today : formatInputDate(date);
 };
 
 const initialFilters = () => {
@@ -140,6 +147,14 @@ const getResponseDetail = (response) => {
 const getValue = (item, keys, fallback = '') =>
   keys.map((key) => item?.[key]).find((value) => value !== undefined && value !== null && String(value).trim() !== '') ?? fallback;
 
+const getValueFromSources = (sources, keys, fallback = '') => {
+  for (const source of sources) {
+    const value = getValue(source, keys);
+    if (value !== '') return value;
+  }
+  return fallback;
+};
+
 const getLines = (item = {}) => {
   const lines = getValue(item, ['DocumentLines', 'document_lines', 'Lines', 'lines', 'details', 'receipt_details'], []);
   return Array.isArray(lines) ? lines : [];
@@ -190,14 +205,17 @@ const normalizeProductionOrder = (item = {}, index = 0) => ({
   itemName: item.ProdName ?? item.ItemName ?? item.item_name ?? item.product_name ?? '',
   plannedQuantity: getPlannedQuantity(item),
   completedQuantity: getCompletedQuantity(item),
-  warehouse: item.Warehouse ?? item.WhsCode ?? item.whs_code ?? item.warehouse_code ?? '',
+  warehouse: getValue(item, ['Warehouse', 'WhsCode', 'whs_code', 'warehouse_code', 'warehouse']),
   uom: item.UomCode ?? item.UoMCode ?? item.UomName ?? item.UoMName ?? item.uom_code ?? item.uom ?? item.unit_of_measure ?? '',
   uomEntry: Number(item.UoMEntry ?? item.UomEntry ?? item.uom_entry ?? item.uomEntry ?? 0),
   bomId: item.Bomid ?? item.BomId ?? item.bom_id ?? item.bomId ?? '',
-  unit: item.U_Unit ?? item.Unit ?? item.unit ?? item.ocr_code2 ?? '',
-  ocrCode: item.OcrCode ?? item.ocr_code ?? '',
-  ocrCode2: item.OcrCode2 ?? item.ocr_code2 ?? '',
-  ocrCode3: item.OcrCode3 ?? item.ocr_code3 ?? '',
+  unit: getValue(item, ['U_Unit', 'u_unit', 'Unit', 'unit', 'OcrCode2', 'ocr_code2']),
+  ocrCode: getValue(item, ['OcrCode', 'ocrCode', 'ocr_code', 'Ocr', 'ocr', 'branch_code', 'branchCode']),
+  ocrCode2: getValue(
+    item,
+    ['OcrCode2', 'ocrCode2', 'ocr_code2', 'Ocr2', 'ocr2', 'business_unit_code', 'businessUnitCode']
+  ),
+  ocrCode3: getValue(item, ['OcrCode3', 'ocrCode3', 'ocr_code3', 'Ocr3', 'ocr3', 'department_code', 'departmentCode']),
   raw: item
 });
 
@@ -212,12 +230,12 @@ const createReceiptLineFromOrder = (order) => {
     PlannedQty: order.plannedQuantity,
     CmpltQty: order.completedQuantity,
     Quantity: remainingQuantity,
-    WhsCode: getOrganizationAssignmentDefault('warehouses') || order.warehouse,
+    WhsCode: order.warehouse,
     UomCode: order.uom,
     UoMEntry: order.uomEntry,
-    OcrCode: getOrganizationAssignmentDefault('branches') || order.ocrCode,
-    OcrCode2: getOrganizationAssignmentDefault('business_units') || order.ocrCode2,
-    OcrCode3: getOrganizationAssignmentDefault('departments') || order.ocrCode3
+    OcrCode: order.ocrCode,
+    OcrCode2: order.ocrCode2,
+    OcrCode3: order.ocrCode3
   };
 };
 
@@ -246,13 +264,19 @@ const normalizeUnit = (item = {}) => {
 
 const normalizeSeries = (item = {}) => {
   const value = typeof item === 'object' ? (item.series ?? item.Series ?? item.series_code ?? item.value ?? item.code ?? item.id) : item;
-  const label =
+  const name =
     typeof item === 'object'
-      ? (item.label ?? item.series_name ?? item.seriesName ?? item.SeriesName ?? item.name ?? item.description ?? value)
+      ? (item.series_name ?? item.seriesName ?? item.SeriesName ?? item.name ?? item.label ?? item.description ?? value)
       : item;
+  const label = typeof item === 'object' ? (item.label ?? name) : name;
 
-  return value === undefined || value === null || value === '' ? null : { value, label: String(label) };
+  return value === undefined || value === null || value === '' ? null : { value, label: String(label), name: String(name) };
 };
+
+const normalizeSeriesName = (value) =>
+  String(value || '')
+    .trim()
+    .toLowerCase();
 
 const normalizeColumnKey = (key) =>
   String(key || '')
@@ -298,7 +322,6 @@ const formatDate = (value) => {
 
 export default function ReceiptProduction() {
   const { showAlert } = useAlert();
-  const organizationAssignments = useMemo(() => getOrganizationAssignment(), []);
   const dispatch = useDispatch();
   const {
     items: pdoItems,
@@ -565,17 +588,20 @@ export default function ReceiptProduction() {
     const formattedDate = String(date || '').replace(/-/g, '');
     if (!formattedDate) {
       setSeriesOptions([]);
-      return;
+      return [];
     }
 
     setLoadingSeries(true);
     try {
       const response = await ProductionServices.getSeries(formattedDate, 59);
       if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch series data');
-      setSeriesOptions(getResponseList(response).map(normalizeSeries).filter(Boolean));
+      const options = getResponseList(response).map(normalizeSeries).filter(Boolean);
+      setSeriesOptions(options);
+      return options;
     } catch (error) {
       setSeriesOptions([]);
       showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch series data', 'danger');
+      return [];
     } finally {
       setLoadingSeries(false);
     }
@@ -632,14 +658,6 @@ export default function ReceiptProduction() {
     }));
   };
 
-  const updateReceiptHeaderField = (field, value) => {
-    setReceiptForm((current) => ({
-      ...current,
-      [field]: value,
-      Lines: current.Lines.map((line) => ({ ...line, [field]: value }))
-    }));
-  };
-
   const handleAddSelectedPdos = async () => {
     if (!selectedPdoIds.length) {
       showAlert('Select at least one Production Order', 'warning');
@@ -672,7 +690,7 @@ export default function ReceiptProduction() {
 
     setLoadingBomDetail(true);
     try {
-      const receiptOrderGroups = await Promise.all(
+      const orderDetails = await Promise.all(
         selectedOrders.map(async (order) => {
           const response = await ProductionServices.getProductionOrderById(order.id);
           if (response?.data?.success === false) {
@@ -681,32 +699,84 @@ export default function ReceiptProduction() {
           const payload = response?.data?.data ?? response?.data ?? {};
           const header = payload?.header ?? payload?.Header ?? payload?.data ?? payload?.order ?? payload?.production_order ?? payload;
           const headerItems = Array.isArray(header) ? header : [header];
+          const detailItems = payload?.items ?? payload?.Items ?? payload?.details ?? payload?.order_details ?? [];
+          const firstDetail = Array.isArray(detailItems) ? detailItems[0] : {};
 
-          return headerItems.filter(Boolean).map((headerItem, index) => ({
-            ...normalizeProductionOrder({ ...order.raw, ...headerItem }),
-            baseLine: headerItem.BaseLine ?? headerItem.base_line ?? headerItem.LineNum ?? headerItem.line_num ?? index
-          }));
+          return {
+            header: headerItems[0] || {},
+            firstDetail: firstDetail || {},
+            raw: order.raw || {},
+            orders: headerItems.filter(Boolean).map((headerItem, index) => ({
+              ...normalizeProductionOrder({ ...order.raw, ...firstDetail, ...headerItem }),
+              baseLine: headerItem.BaseLine ?? headerItem.base_line ?? headerItem.LineNum ?? headerItem.line_num ?? index
+            }))
+          };
         })
       );
-      const receiptOrders = receiptOrderGroups.flat();
+      const receiptOrders = orderDetails.flatMap((detail) => detail.orders);
+      const firstHeader = orderDetails[0]?.header || {};
+      const pdoSources = [firstHeader, orderDetails[0]?.firstDetail, orderDetails[0]?.raw, orderDetails[0]?.raw?.headerData];
+      const pdoWarehouse = getValueFromSources(pdoSources, ['Warehouse', 'WhsCode', 'whs_code', 'warehouse_code', 'warehouse']);
+      const pdoBranch = getValueFromSources(pdoSources, [
+        'OcrCode',
+        'ocrCode',
+        'ocr_code',
+        'Ocr',
+        'ocr',
+        'branch_code',
+        'branchCode'
+      ]);
+      const pdoBusinessUnit = getValueFromSources(pdoSources, [
+        'OcrCode2',
+        'ocrCode2',
+        'ocr_code2',
+        'Ocr2',
+        'ocr2',
+        'business_unit_code',
+        'businessUnitCode'
+      ]);
+      const pdoDepartment = getValueFromSources(pdoSources, [
+        'OcrCode3',
+        'ocrCode3',
+        'ocr_code3',
+        'Ocr3',
+        'ocr3',
+        'department_code',
+        'departmentCode'
+      ]);
+      const dueDate = formatInputDateValue(getValue(firstHeader, ['PostDate'], receiptForm.DocDueDate));
+      const postingDate = receiptForm.DocDate && receiptForm.DocDate > dueDate ? dueDate : receiptForm.DocDate;
+      const pdoSeries = getValue(firstHeader, ['Series', 'series', 'series_code', 'seriesCode']);
+      const pdoSeriesName = getValue(firstHeader, ['SeriesName', 'seriesName', 'series_name']);
+      const availableSeries = await fetchSeriesOptions(postingDate);
+      const matchingSeries = availableSeries.find(
+        (option) =>
+          (pdoSeriesName && normalizeSeriesName(option.name) === normalizeSeriesName(pdoSeriesName)) ||
+          (!pdoSeriesName && pdoSeries && String(option.value) === String(pdoSeries))
+      );
 
       setReceiptForm((current) => ({
         ...current,
+        DocDate: postingDate,
+        DocDueDate: dueDate,
+        Series: matchingSeries?.value || (postingDate !== current.DocDate ? '' : current.Series),
+        Comments: current.Comments || getValue(firstHeader, ['Comments', 'comments', 'remarks']),
+        Shift: getValue(firstHeader, ['U_Shift', 'Shift', 'shift'], current.Shift),
         Bomid: current.Bomid || String(receiptOrders[0]?.bomId || ''),
-        Unit: current.Unit || receiptOrders[0]?.unit || '',
-        WhsCode: current.WhsCode || receiptOrders[0]?.warehouse || '',
-        OcrCode: current.OcrCode || receiptOrders[0]?.ocrCode || '',
-        OcrCode2: current.OcrCode2 || receiptOrders[0]?.ocrCode2 || '',
-        OcrCode3: current.OcrCode3 || receiptOrders[0]?.ocrCode3 || '',
+        Unit: getValue(firstHeader, ['U_Unit', 'Unit', 'unit', 'OcrCode2', 'ocr_code2'], current.Unit),
+        WhsCode: pdoWarehouse || receiptOrders[0]?.warehouse || '',
+        OcrCode: pdoBranch || receiptOrders[0]?.ocrCode || '',
+        OcrCode2: pdoBusinessUnit || receiptOrders[0]?.ocrCode2 || '',
+        OcrCode3: pdoDepartment || receiptOrders[0]?.ocrCode3 || '',
         Lines: [
           ...current.Lines.filter((line) => selectedPdoIds.includes(String(line.BaseEntry))),
           ...receiptOrders.map(createReceiptLineFromOrder)
         ].map((line) => ({
           ...line,
-          WhsCode: current.WhsCode || line.WhsCode,
-          OcrCode: current.OcrCode || line.OcrCode,
-          OcrCode2: current.OcrCode2 || line.OcrCode2,
-          OcrCode3: current.OcrCode3 || line.OcrCode3
+          WhsCode: pdoWarehouse || line.WhsCode,
+          OcrCode: pdoBranch || line.OcrCode,
+          OcrCode2: pdoBusinessUnit || line.OcrCode2,
+          OcrCode3: pdoDepartment || line.OcrCode3
         }))
       }));
       setShowBomModal(false);
@@ -906,6 +976,7 @@ export default function ReceiptProduction() {
               <Form.Control
                 type="date"
                 value={receiptForm.DocDate}
+                max={receiptForm.DocDueDate || undefined}
                 onChange={(event) => {
                   const date = event.target.value;
                   setReceiptForm((current) => ({ ...current, DocDate: date, Series: '' }));
@@ -915,11 +986,7 @@ export default function ReceiptProduction() {
             </Col>
             <Col md={3}>
               <Form.Label>Due Date *</Form.Label>
-              <Form.Control
-                type="date"
-                value={receiptForm.DocDueDate}
-                onChange={(event) => setReceiptForm((current) => ({ ...current, DocDueDate: event.target.value }))}
-              />
+              <Form.Control type="date" value={receiptForm.DocDueDate} readOnly />
             </Col>
             <Col md={2}>
               <Form.Label>Series *</Form.Label>
@@ -933,7 +1000,7 @@ export default function ReceiptProduction() {
                 options={seriesOptions}
                 value={seriesOptions.find((option) => String(option.value) === String(receiptForm.Series)) || null}
                 isLoading={loadingSeries}
-                isDisabled={loadingSeries}
+                isDisabled
                 placeholder={loadingSeries ? 'Loading series...' : 'Select series'}
                 onChange={(option) => setReceiptForm((current) => ({ ...current, Series: option?.value || '' }))}
               />
@@ -949,6 +1016,7 @@ export default function ReceiptProduction() {
                 menuShouldScrollIntoView={false}
                 options={shiftOptions}
                 value={shiftOptions.find((option) => option.value === receiptForm.Shift) || null}
+                isDisabled
                 placeholder="Select shift"
                 onChange={(option) => setReceiptForm((current) => ({ ...current, Shift: option?.value || '' }))}
               />
@@ -968,27 +1036,21 @@ export default function ReceiptProduction() {
                   (receiptForm.Unit ? { value: receiptForm.Unit, label: receiptForm.Unit } : null)
                 }
                 isLoading={loadingUnits}
-                isDisabled={loadingUnits}
-                isClearable
+                isDisabled
                 placeholder={loadingUnits ? 'Loading units...' : 'Select unit'}
                 onChange={(option) => setReceiptForm((current) => ({ ...current, Unit: option?.value || '' }))}
               />
             </Col>
             <Col xs={12}>
               <Form.Label>Comments</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={2}
-                value={receiptForm.Comments}
-                onChange={(event) => setReceiptForm((current) => ({ ...current, Comments: event.target.value }))}
-              />
+              <Form.Control as="textarea" rows={2} value={receiptForm.Comments} readOnly />
             </Col>
             {[
-              ['WhsCode', 'warehouses', warehouseOptions, 'Warehouse', loadingWarehouses],
-              ['OcrCode', 'branches', ocrOptions.branch, 'Branch', loadingOcr],
-              ['OcrCode2', 'business_units', ocrOptions.businessUnit, 'Business Unit', loadingOcr],
-              ['OcrCode3', 'departments', ocrOptions.department, 'Department', loadingOcr]
-            ].map(([field, assignmentKey, options, label, isLoading]) => (
+              ['WhsCode', warehouseOptions, 'Warehouse', loadingWarehouses],
+              ['OcrCode', ocrOptions.branch, 'Branch', loadingOcr],
+              ['OcrCode2', ocrOptions.businessUnit, 'Business Unit', loadingOcr],
+              ['OcrCode3', ocrOptions.department, 'Department', loadingOcr]
+            ].map(([field, options, label, isLoading]) => (
               <Col md={3} key={field}>
                 <Form.Label>{label}</Form.Label>
                 <Select
@@ -1001,9 +1063,8 @@ export default function ReceiptProduction() {
                     (receiptForm[field] ? { value: receiptForm[field], label: receiptForm[field] } : null)
                   }
                   isLoading={isLoading}
-                  isDisabled={isLoading || organizationAssignments[assignmentKey].length > 0}
+                  isDisabled
                   placeholder={`Select ${label.toLowerCase()}`}
-                  onChange={(option) => updateReceiptHeaderField(field, option?.value || '')}
                 />
               </Col>
             ))}

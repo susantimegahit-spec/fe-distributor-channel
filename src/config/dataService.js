@@ -6,6 +6,10 @@ import { useAlert } from '../utils/alertContext';
 import store from '../redux/store';
 import { destroyAuthState } from '../redux/authReducer';
 import { notifyNetworkUnavailable } from '../utils/networkEvents';
+import {
+  requestSapConnectionRetry,
+  SAP_CONNECTION_ERROR_MESSAGE
+} from '../utils/sapConnectionEvents';
 
 const API_ENDPOINT = import.meta.env.VITE_APP_API_ENDPOINT_DEVELOPMENT;
 
@@ -21,6 +25,62 @@ const client = axios.create({
 });
 
 const isFormData = (data) => typeof FormData !== 'undefined' && data instanceof FormData;
+
+const isSapConnectionTimeout = (error) => {
+  const responseData = error?.response?.data;
+  let serializedResponse = '';
+  try {
+    serializedResponse = JSON.stringify(responseData);
+  } catch {
+    serializedResponse = String(responseData || '');
+  }
+  const messages = [
+    responseData?.message,
+    responseData?.error,
+    responseData?.data?.message,
+    responseData?.data?.error,
+    error?.message,
+    typeof responseData === 'string' ? responseData : '',
+    serializedResponse
+  ];
+
+  return messages.some((message) => String(message || '').toLowerCase().includes('curl error 28'));
+};
+
+const setSapConnectionErrorMessage = (error) => {
+  error.message = SAP_CONNECTION_ERROR_MESSAGE;
+  if (error.response) {
+    const responseData = error.response.data;
+    error.response.data =
+      responseData && typeof responseData === 'object'
+        ? { ...responseData, message: SAP_CONNECTION_ERROR_MESSAGE }
+        : { message: SAP_CONNECTION_ERROR_MESSAGE };
+  }
+  return error;
+};
+
+const retrySapConnectionRequest = (error, originalRequest) => {
+  const sapConnectionError = setSapConnectionErrorMessage(error);
+
+  return new Promise((resolve, reject) => {
+    requestSapConnectionRetry({
+      retry: async () => {
+        try {
+          resolve(await client(originalRequest));
+        } catch (retryError) {
+          reject(retryError);
+        }
+      },
+      cancel: () => {
+        if (sapConnectionError.response) {
+          resolve(sapConnectionError.response);
+          return;
+        }
+        reject(sapConnectionError);
+      }
+    });
+  });
+};
 
 const buildHeaders = (data, optionalHeader = {}) => {
   const headers = { ...authHeader(), ...optionalHeader };
@@ -108,7 +168,16 @@ client.interceptors.request.use((config) => {
 });
 
 client.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (isSapConnectionTimeout({ response }) && response.config) {
+      const error = new Error(SAP_CONNECTION_ERROR_MESSAGE);
+      error.response = response;
+      error.config = response.config;
+      return retrySapConnectionRequest(error, response.config);
+    }
+
+    return response;
+  },
   (error) => {
     /**
      * Do something in case the response returns an error code [3**, 4**, 5**] etc
@@ -116,6 +185,9 @@ client.interceptors.response.use(
      */
     const { response } = error;
     const originalRequest = error.config;
+    if (isSapConnectionTimeout(error) && originalRequest) {
+      return retrySapConnectionRequest(error, originalRequest);
+    }
     if (!response || [502, 503, 504].includes(response.status)) {
       notifyNetworkUnavailable({ status: response?.status, code: error.code });
     }

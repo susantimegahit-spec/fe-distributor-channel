@@ -45,25 +45,31 @@ export default function MasterDistributor() {
 
   const fetchData = async () => {
     setLoadingData(true);
-    const response = await DistributorServices.getAllDistributor(keywords);
-    if (response.data.success) {
+    try {
+      const response = await DistributorServices.getAllDistributor(keywords);
+      if (!response?.data?.success) {
+        throw new Error(response?.data?.message || 'Failed to fetch data');
+      }
       setDataSource(response.data.data);
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch data', 'danger');
+    } finally {
       setLoadingData(false);
-    } else {
-      setLoadingData(false);
-      showAlert('Failed to fetch data', 'danger');
     }
   };
 
   const syncData = async () => {
     setLoadingData(true);
-    const response = await DistributorServices.syncDistributor();
-    if (response.data.success) {
+    try {
+      const response = await DistributorServices.syncDistributor();
+      if (!response?.data?.success) {
+        throw new Error(response?.data?.message || 'Failed to synchronize distributor data');
+      }
       showAlert('Distributor data synced successfully', 'success');
-      fetchData();
-    } else {
-      showAlert(response.data.message, 'danger');
-      fetchData();
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to synchronize distributor data', 'danger');
+    } finally {
+      await fetchData();
     }
   };
 
