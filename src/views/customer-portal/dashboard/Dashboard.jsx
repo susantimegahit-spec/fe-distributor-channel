@@ -255,6 +255,28 @@ const getOrderLines = (order = {}) => {
   return Array.isArray(lines) ? lines : [];
 };
 
+const getKgFromProductName = (productName = '') => {
+  const matches = [...String(productName).matchAll(/(\d+(?:[.,]\d+)?)\s*(kg|kilogram|g|gr|gram)\b/gi)];
+  const weightMatch = matches.at(-1);
+  if (!weightMatch) return 0;
+
+  const weight = Number(String(weightMatch[1]).replace(',', '.')) || 0;
+  return ['g', 'gr', 'gram'].includes(String(weightMatch[2]).toLowerCase()) ? weight / 1000 : weight;
+};
+
+const getOrderTotalKg = (order = {}) =>
+  getOrderLines(order).reduce((total, line) => {
+    const productName = getOrderValue(
+      line,
+      ['item_name', 'itemName', 'ItemName', 'Dscription', 'description', 'item_description'],
+      ''
+    );
+    const quantity = Number(getOrderValue(line, ['quantity', 'qty', 'Quantity'], 0)) || 0;
+    return total + getKgFromProductName(productName) * quantity;
+  }, 0);
+
+const formatKg = (value) => `${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 }).format(Number(value) || 0)} Kg`;
+
 const getOrderListPayload = (payload) => {
   if (Array.isArray(payload)) return payload;
 
@@ -1693,7 +1715,7 @@ export default function Dashboard() {
                 <th>No. SO</th>
                 <th>Depo</th>
                 <th>Date</th>
-                <th>Total Order</th>
+                <th>Total Order (Kg)</th>
                 <th>Status</th>
                 <th className="text-center complete-order-actions-column">Action</th>
               </tr>
@@ -1741,7 +1763,7 @@ export default function Dashboard() {
                           {getOrderValue(order, ['customer_name', 'customerName', 'card_name', 'cardName'])}
                         </td>
                         <td>{orderDate.isValid() ? orderDate.format('DD MMM YYYY') : '-'}</td>
-                        <td>{currency(getOrderValue(order, ['doc_total', 'docTotal', 'total', 'total_order', 'totalOrder'], 0))}</td>
+                        <td className="fw-semibold">{formatKg(getOrderTotalKg(order))}</td>
                         <td>
                           <Badge bg="info">Delivery</Badge>
                         </td>
