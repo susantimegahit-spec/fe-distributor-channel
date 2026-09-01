@@ -684,6 +684,11 @@ export default function OrderList({ showOnlyCommitment = false }) {
       return total + getKgFromProductName(productName) * quantity;
     }, 0);
 
+  const getOrderLineTotalKg = (line = {}) => {
+    const quantity = Number(getOrderValue(line, ['quantity', 'qty', 'Quantity'], 0)) || 0;
+    return getKgFromProductName(getProductName(line)) * quantity;
+  };
+
   const formatKg = (value) => `${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 }).format(Number(value) || 0)} Kg`;
 
   const sortedCommitmentOrders = useMemo(() => {
@@ -793,11 +798,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
         aria-label={`Sort ${label} ${isActive && orderSort.direction === 'asc' ? 'descending' : 'ascending'}`}
       >
         {label}
-        <span
-          className="d-inline-flex flex-column align-middle ms-1"
-          style={{ gap: 0, lineHeight: 0 }}
-          aria-hidden="true"
-        >
+        <span className="d-inline-flex flex-column align-middle ms-1" style={{ gap: 0, lineHeight: 0 }} aria-hidden="true">
           <i
             className={`ti ti-triangle ${isAscending ? 'text-primary' : 'text-muted'}`}
             style={{ fontSize: '0.55rem', lineHeight: '0.55rem' }}
@@ -2993,6 +2994,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                   <tr>
                     <th>Item</th>
                     <th className="text-end">Qty</th>
+                    <th className="text-end">Qty (Kg)</th>
                     <th>Unit</th>
                     <th className="text-end">Price</th>
                     <th className="text-end">Total</th>
@@ -3010,6 +3012,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                           </div>
                         </td>
                         <td className="text-end">{Math.round(getOrderValue(line, ['quantity', 'qty', 'Quantity'], 0))}</td>
+                        <td className="text-end fw-semibold">{formatKg(getOrderLineTotalKg(line))}</td>
                         <td>{getOrderValue(line, ['unit_msr', 'unitMsr', 'uom_code', 'UomCode'])}</td>
                         <td className="text-end">{currency(getOrderValue(line, ['unit_price', 'unitPrice', 'price', 'Price'], 0))}</td>
                         <td className="text-end">{currency(getOrderValue(line, ['line_total', 'lineTotal', 'LineTotal'], 0))}</td>
@@ -3018,7 +3021,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={6} className="text-center text-muted py-4">
+                      <td colSpan={7} className="text-center text-muted py-4">
                         Item details are not available
                       </td>
                     </tr>
