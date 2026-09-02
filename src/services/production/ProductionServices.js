@@ -75,6 +75,14 @@ class ProductionServices {
     return DataService.get('/production/orders', payload);
   }
 
+  getChangeProduct(search = '') {
+    return DataService.get('/production/change-products', { search: String(search ?? '').trim() });
+  }
+
+  postDraftChangeProduct(payload) {
+    return DataService.post('/production/change-products', payload);
+  }
+
   getListOrderSap(payload = {}) {
     const { from = '', to = '', whs_code = '', to_whs_code = '', status = '', unit = '' } = payload;
     const productionUnit = getAssignedProductionUnit(unit);
