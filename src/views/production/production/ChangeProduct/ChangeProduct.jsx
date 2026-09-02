@@ -28,6 +28,49 @@ const pageSize = 10;
 const changeProductPermissionKeys = ['production-change-product', getMenuNumber(SYSTEM_KEYS.PRODUCTION, 'production-change-product')];
 const shiftOptions = ['All', 'Shift 1', 'Shift 2', 'Shift 3'].map((value) => ({ value, label: value }));
 const selectStyles = { menuPortal: (base) => ({ ...base, zIndex: 1090 }) };
+const headerSelectStyles = {
+  ...selectStyles,
+  control: (base, state) => ({
+    ...base,
+    minHeight: 44,
+    borderWidth: 1,
+    borderColor: state.isFocused ? '#4680ff' : '#aeb8c4',
+    borderRadius: 6,
+    backgroundColor: '#fff',
+    boxShadow: state.isFocused ? '0 0 0 3px rgba(70, 128, 255, 0.16)' : 'none',
+    cursor: 'pointer',
+    '&:hover': { borderColor: state.isFocused ? '#4680ff' : '#6c757d' }
+  }),
+  valueContainer: (base) => ({ ...base, padding: '6px 12px' }),
+  singleValue: (base) => ({ ...base, color: '#1d2630', fontWeight: 500 }),
+  placeholder: (base) => ({ ...base, color: '#6c757d' }),
+  dropdownIndicator: (base, state) => ({
+    ...base,
+    padding: 10,
+    color: state.isFocused ? '#4680ff' : '#344054',
+    '&:hover': { color: '#4680ff' }
+  }),
+  indicatorSeparator: (base) => ({ ...base, backgroundColor: '#cbd3dc' }),
+  menu: (base) => ({
+    ...base,
+    zIndex: 1090,
+    marginTop: 6,
+    border: '1px solid #cbd3dc',
+    borderRadius: 8,
+    boxShadow: '0 12px 30px rgba(15, 23, 42, 0.2)',
+    overflow: 'hidden'
+  }),
+  menuList: (base) => ({ ...base, padding: 6 }),
+  option: (base, state) => ({
+    ...base,
+    padding: '10px 12px',
+    borderRadius: 5,
+    color: state.isSelected ? '#fff' : '#1d2630',
+    backgroundColor: state.isSelected ? '#4680ff' : state.isFocused ? '#eaf1ff' : '#fff',
+    cursor: 'pointer',
+    '&:active': { backgroundColor: state.isSelected ? '#4680ff' : '#dce8ff' }
+  })
+};
 const toLocalDateTime = (date = new Date()) => {
   const timezoneOffset = date.getTimezoneOffset() * 60000;
   return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
@@ -521,7 +564,7 @@ export default function ChangeProduct() {
                     options={warehouseOptions}
                     value={warehouseOptions.find((option) => String(option.value) === String(form.warehouse)) || null}
                     onChange={(option) => setForm((current) => ({ ...current, warehouse: option?.value || '' }))}
-                    styles={selectStyles}
+                    styles={headerSelectStyles}
                     menuPortalTarget={document.body}
                     menuPosition="fixed"
                     menuPlacement="auto"
@@ -544,7 +587,7 @@ export default function ChangeProduct() {
                         (form[field] ? { value: form[field], label: form[field] } : null)
                       }
                       onChange={(option) => setForm((current) => ({ ...current, [field]: option?.value || '' }))}
-                      styles={selectStyles}
+                      styles={headerSelectStyles}
                       menuPortalTarget={document.body}
                       menuPosition="fixed"
                       menuPlacement="auto"
