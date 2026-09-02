@@ -29,6 +29,7 @@ import { useAlert } from '../../../utils/alertContext';
 import RoleServices from '../../../services/setting/RoleServices';
 import DistributorServices from '../../../services/customer-portal/DistributorServices';
 import { canUseMenuAction } from '../../../utils/actionPermissions';
+import { getMenuNumber, SYSTEM_KEYS } from '../../../systems';
 
 const statusOptions = [
   { value: '', label: 'All Statuses' },
@@ -209,6 +210,9 @@ const approvalStatusMap = {
   WAITING_FINANCE: 'WAITING_FINANCE',
   ALL: 'ALL'
 };
+
+const orderPermissionMenuKeys = ['order-list', getMenuNumber(SYSTEM_KEYS.CUSTOMER_PORTAL, 'order-list')];
+const cmoPermissionMenuKeys = ['order-cmo', getMenuNumber(SYSTEM_KEYS.CUSTOMER_PORTAL, 'order-cmo')];
 
 const creditLimitKeys = ['credit_limit_data.credit_limit'];
 
@@ -1397,7 +1401,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
         const orderDetail = response.data.data;
         const shouldLoadCreditLimit =
           normalizeStatus(orderDetail?.status || order?.status) === 'WAITING_FINANCE' &&
-          canUseMenuAction(showOnlyCommitment ? ['order-cmo', 13] : ['order-list', 14], 'approve');
+          canUseMenuAction(showOnlyCommitment ? cmoPermissionMenuKeys : orderPermissionMenuKeys, 'approve');
         const customerCode = getOrderCustomerCode(orderDetail) || getOrderCustomerCode(order);
         setSelectedOrderDetail(orderDetail);
 
@@ -1538,7 +1542,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
 
   const hasAction = (actionName) => {
     const normalizedAction = actionName === 'attachment' ? 'download' : actionName;
-    return canUseMenuAction(showOnlyCommitment ? ['order-cmo', 13] : ['order-list', 14], normalizedAction);
+    return canUseMenuAction(showOnlyCommitment ? cmoPermissionMenuKeys : orderPermissionMenuKeys, normalizedAction);
   };
 
   const canCreateOrder = hasAction('create');
@@ -1616,7 +1620,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
   const canShowCreditLimitInfo =
     selectedOrderDetail &&
     normalizeStatus(selectedOrderDetail.status) === 'WAITING_FINANCE' &&
-    canUseMenuAction(showOnlyCommitment ? ['order-cmo', 13] : ['order-list', 14], 'approve');
+    canUseMenuAction(showOnlyCommitment ? cmoPermissionMenuKeys : orderPermissionMenuKeys, 'approve');
   const formatCreditAmount = (value) => (value !== undefined && value !== null && value !== '' ? currency(parseAmount(value)) : '-');
   return (
     <>
