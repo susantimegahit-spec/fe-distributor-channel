@@ -211,6 +211,24 @@ const approvalStatusMap = {
   ALL: 'ALL'
 };
 
+const approvalIdByStatus = {
+  DRAFT: 1,
+  WAITING_OM: 2,
+  WAITING_ASM: 3,
+  WAITING_ADMIN_SALES: 4,
+  WAITING_FINANCE: 5,
+  ORDER_APPROVED: 6,
+  APPROVED: 6
+};
+
+const getApprovalId = (value) => {
+  const approvalId = Number(
+    value?.approval_id ?? value?.approvalId ?? value?.approval?.id ?? approvalIdByStatus[normalizeStatus(value?.status)]
+  );
+
+  return Number.isFinite(approvalId) && approvalId > 0 ? approvalId : null;
+};
+
 const orderPermissionMenuKeys = ['order-list', getMenuNumber(SYSTEM_KEYS.CUSTOMER_PORTAL, 'order-list')];
 const cmoPermissionMenuKeys = ['order-cmo', getMenuNumber(SYSTEM_KEYS.CUSTOMER_PORTAL, 'order-cmo')];
 
@@ -1401,7 +1419,9 @@ export default function OrderList({ showOnlyCommitment = false }) {
         const orderDetail = response.data.data;
         const shouldLoadCreditLimit =
           normalizeStatus(orderDetail?.status || order?.status) === 'WAITING_FINANCE' &&
-          canUseMenuAction(showOnlyCommitment ? cmoPermissionMenuKeys : orderPermissionMenuKeys, 'approve');
+          canUseMenuAction(showOnlyCommitment ? cmoPermissionMenuKeys : orderPermissionMenuKeys, 'approve') &&
+          roleApprovalId !== null &&
+          roleApprovalId === getApprovalId(orderDetail);
         const customerCode = getOrderCustomerCode(orderDetail) || getOrderCustomerCode(order);
         setSelectedOrderDetail(orderDetail);
 
@@ -1491,6 +1511,11 @@ export default function OrderList({ showOnlyCommitment = false }) {
   };
 
   const handleApproveOrder = () => {
+    if (!canApproveSelectedOrder) {
+      showAlert('Your role permission does not allow approval at this order stage', 'warning');
+      return;
+    }
+
     const nextStatus = getNextApprovalStatus(selectedOrderDetail);
 
     if (!nextStatus) {
@@ -1502,6 +1527,11 @@ export default function OrderList({ showOnlyCommitment = false }) {
   };
 
   const handleRejectOrder = () => {
+    if (!canApproveSelectedOrder) {
+      showAlert('Your role permission does not allow rejection at this order stage', 'warning');
+      return;
+    }
+
     updateSelectedOrderStatus('DRAFT', 'reject');
   };
 
@@ -1596,7 +1626,15 @@ export default function OrderList({ showOnlyCommitment = false }) {
     );
   };
 
-  const canShowSelectedApprovalAction = !showOnlyCommitment && Boolean(selectedOrderDetail) && hasAction('approve');
+  const roleApprovalId = getApprovalId(permissionDetail?.role_menu || permissionDetail?.roleMenu);
+  const selectedOrderApprovalId = getApprovalId(selectedOrderDetail);
+  const canApproveSelectedOrder =
+    !showOnlyCommitment &&
+    Boolean(selectedOrderDetail) &&
+    hasAction('approve') &&
+    roleApprovalId !== null &&
+    roleApprovalId === selectedOrderApprovalId;
+  const canShowSelectedApprovalAction = canApproveSelectedOrder;
   const nextSelectedApprovalStatus = selectedOrderDetail ? getNextApprovalStatus(selectedOrderDetail) : '';
   const selectedSapDiscounts = selectedOrderDetail ? getSapDiscounts(selectedOrderDetail) : [];
   const selectedSapDiscountTotal = selectedSapDiscounts.reduce(
@@ -1617,10 +1655,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
   const selectedOrderGrandTotal = selectedOrderTotal - selectedOrderDiscountTotal;
   const selectedCreditLimit = selectedOrderDetail ? getOrderValue(selectedOrderDetail, creditLimitKeys, '') : '';
   const selectedCreditRemaining = selectedOrderDetail?.creditLimitData?.SisaCredit;
-  const canShowCreditLimitInfo =
-    selectedOrderDetail &&
-    normalizeStatus(selectedOrderDetail.status) === 'WAITING_FINANCE' &&
-    canUseMenuAction(showOnlyCommitment ? cmoPermissionMenuKeys : orderPermissionMenuKeys, 'approve');
+  const canShowCreditLimitInfo = selectedOrderDetail && normalizeStatus(selectedOrderDetail.status) === 'WAITING_FINANCE' && canApproveSelectedOrder;
   const formatCreditAmount = (value) => (value !== undefined && value !== null && value !== '' ? currency(parseAmount(value)) : '-');
   return (
     <>
