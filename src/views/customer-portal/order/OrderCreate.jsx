@@ -236,6 +236,7 @@ export default function OrderPost({ cmoMode = false }) {
       vatGroup: null
     }
   ]);
+  const [lineHeader, setLineHeader] = useState({ warehouse: null, branch: null, businessUnit: null, department: null });
 
   const [orderInput, setOrderInput] = useState({
     cardCode: '',
@@ -746,7 +747,27 @@ export default function OrderPost({ cmoMode = false }) {
       fetchEmployee(cardCode, false);
     }
 
-    setItemArr(detailLines.length > 0 ? detailLines.map((line) => mapOrderLine(line, customerItems)) : itemArr);
+    const mappedLines = detailLines.length > 0 ? detailLines.map((line) => mapOrderLine(line, customerItems)) : itemArr;
+    if (mappedLines.length) {
+      const mappedHeader = {
+        warehouse: mappedLines[0].whs_code || null,
+        branch: mappedLines[0].ocrCode || null,
+        businessUnit: mappedLines[0].ocrCode2 || null,
+        department: mappedLines[0].ocrCode3 || null
+      };
+      setLineHeader(mappedHeader);
+      setItemArr(
+        mappedLines.map((line) => ({
+          ...line,
+          whs_code: mappedHeader.warehouse,
+          ocrCode: mappedHeader.branch,
+          ocrCode2: mappedHeader.businessUnit,
+          ocrCode3: mappedHeader.department
+        }))
+      );
+    } else {
+      setItemArr(mappedLines);
+    }
   };
 
   const fetchOrderDetail = async (orderId) => {
@@ -1131,24 +1152,9 @@ export default function OrderPost({ cmoMode = false }) {
     }
   };
 
-  const handleSelectWarehouse = async (e, index) => {
-    itemArr[index].whs_code = e;
-    setItemArr([...itemArr]);
-  };
-
-  const handleSelectOcr1 = (e, index) => {
-    itemArr[index].ocrCode = e;
-    setItemArr([...itemArr]);
-  };
-
-  const handleSelectOcr2 = (e, index) => {
-    itemArr[index].ocrCode2 = e;
-    setItemArr([...itemArr]);
-  };
-
-  const handleSelectOcr3 = (e, index) => {
-    itemArr[index].ocrCode3 = e;
-    setItemArr([...itemArr]);
+  const updateLineHeader = (field, lineField, option) => {
+    setLineHeader((current) => ({ ...current, [field]: option }));
+    setItemArr((current) => current.map((item) => ({ ...item, [lineField]: option })));
   };
 
   // VAT disabled
@@ -1501,13 +1507,13 @@ export default function OrderPost({ cmoMode = false }) {
       totalKg: 0,
       unitMsr: '',
       uomEntry: '',
-      whs_code: null,
+      whs_code: lineHeader.warehouse,
       lineTotal: '',
       vatTotal: '',
       freeText: '',
-      ocrCode: null,
-      ocrCode2: null,
-      ocrCode3: null,
+      ocrCode: lineHeader.branch,
+      ocrCode2: lineHeader.businessUnit,
+      ocrCode3: lineHeader.department,
       vatGroup: null
     };
 
@@ -2006,6 +2012,7 @@ export default function OrderPost({ cmoMode = false }) {
         vatGroup: null
       }
     ]);
+    setLineHeader({ warehouse: null, branch: null, businessUnit: null, department: null });
     setDetailDisc([
       {
         name: '',
@@ -2724,6 +2731,40 @@ export default function OrderPost({ cmoMode = false }) {
               </Button>
             }
           >
+            {!isCustomerRole && !cmoMode ? (
+              <Card className="border mb-3">
+                <Card.Header className="py-3">
+                  <h6 className="mb-0">Warehouse &amp; Distribution Rule</h6>
+                </Card.Header>
+                <Card.Body>
+                  <Row className="g-3">
+                    {[
+                      ['warehouse', 'whs_code', listWarehouse, 'Warehouse', 'Select warehouse'],
+                      ['branch', 'ocrCode', listOcr1, 'Branch', 'Select branch'],
+                      ['businessUnit', 'ocrCode2', listOcr2, 'Business Unit', 'Select business unit'],
+                      ['department', 'ocrCode3', listOcr3, 'Department', 'Select department']
+                    ].map(([field, lineField, options, label, placeholder]) => (
+                      <Col md={6} xl={3} key={field}>
+                        <Form.Label>{label}</Form.Label>
+                        <Select
+                          styles={customStyles}
+                          value={lineHeader[field]}
+                          options={options}
+                          menuPosition="fixed"
+                          menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                          menuPlacement="auto"
+                          menuShouldScrollIntoView={false}
+                          maxMenuHeight={240}
+                          onChange={(option) => updateLineHeader(field, lineField, option)}
+                          placeholder={placeholder}
+                          isClearable
+                        />
+                      </Col>
+                    ))}
+                  </Row>
+                </Card.Body>
+              </Card>
+            ) : null}
             <Table className="mb-0 align-middle" responsive hover>
               <thead>
                 <tr>
@@ -2739,23 +2780,11 @@ export default function OrderPost({ cmoMode = false }) {
                   <th style={{ minWidth: 160 }}>Total</th>
                   {!isCustomerRole && (
                     <>
-                      {!cmoMode && (
-                        <th style={{ minWidth: 220 }}>
-                          <RequiredLabel>Warehouse</RequiredLabel>
-                        </th>
-                      )}
                       {/* <th style={{ minWidth: 160 }}>
                         <RequiredLabel>Vat</RequiredLabel>
                       </th> */}
                       {/* <th style={{ minWidth: 160 }}>Total VAT</th> */}
                       <th style={{ minWidth: 220 }}>Notes</th>
-                      {!cmoMode && (
-                        <>
-                          <th style={{ minWidth: 220 }}>Branch</th>
-                          <th style={{ minWidth: 220 }}>Business Unit</th>
-                          <th style={{ minWidth: 220 }}>Department</th>
-                        </>
-                      )}
                     </>
                   )}
                   <th className="text-center" style={{ width: 72 }}>
@@ -2822,22 +2851,6 @@ export default function OrderPost({ cmoMode = false }) {
                     </td>
                     {!isCustomerRole && (
                       <>
-                        {!cmoMode && (
-                          <td>
-                            <Select
-                              styles={customStyles}
-                              value={item.whs_code}
-                              options={listWarehouse}
-                              menuPosition="fixed"
-                              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                              menuPlacement="auto"
-                              menuShouldScrollIntoView={false}
-                              maxMenuHeight={240}
-                              onChange={(e) => handleSelectWarehouse(e, index)}
-                              placeholder="Select warehouse"
-                            />
-                          </td>
-                        )}
                         {/* <td>
                           <Select
                             styles={customStyles}
@@ -2859,52 +2872,6 @@ export default function OrderPost({ cmoMode = false }) {
                             placeholder="Line notes"
                           />
                         </td>
-                        {!cmoMode && (
-                          <>
-                            <td>
-                              <Select
-                                styles={customStyles}
-                                value={item.ocrCode}
-                                options={listOcr1}
-                                menuPosition="fixed"
-                                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                                menuPlacement="auto"
-                                menuShouldScrollIntoView={false}
-                                maxMenuHeight={240}
-                                onChange={(e) => handleSelectOcr1(e, index)}
-                                placeholder="Select branch"
-                              />
-                            </td>
-                            <td>
-                              <Select
-                                styles={customStyles}
-                                value={item.ocrCode2}
-                                options={listOcr2}
-                                menuPosition="fixed"
-                                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                                menuPlacement="auto"
-                                menuShouldScrollIntoView={false}
-                                maxMenuHeight={240}
-                                onChange={(e) => handleSelectOcr2(e, index)}
-                                placeholder="Select unit"
-                              />
-                            </td>
-                            <td>
-                              <Select
-                                styles={customStyles}
-                                value={item.ocrCode3}
-                                options={listOcr3}
-                                menuPosition="fixed"
-                                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
-                                menuPlacement="auto"
-                                menuShouldScrollIntoView={false}
-                                maxMenuHeight={240}
-                                onChange={(e) => handleSelectOcr3(e, index)}
-                                placeholder="Select department"
-                              />
-                            </td>
-                          </>
-                        )}
                       </>
                     )}
                     <td className="text-center">
