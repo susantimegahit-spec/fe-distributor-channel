@@ -22,6 +22,7 @@ import { currency } from '../../../utils/global';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import CreatableSelect from 'react-select/creatable';
 import { canUseMenuAction } from '../../../utils/actionPermissions';
+import { getMenuNumber, SYSTEM_KEYS } from '../../../systems';
 
 // #FBD43C -> soft yellow
 // #DAA919 -> dark yellow
@@ -36,7 +37,8 @@ export default function OrderPost({ cmoMode = false }) {
   const shouldLockCustomerCode = assignedCustomerCodes.length === 1;
   const isAdminSalesRole = roleNumber === 2;
   const canSelectSales = roleNumber === 2 || roleNumber === 5;
-  const orderMenuKey = cmoMode ? ['order-cmo', 13] : ['order-list', 14];
+  const orderMenuId = cmoMode ? 'order-cmo' : 'order-list';
+  const orderMenuKey = [orderMenuId, getMenuNumber(SYSTEM_KEYS.CUSTOMER_PORTAL, orderMenuId)];
   const canSaveDraft = canUseMenuAction(orderMenuKey, 'create');
   const shouldShowSeriesSalesOrder = !isCustomerRole;
   const navigate = useNavigate();

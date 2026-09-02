@@ -23,6 +23,7 @@ import RoleServices from '../../../services/setting/RoleServices';
 import { useAlert } from '../../../utils/alertContext';
 import { getAssignedCustomerCode, getAssignedCustomerCodes, getCookies } from '../../../utils/cookies';
 import { canUseMenuAction } from '../../../utils/actionPermissions';
+import { getMenuNumber, SYSTEM_KEYS } from '../../../systems';
 import ConfirmDialog from 'components/ConfirmDialog';
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
@@ -554,9 +555,13 @@ export default function RewardList() {
     };
   }, [claims, rewardSummary, withdraws]);
 
-  const canVerifySellOut = canUseMenuAction(17, 'approve');
-  const canManageReward = canUseMenuAction(17, 'create');
-  const canDeleteClaim = canUseMenuAction(17, 'delete');
+  const rewardPermissionMenuKeys = [
+    'finance-reward',
+    getMenuNumber(SYSTEM_KEYS.CUSTOMER_PORTAL, 'finance-reward')
+  ];
+  const canVerifySellOut = canUseMenuAction(rewardPermissionMenuKeys, 'approve');
+  const canManageReward = canUseMenuAction(rewardPermissionMenuKeys, 'create');
+  const canDeleteClaim = canUseMenuAction(rewardPermissionMenuKeys, 'delete');
   const distributorByCode = useMemo(() => {
     const entries = listDistributor.map((distributor) => [distributor.value, distributor]);
 

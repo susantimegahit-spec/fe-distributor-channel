@@ -22,6 +22,7 @@ import ExpeditionServices from '../../../services/expedition/ExpeditionServices'
 import OriginServices from '../../../services/expedition/OriginServices';
 import RateServices from '../../../services/expedition/RateServices';
 import { canUseMenuAction } from '../../../utils/actionPermissions';
+import { getMenuNumber, SYSTEM_KEYS } from '../../../systems';
 import { useAlert } from '../../../utils/alertContext';
 import { getCookies } from '../../../utils/cookies';
 
@@ -269,7 +270,10 @@ const validateRatesWorkbook = (workbook, expeditionCode) => {
 export default function Rates() {
   const { showAlert } = useAlert();
   const isAdministrator = Number(getCookies('role')) === 5;
-  const canApproveRates = canUseMenuAction([36, 'expedition-rates'], 'approve');
+  const canApproveRates = canUseMenuAction(
+    ['expedition-rates', getMenuNumber(SYSTEM_KEYS.EXPEDITION, 'expedition-rates')],
+    'approve'
+  );
   const uploadInputRef = useRef(null);
   const [downloadingTemplate, setDownloadingTemplate] = useState(false);
   const [exportingRates, setExportingRates] = useState(false);

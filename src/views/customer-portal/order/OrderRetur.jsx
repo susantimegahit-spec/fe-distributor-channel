@@ -14,6 +14,7 @@ import OrderServices from '../../../services/customer-portal/OrderServices';
 import { useAlert } from '../../../utils/alertContext';
 import { useConfirm } from '../../../utils/confirmContext';
 import { canUseMenuAction } from '../../../utils/actionPermissions';
+import { getMenuNumber, SYSTEM_KEYS } from '../../../systems';
 import { getCookies } from '../../../utils/cookies';
 
 const getList = (response) => {
@@ -125,7 +126,10 @@ export default function OrderRetur() {
     getValue(selectedReturn, ['status', 'return_status', 'returnStatus'], '')
   );
   const canManageSelectedReturn =
-    canUseMenuAction(['order-retur', 15], 'approve') &&
+    canUseMenuAction(
+      ['order-retur', getMenuNumber(SYSTEM_KEYS.CUSTOMER_PORTAL, 'order-retur')],
+      'approve'
+    ) &&
     ['WAITING_ADMIN_SALES', 'WAITING_FINANCE'].includes(selectedReturnStatus) &&
     !(isAdminSales && selectedReturnStatus === 'WAITING_FINANCE') &&
     !(isFinance && selectedReturnStatus === 'WAITING_ADMIN_SALES');

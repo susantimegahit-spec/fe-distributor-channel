@@ -22,6 +22,7 @@ import RoleServices from '../../../services/setting/RoleServices';
 import { useAlert } from '../../../utils/alertContext';
 import { getAssignedCustomerCodes, getCookies } from '../../../utils/cookies';
 import { canUseMenuAction } from '../../../utils/actionPermissions';
+import { getMenuNumber, SYSTEM_KEYS } from '../../../systems';
 
 const pageSize = 10;
 
@@ -471,7 +472,11 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
     roleName.includes('OM_DISTRIBUTOR') ||
     roleName.includes('OPERATIONAL_MANAGER');
   const showCustomerFilter = isAdminSales || (!isAdminDistributor && !isOmDistributor);
-  const canVerifySellOut = canUseMenuAction(17, 'approve');
+  const rewardPermissionMenuKeys = [
+    'finance-reward',
+    getMenuNumber(SYSTEM_KEYS.CUSTOMER_PORTAL, 'finance-reward')
+  ];
+  const canVerifySellOut = canUseMenuAction(rewardPermissionMenuKeys, 'approve');
 
   const selectedCustomerCodes = useMemo(
     () => selectedCustomers.map((item) => String(item.value || '')).filter(Boolean),
@@ -492,8 +497,8 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
       ? selectedCustomerCodes.join(',')
       : customerCode;
   const adjustmentCustomerCode = isDistributor ? customerCode : '';
-  const canCreateAdjustment = canUseMenuAction(17, 'create') && isDistributor;
-  const canCreateWithdrawal = canUseMenuAction(17, 'create') && isDistributor;
+  const canCreateAdjustment = canUseMenuAction(rewardPermissionMenuKeys, 'create') && isDistributor;
+  const canCreateWithdrawal = canUseMenuAction(rewardPermissionMenuKeys, 'create') && isDistributor;
 
   const fetchCustomerOptions = useCallback(async () => {
     if (!showCustomerFilter && !embedded) {
