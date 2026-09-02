@@ -339,10 +339,7 @@ export default function OrderPost({ cmoMode = false }) {
           return;
         }
 
-        const verifiedBalance = normalizeList(response).reduce(
-          (total, claim) => total + (Number(claim.total_diskon_verified) || 0),
-          0
-        );
+        const verifiedBalance = normalizeList(response).reduce((total, claim) => total + (Number(claim.total_diskon_verified) || 0), 0);
 
         setAvailableBalance(verifiedBalance);
       } catch (error) {
@@ -381,7 +378,11 @@ export default function OrderPost({ cmoMode = false }) {
     if (typeof value === 'boolean') return value;
     if (typeof value === 'number') return value === 1;
 
-    return ['1', 'true', 'yes', 'y'].includes(String(value || '').trim().toLowerCase());
+    return ['1', 'true', 'yes', 'y'].includes(
+      String(value || '')
+        .trim()
+        .toLowerCase()
+    );
   };
 
   const getPrimitiveValue = (data, keys, defaultValue = '') => {
@@ -1237,9 +1238,7 @@ export default function OrderPost({ cmoMode = false }) {
   const handleSelectClaimBatch = (option, index) => {
     if (!option) {
       setDetailDisc((currentDetails) =>
-        currentDetails.map((item, itemIndex) =>
-          itemIndex === index ? { ...item, claimBatch: null, value: '', remarks: '' } : item
-        )
+        currentDetails.map((item, itemIndex) => (itemIndex === index ? { ...item, claimBatch: null, value: '', remarks: '' } : item))
       );
       return;
     }
@@ -1444,9 +1443,7 @@ export default function OrderPost({ cmoMode = false }) {
   };
 
   const handleOpenDiscount = () => {
-    const hasProductTotal = itemArr.some(
-      (item) => item.itemCode && Number(item.quantity || 0) > 0 && Number(item.unitPrice || 0) > 0
-    );
+    const hasProductTotal = itemArr.some((item) => item.itemCode && Number(item.quantity || 0) > 0 && Number(item.unitPrice || 0) > 0);
 
     if (!hasProductTotal) {
       showAlert('Please fill in at least one product, quantity, and unit price before setting a discount', 'warning');
@@ -1593,9 +1590,7 @@ export default function OrderPost({ cmoMode = false }) {
       .reduce((total, item) => total + Number(item.value || 0), 0);
     const otherDiscountBase = Math.max(orderSubtotal - calculatedPrimaryTotal, 0);
 
-    return primaryDetails.map((item) =>
-      item.section === 'other' ? { ...item, value: calculateAmount(item, otherDiscountBase) } : item
-    );
+    return primaryDetails.map((item) => (item.section === 'other' ? { ...item, value: calculateAmount(item, otherDiscountBase) } : item));
   };
 
   const handleSelectDiscountValueType = (option, index) => {
@@ -1621,9 +1616,7 @@ export default function OrderPost({ cmoMode = false }) {
       .replace(/(\..*)\./g, '$1');
     const nextValue = detailDisc[index].valueType === 'percent' && Number(normalizedValue) > 100 ? '100' : normalizedValue;
 
-    const nextDetails = detailDisc.map((item, itemIndex) =>
-      itemIndex === index ? { ...item, calculationValue: nextValue } : item
-    );
+    const nextDetails = detailDisc.map((item, itemIndex) => (itemIndex === index ? { ...item, calculationValue: nextValue } : item));
 
     setDetailDisc(recalculateDiscountAmounts(nextDetails));
   };
@@ -1650,8 +1643,7 @@ export default function OrderPost({ cmoMode = false }) {
       maximumFractionDigits: 0
     }).format(Number(value) || 0);
 
-  const formatKg = (value) =>
-    `${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 }).format(Number(value) || 0)} Kg`;
+  const formatKg = (value) => `${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 }).format(Number(value) || 0)} Kg`;
 
   const orderSubtotal = itemArr.reduce((total, item) => {
     return total + Number(item.quantity || 0) * Number(item.unitPrice || 0);
@@ -1856,14 +1848,10 @@ export default function OrderPost({ cmoMode = false }) {
 
     const selectedTradePromoClaimValues = [
       ...new Set(
-        activeDiscounts
-          .filter((item) => item.section === 'tradePromo' && item.claimBatch?.value)
-          .map((item) => item.claimBatch.value)
+        activeDiscounts.filter((item) => item.section === 'tradePromo' && item.claimBatch?.value).map((item) => item.claimBatch.value)
       )
     ];
-    const requiredOldestClaimValues = listClaimBatch
-      .slice(0, selectedTradePromoClaimValues.length)
-      .map((claim) => claim.value);
+    const requiredOldestClaimValues = listClaimBatch.slice(0, selectedTradePromoClaimValues.length).map((claim) => claim.value);
     const hasSkippedOlderClaim = requiredOldestClaimValues.some((claimValue) => !selectedTradePromoClaimValues.includes(claimValue));
 
     if (hasSkippedOlderClaim) {
@@ -1883,7 +1871,7 @@ export default function OrderPost({ cmoMode = false }) {
       Persentase: item?.valueType === 'percent' ? Number(item?.calculationValue || 0) : 0,
       TotalDiskon: item?.value,
       Remarks: item?.remarks,
-      BatchId: item?.section === 'tradePromo' ? item?.claimBatch?.batchId ?? null : null
+      BatchId: item?.section === 'tradePromo' ? (item?.claimBatch?.batchId ?? null) : null
     }));
     const payload = {
       CardCode: orderInput.cardCode,
@@ -2059,9 +2047,7 @@ export default function OrderPost({ cmoMode = false }) {
   };
 
   const renderDiscountSection = ({ section, title, description, options, allowCreate = false, allowAdd = false }) => {
-    const sectionRows = detailDisc
-      .map((item, index) => ({ item, index }))
-      .filter(({ item }) => item.section === section);
+    const sectionRows = detailDisc.map((item, index) => ({ item, index })).filter(({ item }) => item.section === section);
     const showValueType = section === 'primary' || section === 'other';
     const showClaimBatch = section === 'tradePromo';
     const isTradePromoLimitReached = showClaimBatch && tradePromoTotal >= maximumTradePromo;
@@ -2162,9 +2148,7 @@ export default function OrderPost({ cmoMode = false }) {
                     <td>
                       <Select
                         styles={customStyles}
-                        value={
-                          discountValueTypeOptions.find((option) => option.value === item.valueType) || discountValueTypeOptions[0]
-                        }
+                        value={discountValueTypeOptions.find((option) => option.value === item.valueType) || discountValueTypeOptions[0]}
                         options={discountValueTypeOptions}
                         menuPosition="fixed"
                         onChange={(option) => handleSelectDiscountValueType(option, index)}
@@ -2234,14 +2218,18 @@ export default function OrderPost({ cmoMode = false }) {
             title={
               <Stack gap={1}>
                 <h5 className="mb-0">
-                  {isDuplicateCmo ? 'Duplicate CMO' : isDetailMode ? `Detail ${cmoMode ? 'CMO' : 'Order'}` : `Create ${cmoMode ? 'CMO' : 'Order'}`}
+                  {isDuplicateCmo
+                    ? 'Duplicate CMO'
+                    : isDetailMode
+                      ? `Detail ${cmoMode ? 'CMO' : 'Order'}`
+                      : `Create ${cmoMode ? 'CMO' : 'Order'}`}
                 </h5>
                 <span className="text-muted f-12">
                   {isDuplicateCmo
                     ? 'Review the copied CMO data before saving it as a new CMO.'
                     : isDetailMode
-                    ? `Showing detail ${orderDetail?.order_no || orderDetail?.doc_num || 'order'} selected.`
-                    : 'Complete customer information, addresses, and product details before saving the order.'}
+                      ? `Showing detail ${orderDetail?.order_no || orderDetail?.doc_num || 'order'} selected.`
+                      : 'Complete customer information, addresses, and product details before saving the order.'}
                 </span>
                 {shouldShowSeriesSalesOrder && isDetailMode && orderInput.series ? (
                   <span className="text-muted f-12">Series: {getSelectedSeriesOption()?.label || orderInput.series}</span>
@@ -2303,46 +2291,46 @@ export default function OrderPost({ cmoMode = false }) {
               <Row className="g-3 align-items-stretch">
                 <Col lg={cmoMode || isCustomerRole || !canSelectSales ? 12 : 9}>
                   <Card className="border mb-0 h-100 claim-transaction-card">
-                      <Card.Header className="py-3">
-                        <Stack direction="horizontal" gap={2} className="justify-content-between">
-                          <div>
-                            <h5 className="mb-0">Information Order</h5>
-                            <small className="text-muted">Main transaction and customer data</small>
-                          </div>
-                          <Badge bg="light" text="dark">
-                            Draft
-                          </Badge>
-                        </Stack>
-                      </Card.Header>
-                      <Card.Body>
-                        <Row className="g-4">
-                          <Col md={6} xl={4}>
-                            <Form.Group>
-                              <Form.Label className="small text-muted">
-                                <RequiredLabel>Customer Code</RequiredLabel>
-                              </Form.Label>
-                              {shouldLockCustomerCode ? (
-                                <Form.Control
-                                  readOnly
-                                  onChange={(e) => handleSetInput(e, 'cardCode')}
-                                  value={orderInput.cardCode}
-                                  type="text"
-                                  placeholder="Customer Code"
-                                  size="sm"
-                                />
-                              ) : (
-                                <Select
-                                  styles={customStyles}
-                                  value={listDistributor.find((item) => item.value === orderInput.cardCode) || null}
-                                  options={listDistributor}
-                                  menuPosition="fixed"
-                                  onChange={handleSelectDistributor}
-                                  placeholder="Select Customer"
-                                  isClearable
-                                />
-                              )}
-                            </Form.Group>
-                          </Col>
+                    <Card.Header className="py-3">
+                      <Stack direction="horizontal" gap={2} className="justify-content-between">
+                        <div>
+                          <h5 className="mb-0">Information Order</h5>
+                          <small className="text-muted">Main transaction and customer data</small>
+                        </div>
+                        <Badge bg="light" text="dark">
+                          Draft
+                        </Badge>
+                      </Stack>
+                    </Card.Header>
+                    <Card.Body>
+                      <Row className="g-4">
+                        <Col md={6} xl={4}>
+                          <Form.Group>
+                            <Form.Label className="small text-muted">
+                              <RequiredLabel>Customer Code</RequiredLabel>
+                            </Form.Label>
+                            {shouldLockCustomerCode ? (
+                              <Form.Control
+                                readOnly
+                                onChange={(e) => handleSetInput(e, 'cardCode')}
+                                value={orderInput.cardCode}
+                                type="text"
+                                placeholder="Customer Code"
+                                size="sm"
+                              />
+                            ) : (
+                              <Select
+                                styles={customStyles}
+                                value={listDistributor.find((item) => item.value === orderInput.cardCode) || null}
+                                options={listDistributor}
+                                menuPosition="fixed"
+                                onChange={handleSelectDistributor}
+                                placeholder="Select Customer"
+                                isClearable
+                              />
+                            )}
+                          </Form.Group>
+                        </Col>
                         <Col md={6} xl={4}>
                           <Form.Group>
                             <Form.Label className="small text-muted">
@@ -2596,7 +2584,9 @@ export default function OrderPost({ cmoMode = false }) {
                           <i className="ti ti-file-upload f-24" />
                         </div>
                         <div>
-                          <h6 className="mb-1">{isDetailMode && existingDocuments.length ? 'Upload Replacement Document' : 'Upload Document'}</h6>
+                          <h6 className="mb-1">
+                            {isDetailMode && existingDocuments.length ? 'Upload Replacement Document' : 'Upload Document'}
+                          </h6>
                           <small className="text-muted">
                             {isDetailMode && existingDocuments.length
                               ? 'Select a new file only when you want to replace the saved document.'
@@ -2839,6 +2829,10 @@ export default function OrderPost({ cmoMode = false }) {
                               value={item.whs_code}
                               options={listWarehouse}
                               menuPosition="fixed"
+                              menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                              menuPlacement="auto"
+                              menuShouldScrollIntoView={false}
+                              maxMenuHeight={240}
                               onChange={(e) => handleSelectWarehouse(e, index)}
                               placeholder="Select warehouse"
                             />
@@ -2873,6 +2867,10 @@ export default function OrderPost({ cmoMode = false }) {
                                 value={item.ocrCode}
                                 options={listOcr1}
                                 menuPosition="fixed"
+                                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                                menuPlacement="auto"
+                                menuShouldScrollIntoView={false}
+                                maxMenuHeight={240}
                                 onChange={(e) => handleSelectOcr1(e, index)}
                                 placeholder="Select branch"
                               />
@@ -2883,6 +2881,10 @@ export default function OrderPost({ cmoMode = false }) {
                                 value={item.ocrCode2}
                                 options={listOcr2}
                                 menuPosition="fixed"
+                                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                                menuPlacement="auto"
+                                menuShouldScrollIntoView={false}
+                                maxMenuHeight={240}
                                 onChange={(e) => handleSelectOcr2(e, index)}
                                 placeholder="Select unit"
                               />
@@ -2893,6 +2895,10 @@ export default function OrderPost({ cmoMode = false }) {
                                 value={item.ocrCode3}
                                 options={listOcr3}
                                 menuPosition="fixed"
+                                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                                menuPlacement="auto"
+                                menuShouldScrollIntoView={false}
+                                maxMenuHeight={240}
                                 onChange={(e) => handleSelectOcr3(e, index)}
                                 placeholder="Select department"
                               />
