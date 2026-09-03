@@ -3086,6 +3086,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                         <th className="text-end" style={{ minWidth: 160 }}>
                           Amount Discount
                         </th>
+                        <th style={{ minWidth: 220 }}>Remarks</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -3103,6 +3104,11 @@ export default function OrderList({ showOnlyCommitment = false }) {
                             ['discount_amount', 'amount', 'discount_sum', 'DiscountSum', 'total_discount'],
                             0
                           );
+                          const discountRemarks = getOrderValue(
+                            discount,
+                            ['remarks', 'Remarks', 'remark', 'Remark', 'description', 'keterangan'],
+                            '-'
+                          );
 
                           return (
                             <tr key={discount.id || discount.discount_code || discount.code || index}>
@@ -3110,12 +3116,13 @@ export default function OrderList({ showOnlyCommitment = false }) {
                                 <Badge bg="light-primary">{discountType}</Badge>
                               </td>
                               <td className="text-end fw-semibold">{currency(discountAmount)}</td>
+                              <td>{discountRemarks}</td>
                             </tr>
                           );
                         })
                       ) : (
                         <tr>
-                          <td colSpan={6} className="text-center text-muted py-4">
+                          <td colSpan={3} className="text-center text-muted py-4">
                             Discount details are not available
                           </td>
                         </tr>
