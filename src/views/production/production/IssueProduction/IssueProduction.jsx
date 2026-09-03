@@ -285,6 +285,7 @@ export default function IssueProduction() {
   const [showAddIssue, setShowAddIssue] = useState(false);
   const [issueForm, setIssueForm] = useState(createIssueForm);
   const [savingIssue, setSavingIssue] = useState(false);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [productionOrders, setProductionOrders] = useState([]);
   const [selectedOrderIds, setSelectedOrderIds] = useState([]);
@@ -752,7 +753,7 @@ export default function IssueProduction() {
     setIssueForm((current) => ({ ...current, Lines: current.Lines.filter((_, index) => index !== lineIndex) }));
   };
 
-  const handleSubmitIssue = async () => {
+  const handleSubmitIssue = () => {
     if (issueForm.DocDate && issueForm.DocDueDate && issueForm.DocDate > issueForm.DocDueDate) {
       showAlert('Posting Date cannot be after Due Date', 'warning');
       return;
@@ -765,6 +766,10 @@ export default function IssueProduction() {
       return;
     }
 
+    setShowSaveConfirm(true);
+  };
+
+  const handleConfirmSaveIssue = async () => {
     const payload = {
       ...issueForm,
       AddonId: String(getCookies('addonId') ?? ''),
@@ -785,6 +790,7 @@ export default function IssueProduction() {
       )
     };
 
+    setShowSaveConfirm(false);
     setSavingIssue(true);
     try {
       const response = await ProductionServices.postIssueProduction(payload);
@@ -1089,6 +1095,7 @@ export default function IssueProduction() {
                       <Form.Control
                         size="sm"
                         type="number"
+                        className="issue-quantity-no-spinner"
                         step="any"
                         value={line.Quantity}
                         onChange={(event) => {
@@ -1130,6 +1137,29 @@ export default function IssueProduction() {
           <Button variant="primary" disabled={savingIssue || loadingSeries} onClick={handleSubmitIssue}>
             {savingIssue ? <span className="spinner-border spinner-border-sm me-2" /> : <i className="ti ti-device-floppy me-1" />}
             {savingIssue ? 'Saving...' : 'Save Issue'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal
+        show={showSaveConfirm}
+        onHide={() => !savingIssue && setShowSaveConfirm(false)}
+        className="production-nested-modal"
+        backdropClassName="production-nested-modal-backdrop"
+        centered
+      >
+        <Modal.Header closeButton={!savingIssue}>
+          <Modal.Title>Confirm Save Issue</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Are you sure you want to save this Production Issue with <strong>{issueForm.Lines.length}</strong> item(s)?
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" disabled={savingIssue} onClick={() => setShowSaveConfirm(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" disabled={savingIssue} onClick={handleConfirmSaveIssue}>
+            <i className="ti ti-device-floppy me-1" /> Save Issue
           </Button>
         </Modal.Footer>
       </Modal>
@@ -1207,6 +1237,7 @@ export default function IssueProduction() {
                 </th>
                 <th>Order No.</th>
                 <th>Product</th>
+                <th>Unit</th>
                 <th>Start Date</th>
                 <th>Planned Qty</th>
                 <th>Remarks</th>
@@ -1215,7 +1246,7 @@ export default function IssueProduction() {
             <tbody>
               {loadingOrders ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-4">
+                  <td colSpan={7} className="text-center py-4">
                     <span className="spinner-border spinner-border-sm me-2" /> Loading Production Orders...
                   </td>
                 </tr>
@@ -1254,6 +1285,7 @@ export default function IssueProduction() {
                         <div className="fw-semibold">{order.itemCode || '-'}</div>
                         <div className="text-muted f-12">{order.itemName || '-'}</div>
                       </td>
+                      <td>{order.unit || '-'}</td>
                       <td>{formatDate(order.startDate)}</td>
                       <td>{numberFormatter.format(order.plannedQuantity)}</td>
                       <td>{order.remarks || '-'}</td>
@@ -1262,7 +1294,7 @@ export default function IssueProduction() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={6} className="text-center text-muted py-4">
+                  <td colSpan={7} className="text-center text-muted py-4">
                     No released Production Order found for the selected filters.
                   </td>
                 </tr>
