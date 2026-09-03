@@ -1396,8 +1396,8 @@ export default function ProductionOrder() {
       form.product?.warehouse?.code ||
       '';
 
-    if (!form.product || !(plannedQuantity > 0) || !form.series || !form.orderDate || !form.startDate || !form.dueDate || !warehouse) {
-      showAlert('Please complete product, planned quantity, series, dates, and warehouse data', 'warning');
+    if (!form.product || !form.series || !form.orderDate || !form.startDate || !form.dueDate || !warehouse) {
+      showAlert('Please complete product, series, dates, and warehouse data', 'warning');
       return;
     }
 
@@ -1405,10 +1405,10 @@ export default function ProductionOrder() {
       !form.product.details.length ||
       form.product.details.some((detail) => {
         const item = getComponentItem(detail);
-        return !detail.type || !item.code || !(Number(detail.qty ?? detail.quantity) > 0);
+        return !detail.type || !item.code;
       });
     if (hasInvalidBomDetail) {
-      showAlert('Complete the type, item code, and base quantity for every Bill of Material detail', 'warning');
+      showAlert('Complete the type and item code for every Bill of Material detail', 'warning');
       return;
     }
 
@@ -2184,7 +2184,6 @@ export default function ProductionOrder() {
                         <Form.Label>Planned Quantity</Form.Label>
                         <Form.Control
                           type="number"
-                          min="0"
                           step="any"
                           value={form.plannedQuantity}
                           disabled={isReleaseMode || isEditMode}
@@ -2475,7 +2474,6 @@ export default function ProductionOrder() {
                         <Form.Control
                           size="sm"
                           type="number"
-                          min="0"
                           step="any"
                           value={detail.qty ?? detail.quantity ?? ''}
                           onChange={(event) => updateBomDetail(index, { qty: event.target.value })}
@@ -2485,7 +2483,6 @@ export default function ProductionOrder() {
                         <Form.Control
                           size="sm"
                           type="number"
-                          min="0"
                           step="any"
                           value={plannedQuantity || ''}
                           readOnly={!isEditMode && !isReleaseMode}
@@ -2493,7 +2490,7 @@ export default function ProductionOrder() {
                             const orderQuantity = Number(form.plannedQuantity);
                             const nextPlannedQuantity = event.target.value;
                             updateBomDetail(index, {
-                              qty: nextPlannedQuantity === '' || !(orderQuantity > 0) ? '' : Number(nextPlannedQuantity) / orderQuantity
+                              qty: nextPlannedQuantity === '' || orderQuantity === 0 ? '' : Number(nextPlannedQuantity) / orderQuantity
                             });
                           }}
                         />
