@@ -38,10 +38,7 @@ const createBaseLine = () => ({
   quantity: ''
 });
 const createOldLine = () => createBaseLine();
-const createNewLine = () => ({
-  ...createBaseLine(),
-  valueAllocationPercent: ''
-});
+const createNewLine = () => createBaseLine();
 const createInitialForm = () => ({
   docDate: toLocalDateTime(),
   docDueDate: toLocalDateTime(),
@@ -256,7 +253,6 @@ export default function ChangeProduct() {
           ...line,
           quantity: Number(line.quantity),
           toWhsCode: form.warehouse,
-          valueAllocationPercent: Number(line.valueAllocationPercent || 0),
           ocrCode: form.ocrCode,
           ocrCode2: form.ocrCode2,
           ocrCode3: form.ocrCode3
@@ -311,7 +307,7 @@ export default function ChangeProduct() {
                 </button>
               </div>
               <Row className="g-3">
-                <Col lg={receipt ? 7 : 9}>
+                <Col lg={9}>
                   <Form.Label>Product *</Form.Label>
                   <Select
                     options={productOptions}
@@ -331,19 +327,6 @@ export default function ChangeProduct() {
                     onChange={(event) => updateLine(collection, line.id, { quantity: event.target.value })}
                   />
                 </Col>
-                {receipt ? (
-                  <Col lg={3}>
-                    <Form.Label>Value Allocation (%)</Form.Label>
-                    <Form.Control
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="any"
-                      value={line.valueAllocationPercent}
-                      onChange={(event) => updateLine(collection, line.id, { valueAllocationPercent: event.target.value })}
-                    />
-                  </Col>
-                ) : null}
               </Row>
             </div>
           ))}
