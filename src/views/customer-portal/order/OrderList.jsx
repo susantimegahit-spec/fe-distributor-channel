@@ -2987,11 +2987,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                   <div>{formatOrderDate(getOrderValue(selectedOrderDetail, ['doc_date', 'docDate'], ''))}</div>
                 </Col>
                 <Col md={4}>
-                  <Form.Label className="f-12 text-muted">Requested Delivery Date</Form.Label>
-                  <div>{formatOrderDate(getOrderValue(selectedOrderDetail, ['doc_due_date', 'docDueDate'], ''))}</div>
-                </Col>
-                <Col md={4}>
-                  <Form.Label className="f-12 text-muted">ETA Date</Form.Label>
+                  <Form.Label className="f-12 text-muted">Estimate Time Arrival</Form.Label>
                   <div>{formatOrderDate(getOrderValue(selectedOrderDetail, ['eta_date', 'etaDate', 'ETA', 'u_eta', 'U_ETA'], ''))}</div>
                 </Col>
                 <Col md={4}>

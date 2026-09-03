@@ -83,6 +83,14 @@ class ProductionServices {
     return DataService.post('/production/change-products', payload);
   }
 
+  getChangeProductById(id) {
+    return DataService.get(`/production/change-products/${id}`);
+  }
+
+  postChangeProduct(id) {
+    return DataService.post(`/production/change-products/${id}/post`);
+  }
+
   getListOrderSap(payload = {}) {
     const { from = '', to = '', whs_code = '', to_whs_code = '', status = '', unit = '' } = payload;
     const productionUnit = getAssignedProductionUnit(unit);

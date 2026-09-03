@@ -8,6 +8,7 @@ import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
 import InputGroup from 'react-bootstrap/InputGroup';
 import Modal from 'react-bootstrap/Modal';
+import Overlay from 'react-bootstrap/Overlay';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
@@ -71,6 +72,16 @@ const headerSelectStyles = {
     '&:active': { backgroundColor: state.isSelected ? '#4680ff' : '#dce8ff' }
   })
 };
+const actionPopperConfig = {
+  modifiers: [
+    { name: 'offset', options: { offset: [0, 8] } },
+    { name: 'preventOverflow', options: { boundary: 'viewport', padding: 8 } },
+    { name: 'flip', options: { fallbackPlacements: ['top-end', 'bottom-end'] } }
+  ]
+};
+const changeProductPermissionKeys = ['production-change-product', getMenuNumber(SYSTEM_KEYS.PRODUCTION, 'production-change-product')];
+const shiftOptions = ['All', 'Shift 1', 'Shift 2', 'Shift 3'].map((value) => ({ value, label: value }));
+const selectStyles = { menuPortal: (base) => ({ ...base, zIndex: 1090 }) };
 const toLocalDateTime = (date = new Date()) => {
   const timezoneOffset = date.getTimezoneOffset() * 60000;
   return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
@@ -85,6 +96,7 @@ const createNewLine = () => ({
   ...createBaseLine(),
   valueAllocationPercent: ''
 });
+const createNewLine = () => createBaseLine();
 const createInitialForm = () => ({
   docDate: toLocalDateTime(),
   docDueDate: toLocalDateTime(),
@@ -125,6 +137,7 @@ const getValue = (item, keys, fallback = '') => {
 const normalizeChangeProduct = (item = {}, index = 0) => ({
   id: getValue(item, ['id', 'change_product_id', 'changeProductId', 'DocEntry', 'doc_entry'], index),
   documentNumber: getValue(item, ['document_number', 'documentNumber', 'doc_num', 'DocNum', 'number', 'code'], '-'),
+  documentNumber: getValue(item, ['cp_no'], '-'),
   date: getValue(item, ['date', 'document_date', 'documentDate', 'doc_date', 'DocDate', 'created_at', 'createdAt'], ''),
   sourceCode: getValue(item, ['source_item_code', 'sourceItemCode', 'old_item_code', 'oldItemCode', 'from_item_code', 'fromItemCode'], '-'),
   sourceName: getValue(item, ['source_item_name', 'sourceItemName', 'old_item_name', 'oldItemName', 'from_item_name', 'fromItemName'], ''),
@@ -134,6 +147,32 @@ const normalizeChangeProduct = (item = {}, index = 0) => ({
   warehouse: getValue(item, ['warehouse_code', 'warehouseCode', 'whs_code', 'WhsCode', 'warehouse'], '-'),
   status: getValue(item, ['status', 'Status', 'document_status', 'documentStatus'], '-')
 });
+
+  status: getValue(item, ['status', 'Status', 'document_status', 'documentStatus'], '-'),
+  raw: item
+});
+
+const getResponseItem = (response) => {
+  const payload = response?.data?.data ?? response?.data;
+
+  if (Array.isArray(payload)) return payload[0] || null;
+  if (payload?.data && !Array.isArray(payload.data)) return payload.data;
+  if (payload?.change_product) return payload.change_product;
+  if (payload?.changeProduct) return payload.changeProduct;
+
+  return payload && typeof payload === 'object' ? payload : null;
+};
+
+const getDetailLines = (detail, type) => {
+  const keys =
+    type === 'old'
+      ? ['oldLines', 'old_lines', 'issueLines', 'issue_lines', 'goodsIssueLines', 'goods_issue_lines']
+      : ['newLines', 'new_lines', 'receiptLines', 'receipt_lines', 'goodsReceiptLines', 'goods_receipt_lines'];
+  const header = detail?.header || detail?.headerData || {};
+  const lines = getValue(detail, keys, getValue(header, keys, []));
+
+  return Array.isArray(lines) ? lines : [];
+};
 
 const formatDate = (value) => {
   if (!value) return '-';
@@ -153,6 +192,11 @@ export default function ChangeProduct() {
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [selectedDetail, setSelectedDetail] = useState(null);
+  const [loadingDetailId, setLoadingDetailId] = useState(null);
+  const [actionTarget, setActionTarget] = useState(null);
+  const [postTarget, setPostTarget] = useState(null);
+  const [postingId, setPostingId] = useState(null);
   const [form, setForm] = useState(createInitialForm);
   const [productOptions, setProductOptions] = useState([]);
   const [warehouseOptions, setWarehouseOptions] = useState([]);
@@ -263,6 +307,44 @@ export default function ChangeProduct() {
   const removeLine = (collection, lineId) =>
     setForm((current) => ({ ...current, [collection]: current[collection].filter((line) => line.id !== lineId) }));
 
+  const handleViewDetail = async (item) => {
+    setLoadingDetailId(item.id);
+    try {
+      const response = await ProductionServices.getChangeProductById(item.id);
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch change product detail');
+
+      const detail = getResponseItem(response);
+      if (!detail) throw new Error('Change product detail was not found');
+      setSelectedDetail({
+        ...(detail.header || detail.headerData || {}),
+        ...detail,
+        cp_no: getValue(detail, ['cp_no'], item.documentNumber)
+      });
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch change product detail', 'danger');
+    } finally {
+      setLoadingDetailId(null);
+    }
+  };
+
+  const handlePost = async () => {
+    if (!postTarget) return;
+
+    setPostingId(postTarget.id);
+    try {
+      const response = await ProductionServices.postChangeProduct(postTarget.id);
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to post change product');
+
+      setPostTarget(null);
+      await fetchChangeProducts(search.trim());
+      showAlert(response?.data?.message || 'Change product posted successfully', 'success');
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to post change product', 'danger');
+    } finally {
+      setPostingId(null);
+    }
+  };
+
   const handleCreate = async () => {
     if (
       !form.docDate ||
@@ -355,6 +437,7 @@ export default function ChangeProduct() {
               </div>
               <Row className="g-3">
                 <Col lg={receipt ? 7 : 9}>
+                <Col lg={9}>
                   <Form.Label>Product *</Form.Label>
                   <Select
                     options={productOptions}
@@ -453,6 +536,8 @@ export default function ChangeProduct() {
                         <th className="text-end">Quantity</th>
                         <th>Warehouse</th>
                         <th>Status</th>
+                        <th>Status</th>
+                        <th className="text-center">Action</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -475,6 +560,29 @@ export default function ChangeProduct() {
                             <Badge bg="light" text="dark">
                               {item.status}
                             </Badge>
+                          </td>
+                          <td className="text-center text-nowrap">
+                            <Button
+                              size="sm"
+                              variant={String(actionTarget?.item?.id) === String(item.id) ? 'primary' : 'outline-primary'}
+                              data-permission-action="none"
+                              disabled={loadingDetailId !== null || postingId !== null}
+                              aria-label={`Open actions for Change Product ${item.documentNumber || ''}`}
+                              aria-expanded={String(actionTarget?.item?.id) === String(item.id)}
+                              onClick={(event) =>
+                                setActionTarget((current) =>
+                                  String(current?.item?.id) === String(item.id) ? null : { item, target: event.currentTarget }
+                                )
+                              }
+                            >
+                              {String(loadingDetailId) === String(item.id) || String(postingId) === String(item.id) ? (
+                                <span className="spinner-border spinner-border-sm me-1" />
+                              ) : (
+                                <i className="ti ti-dots-vertical me-1" />
+                              )}
+                              Actions
+                              <i className="ti ti-chevron-down ms-1" />
+                            </Button>
                           </td>
                         </tr>
                       ))}
@@ -502,6 +610,153 @@ export default function ChangeProduct() {
           </Card.Body>
         </Card>
       </MainCard>
+
+      <Overlay
+        show={Boolean(actionTarget)}
+        target={actionTarget?.target}
+        placement="top-end"
+        container={typeof document !== 'undefined' ? document.body : null}
+        containerPadding={8}
+        popperConfig={actionPopperConfig}
+        rootClose
+        rootCloseEvent="mousedown"
+        onHide={() => setActionTarget(null)}
+      >
+        {({ ref, style, placement }) => {
+          const item = actionTarget?.item;
+          return (
+            <div
+              ref={ref}
+              className="dropdown-menu show"
+              data-popper-placement={placement}
+              style={{ ...style, zIndex: 1080, minWidth: 190 }}
+            >
+              <button
+                type="button"
+                className="dropdown-item"
+                data-permission-action="none"
+                onClick={() => {
+                  setActionTarget(null);
+                  if (item) handleViewDetail(item);
+                }}
+              >
+                <i className="ti ti-eye text-primary me-2" /> Detail
+              </button>
+              <button
+                type="button"
+                className="dropdown-item"
+                data-permission-action="none"
+                disabled={String(item?.status).toLowerCase() === 'posted'}
+                onClick={() => {
+                  setActionTarget(null);
+                  if (item) setPostTarget(item);
+                }}
+              >
+                <i className="ti ti-send text-success me-2" /> Post
+              </button>
+            </div>
+          );
+        }}
+      </Overlay>
+
+      <Modal show={Boolean(selectedDetail)} onHide={() => setSelectedDetail(null)} size="xl" centered scrollable>
+        <Modal.Header closeButton>
+          <Modal.Title>Change Product Detail</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedDetail ? (
+            <Stack gap={4}>
+              <Row className="g-3">
+                {[
+                  ['Document No.', getValue(selectedDetail, ['cp_no'], '-')],
+                  ['Document Date', formatDate(getValue(selectedDetail, ['docDate', 'doc_date', 'DocDate', 'date'], ''))],
+                  ['Due Date', formatDate(getValue(selectedDetail, ['docDueDate', 'doc_due_date', 'DocDueDate'], ''))],
+                  ['Shift', getValue(selectedDetail, ['shift', 'Shift'], '-')],
+                  ['Unit', getValue(selectedDetail, ['unit', 'u_unit', 'U_Unit'], '-')],
+                  ['Status', getValue(selectedDetail, ['status', 'Status'], '-')]
+                ].map(([label, value]) => (
+                  <Col md={4} key={label}>
+                    <Form.Label className="f-12 text-muted">{label}</Form.Label>
+                    <div className="fw-semibold">{value}</div>
+                  </Col>
+                ))}
+                <Col xs={12}>
+                  <Form.Label className="f-12 text-muted">Comments</Form.Label>
+                  <div>{getValue(selectedDetail, ['comments', 'Comments', 'remarks'], '-')}</div>
+                </Col>
+              </Row>
+              {[
+                ['Old Items', 'Goods Issue', getDetailLines(selectedDetail, 'old'), ['from_whs_code', 'fromWhsCode']],
+                ['New Items', 'Goods Receipt', getDetailLines(selectedDetail, 'new'), ['to_whs_code', 'toWhsCode']]
+              ].map(([title, transaction, lines, warehouseKeys]) => (
+                <Card className="border mb-0" key={title}>
+                  <Card.Header>
+                    <h6 className="mb-0">
+                      {title} · {transaction}
+                    </h6>
+                  </Card.Header>
+                  <Table responsive hover className="mb-0 align-middle">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Product</th>
+                        <th className="text-end">Quantity</th>
+                        <th>Warehouse</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lines.length ? (
+                        lines.map((line, index) => (
+                          <tr key={line.id || line.itemCode || line.item_code || index}>
+                            <td>{index + 1}</td>
+                            <td>
+                              <div className="fw-semibold">{getValue(line, ['itemCode', 'item_code', 'ItemCode'], '-')}</div>
+                              <small className="text-muted">
+                                {getValue(line, ['itemName', 'item_name', 'ItemName', 'description'], '')}
+                              </small>
+                            </td>
+                            <td className="text-end">{getValue(line, ['quantity', 'qty', 'Quantity'], '-')}</td>
+                            <td>{getValue(line, warehouseKeys, '-')}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={4} className="text-center text-muted py-4">
+                            No item details available.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </Table>
+                </Card>
+              ))}
+            </Stack>
+          ) : null}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" onClick={() => setSelectedDetail(null)}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={Boolean(postTarget)} onHide={() => !postingId && setPostTarget(null)} centered>
+        <Modal.Header closeButton={!postingId}>
+          <Modal.Title>Post Change Product</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Post change product <strong>{postTarget?.documentNumber || '-'}</strong> to SAP?
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" disabled={Boolean(postingId)} onClick={() => setPostTarget(null)}>
+            Cancel
+          </Button>
+          <Button variant="success" disabled={Boolean(postingId)} onClick={handlePost}>
+            {postingId ? <span className="spinner-border spinner-border-sm me-2" /> : <i className="ti ti-send me-1" />}
+            {postingId ? 'Posting...' : 'Post'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       <Modal show={showCreateModal} onHide={() => !saving && setShowCreateModal(false)} fullscreen scrollable>
         <Modal.Header closeButton={!saving}>
@@ -565,6 +820,7 @@ export default function ChangeProduct() {
                     value={warehouseOptions.find((option) => String(option.value) === String(form.warehouse)) || null}
                     onChange={(option) => setForm((current) => ({ ...current, warehouse: option?.value || '' }))}
                     styles={headerSelectStyles}
+                    styles={selectStyles}
                     menuPortalTarget={document.body}
                     menuPosition="fixed"
                     menuPlacement="auto"
@@ -588,6 +844,7 @@ export default function ChangeProduct() {
                       }
                       onChange={(option) => setForm((current) => ({ ...current, [field]: option?.value || '' }))}
                       styles={headerSelectStyles}
+                      styles={selectStyles}
                       menuPortalTarget={document.body}
                       menuPosition="fixed"
                       menuPlacement="auto"
