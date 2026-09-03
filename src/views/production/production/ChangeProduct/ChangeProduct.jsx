@@ -79,9 +79,6 @@ const actionPopperConfig = {
     { name: 'flip', options: { fallbackPlacements: ['top-end', 'bottom-end'] } }
   ]
 };
-const changeProductPermissionKeys = ['production-change-product', getMenuNumber(SYSTEM_KEYS.PRODUCTION, 'production-change-product')];
-const shiftOptions = ['All', 'Shift 1', 'Shift 2', 'Shift 3'].map((value) => ({ value, label: value }));
-const selectStyles = { menuPortal: (base) => ({ ...base, zIndex: 1090 }) };
 const toLocalDateTime = (date = new Date()) => {
   const timezoneOffset = date.getTimezoneOffset() * 60000;
   return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
@@ -92,10 +89,6 @@ const createBaseLine = () => ({
   quantity: ''
 });
 const createOldLine = () => createBaseLine();
-const createNewLine = () => ({
-  ...createBaseLine(),
-  valueAllocationPercent: ''
-});
 const createNewLine = () => createBaseLine();
 const createInitialForm = () => ({
   docDate: toLocalDateTime(),
@@ -136,7 +129,6 @@ const getValue = (item, keys, fallback = '') => {
 
 const normalizeChangeProduct = (item = {}, index = 0) => ({
   id: getValue(item, ['id', 'change_product_id', 'changeProductId', 'DocEntry', 'doc_entry'], index),
-  documentNumber: getValue(item, ['document_number', 'documentNumber', 'doc_num', 'DocNum', 'number', 'code'], '-'),
   documentNumber: getValue(item, ['cp_no'], '-'),
   date: getValue(item, ['date', 'document_date', 'documentDate', 'doc_date', 'DocDate', 'created_at', 'createdAt'], ''),
   sourceCode: getValue(item, ['source_item_code', 'sourceItemCode', 'old_item_code', 'oldItemCode', 'from_item_code', 'fromItemCode'], '-'),
@@ -145,9 +137,6 @@ const normalizeChangeProduct = (item = {}, index = 0) => ({
   targetName: getValue(item, ['target_item_name', 'targetItemName', 'new_item_name', 'newItemName', 'to_item_name', 'toItemName'], ''),
   quantity: getValue(item, ['quantity', 'qty', 'Quantity'], '-'),
   warehouse: getValue(item, ['warehouse_code', 'warehouseCode', 'whs_code', 'WhsCode', 'warehouse'], '-'),
-  status: getValue(item, ['status', 'Status', 'document_status', 'documentStatus'], '-')
-});
-
   status: getValue(item, ['status', 'Status', 'document_status', 'documentStatus'], '-'),
   raw: item
 });
@@ -381,7 +370,6 @@ export default function ChangeProduct() {
           ...line,
           quantity: Number(line.quantity),
           toWhsCode: form.warehouse,
-          valueAllocationPercent: Number(line.valueAllocationPercent || 0),
           ocrCode: form.ocrCode,
           ocrCode2: form.ocrCode2,
           ocrCode3: form.ocrCode3
@@ -436,7 +424,6 @@ export default function ChangeProduct() {
                 </button>
               </div>
               <Row className="g-3">
-                <Col lg={receipt ? 7 : 9}>
                 <Col lg={9}>
                   <Form.Label>Product *</Form.Label>
                   <Select
@@ -457,19 +444,6 @@ export default function ChangeProduct() {
                     onChange={(event) => updateLine(collection, line.id, { quantity: event.target.value })}
                   />
                 </Col>
-                {receipt ? (
-                  <Col lg={3}>
-                    <Form.Label>Value Allocation (%)</Form.Label>
-                    <Form.Control
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="any"
-                      value={line.valueAllocationPercent}
-                      onChange={(event) => updateLine(collection, line.id, { valueAllocationPercent: event.target.value })}
-                    />
-                  </Col>
-                ) : null}
               </Row>
             </div>
           ))}
@@ -820,7 +794,6 @@ export default function ChangeProduct() {
                     value={warehouseOptions.find((option) => String(option.value) === String(form.warehouse)) || null}
                     onChange={(option) => setForm((current) => ({ ...current, warehouse: option?.value || '' }))}
                     styles={headerSelectStyles}
-                    styles={selectStyles}
                     menuPortalTarget={document.body}
                     menuPosition="fixed"
                     menuPlacement="auto"
@@ -844,7 +817,6 @@ export default function ChangeProduct() {
                       }
                       onChange={(option) => setForm((current) => ({ ...current, [field]: option?.value || '' }))}
                       styles={headerSelectStyles}
-                      styles={selectStyles}
                       menuPortalTarget={document.body}
                       menuPosition="fixed"
                       menuPlacement="auto"
@@ -887,5 +859,5 @@ export default function ChangeProduct() {
         </Modal.Footer>
       </Modal>
     </>
-  ); 
+  );
 }
