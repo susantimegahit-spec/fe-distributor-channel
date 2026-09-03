@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Select from 'react-select';
 
+import Badge from 'react-bootstrap/Badge';
 import Button from 'react-bootstrap/Button';
 import Card from 'react-bootstrap/Card';
 import Col from 'react-bootstrap/Col';
@@ -154,6 +155,11 @@ const formatDate = (value) => {
     : date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 const formatShift = (value) => ({ A: '1', B: '2', C: '3', X: 'All' })[String(value || '').toUpperCase()] || value || '-';
+const pdoProductBadgeVariants = ['primary', 'success', 'warning', 'info', 'danger', 'secondary'];
+const getPdoProductBadgeVariant = (code) => {
+  const hash = [...String(code || '')].reduce((total, character) => total + character.charCodeAt(0), 0);
+  return pdoProductBadgeVariants[hash % pdoProductBadgeVariants.length];
+};
 const normalizeIssue = (item = {}, index = 0) => ({
   id: getValue(item, ['DocEntry', 'docEntry', 'doc_entry', 'id', 'issue_id'], index),
   documentNumber: getValue(item, ['DocNum', 'doc_num', 'document_number', 'issue_number', 'number'], '-'),
@@ -650,7 +656,18 @@ export default function IssueProduction() {
             throw new Error(response.data.message || `Failed to fetch Production Order ${order.number}`);
           }
           const { header, items } = getProductionOrderDetail(response);
-          const lines = items.flatMap((line, index) => (isBackflushIssueLine(line) ? [] : [createIssueLine(line, header, index)]));
+          const lines = items.flatMap((line, index) =>
+            isBackflushIssueLine(line)
+              ? []
+              : [
+                  {
+                    ...createIssueLine(line, header, index),
+                    ProductionOrderNumber: getValue(header, ['DocNum', 'doc_num'], order.number),
+                    ProductionItemCode: getValue(header, ['ItemCode', 'item_code', 'product_code'], order.itemCode),
+                    ProductionItemName: getValue(header, ['ProdName', 'ItemName', 'item_name', 'product_name'], order.itemName)
+                  }
+                ]
+          );
           if (!lines.length) throw new Error(`No non-backflush material lines were found in Production Order ${order.number}`);
           return { header, lines };
         })
@@ -726,18 +743,20 @@ export default function IssueProduction() {
       ...issueForm,
       AddonId: String(getCookies('addonId') ?? ''),
       UserId: String(getCookies('id') ?? ''),
-      Lines: issueForm.Lines.map(({ ItemCode, ItemName, PlannedQty, IssuedQty, ...line }) => ({
-        ...line,
-        BaseType: Number(line.BaseType),
-        BaseEntry: Number(line.BaseEntry),
-        BaseLine: Number(line.BaseLine),
-        Quantity: Number(line.Quantity),
-        UoMEntry: Number(line.UoMEntry || 0),
-        WhsCode: issueForm.WhsCode || line.WhsCode,
-        OcrCode: issueForm.OcrCode || line.OcrCode,
-        OcrCode2: issueForm.OcrCode2 || line.OcrCode2,
-        OcrCode3: issueForm.OcrCode3 || line.OcrCode3
-      }))
+      Lines: issueForm.Lines.map(
+        ({ ItemCode, ItemName, PlannedQty, IssuedQty, ProductionOrderNumber, ProductionItemCode, ProductionItemName, ...line }) => ({
+          ...line,
+          BaseType: Number(line.BaseType),
+          BaseEntry: Number(line.BaseEntry),
+          BaseLine: Number(line.BaseLine),
+          Quantity: Number(line.Quantity),
+          UoMEntry: Number(line.UoMEntry || 0),
+          WhsCode: issueForm.WhsCode || line.WhsCode,
+          OcrCode: issueForm.OcrCode || line.OcrCode,
+          OcrCode2: issueForm.OcrCode2 || line.OcrCode2,
+          OcrCode3: issueForm.OcrCode3 || line.OcrCode3
+        })
+      )
     };
 
     setSavingIssue(true);
@@ -1002,7 +1021,12 @@ export default function IssueProduction() {
                 issueForm.Lines.map((line, index) => (
                   <tr key={`${line.BaseEntry}-${line.BaseLine}-${index}`}>
                     <td style={{ minWidth: 180 }}>
-                      <div className="fw-semibold">{line.ItemCode || '-'}</div>
+                      <div className="d-flex align-items-center flex-wrap gap-2">
+                        <span className="fw-semibold">{line.ItemCode || '-'}</span>
+                        <Badge bg={getPdoProductBadgeVariant(line.ProductionItemCode)} className="fw-normal">
+                          {line.ProductionItemCode || '-'}
+                        </Badge>
+                      </div>
                       <div className="text-muted f-12">{line.ItemName || '-'}</div>
                     </td>
                     <td style={{ minWidth: 120 }}>

@@ -100,7 +100,8 @@ const createInitialOrderFilters = () => {
     to: formatInputDate(endOfWeek),
     whs_code: '',
     to_whs_code: '',
-    status: ''
+    status: '',
+    unit: ''
   };
 };
 const formatSeriesDate = (value) => String(value || '').replace(/-/g, '');
@@ -634,7 +635,8 @@ export default function ProductionOrder() {
           to: filters.to || '',
           whs_code: filters.whs_code?.value || '',
           to_whs_code: filters.to_whs_code?.value || '',
-          status: filters.status?.value || filters.status || ''
+          status: filters.status?.value || filters.status || '',
+          unit: filters.unit?.value || filters.unit || ''
         });
         if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch Production Order data');
 
@@ -1555,7 +1557,7 @@ export default function ProductionOrder() {
         <Card className="border mb-3">
           <Card.Body>
             <Row className="g-3 align-items-end">
-              <Col md={6} lg={3}>
+              <Col md={6} lg={2}>
                 <Form.Label>From</Form.Label>
                 <Form.Control
                   type="date"
@@ -1563,7 +1565,7 @@ export default function ProductionOrder() {
                   onChange={(event) => setOrderFilters((current) => ({ ...current, from: event.target.value }))}
                 />
               </Col>
-              <Col md={6} lg={3}>
+              <Col md={6} lg={2}>
                 <Form.Label>To</Form.Label>
                 <Form.Control
                   type="date"
@@ -1571,7 +1573,7 @@ export default function ProductionOrder() {
                   onChange={(event) => setOrderFilters((current) => ({ ...current, to: event.target.value }))}
                 />
               </Col>
-              <Col md={6} lg={3}>
+              <Col md={6} lg={2}>
                 <Form.Label>Status</Form.Label>
                 <Select
                   styles={productionSelectStyles}
@@ -1589,7 +1591,25 @@ export default function ProductionOrder() {
                   onChange={(option) => setOrderFilters((current) => ({ ...current, status: option || '' }))}
                 />
               </Col>
-              <Col md={6} lg={3}>
+              <Col md={6} lg={2}>
+                <Form.Label>Unit</Form.Label>
+                <Select
+                  styles={productionSelectStyles}
+                  menuPortalTarget={document.body}
+                  menuPosition="fixed"
+                  menuPlacement="auto"
+                  options={unitOptions}
+                  value={
+                    unitOptions.find((option) => String(option.value) === String(orderFilters.unit?.value || orderFilters.unit)) || null
+                  }
+                  isLoading={loadingUnits}
+                  isClearable
+                  placeholder="All units"
+                  onMenuOpen={fetchUnits}
+                  onChange={(option) => setOrderFilters((current) => ({ ...current, unit: option || '' }))}
+                />
+              </Col>
+              <Col md={6} lg={4}>
                 <Stack direction="horizontal" gap={2}>
                   <Button className="flex-grow-1" disabled={loadingOrders} onClick={() => fetchProductionOrders()}>
                     <i className={loadingOrders ? 'ti ti-loader-2 me-1' : 'ti ti-search me-1'} />
@@ -1644,6 +1664,7 @@ export default function ProductionOrder() {
               <th>{renderOrderSortableHeader('Unit', 'unit')}</th>
               <th>{renderOrderSortableHeader('Posting Date', 'orderDate')}</th>
               <th>{renderOrderSortableHeader('Due Date', 'dueDate')}</th>
+              <th>Remarks</th>
               <th>{renderOrderSortableHeader('Status', 'status')}</th>
               <th className="text-center">#</th>
             </tr>
@@ -1651,7 +1672,7 @@ export default function ProductionOrder() {
           <tbody>
             {loadingOrders ? (
               <tr>
-                <td colSpan={9}>
+                <td colSpan={10}>
                   <LoaderData />
                 </td>
               </tr>
@@ -1671,6 +1692,7 @@ export default function ProductionOrder() {
                     <td>{order.unit || '-'}</td>
                     <td>{formatDate(order.orderDate)}</td>
                     <td>{formatDate(order.dueDate)}</td>
+                    <td>{order.comments || '-'}</td>
                     <td>{status ? <Badge bg={status.variant}>{status.label}</Badge> : '-'}</td>
                     <td className="text-center">
                       <Button
@@ -1694,7 +1716,7 @@ export default function ProductionOrder() {
               })
             ) : (
               <tr>
-                <td colSpan={9}>
+                <td colSpan={10}>
                   <div className="text-center py-5">
                     <span className="avtar avtar-xl bg-light-primary text-primary mb-3">
                       <i className="ti ti-clipboard-text f-32" />
@@ -2019,7 +2041,7 @@ export default function ProductionOrder() {
                   <div>{numberFormatter.format(Number(selectedOrder.completedQuantity) || 0)}</div>
                 </Col>
                 <Col md={6}>
-                  <div className="text-muted f-12">Comments</div>
+                  <div className="text-muted f-12">Remarks</div>
                   <div>{selectedOrder.comments || '-'}</div>
                 </Col>
               </Row>
