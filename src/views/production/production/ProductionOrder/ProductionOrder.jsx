@@ -2215,6 +2215,24 @@ export default function ProductionOrder() {
                         />
                       </Form.Group>
                     </Col>
+                    <Col xs={12}>
+                      <Form.Group>
+                        <Form.Label>Remarks</Form.Label>
+                        <Form.Control
+                          as="textarea"
+                          rows={2}
+                          value={form.product?.comments || ''}
+                          disabled={!form.product || isReleaseMode}
+                          placeholder="Enter remarks"
+                          onChange={(event) =>
+                            setForm((current) => ({
+                              ...current,
+                              product: current.product ? { ...current.product, comments: event.target.value } : null
+                            }))
+                          }
+                        />
+                      </Form.Group>
+                    </Col>
                   </Row>
                 </Card.Body>
               </Card>
