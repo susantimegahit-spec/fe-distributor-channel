@@ -163,6 +163,41 @@ const getDetailLines = (detail, type) => {
   return Array.isArray(lines) ? lines : [];
 };
 
+const toFormDateTime = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : toLocalDateTime(date);
+};
+
+const mapDetailToForm = (detail = {}) => {
+  const header = { ...(detail.header || detail.headerData || {}), ...detail };
+  const oldLines = getDetailLines(detail, 'old');
+  const newLines = getDetailLines(detail, 'new');
+  const firstLine = oldLines[0] || newLines[0] || {};
+  const mapLine = (line) => ({
+    ...createBaseLine(),
+    itemCode: getValue(line, ['itemCode', 'item_code', 'ItemCode'], ''),
+    quantity: getValue(line, ['quantity', 'qty', 'Quantity'], '')
+  });
+
+  return {
+    ...createInitialForm(),
+    docDate: toFormDateTime(getValue(header, ['docDate', 'doc_date', 'DocDate', 'date'], '')),
+    docDueDate: toFormDateTime(getValue(header, ['docDueDate', 'doc_due_date', 'DocDueDate'], '')),
+    comments: getValue(header, ['comments', 'Comments', 'remarks'], ''),
+    shift: getValue(header, ['shift', 'Shift'], 'All'),
+    unit: String(getValue(header, ['unit', 'u_unit', 'U_Unit'], '')),
+    addonId: String(getValue(header, ['addonId', 'addon_id', 'AddonId'], getCookies('addonId') ?? '')),
+    userId: String(getValue(header, ['userId', 'user_id', 'UserId'], getCookies('id') ?? '')),
+    ocrCode: getValue(firstLine, ['ocrCode', 'ocr_code', 'OcrCode'], ''),
+    ocrCode2: getValue(firstLine, ['ocrCode2', 'ocr_code2', 'OcrCode2'], ''),
+    ocrCode3: getValue(firstLine, ['ocrCode3', 'ocr_code3', 'OcrCode3'], ''),
+    warehouse: getValue(firstLine, ['from_whs_code', 'fromWhsCode', 'to_whs_code', 'toWhsCode'], ''),
+    oldLines: oldLines.length ? oldLines.map(mapLine) : [createOldLine()],
+    newLines: newLines.length ? newLines.map(mapLine) : [createNewLine()]
+  };
+};
+
 const formatDate = (value) => {
   if (!value) return '-';
   const date = new Date(value);
@@ -181,6 +216,7 @@ export default function ChangeProduct() {
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
   const [selectedDetail, setSelectedDetail] = useState(null);
   const [loadingDetailId, setLoadingDetailId] = useState(null);
   const [actionTarget, setActionTarget] = useState(null);
@@ -228,20 +264,22 @@ export default function ChangeProduct() {
     if (currentPage > pageCount) setCurrentPage(pageCount);
   }, [currentPage, pageCount]);
 
-  const openCreateModal = async () => {
+  const openCreateModal = async (itemToEdit = null) => {
+    setEditingItem(itemToEdit);
     setForm(createInitialForm());
     setShowCreateModal(true);
     setLoadingOptions(true);
 
     try {
-      const [productResponse, warehouseResponse, unitResponse, branchResponse, businessUnitResponse, departmentResponse] =
+      const [productResponse, warehouseResponse, unitResponse, branchResponse, businessUnitResponse, departmentResponse, detailResponse] =
         await Promise.all([
           ProductServices.getAllProduct(''),
           WarehouseServices.getAllWarehouse(''),
           ProductionServices.getUnit(),
           DistributorServices.getOcrByType(1),
           DistributorServices.getOcrByType(2),
-          DistributorServices.getOcrByType(3)
+          DistributorServices.getOcrByType(3),
+          itemToEdit ? ProductionServices.getChangeProductById(itemToEdit.id) : Promise.resolve(null)
         ]);
       const products = getResponseList(productResponse).map((item) => {
         const value = getValue(item, ['item_code', 'itemCode', 'ItemCode', 'code']);
@@ -275,11 +313,24 @@ export default function ChangeProduct() {
         businessUnit: normalizeOcrOptions(businessUnitResponse),
         department: normalizeOcrOptions(departmentResponse)
       });
+      if (itemToEdit) {
+        if (detailResponse?.data?.success === false) {
+          throw new Error(detailResponse.data.message || 'Failed to fetch change product detail');
+        }
+        const detail = getResponseItem(detailResponse);
+        if (!detail) throw new Error('Change product detail was not found');
+        setForm(mapDetailToForm(detail));
+      }
     } catch (error) {
       showAlert(error?.response?.data?.message || error?.message || 'Failed to load form options', 'danger');
     } finally {
       setLoadingOptions(false);
     }
+  };
+
+  const closeFormModal = () => {
+    setShowCreateModal(false);
+    setEditingItem(null);
   };
 
   const updateLine = (collection, lineId, values) => {
@@ -375,14 +426,21 @@ export default function ChangeProduct() {
           ocrCode3: form.ocrCode3
         }))
       };
-      const response = await ProductionServices.postDraftChangeProduct(payload);
-      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to create change product');
+      const response = editingItem
+        ? await ProductionServices.putChangeProduct(editingItem.id, payload)
+        : await ProductionServices.postDraftChangeProduct(payload);
+      if (response?.data?.success === false) {
+        throw new Error(response.data.message || `Failed to ${editingItem ? 'update' : 'create'} change product`);
+      }
 
-      setShowCreateModal(false);
+      closeFormModal();
       await fetchChangeProducts(search.trim());
-      showAlert(response?.data?.message || 'Change product draft saved', 'success');
+      showAlert(response?.data?.message || `Change product ${editingItem ? 'updated' : 'draft saved'}`, 'success');
     } catch (error) {
-      showAlert(error?.response?.data?.message || error?.message || 'Failed to create change product', 'danger');
+      showAlert(
+        error?.response?.data?.message || error?.message || `Failed to ${editingItem ? 'update' : 'create'} change product`,
+        'danger'
+      );
     } finally {
       setSaving(false);
     }
@@ -466,7 +524,7 @@ export default function ChangeProduct() {
         }
         secondary={
           canCreate ? (
-            <Button onClick={openCreateModal}>
+            <Button onClick={() => openCreateModal()}>
               <i className="ti ti-plus me-1" />
               Create Change Product
             </Button>
@@ -502,14 +560,8 @@ export default function ChangeProduct() {
                   <Table hover className="mb-0 align-middle">
                     <thead>
                       <tr>
-                        <th>#</th>
                         <th>Document No.</th>
                         <th>Date</th>
-                        <th>Source Product</th>
-                        <th>Target Product</th>
-                        <th className="text-end">Quantity</th>
-                        <th>Warehouse</th>
-                        <th>Status</th>
                         <th>Status</th>
                         <th className="text-center">Action</th>
                       </tr>
@@ -517,19 +569,8 @@ export default function ChangeProduct() {
                     <tbody>
                       {paginatedRows.map((item, index) => (
                         <tr key={`${item.id}-${index}`}>
-                          <td>{(safeCurrentPage - 1) * pageSize + index + 1}</td>
                           <td className="fw-semibold">{item.documentNumber}</td>
                           <td>{formatDate(item.date)}</td>
-                          <td>
-                            <div className="fw-semibold">{item.sourceCode}</div>
-                            {item.sourceName ? <small className="text-muted">{item.sourceName}</small> : null}
-                          </td>
-                          <td>
-                            <div className="fw-semibold">{item.targetCode}</div>
-                            {item.targetName ? <small className="text-muted">{item.targetName}</small> : null}
-                          </td>
-                          <td className="text-end">{item.quantity}</td>
-                          <td>{item.warehouse}</td>
                           <td>
                             <Badge bg="light" text="dark">
                               {item.status}
@@ -616,6 +657,19 @@ export default function ChangeProduct() {
               >
                 <i className="ti ti-eye text-primary me-2" /> Detail
               </button>
+              {String(item?.status).trim().toLowerCase() === 'draft' ? (
+                <button
+                  type="button"
+                  className="dropdown-item"
+                  data-permission-action="none"
+                  onClick={() => {
+                    setActionTarget(null);
+                    if (item) openCreateModal(item);
+                  }}
+                >
+                  <i className="ti ti-edit text-warning me-2" /> Edit
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="dropdown-item"
@@ -732,9 +786,9 @@ export default function ChangeProduct() {
         </Modal.Footer>
       </Modal>
 
-      <Modal show={showCreateModal} onHide={() => !saving && setShowCreateModal(false)} fullscreen scrollable>
+      <Modal show={showCreateModal} onHide={() => !saving && closeFormModal()} fullscreen scrollable>
         <Modal.Header closeButton={!saving}>
-          <Modal.Title>Create Change Product</Modal.Title>
+          <Modal.Title>{editingItem ? 'Edit Change Product' : 'Create Change Product'}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           {loadingOptions ? (
@@ -843,7 +897,7 @@ export default function ChangeProduct() {
           )}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="light-secondary" disabled={saving} onClick={() => setShowCreateModal(false)}>
+          <Button variant="light-secondary" disabled={saving} onClick={closeFormModal}>
             Cancel
           </Button>
           <Button disabled={saving || loadingOptions} onClick={handleCreate}>
@@ -852,6 +906,8 @@ export default function ChangeProduct() {
                 <span className="spinner-border spinner-border-sm me-2" />
                 Saving...
               </>
+            ) : editingItem ? (
+              'Save Changes'
             ) : (
               'Save Draft'
             )}

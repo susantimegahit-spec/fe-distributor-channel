@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import Col from 'react-bootstrap/Col';
 import Row from 'react-bootstrap/Row';
 
@@ -543,9 +543,11 @@ export default function OrderPost({ cmoMode = false }) {
       name: type ? { value: type, label: toTitleCase(type) } : '',
       value: getValue(detail, ['total_discount', 'totalDiscount', 'discount_amount', 'amount'], ''),
       remarks: getValue(detail, ['remarks', 'remark', 'description', 'keterangan'], ''),
+      remarksAuto: false,
       section: normalizedType.includes('promo') ? 'tradePromo' : 'other',
       valueType: Number(percentage) > 0 ? 'percent' : 'nominal',
       calculationValue: Number(percentage) > 0 ? percentage : '',
+      kgItemIndex: '',
       claimBatch: null
     };
   };
@@ -594,9 +596,11 @@ export default function OrderPost({ cmoMode = false }) {
     name: '',
     value: '',
     remarks: '',
+    remarksAuto: false,
     section,
     valueType: 'nominal',
     calculationValue: '',
+    kgItemIndex: '',
     claimBatch: null
   });
 
@@ -1543,13 +1547,7 @@ export default function OrderPost({ cmoMode = false }) {
 
   const removeItemDisc = (i) => {
     setSelectedRewardTarget(null);
-    setDetailDisc((prevArray) => {
-      const removedSection = prevArray[i]?.section;
-      const nextDetails = prevArray.filter((_, index) => index !== i);
-      return nextDetails.some((item) => item.section === removedSection)
-        ? nextDetails
-        : [...nextDetails, createEmptyDiscount(removedSection)];
-    });
+    setDetailDisc((prevArray) => prevArray.filter((_, index) => index !== i));
   };
 
   const handleChangeInputLine = (index, key, e) => {
@@ -1570,6 +1568,7 @@ export default function OrderPost({ cmoMode = false }) {
 
   const handleInputRemarks = (index, e) => {
     detailDisc[index].remarks = e.target.value;
+    detailDisc[index].remarksAuto = false;
     setDetailDisc([...detailDisc]);
   };
 
@@ -1583,14 +1582,34 @@ export default function OrderPost({ cmoMode = false }) {
       }
 
       if (item.valueType === 'kg') {
-        return Math.round(totalKg * calculationValue);
+        const selectedItem = item.section === 'primary' && item.kgItemIndex !== '' ? itemArr[Number(item.kgItemIndex)] : null;
+        const multiplierKg = selectedItem ? calculateTotalKg([selectedItem]) : item.section === 'primary' ? 0 : totalKg;
+
+        return Math.round(multiplierKg * calculationValue);
       }
 
       return item.value;
     };
-    const primaryDetails = details.map((item) =>
-      item.section === 'primary' ? { ...item, value: calculateAmount(item, orderSubtotal) } : item
-    );
+    const primaryDetails = details.map((item) => {
+      if (item.section !== 'primary') return item;
+
+      const value = calculateAmount(item, orderSubtotal);
+      const selectedItem = item.valueType === 'kg' && item.kgItemIndex !== '' ? itemArr[Number(item.kgItemIndex)] : null;
+      const itemCode = selectedItem?.itemCode?.value;
+      const itemQuantity = Number(selectedItem?.quantity || 0);
+      const discountPerKg = Number(item.calculationValue || 0);
+      const defaultRemarks =
+        itemCode && itemQuantity > 0 && discountPerKg > 0
+          ? `${itemCode}/${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 }).format(itemQuantity)} Kg/Rp ${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 }).format(discountPerKg)}`
+          : '';
+
+      return {
+        ...item,
+        value,
+        remarks: item.remarksAuto || !item.remarks ? defaultRemarks : item.remarks,
+        remarksAuto: Boolean(defaultRemarks) && (item.remarksAuto || !item.remarks)
+      };
+    });
     const calculatedPrimaryTotal = primaryDetails
       .filter((item) => item.section === 'primary')
       .reduce((total, item) => total + Number(item.value || 0), 0);
@@ -1606,11 +1625,20 @@ export default function OrderPost({ cmoMode = false }) {
         ? {
             ...item,
             valueType,
+            kgItemIndex: valueType === 'kg' ? item.kgItemIndex : '',
+            remarks: item.remarksAuto ? '' : item.remarks,
+            remarksAuto: false,
             calculationValue: valueType === 'nominal' ? '' : item.calculationValue,
             value: valueType === 'nominal' ? '' : item.value
           }
         : item
     );
+
+    setDetailDisc(recalculateDiscountAmounts(nextDetails));
+  };
+
+  const handleSelectKgMultiplierItem = (option, index) => {
+    const nextDetails = detailDisc.map((item, itemIndex) => (itemIndex === index ? { ...item, kgItemIndex: option?.value ?? '' } : item));
 
     setDetailDisc(recalculateDiscountAmounts(nextDetails));
   };
@@ -1679,6 +1707,18 @@ export default function OrderPost({ cmoMode = false }) {
       amount: Number(item.value || 0)
     }))
     .filter((item) => item.label);
+  const kgMultiplierItemOptions = itemArr
+    .map((item, index) => {
+      if (!item.itemCode) return null;
+
+      const quantity = Number(item.quantity || 0);
+      const totalKg = calculateTotalKg([item]);
+      return {
+        value: index,
+        label: `${item.itemCode.label || item.itemCode.value} · Qty ${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 }).format(quantity)} · ${formatKg(totalKg)}`
+      };
+    })
+    .filter(Boolean);
   const grandTotal = Math.max(orderSubtotal - discountTotal, 0);
   const maximumDiscountEstimatePercentage = 20;
   const maximumDiscountEstimateLimit = grandTotal * (maximumDiscountEstimatePercentage / 100);
@@ -1835,6 +1875,18 @@ export default function OrderPost({ cmoMode = false }) {
   };
 
   const handleSubmitDisc = async () => {
+    const invalidPrimaryKgDiscount = detailDisc.some((item) => {
+      if (item.section !== 'primary' || item.valueType !== 'kg') return false;
+      if (item.kgItemIndex === '' || !itemArr[Number(item.kgItemIndex)]) return true;
+
+      return calculateTotalKg([itemArr[Number(item.kgItemIndex)]]) <= 0;
+    });
+
+    if (invalidPrimaryKgDiscount) {
+      showAlert('Select a multiplier item with a valid quantity and weight for the Primary Discount', 'danger');
+      return;
+    }
+
     const activeDiscounts = detailDisc.filter((item) => Number(item.value) > 0);
 
     if (activeDiscounts.some((item) => !item.name?.value)) {
@@ -2057,6 +2109,7 @@ export default function OrderPost({ cmoMode = false }) {
     const sectionRows = detailDisc.map((item, index) => ({ item, index })).filter(({ item }) => item.section === section);
     const showValueType = section === 'primary' || section === 'other';
     const showClaimBatch = section === 'tradePromo';
+    const columnCount = 2 + Number(showClaimBatch) + Number(showValueType);
     const isTradePromoLimitReached = showClaimBatch && tradePromoTotal >= maximumTradePromo;
 
     return (
@@ -2088,127 +2141,141 @@ export default function OrderPost({ cmoMode = false }) {
                 <th style={{ minWidth: 210 }}>Category</th>
                 {showClaimBatch && <th style={{ minWidth: 320 }}>Claim &amp; Branch Amount (Oldest First)</th>}
                 {showValueType && <th style={{ minWidth: 140 }}>Value Type</th>}
-                <th style={{ minWidth: 170 }}>Remarks</th>
                 <th style={{ minWidth: 130 }}>Amount</th>
-                {allowAdd && <th className="text-center">#</th>}
               </tr>
             </thead>
             <tbody>
               {sectionRows.map(({ item, index }) => (
-                <tr key={`${section}-${index}`}>
-                  <td>
-                    {allowCreate ? (
-                      <CreatableSelect
-                        styles={customStyles}
-                        value={item.name}
-                        options={options}
-                        menuPosition="fixed"
-                        onChange={(option) => handleSelectDiscType(option, index)}
-                        placeholder="Select or type a category"
-                        formatCreateLabel={(value) => `Use "${value}"`}
-                      />
-                    ) : (
-                      <Select
-                        styles={customStyles}
-                        value={item.name}
-                        options={options}
-                        menuPosition="fixed"
-                        onChange={(option) => handleSelectDiscType(option, index)}
-                        placeholder={section === 'tradePromo' ? 'Select trade promo' : 'Select discount category'}
-                        isClearable
-                      />
-                    )}
-                  </td>
-                  {showClaimBatch && (
+                <Fragment key={`${section}-${index}`}>
+                  <tr className={index ? 'border-top' : ''}>
                     <td>
-                      <Select
-                        styles={customStyles}
-                        value={item.claimBatch}
-                        options={listClaimBatch}
-                        menuPosition="fixed"
-                        onChange={(option) => handleSelectClaimBatch(option, index)}
-                        isOptionDisabled={(option) =>
-                          (() => {
-                            if (item.claimBatch?.value === option.value) return false;
-
-                            const selectedValues = new Set(
-                              detailDisc
-                                .filter(
-                                  (detail, detailIndex) =>
-                                    detailIndex !== index && detail.section === 'tradePromo' && detail.claimBatch?.value
-                                )
-                                .map((detail) => detail.claimBatch.value)
-                            );
-                            const oldestUnusedClaim = listClaimBatch.find((claim) => !selectedValues.has(claim.value));
-
-                            return selectedValues.has(option.value) || option.value !== oldestUnusedClaim?.value;
-                          })()
-                        }
-                        isLoading={loadingReward}
-                        isClearable
-                        placeholder="Select the oldest claim"
-                        noOptionsMessage={() => (loadingReward ? 'Loading claims...' : 'No claim balance for this customer')}
-                      />
-                    </td>
-                  )}
-                  {showValueType && (
-                    <td>
-                      <Select
-                        styles={customStyles}
-                        value={discountValueTypeOptions.find((option) => option.value === item.valueType) || discountValueTypeOptions[0]}
-                        options={discountValueTypeOptions}
-                        menuPosition="fixed"
-                        onChange={(option) => handleSelectDiscountValueType(option, index)}
-                        isSearchable={false}
-                      />
-                      {(item.valueType === 'percent' || item.valueType === 'kg') && (
-                        <Form.Control
-                          className="mt-2"
-                          type="text"
-                          inputMode="decimal"
-                          value={item.calculationValue || ''}
-                          onChange={(event) => handleInputCalculationValue(index, event)}
-                          size="sm"
-                          placeholder={item.valueType === 'percent' ? 'Percent value' : 'Kg value'}
+                      {allowCreate ? (
+                        <CreatableSelect
+                          styles={customStyles}
+                          value={item.name}
+                          options={options}
+                          menuPosition="fixed"
+                          onChange={(option) => handleSelectDiscType(option, index)}
+                          placeholder="Select or type a category"
+                          formatCreateLabel={(value) => `Use "${value}"`}
+                        />
+                      ) : (
+                        <Select
+                          styles={customStyles}
+                          value={item.name}
+                          options={options}
+                          menuPosition="fixed"
+                          onChange={(option) => handleSelectDiscType(option, index)}
+                          placeholder={section === 'tradePromo' ? 'Select trade promo' : 'Select discount category'}
+                          isClearable
                         />
                       )}
                     </td>
-                  )}
-                  <td>
-                    <Form.Control
-                      value={item.remarks || ''}
-                      onChange={(event) => handleInputRemarks(index, event)}
-                      size="sm"
-                      placeholder="Remarks"
-                    />
-                  </td>
-                  <td>
-                    <Form.Control
-                      type="text"
-                      inputMode="numeric"
-                      value={formatNumberInput(item.value)}
-                      onChange={(event) => handleInputDiscValue(index, event)}
-                      readOnly={item.valueType === 'percent' || item.valueType === 'kg' || item.section === 'tradePromo'}
-                      size="sm"
-                      placeholder={
-                        item.section === 'tradePromo' ? 'Select approved claim' : item.valueType === 'nominal' ? '0' : 'Calculated amount'
-                      }
-                    />
-                  </td>
-                  {allowAdd && (
-                    <td className="text-center">
-                      <Button
-                        className="rounded-circle"
+                    {showClaimBatch && (
+                      <td>
+                        <Select
+                          styles={customStyles}
+                          value={item.claimBatch}
+                          options={listClaimBatch}
+                          menuPosition="fixed"
+                          onChange={(option) => handleSelectClaimBatch(option, index)}
+                          isOptionDisabled={(option) =>
+                            (() => {
+                              if (item.claimBatch?.value === option.value) return false;
+
+                              const selectedValues = new Set(
+                                detailDisc
+                                  .filter(
+                                    (detail, detailIndex) =>
+                                      detailIndex !== index && detail.section === 'tradePromo' && detail.claimBatch?.value
+                                  )
+                                  .map((detail) => detail.claimBatch.value)
+                              );
+                              const oldestUnusedClaim = listClaimBatch.find((claim) => !selectedValues.has(claim.value));
+
+                              return selectedValues.has(option.value) || option.value !== oldestUnusedClaim?.value;
+                            })()
+                          }
+                          isLoading={loadingReward}
+                          isClearable
+                          placeholder="Select the oldest claim"
+                          noOptionsMessage={() => (loadingReward ? 'Loading claims...' : 'No claim balance for this customer')}
+                        />
+                      </td>
+                    )}
+                    {showValueType && (
+                      <td>
+                        <Select
+                          styles={customStyles}
+                          value={discountValueTypeOptions.find((option) => option.value === item.valueType) || discountValueTypeOptions[0]}
+                          options={discountValueTypeOptions}
+                          menuPosition="fixed"
+                          onChange={(option) => handleSelectDiscountValueType(option, index)}
+                          isSearchable={false}
+                        />
+                        {section === 'primary' && item.valueType === 'kg' && (
+                          <Select
+                            className="mt-2"
+                            styles={customStyles}
+                            value={kgMultiplierItemOptions.find((option) => option.value === item.kgItemIndex) || null}
+                            options={kgMultiplierItemOptions}
+                            menuPosition="fixed"
+                            menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                            onChange={(option) => handleSelectKgMultiplierItem(option, index)}
+                            placeholder="Select multiplier item"
+                            noOptionsMessage={() => 'Add an order item and quantity first'}
+                            isClearable
+                          />
+                        )}
+                        {(item.valueType === 'percent' || item.valueType === 'kg') && (
+                          <Form.Control
+                            className="mt-2"
+                            type="text"
+                            inputMode="decimal"
+                            value={item.calculationValue || ''}
+                            onChange={(event) => handleInputCalculationValue(index, event)}
+                            size="sm"
+                            placeholder={item.valueType === 'percent' ? 'Percent value' : 'Discount per Kg'}
+                          />
+                        )}
+                      </td>
+                    )}
+                    <td>
+                      <Form.Control
+                        type="text"
+                        inputMode="numeric"
+                        value={formatNumberInput(item.value)}
+                        onChange={(event) => handleInputDiscValue(index, event)}
+                        readOnly={item.valueType === 'percent' || item.valueType === 'kg' || item.section === 'tradePromo'}
                         size="sm"
-                        variant="outline-danger"
-                        onClick={() => removeItemDisc(index)}
-                        disabled={sectionRows.length === 1}
-                      >
-                        <i className="ti ti-trash" />
-                      </Button>
+                        placeholder={
+                          item.section === 'tradePromo' ? 'Select approved claim' : item.valueType === 'nominal' ? '0' : 'Calculated amount'
+                        }
+                      />
                     </td>
+                  </tr>
+                  <tr>
+                    <td colSpan={columnCount} className="pt-0">
+                      <Form.Label className="f-12 text-muted mb-1">Remarks</Form.Label>
+                      <Form.Control
+                        value={item.remarks || ''}
+                        onChange={(event) => handleInputRemarks(index, event)}
+                        size="sm"
+                        placeholder="Remarks"
+                      />
+                    </td>
+                  </tr>
+                  {allowAdd && (
+                    <tr>
+                      <td colSpan={columnCount} className="pt-3 pb-3 text-end">
+                        <Button size="sm" variant="outline-danger" onClick={() => removeItemDisc(index)}>
+                          <i className="ti ti-trash me-1" />
+                          Remove Discount
+                        </Button>
+                      </td>
+                    </tr>
                   )}
-                </tr>
+                </Fragment>
               ))}
             </tbody>
           </Table>

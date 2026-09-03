@@ -87,6 +87,10 @@ class ProductionServices {
     return DataService.get(`/production/change-products/${id}`);
   }
 
+  putChangeProduct(id, payload) {
+    return DataService.put(`/production/change-products/${id}`, payload);
+  }
+
   postChangeProduct(id) {
     return DataService.post(`/production/change-products/${id}/post`);
   }
