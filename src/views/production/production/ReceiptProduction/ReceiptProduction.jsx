@@ -209,6 +209,7 @@ const normalizeProductionOrder = (item = {}, index = 0) => ({
   uom: item.UomCode ?? item.UoMCode ?? item.UomName ?? item.UoMName ?? item.uom_code ?? item.uom ?? item.unit_of_measure ?? '',
   uomEntry: Number(item.UoMEntry ?? item.UomEntry ?? item.uom_entry ?? item.uomEntry ?? 0),
   bomId: item.Bomid ?? item.BomId ?? item.bom_id ?? item.bomId ?? '',
+  remarks: getValue(item, ['Comments', 'comments', 'remarks', 'remark'], '-'),
   unit: getValue(item, ['U_Unit', 'u_unit', 'Unit', 'unit', 'OcrCode2', 'ocr_code2']),
   ocrCode: getValue(item, ['OcrCode', 'ocrCode', 'ocr_code', 'Ocr', 'ocr', 'branch_code', 'branchCode']),
   ocrCode2: getValue(item, ['OcrCode2', 'ocrCode2', 'ocr_code2', 'Ocr2', 'ocr2', 'business_unit_code', 'businessUnitCode']),
@@ -1280,6 +1281,7 @@ export default function ReceiptProduction() {
                 </th>
                 <th>Order No.</th>
                 <th>Product</th>
+                <th>Remarks</th>
                 <th>Planned Qty</th>
                 <th>Complete Qty</th>
               </tr>
@@ -1287,7 +1289,7 @@ export default function ReceiptProduction() {
             <tbody>
               {loadingBoms ? (
                 <tr>
-                  <td colSpan={5}>
+                  <td colSpan={6}>
                     <LoaderData />
                   </td>
                 </tr>
@@ -1334,6 +1336,7 @@ export default function ReceiptProduction() {
                         <div className="fw-semibold">{bom.itemCode || '-'}</div>
                         <div className="text-muted f-12">{bom.itemName || '-'}</div>
                       </td>
+                      <td>{bom.remarks || '-'}</td>
                       <td>{numberFormatter.format(bom.plannedQuantity)}</td>
                       <td>
                         <div>{numberFormatter.format(bom.completedQuantity)}</div>
@@ -1348,7 +1351,7 @@ export default function ReceiptProduction() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={5} className="text-center text-muted py-4">
+                  <td colSpan={6} className="text-center text-muted py-4">
                     No Production Order data found for the selected date filters.
                   </td>
                 </tr>
