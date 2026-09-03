@@ -2187,7 +2187,7 @@ export default function ProductionOrder() {
                           min="0"
                           step="any"
                           value={form.plannedQuantity}
-                          disabled
+                          disabled={isReleaseMode || isEditMode}
                           onChange={(event) =>
                             setForm((current) => ({
                               ...current,
@@ -2608,6 +2608,7 @@ export default function ProductionOrder() {
                 <th>Product</th>
                 <th>UOM</th>
                 <th>Alternate</th>
+                <th>Remarks</th>
                 <th className="text-center" style={{ width: 90 }}>
                   #
                 </th>
@@ -2616,7 +2617,7 @@ export default function ProductionOrder() {
             <tbody>
               {loadingBoms ? (
                 <tr>
-                  <td colSpan={4}>
+                  <td colSpan={5}>
                     <LoaderData />
                   </td>
                 </tr>
@@ -2629,6 +2630,7 @@ export default function ProductionOrder() {
                     </td>
                     <td>{bom.uom || '-'}</td>
                     <td>{bom.alternate || '-'}</td>
+                    <td>{bom.comments || '-'}</td>
                     <td className="text-center">
                       <Button variant="success" size="sm" onClick={() => handleSelectBom(bom)} disabled={loadingBomDetail}>
                         {String(selectingBomId) === String(bom.id) ? (
@@ -2645,7 +2647,7 @@ export default function ProductionOrder() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="text-center text-muted py-4">
+                  <td colSpan={5} className="text-center text-muted py-4">
                     No Bill of Material data found.
                   </td>
                 </tr>
