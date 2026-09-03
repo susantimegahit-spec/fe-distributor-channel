@@ -292,6 +292,8 @@ export default function IssueProduction() {
   const [orderSearch, setOrderSearch] = useState('');
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [loadingOrderDetailId, setLoadingOrderDetailId] = useState(null);
+  const [selectedPdoDetail, setSelectedPdoDetail] = useState(null);
+  const [loadingPdoDetailId, setLoadingPdoDetailId] = useState(null);
   const [loadingUnits, setLoadingUnits] = useState(false);
   const [unitOptions, setUnitOptions] = useState([]);
   const [loadingSeries, setLoadingSeries] = useState(false);
@@ -722,6 +724,30 @@ export default function IssueProduction() {
     }));
   };
 
+  const handleOpenPdoDetail = async (line) => {
+    const pdoId = line.BaseEntry;
+    if (pdoId === undefined || pdoId === null || pdoId === '') {
+      showAlert('Production Order id was not found', 'warning');
+      return;
+    }
+
+    setLoadingPdoDetailId(String(pdoId));
+    try {
+      const response = await ProductionServices.getProductionOrderById(pdoId);
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch Production Order detail');
+      const detail = getProductionOrderDetail(response);
+      setSelectedPdoDetail({
+        header: Array.isArray(detail.header) ? detail.header[0] || {} : detail.header,
+        items: detail.items,
+        fallback: line
+      });
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch Production Order detail', 'danger');
+    } finally {
+      setLoadingPdoDetailId(null);
+    }
+  };
+
   const handleDeleteIssueLine = (lineIndex) => {
     setIssueForm((current) => ({ ...current, Lines: current.Lines.filter((_, index) => index !== lineIndex) }));
   };
@@ -1026,6 +1052,19 @@ export default function IssueProduction() {
                         <Badge bg={getPdoProductBadgeVariant(line.ProductionItemCode)} className="fw-normal">
                           {line.ProductionItemCode || '-'}
                         </Badge>
+                        <Badge
+                          as="button"
+                          type="button"
+                          bg="light"
+                          text="primary"
+                          className="border fw-normal"
+                          disabled={String(loadingPdoDetailId) === String(line.BaseEntry)}
+                          onClick={() => handleOpenPdoDetail(line)}
+                        >
+                          {String(loadingPdoDetailId) === String(line.BaseEntry)
+                            ? 'Loading...'
+                            : `PDO ${line.ProductionOrderNumber || '-'}`}
+                        </Badge>
                       </div>
                       <div className="text-muted f-12">{line.ItemName || '-'}</div>
                     </td>
@@ -1242,6 +1281,117 @@ export default function IssueProduction() {
           >
             {loadingOrderDetailId !== null ? <span className="spinner-border spinner-border-sm me-2" /> : <i className="ti ti-plus me-1" />}
             {loadingOrderDetailId !== null ? 'Adding...' : `Add Selected PDO (${selectedOrderIds.length})`}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal
+        show={Boolean(selectedPdoDetail)}
+        onHide={() => setSelectedPdoDetail(null)}
+        size="lg"
+        className="production-nested-modal"
+        backdropClassName="production-nested-modal-backdrop"
+        centered
+        scrollable
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Production Order Detail</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedPdoDetail
+            ? (() => {
+                const { header, items, fallback } = selectedPdoDetail;
+                const documentNumber = getValue(header, ['DocNum', 'doc_num'], fallback.ProductionOrderNumber || '-');
+                const productCode = getValue(header, ['ItemCode', 'item_code', 'product_code'], fallback.ProductionItemCode || '-');
+                const productName = getValue(
+                  header,
+                  ['ProdName', 'ItemName', 'item_name', 'product_name'],
+                  fallback.ProductionItemName || '-'
+                );
+
+                return (
+                  <Stack gap={3}>
+                    <Card className="border mb-0">
+                      <Card.Body>
+                        <Row className="g-3">
+                          <Col md={4}>
+                            <Form.Label className="f-12 text-muted">PDO No.</Form.Label>
+                            <div className="fw-semibold">{documentNumber}</div>
+                          </Col>
+                          <Col md={8}>
+                            <Form.Label className="f-12 text-muted">Product</Form.Label>
+                            <div className="fw-semibold">{productCode}</div>
+                            <div className="text-muted f-12">{productName}</div>
+                          </Col>
+                          <Col md={4}>
+                            <Form.Label className="f-12 text-muted">Status</Form.Label>
+                            <div>{getValue(header, ['ProductionOrderStatus', 'Status', 'status'], '-')}</div>
+                          </Col>
+                          <Col md={4}>
+                            <Form.Label className="f-12 text-muted">Planned Qty</Form.Label>
+                            <div>{numberFormatter.format(Number(getValue(header, ['PlannedQty', 'planned_qty'], 0)))}</div>
+                          </Col>
+                          <Col md={4}>
+                            <Form.Label className="f-12 text-muted">Warehouse</Form.Label>
+                            <div>{getValue(header, ['Warehouse', 'WhsCode', 'whs_code'], '-')}</div>
+                          </Col>
+                          <Col md={4}>
+                            <Form.Label className="f-12 text-muted">Posting Date</Form.Label>
+                            <div>{formatDate(getValue(header, ['PostingDate', 'PostDate', 'DocDate']))}</div>
+                          </Col>
+                          <Col md={4}>
+                            <Form.Label className="f-12 text-muted">Due Date</Form.Label>
+                            <div>{formatDate(getValue(header, ['DueDate', 'due_date']))}</div>
+                          </Col>
+                          <Col md={4}>
+                            <Form.Label className="f-12 text-muted">Remarks</Form.Label>
+                            <div>{getValue(header, ['Remarks', 'Comments', 'comments', 'remarks'], '-')}</div>
+                          </Col>
+                        </Row>
+                      </Card.Body>
+                    </Card>
+
+                    <Table responsive bordered className="align-middle mb-0">
+                      <thead>
+                        <tr>
+                          <th>Component</th>
+                          <th>Base Qty</th>
+                          <th>Planned Qty</th>
+                          <th>Warehouse</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {items.length ? (
+                          items.map((item, index) => (
+                            <tr key={getValue(item, ['LineNum', 'line_num', 'id'], index)}>
+                              <td>
+                                <div className="fw-semibold">{getValue(item, ['ItemCode', 'item_code', 'code'], '-')}</div>
+                                <div className="text-muted f-12">
+                                  {getValue(item, ['ItemName', 'item_name', 'ItemDescription', 'name'], '-')}
+                                </div>
+                              </td>
+                              <td>{numberFormatter.format(Number(getValue(item, ['BaseQty', 'base_qty', 'qty'], 0)))}</td>
+                              <td>{numberFormatter.format(Number(getValue(item, ['PlannedQty', 'planned_qty'], 0)))}</td>
+                              <td>{getValue(item, ['Warehouse', 'WhsCode', 'whs_code'], '-')}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={4} className="text-center text-muted py-4">
+                              No Production Order component data found.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </Table>
+                  </Stack>
+                );
+              })()
+            : null}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" onClick={() => setSelectedPdoDetail(null)}>
+            Close
           </Button>
         </Modal.Footer>
       </Modal>
