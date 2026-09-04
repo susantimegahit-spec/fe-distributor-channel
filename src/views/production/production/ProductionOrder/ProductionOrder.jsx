@@ -346,7 +346,7 @@ const normalizeProductionOrder = (item = {}, index = 0) => ({
   series: item.seriesName || item.SeriesName || item.series || item.series_code || '',
   shift: item.U_Shift || item.u_shift || item.Shift || item.shift || '',
   priority: item.priority ?? '',
-  comments: item.Comments || item.comments || item.remarks || '',
+  comments: item.Comments || item.comments || item.Remarks || item.remarks || item.Remark || item.remark || '',
   details: Array.isArray(item.details)
     ? item.details
     : Array.isArray(item.order_details)

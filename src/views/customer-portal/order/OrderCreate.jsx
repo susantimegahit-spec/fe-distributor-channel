@@ -218,6 +218,13 @@ export default function OrderPost({ cmoMode = false }) {
       return total + kgPerUnit * Number(item.quantity || 0);
     }, 0);
 
+  const getKgItemIndexes = (discount = {}) => {
+    if (Array.isArray(discount.kgItemIndexes)) return discount.kgItemIndexes;
+    if (discount.kgItemIndex === '' || discount.kgItemIndex === undefined || discount.kgItemIndex === null) return [];
+
+    return [discount.kgItemIndex];
+  };
+
   const [itemArr, setItemArr] = useState([
     {
       itemCode: null,
@@ -548,6 +555,7 @@ export default function OrderPost({ cmoMode = false }) {
       valueType: Number(percentage) > 0 ? 'percent' : 'nominal',
       calculationValue: Number(percentage) > 0 ? percentage : '',
       kgItemIndex: '',
+      kgItemIndexes: [],
       claimBatch: null
     };
   };
@@ -589,6 +597,7 @@ export default function OrderPost({ cmoMode = false }) {
     details.map((item) => ({
       ...item,
       name: item.name && typeof item.name === 'object' ? { ...item.name } : item.name,
+      kgItemIndexes: getKgItemIndexes(item),
       claimBatch: item.claimBatch && typeof item.claimBatch === 'object' ? { ...item.claimBatch } : item.claimBatch
     }));
 
@@ -601,6 +610,7 @@ export default function OrderPost({ cmoMode = false }) {
     valueType: 'nominal',
     calculationValue: '',
     kgItemIndex: '',
+    kgItemIndexes: [],
     claimBatch: null
   });
 
@@ -1582,8 +1592,13 @@ export default function OrderPost({ cmoMode = false }) {
       }
 
       if (item.valueType === 'kg') {
-        const selectedItem = item.section === 'primary' && item.kgItemIndex !== '' ? itemArr[Number(item.kgItemIndex)] : null;
-        const multiplierKg = selectedItem ? calculateTotalKg([selectedItem]) : item.section === 'primary' ? 0 : totalKg;
+        const selectedItems =
+          item.section === 'primary'
+            ? getKgItemIndexes(item)
+                .map((itemIndex) => itemArr[Number(itemIndex)])
+                .filter(Boolean)
+            : itemArr;
+        const multiplierKg = calculateTotalKg(selectedItems);
 
         return Math.round(multiplierKg * calculationValue);
       }
@@ -1594,13 +1609,18 @@ export default function OrderPost({ cmoMode = false }) {
       if (item.section !== 'primary') return item;
 
       const value = calculateAmount(item, orderSubtotal);
-      const selectedItem = item.valueType === 'kg' && item.kgItemIndex !== '' ? itemArr[Number(item.kgItemIndex)] : null;
-      const itemCode = selectedItem?.itemCode?.value;
-      const itemQuantity = Number(selectedItem?.quantity || 0);
+      const selectedItems =
+        item.valueType === 'kg'
+          ? getKgItemIndexes(item)
+              .map((itemIndex) => itemArr[Number(itemIndex)])
+              .filter(Boolean)
+          : [];
+      const itemCodes = selectedItems.map((selectedItem) => selectedItem?.itemCode?.value).filter(Boolean);
+      const multiplierKg = calculateTotalKg(selectedItems);
       const discountPerKg = Number(item.calculationValue || 0);
       const defaultRemarks =
-        itemCode && itemQuantity > 0 && discountPerKg > 0
-          ? `${itemCode}/${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 }).format(itemQuantity)} Kg/Rp ${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 }).format(discountPerKg)}`
+        itemCodes.length && multiplierKg > 0 && discountPerKg > 0
+          ? `${itemCodes.join(', ')}/${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 }).format(multiplierKg)} Kg/Rp ${new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 }).format(discountPerKg)}`
           : '';
 
       return {
@@ -1626,6 +1646,7 @@ export default function OrderPost({ cmoMode = false }) {
             ...item,
             valueType,
             kgItemIndex: valueType === 'kg' ? item.kgItemIndex : '',
+            kgItemIndexes: valueType === 'kg' ? getKgItemIndexes(item) : [],
             remarks: item.remarksAuto ? '' : item.remarks,
             remarksAuto: false,
             calculationValue: valueType === 'nominal' ? '' : item.calculationValue,
@@ -1638,7 +1659,16 @@ export default function OrderPost({ cmoMode = false }) {
   };
 
   const handleSelectKgMultiplierItem = (option, index) => {
-    const nextDetails = detailDisc.map((item, itemIndex) => (itemIndex === index ? { ...item, kgItemIndex: option?.value ?? '' } : item));
+    const selectedOptions = Array.isArray(option) ? option : [];
+    const nextDetails = detailDisc.map((item, itemIndex) =>
+      itemIndex === index
+        ? {
+            ...item,
+            kgItemIndex: '',
+            kgItemIndexes: selectedOptions.map((selectedOption) => selectedOption.value)
+          }
+        : item
+    );
 
     setDetailDisc(recalculateDiscountAmounts(nextDetails));
   };
@@ -1877,9 +1907,12 @@ export default function OrderPost({ cmoMode = false }) {
   const handleSubmitDisc = async () => {
     const invalidPrimaryKgDiscount = detailDisc.some((item) => {
       if (item.section !== 'primary' || item.valueType !== 'kg') return false;
-      if (item.kgItemIndex === '' || !itemArr[Number(item.kgItemIndex)]) return true;
+      const selectedItems = getKgItemIndexes(item)
+        .map((itemIndex) => itemArr[Number(itemIndex)])
+        .filter(Boolean);
+      if (!selectedItems.length) return true;
 
-      return calculateTotalKg([itemArr[Number(item.kgItemIndex)]]) <= 0;
+      return calculateTotalKg(selectedItems) <= 0;
     });
 
     if (invalidPrimaryKgDiscount) {
@@ -2217,13 +2250,17 @@ export default function OrderPost({ cmoMode = false }) {
                           <Select
                             className="mt-2"
                             styles={customStyles}
-                            value={kgMultiplierItemOptions.find((option) => option.value === item.kgItemIndex) || null}
+                            value={kgMultiplierItemOptions.filter((option) =>
+                              getKgItemIndexes(item).some((itemIndex) => String(itemIndex) === String(option.value))
+                            )}
                             options={kgMultiplierItemOptions}
                             menuPosition="fixed"
                             menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
                             onChange={(option) => handleSelectKgMultiplierItem(option, index)}
                             placeholder="Select multiplier item"
                             noOptionsMessage={() => 'Add an order item and quantity first'}
+                            isMulti
+                            closeMenuOnSelect={false}
                             isClearable
                           />
                         )}

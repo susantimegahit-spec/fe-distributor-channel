@@ -231,7 +231,7 @@ const createIssueLine = (line = {}, header = {}, index = 0) => {
     ItemCode: getValue(line, ['ItemCode', 'ItemNo', 'itemNo', 'item_code', 'code']),
     ItemName: getValue(line, ['ItemName', 'itemName', 'item_name', 'ItemDescription', 'item_description', 'name']),
     BaseType: Number(getValue(line, ['BaseType', 'base_type'], 202)),
-    BaseEntry: Number(getValue(line, ['BaseEntry', 'base_entry'], getValue(header, ['DocEntry', 'docEntry', 'doc_entry', 'id'], ''))),
+    BaseEntry: Number(getValue(header, ['DocEntry', 'docEntry', 'doc_entry', 'id'], getValue(line, ['BaseEntry', 'base_entry'], ''))),
     BaseLine: Number(getValue(line, ['BaseLine', 'base_line', 'LineNum', 'line_num'], index)),
     PlannedQty: plannedQty,
     IssuedQty: issuedQty,
@@ -691,13 +691,19 @@ export default function IssueProduction() {
           if (response?.data?.success === false) {
             throw new Error(response.data.message || `Failed to fetch Production Order ${order.number}`);
           }
-          const { header, items } = getProductionOrderDetail(response);
+          const detail = getProductionOrderDetail(response);
+          const header = Array.isArray(detail.header) ? detail.header[0] || {} : detail.header;
+          const { items } = detail;
+          const pdoDocEntry = getValue(header, ['DocEntry', 'docEntry', 'doc_entry', 'id'], order.id);
+          if (pdoDocEntry === undefined || pdoDocEntry === null || pdoDocEntry === '') {
+            throw new Error(`DocEntry was not found in Production Order ${order.number}`);
+          }
           const lines = items.flatMap((line, index) =>
             isBackflushIssueLine(line)
               ? []
               : [
                   {
-                    ...createIssueLine(line, header, index),
+                    ...createIssueLine(line, { ...header, DocEntry: pdoDocEntry }, index),
                     ProductionOrderNumber: getValue(header, ['DocNum', 'doc_num'], order.number),
                     ProductionItemCode: getValue(header, ['ItemCode', 'item_code', 'product_code'], order.itemCode),
                     ProductionItemName: getValue(header, ['ProdName', 'ItemName', 'item_name', 'product_name'], order.itemName)
