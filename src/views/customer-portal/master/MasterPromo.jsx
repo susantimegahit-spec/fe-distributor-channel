@@ -1042,6 +1042,7 @@ export default function MasterPromo() {
                             >
                               <option value="GT">GT</option>
                               <option value="MT">MT</option>
+                              <option value="FS">FS</option>
                             </Form.Select>
                           </td>
                           <td>
