@@ -567,6 +567,7 @@ export default function ProductionOrder() {
   const [loadingOcr, setLoadingOcr] = useState(false);
   const [loadingUnits, setLoadingUnits] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [search, setSearch] = useState('');
   const [boms, setBoms] = useState([]);
   const [seriesOptions, setSeriesOptions] = useState([]);
@@ -1055,6 +1056,7 @@ export default function ProductionOrder() {
   };
 
   const handleCloseOrderForm = () => {
+    setShowSaveConfirm(false);
     setShowCreateModal(false);
     setReleaseOrder(null);
     setEditOrder(null);
@@ -1513,6 +1515,11 @@ export default function ProductionOrder() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleConfirmSave = () => {
+    setShowSaveConfirm(false);
+    handleSave();
   };
 
   const headerDetail = form.product?.details?.[0] || {};
@@ -2602,7 +2609,7 @@ export default function ProductionOrder() {
           </Button>
           <Button
             variant="success"
-            onClick={handleSave}
+            onClick={() => setShowSaveConfirm(true)}
             disabled={loadingBomDetail || loadingSeries || saving || duplicatingOrderId !== null}
           >
             {saving ? (
@@ -2616,6 +2623,37 @@ export default function ProductionOrder() {
                 {isReleaseMode ? 'Release' : isEditMode ? 'Update' : isDuplicate ? 'Save as New' : 'Save'}
               </>
             )}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal
+        show={showSaveConfirm}
+        onHide={() => !saving && setShowSaveConfirm(false)}
+        className="production-nested-modal"
+        backdropClassName="production-nested-modal-backdrop"
+        centered
+      >
+        <Modal.Header closeButton={!saving}>
+          <Modal.Title className="text-warning">
+            <i className="ti ti-alert-triangle me-2" />
+            Confirm {isReleaseMode ? 'Release' : isEditMode ? 'Update' : 'Save'} PDO
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="mb-2">Please make sure all Production Order data is correct before continuing.</p>
+          <div className="text-muted f-12">
+            Product: <strong>{form.product?.productCode || '-'}</strong> · Planned Qty:{' '}
+            <strong>{numberFormatter.format(Number(form.plannedQuantity) || 0)}</strong>
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" onClick={() => setShowSaveConfirm(false)} disabled={saving}>
+            Cancel
+          </Button>
+          <Button variant="warning" onClick={handleConfirmSave} disabled={saving}>
+            <i className={isReleaseMode ? 'ti ti-player-play me-1' : 'ti ti-device-floppy me-1'} />
+            Yes, {isReleaseMode ? 'Release' : isEditMode ? 'Update' : 'Save'} PDO
           </Button>
         </Modal.Footer>
       </Modal>

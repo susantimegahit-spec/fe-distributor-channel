@@ -5,10 +5,15 @@
 
 .issue-quantity-no-spinner {
   appearance: textfield;
+  font-weight: 700;
 
   &::-webkit-inner-spin-button,
   &::-webkit-outer-spin-button {
     margin: 0;
     appearance: none;
   }
+}
+
+.issue-out-of-stock-row > * {
+  background-color: #fff7f7 !important;
 }

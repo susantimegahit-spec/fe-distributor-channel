@@ -311,6 +311,7 @@ export default function InventoryTransfer() {
   const [loadingFromBinHeaders, setLoadingFromBinHeaders] = useState(false);
   const [loadingToBinHeaders, setLoadingToBinHeaders] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [activeBinLineIndex, setActiveBinLineIndex] = useState(null);
   const [activeBinType, setActiveBinType] = useState('from');
   const [binRows, setBinRows] = useState([]);
@@ -831,7 +832,7 @@ export default function InventoryTransfer() {
     closeBinModal();
   };
 
-  const submitInventoryTransfer = async () => {
+  const submitInventoryTransfer = async (confirmed = false) => {
     const invalidLine = form.lines.find(
       (line) =>
         !line.item?.value ||
@@ -853,6 +854,11 @@ export default function InventoryTransfer() {
 
     if (invalidLine) {
       showAlert('Please complete every item and ensure each bin allocation equals its item quantity', 'warning');
+      return;
+    }
+
+    if (!confirmed) {
+      setShowSaveConfirm(true);
       return;
     }
 
@@ -1587,7 +1593,7 @@ export default function InventoryTransfer() {
           <Button variant="light-secondary" disabled={submitting} onClick={closeCreateModal}>
             Cancel
           </Button>
-          <Button variant="primary" disabled={submitting} onClick={submitInventoryTransfer}>
+          <Button variant="primary" disabled={submitting} onClick={() => submitInventoryTransfer()}>
             {submitting ? (
               <>
                 <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />
@@ -1599,6 +1605,38 @@ export default function InventoryTransfer() {
                 Create Inventory Transfer
               </>
             )}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal
+        show={showSaveConfirm}
+        onHide={() => !submitting && setShowSaveConfirm(false)}
+        className="production-nested-modal"
+        backdropClassName="production-nested-modal-backdrop"
+        centered
+      >
+        <Modal.Header closeButton={!submitting}>
+          <Modal.Title className="text-warning">
+            <i className="ti ti-alert-triangle me-2" /> Confirm Inventory Transfer
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Are you sure you want to create this Inventory Transfer with <strong>{form.lines.length}</strong> item(s)?
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" disabled={submitting} onClick={() => setShowSaveConfirm(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="warning"
+            disabled={submitting}
+            onClick={() => {
+              setShowSaveConfirm(false);
+              submitInventoryTransfer(true);
+            }}
+          >
+            <i className="ti ti-device-floppy me-1" /> Yes, Create Transfer
           </Button>
         </Modal.Footer>
       </Modal>

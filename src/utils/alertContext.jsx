@@ -80,7 +80,7 @@ export const AlertProvider = ({ children }) => {
   );
 
   const showAlert = useCallback(
-    (message, variant = 'info', timeout = 4000) => {
+    (message, variant = 'info', timeout = 6000) => {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const safeVariant = alertVariantConfig[variant] ? variant : 'info';
       const safeMessage = getAlertMessage(message);

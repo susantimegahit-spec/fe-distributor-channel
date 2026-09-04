@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import moment from 'moment';
 import { Link, useNavigate } from 'react-router-dom';
 import Select from 'react-select';
@@ -301,6 +301,8 @@ export default function OrderList({ showOnlyCommitment = false }) {
   const [orderLayout, setOrderLayout] = useState('list');
   const [orderCalendarMonth, setOrderCalendarMonth] = useState(() => moment().startOf('month'));
   const [permissionDetail, setPermissionDetail] = useState(null);
+  const pendingOrderRefreshRef = useRef(false);
+  const refreshOrdersRef = useRef(null);
 
   useEffect(() => {
     getPermissionDetail();
@@ -607,6 +609,41 @@ export default function OrderList({ showOnlyCommitment = false }) {
       setIsLoading(false);
     }
   };
+
+  refreshOrdersRef.current = () => (showOnlyCommitment ? fetchCommitmentOrders() : fetchData());
+
+  useEffect(() => {
+    const refreshIfPending = () => {
+      const hasPendingRefresh = pendingOrderRefreshRef.current || window.sessionStorage.getItem('sm-orders-refresh-pending') === 'true';
+      if (!hasPendingRefresh) return;
+
+      pendingOrderRefreshRef.current = false;
+      window.sessionStorage.removeItem('sm-orders-refresh-pending');
+      refreshOrdersRef.current?.();
+    };
+
+    const handleIncomingNotification = () => {
+      pendingOrderRefreshRef.current = true;
+      window.sessionStorage.setItem('sm-orders-refresh-pending', 'true');
+
+      if (document.hasFocus()) refreshIfPending();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshIfPending();
+    };
+
+    window.addEventListener('sm:orders-refresh-needed', handleIncomingNotification);
+    window.addEventListener('focus', refreshIfPending);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    if (document.hasFocus()) refreshIfPending();
+
+    return () => {
+      window.removeEventListener('sm:orders-refresh-needed', handleIncomingNotification);
+      window.removeEventListener('focus', refreshIfPending);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   const syncData = async () => {
     setIsSyncing(true);
@@ -1655,7 +1692,8 @@ export default function OrderList({ showOnlyCommitment = false }) {
   const selectedOrderGrandTotal = selectedOrderTotal - selectedOrderDiscountTotal;
   const selectedCreditLimit = selectedOrderDetail ? getOrderValue(selectedOrderDetail, creditLimitKeys, '') : '';
   const selectedCreditRemaining = selectedOrderDetail?.creditLimitData?.SisaCredit;
-  const canShowCreditLimitInfo = selectedOrderDetail && normalizeStatus(selectedOrderDetail.status) === 'WAITING_FINANCE' && canApproveSelectedOrder;
+  const canShowCreditLimitInfo =
+    selectedOrderDetail && normalizeStatus(selectedOrderDetail.status) === 'WAITING_FINANCE' && canApproveSelectedOrder;
   const formatCreditAmount = (value) => (value !== undefined && value !== null && value !== '' ? currency(parseAmount(value)) : '-');
   return (
     <>

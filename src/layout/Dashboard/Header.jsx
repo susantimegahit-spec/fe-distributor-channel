@@ -178,6 +178,8 @@ export default function Header({ showSidebar = true }) {
 
       if (notification.unread && isNewNotification) {
         playNotificationSound();
+        window.sessionStorage.setItem('sm-orders-refresh-pending', 'true');
+        window.dispatchEvent(new CustomEvent('sm:orders-refresh-needed'));
       }
 
       setNotifications((prevState) => {

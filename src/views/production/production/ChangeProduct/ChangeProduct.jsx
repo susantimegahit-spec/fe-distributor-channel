@@ -212,6 +212,7 @@ export default function ChangeProduct() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [search, setSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -385,7 +386,7 @@ export default function ChangeProduct() {
     }
   };
 
-  const handleCreate = async () => {
+  const handleCreate = async (confirmed = false) => {
     if (
       !form.docDate ||
       !form.warehouse ||
@@ -395,6 +396,11 @@ export default function ChangeProduct() {
       form.newLines.some((line) => !line.itemCode || Number(line.quantity) <= 0)
     ) {
       showAlert('Complete all required header and line fields', 'warning');
+      return;
+    }
+
+    if (!confirmed) {
+      setShowSaveConfirm(true);
       return;
     }
 
@@ -901,7 +907,7 @@ export default function ChangeProduct() {
           <Button variant="light-secondary" disabled={saving} onClick={closeFormModal}>
             Cancel
           </Button>
-          <Button disabled={saving || loadingOptions} onClick={handleCreate}>
+          <Button disabled={saving || loadingOptions} onClick={() => handleCreate()}>
             {saving ? (
               <>
                 <span className="spinner-border spinner-border-sm me-2" />
@@ -912,6 +918,38 @@ export default function ChangeProduct() {
             ) : (
               'Save Draft'
             )}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal
+        show={showSaveConfirm}
+        onHide={() => !saving && setShowSaveConfirm(false)}
+        className="production-nested-modal"
+        backdropClassName="production-nested-modal-backdrop"
+        centered
+      >
+        <Modal.Header closeButton={!saving}>
+          <Modal.Title className="text-warning">
+            <i className="ti ti-alert-triangle me-2" /> Confirm {editingItem ? 'Save Changes' : 'Save Draft'}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Are you sure you want to {editingItem ? 'save these Change Product changes' : 'save this Change Product draft'}?
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" disabled={saving} onClick={() => setShowSaveConfirm(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="warning"
+            disabled={saving}
+            onClick={() => {
+              setShowSaveConfirm(false);
+              handleCreate(true);
+            }}
+          >
+            <i className="ti ti-device-floppy me-1" /> Yes, {editingItem ? 'Save Changes' : 'Save Draft'}
           </Button>
         </Modal.Footer>
       </Modal>

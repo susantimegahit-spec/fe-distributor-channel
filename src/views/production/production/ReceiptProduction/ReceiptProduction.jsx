@@ -318,7 +318,8 @@ const formatItemValue = (value, key) => {
   return String(value);
 };
 
-const isHiddenItemColumn = (key) => ['docentry', 'linenum'].includes(normalizeColumnKey(key));
+const isHiddenItemColumn = (key) =>
+  ['docentry', 'linenum', 'basetype', 'baseentry', 'baseline', 'uomentry'].includes(normalizeColumnKey(key));
 
 const formatDate = (value) => {
   if (!value) return '-';
@@ -352,6 +353,8 @@ export default function ReceiptProduction() {
   const [showAddReceipt, setShowAddReceipt] = useState(false);
   const [receiptForm, setReceiptForm] = useState(createReceiptForm);
   const [savingReceipt, setSavingReceipt] = useState(false);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showBomModal, setShowBomModal] = useState(false);
   const [loadingBomDetail, setLoadingBomDetail] = useState(false);
   const [loadingOcr, setLoadingOcr] = useState(false);
@@ -710,6 +713,23 @@ export default function ReceiptProduction() {
     }));
   };
 
+  const handleResetReceiptItems = () => {
+    setReceiptForm((current) => ({
+      ...current,
+      Series: '',
+      Shift: '',
+      Unit: '',
+      Bomid: '',
+      WhsCode: '',
+      OcrCode: '',
+      OcrCode2: '',
+      OcrCode3: '',
+      Lines: []
+    }));
+    dispatch(setReceiptPdoSelectedIds([]));
+    setShowResetConfirm(false);
+  };
+
   const updateReceiptLine = (lineIndex, values) => {
     setReceiptForm((current) => ({
       ...current,
@@ -862,7 +882,7 @@ export default function ReceiptProduction() {
     }
   };
 
-  const handleSubmitReceipt = async () => {
+  const handleSubmitReceipt = async (confirmed = false) => {
     const unpostableLines = receiptForm.Lines.filter(cannotPostReceiptLine);
     if (unpostableLines.length) {
       const itemCodes = unpostableLines.map((line) => line.ItemCode || `Base Entry ${line.BaseEntry}`).join(', ');
@@ -880,6 +900,11 @@ export default function ReceiptProduction() {
     const exceedsRemainingQuantity = receiptForm.Lines.some((line) => Number(line.Quantity) > getRemainingReceiptQuantity(line));
     if (exceedsRemainingQuantity) {
       showAlert('Quantity cannot exceed Planned Qty minus Complete Qty', 'warning');
+      return;
+    }
+
+    if (!confirmed) {
+      setShowSaveConfirm(true);
       return;
     }
 
@@ -1118,7 +1143,13 @@ export default function ReceiptProduction() {
             </Col>
             <Col xs={12}>
               <Form.Label>Comments</Form.Label>
-              <Form.Control as="textarea" rows={2} value={receiptForm.Comments} readOnly />
+              <Form.Control
+                as="textarea"
+                rows={2}
+                value={receiptForm.Comments}
+                onChange={(event) => setReceiptForm((current) => ({ ...current, Comments: event.target.value }))}
+                placeholder="Add comments"
+              />
             </Col>
             {[
               ['WhsCode', warehouseOptions, 'Warehouse', loadingWarehouses],
@@ -1147,9 +1178,14 @@ export default function ReceiptProduction() {
 
           <Stack direction="horizontal" className="justify-content-between mb-2">
             <h6 className="mb-0">Items</h6>
-            <Button size="sm" variant="outline-primary" onClick={handleOpenBomSelection}>
-              <i className="ti ti-plus me-1" /> Add PDO
-            </Button>
+            <Stack direction="horizontal" gap={2}>
+              <Button size="sm" variant="outline-danger" disabled={!receiptForm.Lines.length} onClick={() => setShowResetConfirm(true)}>
+                <i className="ti ti-refresh me-1" /> Reset
+              </Button>
+              <Button size="sm" variant="outline-primary" onClick={handleOpenBomSelection}>
+                <i className="ti ti-plus me-1" /> Add PDO
+              </Button>
+            </Stack>
           </Stack>
           <Table responsive bordered className="align-middle mb-0">
             <thead>
@@ -1256,9 +1292,66 @@ export default function ReceiptProduction() {
           <Button variant="light-secondary" disabled={savingReceipt} onClick={() => setShowAddReceipt(false)}>
             Cancel
           </Button>
-          <Button variant="primary" disabled={savingReceipt || loadingSeries} onClick={handleSubmitReceipt}>
+          <Button variant="primary" disabled={savingReceipt || loadingSeries} onClick={() => handleSubmitReceipt()}>
             {savingReceipt ? <span className="spinner-border spinner-border-sm me-2" /> : <i className="ti ti-device-floppy me-1" />}
             {savingReceipt ? 'Saving...' : 'Save Receipt'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal
+        show={showResetConfirm}
+        onHide={() => setShowResetConfirm(false)}
+        className="production-nested-modal"
+        backdropClassName="production-nested-modal-backdrop"
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title className="text-warning">
+            <i className="ti ti-alert-triangle me-2" /> Confirm Reset
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Are you sure you want to reset this Production Receipt? All selected items and PDO header data will be cleared.
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" onClick={() => setShowResetConfirm(false)}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={handleResetReceiptItems}>
+            <i className="ti ti-refresh me-1" /> Yes, Reset
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal
+        show={showSaveConfirm}
+        onHide={() => !savingReceipt && setShowSaveConfirm(false)}
+        className="production-nested-modal"
+        backdropClassName="production-nested-modal-backdrop"
+        centered
+      >
+        <Modal.Header closeButton={!savingReceipt}>
+          <Modal.Title className="text-warning">
+            <i className="ti ti-alert-triangle me-2" /> Confirm Save Receipt
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Are you sure you want to save this Production Receipt with <strong>{receiptForm.Lines.length}</strong> item(s)?
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" disabled={savingReceipt} onClick={() => setShowSaveConfirm(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="warning"
+            disabled={savingReceipt}
+            onClick={() => {
+              setShowSaveConfirm(false);
+              handleSubmitReceipt(true);
+            }}
+          >
+            <i className="ti ti-device-floppy me-1" /> Yes, Save Receipt
           </Button>
         </Modal.Footer>
       </Modal>

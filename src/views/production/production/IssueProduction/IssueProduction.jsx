@@ -156,10 +156,6 @@ const formatDate = (value) => {
 };
 const formatShift = (value) => ({ A: '1', B: '2', C: '3', X: 'All' })[String(value || '').toUpperCase()] || value || '-';
 const pdoProductBadgeVariants = ['primary', 'success', 'warning', 'info', 'danger', 'secondary'];
-const getPdoProductBadgeVariant = (code) => {
-  const hash = [...String(code || '')].reduce((total, character) => total + character.charCodeAt(0), 0);
-  return pdoProductBadgeVariants[hash % pdoProductBadgeVariants.length];
-};
 const normalizeIssue = (item = {}, index = 0) => ({
   id: getValue(item, ['DocEntry', 'docEntry', 'doc_entry', 'id', 'issue_id'], index),
   documentNumber: getValue(item, ['DocNum', 'doc_num', 'document_number', 'issue_number', 'number'], '-'),
@@ -235,7 +231,7 @@ const createIssueLine = (line = {}, header = {}, index = 0) => {
     BaseLine: Number(getValue(line, ['BaseLine', 'base_line', 'LineNum', 'line_num'], index)),
     PlannedQty: plannedQty,
     IssuedQty: issuedQty,
-    Quantity: 0,
+    Quantity: '',
     WhsCode:
       getOrganizationAssignmentDefault('warehouses') ||
       getValue(line, ['WhsCode', 'whs_code', 'Warehouse', 'warehouse_code'], getValue(header, ['Warehouse', 'WhsCode', 'whs_code'])),
@@ -289,6 +285,7 @@ export default function IssueProduction() {
   const [issueForm, setIssueForm] = useState(createIssueForm);
   const [savingIssue, setSavingIssue] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [productionOrders, setProductionOrders] = useState([]);
   const [selectedOrderIds, setSelectedOrderIds] = useState([]);
@@ -308,6 +305,19 @@ export default function IssueProduction() {
   const [warehouseOptions, setWarehouseOptions] = useState([]);
   const [itemStocks, setItemStocks] = useState({});
   const [loadingItemStocks, setLoadingItemStocks] = useState(false);
+
+  const pdoBadgeVariantMap = useMemo(() => {
+    const variantsByPdo = new Map();
+
+    issueForm.Lines.forEach((line) => {
+      const pdoKey = String(line.BaseEntry || line.ProductionOrderNumber || '');
+      if (pdoKey && !variantsByPdo.has(pdoKey)) {
+        variantsByPdo.set(pdoKey, pdoProductBadgeVariants[variantsByPdo.size % pdoProductBadgeVariants.length]);
+      }
+    });
+
+    return variantsByPdo;
+  }, [issueForm.Lines]);
 
   const stockRequests = useMemo(() => {
     const requests = issueForm.Lines.reduce((groups, line) => {
@@ -789,7 +799,39 @@ export default function IssueProduction() {
   };
 
   const handleDeleteIssueLine = (lineIndex) => {
-    setIssueForm((current) => ({ ...current, Lines: current.Lines.filter((_, index) => index !== lineIndex) }));
+    setIssueForm((current) => {
+      const nextLines = current.Lines.filter((_, index) => index !== lineIndex);
+
+      if (nextLines.length) return { ...current, Lines: nextLines };
+
+      return {
+        ...current,
+        Series: '',
+        Shift: '',
+        Unit: '',
+        WhsCode: '',
+        OcrCode: '',
+        OcrCode2: '',
+        OcrCode3: '',
+        Lines: []
+      };
+    });
+  };
+
+  const handleResetIssueItems = () => {
+    setIssueForm((current) => ({
+      ...current,
+      Series: '',
+      Shift: '',
+      Unit: '',
+      WhsCode: '',
+      OcrCode: '',
+      OcrCode2: '',
+      OcrCode3: '',
+      Lines: []
+    }));
+    setSelectedOrderIds([]);
+    setShowResetConfirm(false);
   };
 
   const handleSubmitIssue = () => {
@@ -1128,9 +1170,14 @@ export default function IssueProduction() {
 
           <Stack direction="horizontal" className="justify-content-between mb-2">
             <h6 className="mb-0">Items</h6>
-            <Button size="sm" variant="outline-primary" onClick={handleOpenOrderSelection}>
-              <i className="ti ti-plus me-1" /> Add PDO
-            </Button>
+            <Stack direction="horizontal" gap={2}>
+              <Button size="sm" variant="outline-danger" disabled={!issueForm.Lines.length} onClick={() => setShowResetConfirm(true)}>
+                <i className="ti ti-refresh me-1" /> Reset
+              </Button>
+              <Button size="sm" variant="outline-primary" onClick={handleOpenOrderSelection}>
+                <i className="ti ti-plus me-1" /> Add PDO
+              </Button>
+            </Stack>
           </Stack>
           <Table responsive bordered className="align-middle mb-0">
             <thead>
@@ -1146,11 +1193,23 @@ export default function IssueProduction() {
             <tbody>
               {issueForm.Lines.length ? (
                 issueForm.Lines.map((line, index) => (
-                  <tr key={`${line.BaseEntry}-${line.BaseLine}-${index}`}>
+                  <tr
+                    key={`${line.BaseEntry}-${line.BaseLine}-${index}`}
+                    className={
+                      !loadingItemStocks &&
+                      (Number(itemStocks[getStockKey(line.ItemCode, line.WhsCode || issueForm.WhsCode)]) === 0 ||
+                        Number(itemStocks[getStockKey(line.ItemCode, line.WhsCode || issueForm.WhsCode)]) - Number(line.PlannedQty || 0) < 0)
+                        ? 'issue-out-of-stock-row'
+                        : undefined
+                    }
+                  >
                     <td style={{ minWidth: 180 }}>
                       <div className="d-flex align-items-center flex-wrap gap-2">
                         <span className="fw-semibold">{line.ItemCode || '-'}</span>
-                        <Badge bg={getPdoProductBadgeVariant(line.ProductionItemCode)} className="fw-normal">
+                        <Badge
+                          bg={pdoBadgeVariantMap.get(String(line.BaseEntry || line.ProductionOrderNumber || '')) || 'secondary'}
+                          className="fw-normal"
+                        >
                           {line.ProductionItemCode || '-'}
                         </Badge>
                         <Badge
@@ -1193,6 +1252,8 @@ export default function IssueProduction() {
                     </td>
                     <td style={{ minWidth: 120 }}>
                       <Form.Control
+                        data-issue-quantity-input
+                        data-issue-quantity-index={index}
                         size="sm"
                         type="number"
                         className="issue-quantity-no-spinner"
@@ -1203,6 +1264,17 @@ export default function IssueProduction() {
                           const value = event.target.value;
                           const quantity = value === '' ? '' : Number(value);
                           updateIssueLine(index, { Quantity: quantity });
+                        }}
+                        onKeyDownCapture={(event) => {
+                          if (event.key !== 'Enter' && event.code !== 'NumpadEnter') return;
+
+                          event.preventDefault();
+                          event.stopPropagation();
+                          const nextIndex = index + 1;
+                          window.requestAnimationFrame(() => {
+                            const nextInput = document.querySelector(`[data-issue-quantity-index="${nextIndex}"]`);
+                            nextInput?.focus();
+                          });
                         }}
                       />
                     </td>
@@ -1238,6 +1310,31 @@ export default function IssueProduction() {
           <Button variant="primary" disabled={savingIssue || loadingSeries} onClick={handleSubmitIssue}>
             {savingIssue ? <span className="spinner-border spinner-border-sm me-2" /> : <i className="ti ti-device-floppy me-1" />}
             {savingIssue ? 'Saving...' : 'Save Issue'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal
+        show={showResetConfirm}
+        onHide={() => setShowResetConfirm(false)}
+        className="production-nested-modal"
+        backdropClassName="production-nested-modal-backdrop"
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title className="text-warning">
+            <i className="ti ti-alert-triangle me-2" /> Confirm Reset
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Are you sure you want to reset this Production Issue? All selected items and PDO header data will be cleared.
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" onClick={() => setShowResetConfirm(false)}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={handleResetIssueItems}>
+            <i className="ti ti-refresh me-1" /> Yes, Reset
           </Button>
         </Modal.Footer>
       </Modal>
@@ -1539,7 +1636,7 @@ export default function IssueProduction() {
                 const issue = normalizeIssue(selectedIssue.header);
                 const items = Array.isArray(selectedIssue.items) ? selectedIssue.items : [];
                 const columns = [...new Set(items.flatMap((item) => Object.keys(item || {})))].filter(
-                  (key) => !['docentry', 'linenum', 'baseentry'].includes(normalizeKey(key))
+                  (key) => !['docentry', 'linenum', 'baseentry', 'basetype', 'baseline', 'uomentry'].includes(normalizeKey(key))
                 );
                 const itemCodeKey = columns.find((key) => ['item', 'itemcode', 'itemno'].includes(normalizeKey(key)));
                 const itemNameKey = columns.find((key) => ['itemname', 'itemdescription'].includes(normalizeKey(key)));
