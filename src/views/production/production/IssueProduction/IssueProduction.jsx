@@ -280,6 +280,9 @@ export default function IssueProduction() {
   const [loading, setLoading] = useState(false);
   const [loadingDetailId, setLoadingDetailId] = useState(null);
   const [selectedIssue, setSelectedIssue] = useState(null);
+  const [editingIssue, setEditingIssue] = useState(null);
+  const [editComment, setEditComment] = useState('');
+  const [savingComment, setSavingComment] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [issueSort, setIssueSort] = useState({ key: '', direction: 'asc' });
   const [showAddIssue, setShowAddIssue] = useState(false);
@@ -512,6 +515,36 @@ export default function IssueProduction() {
       showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch production issue detail', 'danger');
     } finally {
       setLoadingDetailId(null);
+    }
+  };
+
+  const handleOpenEditComment = (issue) => {
+    setEditingIssue(issue);
+    setEditComment(String(getValue(issue.raw, ['Comments', 'comments', 'remarks', 'remark'], '')));
+  };
+
+  const handleSaveComment = async () => {
+    const docEntry = editingIssue?.raw?.DocEntry ?? editingIssue?.raw?.docEntry ?? editingIssue?.raw?.doc_entry ?? editingIssue?.id;
+    if (docEntry === undefined || docEntry === null || docEntry === '') {
+      showAlert('DocEntry was not found', 'danger');
+      return;
+    }
+
+    setSavingComment(true);
+    try {
+      const response = await ProductionServices.postCommentsIssue({
+        DocEntry: String(docEntry),
+        Comment: editComment
+      });
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to update issue comment');
+      setEditingIssue(null);
+      setEditComment('');
+      showAlert(response?.data?.message || 'Issue comment updated successfully', 'success');
+      await fetchIssues();
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to update issue comment', 'danger');
+    } finally {
+      setSavingComment(false);
     }
   };
 
@@ -875,12 +908,13 @@ export default function IssueProduction() {
               <th>{renderIssueSortableHeader('Shift', 'shift')}</th>
               <th>{renderIssueSortableHeader('Unit', 'unit')}</th>
               <th>{renderIssueSortableHeader('Comment', 'comments')}</th>
+              <th className="text-center">Action</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={5} className="text-center py-5">
+                <td colSpan={6} className="text-center py-5">
                   <span className="spinner-border spinner-border-sm text-primary me-2" />
                   Loading production issues...
                 </td>
@@ -903,11 +937,25 @@ export default function IssueProduction() {
                   <td>{issue.shift}</td>
                   <td>{issue.unit}</td>
                   <td>{issue.comments}</td>
+                  <td className="text-center">
+                    <Button
+                      type="button"
+                      className="btn-icon avatar-s"
+                      size="sm"
+                      variant="outline-primary"
+                      data-permission-action="update"
+                      aria-label={`Edit comment for issue ${issue.documentNumber}`}
+                      title="Edit comment"
+                      onClick={() => handleOpenEditComment(issue)}
+                    >
+                      <i className="ti ti-edit" />
+                    </Button>
+                  </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={5} className="text-center text-muted py-5">
+                <td colSpan={6} className="text-center text-muted py-5">
                   No production issue data found for the selected filters.
                 </td>
               </tr>
@@ -925,6 +973,42 @@ export default function IssueProduction() {
           />
         ) : null}
       </MainCard>
+
+      <Modal show={Boolean(editingIssue)} onHide={() => !savingComment && setEditingIssue(null)} centered>
+        <Modal.Header closeButton={!savingComment}>
+          <Modal.Title>Edit Issue Comment</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form
+            onSubmit={(event) => {
+              event.preventDefault();
+              handleSaveComment();
+            }}
+          >
+            <Form.Group controlId="issue-edit-comment">
+              <Form.Label>Comment</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={4}
+                value={editComment}
+                disabled={savingComment}
+                autoFocus
+                placeholder="Enter issue comment"
+                onChange={(event) => setEditComment(event.target.value)}
+              />
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" disabled={savingComment} onClick={() => setEditingIssue(null)}>
+            Cancel
+          </Button>
+          <Button variant="primary" disabled={savingComment} onClick={handleSaveComment}>
+            {savingComment ? <span className="spinner-border spinner-border-sm me-2" /> : <i className="ti ti-device-floppy me-1" />}
+            {savingComment ? 'Saving...' : 'Save Comment'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       <Modal show={showAddIssue} onHide={() => !savingIssue && setShowAddIssue(false)} fullscreen scrollable>
         <Modal.Header closeButton={!savingIssue}>
@@ -1004,7 +1088,12 @@ export default function IssueProduction() {
             </Col>
             <Col xs={12}>
               <Form.Label>Comments</Form.Label>
-              <Form.Control as="textarea" rows={2} value={issueForm.Comments} readOnly />
+              <Form.Control
+                as="textarea"
+                rows={2}
+                value={issueForm.Comments}
+                onChange={(event) => setIssueForm((current) => ({ ...current, Comments: event.target.value }))}
+              />
             </Col>
             {[
               ['WhsCode', warehouseOptions, 'Warehouse', loadingWarehouses],
@@ -1067,9 +1156,14 @@ export default function IssueProduction() {
                           disabled={String(loadingPdoDetailId) === String(line.BaseEntry)}
                           onClick={() => handleOpenPdoDetail(line)}
                         >
-                          {String(loadingPdoDetailId) === String(line.BaseEntry)
-                            ? 'Loading...'
-                            : `PDO ${line.ProductionOrderNumber || '-'}`}
+                          {String(loadingPdoDetailId) === String(line.BaseEntry) ? (
+                            'Loading...'
+                          ) : (
+                            <>
+                              PDO {line.ProductionOrderNumber || '-'}
+                              <i className="ti ti-info-circle ms-1" aria-hidden="true" />
+                            </>
+                          )}
                         </Badge>
                       </div>
                       <div className="text-muted f-12">{line.ItemName || '-'}</div>
@@ -1098,6 +1192,7 @@ export default function IssueProduction() {
                         className="issue-quantity-no-spinner"
                         step="any"
                         value={line.Quantity}
+                        onWheel={(event) => event.currentTarget.blur()}
                         onChange={(event) => {
                           const value = event.target.value;
                           const quantity = value === '' ? '' : Number(value);

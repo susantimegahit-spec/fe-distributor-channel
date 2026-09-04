@@ -174,6 +174,15 @@ class ProductionServices {
     return DataService.get(`/production/issues/sap/${id}`);
   }
 
+  postCommentsIssue(payload = {}) {
+    const { DocEntry = '', Comment = '' } = payload;
+
+    return DataService.post('/production/issues/sap/edit-comment', {
+      DocEntry: String(DocEntry),
+      Comment: String(Comment)
+    });
+  }
+
   postIssueProduction(payload) {
     return DataService.post('/production/add-issue-prod-sap', payload);
   }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import Button from 'react-bootstrap/Button';
+import Badge from 'react-bootstrap/Badge';
 import Card from 'react-bootstrap/Card';
 import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
@@ -144,6 +145,13 @@ const getResponseDetail = (response) => {
   };
 };
 
+const getProductionOrderDetail = (response) => {
+  const payload = response?.data?.data ?? response?.data ?? {};
+  const header = payload?.header ?? payload?.Header ?? payload?.data ?? payload?.order ?? payload?.production_order ?? payload;
+  const items = payload?.items ?? payload?.Items ?? payload?.details ?? payload?.order_details ?? [];
+  return { header: header || {}, items: Array.isArray(items) ? items : [] };
+};
+
 const getValue = (item, keys, fallback = '') =>
   keys.map((key) => item?.[key]).find((value) => value !== undefined && value !== null && String(value).trim() !== '') ?? fallback;
 
@@ -233,7 +241,10 @@ const createReceiptLineFromOrder = (order) => {
     UoMEntry: order.uomEntry,
     OcrCode: order.ocrCode,
     OcrCode2: order.ocrCode2,
-    OcrCode3: order.ocrCode3
+    OcrCode3: order.ocrCode3,
+    ProductionOrderNumber: order.number,
+    ProductionItemCode: order.itemCode,
+    ProductionItemName: order.itemName
   };
 };
 
@@ -334,6 +345,8 @@ export default function ReceiptProduction() {
   const [loadingReceipts, setLoadingReceipts] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState(null);
   const [loadingReceiptDetailId, setLoadingReceiptDetailId] = useState(null);
+  const [selectedPdoDetail, setSelectedPdoDetail] = useState(null);
+  const [loadingPdoDetailId, setLoadingPdoDetailId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [receiptSort, setReceiptSort] = useState({ key: '', direction: 'asc' });
   const [showAddReceipt, setShowAddReceipt] = useState(false);
@@ -702,6 +715,30 @@ export default function ReceiptProduction() {
       ...current,
       Lines: current.Lines.map((line, index) => (index === lineIndex ? { ...line, ...values } : line))
     }));
+  };
+
+  const handleOpenPdoDetail = async (line) => {
+    const pdoId = line.BaseEntry;
+    if (pdoId === undefined || pdoId === null || pdoId === '') {
+      showAlert('Production Order id was not found', 'warning');
+      return;
+    }
+
+    setLoadingPdoDetailId(String(pdoId));
+    try {
+      const response = await ProductionServices.getProductionOrderById(pdoId);
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch Production Order detail');
+      const detail = getProductionOrderDetail(response);
+      setSelectedPdoDetail({
+        header: Array.isArray(detail.header) ? detail.header[0] || {} : detail.header,
+        items: detail.items,
+        fallback: line
+      });
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch Production Order detail', 'danger');
+    } finally {
+      setLoadingPdoDetailId(null);
+    }
   };
 
   const handleAddSelectedPdos = async () => {
@@ -1131,7 +1168,27 @@ export default function ReceiptProduction() {
                 receiptForm.Lines.map((line, index) => (
                   <tr key={index} className={cannotPostReceiptLine(line) ? 'table-warning' : ''}>
                     <td style={{ minWidth: 170 }}>
-                      <div className="fw-semibold">{line.ItemCode || '-'}</div>
+                      <div className="d-flex align-items-center flex-wrap gap-2">
+                        <span className="fw-semibold">{line.ItemCode || '-'}</span>
+                        <Badge
+                          as="button"
+                          type="button"
+                          bg="light"
+                          text="primary"
+                          className="border fw-normal"
+                          disabled={String(loadingPdoDetailId) === String(line.BaseEntry)}
+                          onClick={() => handleOpenPdoDetail(line)}
+                        >
+                          {String(loadingPdoDetailId) === String(line.BaseEntry) ? (
+                            'Loading...'
+                          ) : (
+                            <>
+                              PDO {line.ProductionOrderNumber || '-'}
+                              <i className="ti ti-info-circle ms-1" aria-hidden="true" />
+                            </>
+                          )}
+                        </Badge>
+                      </div>
                       <div className="text-muted f-12">{line.ItemName || '-'}</div>
                     </td>
                     <td style={{ minWidth: 100 }}>{line.UomCode || '-'}</td>
@@ -1159,14 +1216,13 @@ export default function ReceiptProduction() {
                       <Form.Control
                         size="sm"
                         type="number"
-                        min="0"
-                        max={getRemainingReceiptQuantity(line)}
+                        className="receipt-quantity-no-spinner"
                         step="any"
                         value={line.Quantity}
-                        disabled={cannotPostReceiptLine(line)}
+                        onWheel={(event) => event.currentTarget.blur()}
                         onChange={(event) => {
                           const value = event.target.value;
-                          const quantity = value === '' ? '' : Math.min(Math.max(Number(value), 0), getRemainingReceiptQuantity(line));
+                          const quantity = value === '' ? '' : Number(value);
                           updateReceiptLine(index, { Quantity: quantity });
                         }}
                       />
@@ -1281,6 +1337,7 @@ export default function ReceiptProduction() {
                 </th>
                 <th>Order No.</th>
                 <th>Product</th>
+                <th>Unit</th>
                 <th>Remarks</th>
                 <th>Planned Qty</th>
                 <th>Complete Qty</th>
@@ -1289,7 +1346,7 @@ export default function ReceiptProduction() {
             <tbody>
               {loadingBoms ? (
                 <tr>
-                  <td colSpan={6}>
+                  <td colSpan={7}>
                     <LoaderData />
                   </td>
                 </tr>
@@ -1336,6 +1393,7 @@ export default function ReceiptProduction() {
                         <div className="fw-semibold">{bom.itemCode || '-'}</div>
                         <div className="text-muted f-12">{bom.itemName || '-'}</div>
                       </td>
+                      <td>{bom.unit || '-'}</td>
                       <td>{bom.remarks || '-'}</td>
                       <td>{numberFormatter.format(bom.plannedQuantity)}</td>
                       <td>
@@ -1351,7 +1409,7 @@ export default function ReceiptProduction() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={6} className="text-center text-muted py-4">
+                  <td colSpan={7} className="text-center text-muted py-4">
                     No Production Order data found for the selected date filters.
                   </td>
                 </tr>
@@ -1366,6 +1424,117 @@ export default function ReceiptProduction() {
           <Button variant="primary" disabled={loadingBomDetail || !selectedPdoIds.length} onClick={handleAddSelectedPdos}>
             {loadingBomDetail ? <span className="spinner-border spinner-border-sm me-2" /> : <i className="ti ti-plus me-1" />}
             {loadingBomDetail ? 'Adding...' : `Add Selected PDO (${selectedPdoIds.length})`}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal
+        show={Boolean(selectedPdoDetail)}
+        onHide={() => setSelectedPdoDetail(null)}
+        size="lg"
+        className="production-nested-modal"
+        backdropClassName="production-nested-modal-backdrop"
+        centered
+        scrollable
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Production Order Detail</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedPdoDetail
+            ? (() => {
+                const { header, items, fallback } = selectedPdoDetail;
+                const documentNumber = getValue(header, ['DocNum', 'doc_num'], fallback.ProductionOrderNumber || '-');
+                const productCode = getValue(header, ['ItemCode', 'item_code', 'product_code'], fallback.ProductionItemCode || '-');
+                const productName = getValue(
+                  header,
+                  ['ProdName', 'ItemName', 'item_name', 'product_name'],
+                  fallback.ProductionItemName || '-'
+                );
+
+                return (
+                  <Stack gap={3}>
+                    <Card className="border mb-0">
+                      <Card.Body>
+                        <Row className="g-3">
+                          <Col md={4}>
+                            <Form.Label className="f-12 text-muted">PDO No.</Form.Label>
+                            <div className="fw-semibold">{documentNumber}</div>
+                          </Col>
+                          <Col md={8}>
+                            <Form.Label className="f-12 text-muted">Product</Form.Label>
+                            <div className="fw-semibold">{productCode}</div>
+                            <div className="text-muted f-12">{productName}</div>
+                          </Col>
+                          <Col md={4}>
+                            <Form.Label className="f-12 text-muted">Status</Form.Label>
+                            <div>{getValue(header, ['ProductionOrderStatus', 'Status', 'status'], '-')}</div>
+                          </Col>
+                          <Col md={4}>
+                            <Form.Label className="f-12 text-muted">Planned Qty</Form.Label>
+                            <div>{numberFormatter.format(Number(getValue(header, ['PlannedQty', 'planned_qty'], 0)))}</div>
+                          </Col>
+                          <Col md={4}>
+                            <Form.Label className="f-12 text-muted">Warehouse</Form.Label>
+                            <div>{getValue(header, ['Warehouse', 'WhsCode', 'whs_code'], '-')}</div>
+                          </Col>
+                          <Col md={4}>
+                            <Form.Label className="f-12 text-muted">Posting Date</Form.Label>
+                            <div>{formatDate(getValue(header, ['PostingDate', 'PostDate', 'DocDate']))}</div>
+                          </Col>
+                          <Col md={4}>
+                            <Form.Label className="f-12 text-muted">Due Date</Form.Label>
+                            <div>{formatDate(getValue(header, ['DueDate', 'due_date']))}</div>
+                          </Col>
+                          <Col md={4}>
+                            <Form.Label className="f-12 text-muted">Remarks</Form.Label>
+                            <div>{getValue(header, ['Remarks', 'Comments', 'comments', 'remarks'], '-')}</div>
+                          </Col>
+                        </Row>
+                      </Card.Body>
+                    </Card>
+
+                    <Table responsive bordered className="align-middle mb-0">
+                      <thead>
+                        <tr>
+                          <th>Component</th>
+                          <th>Base Qty</th>
+                          <th>Planned Qty</th>
+                          <th>Warehouse</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {items.length ? (
+                          items.map((item, index) => (
+                            <tr key={getValue(item, ['LineNum', 'line_num', 'id'], index)}>
+                              <td>
+                                <div className="fw-semibold">{getValue(item, ['ItemCode', 'item_code', 'code'], '-')}</div>
+                                <div className="text-muted f-12">
+                                  {getValue(item, ['ItemName', 'item_name', 'ItemDescription', 'name'], '-')}
+                                </div>
+                              </td>
+                              <td>{numberFormatter.format(Number(getValue(item, ['BaseQty', 'base_qty', 'qty'], 0)))}</td>
+                              <td>{numberFormatter.format(Number(getValue(item, ['PlannedQty', 'planned_qty'], 0)))}</td>
+                              <td>{getValue(item, ['Warehouse', 'WhsCode', 'whs_code'], '-')}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={4} className="text-center text-muted py-4">
+                              No Production Order component data found.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </Table>
+                  </Stack>
+                );
+              })()
+            : null}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" onClick={() => setSelectedPdoDetail(null)}>
+            Close
           </Button>
         </Modal.Footer>
       </Modal>

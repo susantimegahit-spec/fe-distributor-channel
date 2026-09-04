@@ -496,6 +496,7 @@ export default function ChangeProduct() {
                   <Form.Label>Quantity *</Form.Label>
                   <Form.Control
                     type="number"
+                    onWheel={(event) => event.currentTarget.blur()}
                     min="0.0001"
                     step="any"
                     value={line.quantity}

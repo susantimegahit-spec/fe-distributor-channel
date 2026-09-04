@@ -2206,6 +2206,7 @@ export default function ProductionOrder() {
                         <Form.Label>Planned Quantity</Form.Label>
                         <Form.Control
                           type="number"
+                          onWheel={(event) => event.currentTarget.blur()}
                           step="any"
                           value={form.plannedQuantity}
                           disabled={isReleaseMode || isEditMode}
@@ -2514,6 +2515,7 @@ export default function ProductionOrder() {
                         <Form.Control
                           size="sm"
                           type="number"
+                          onWheel={(event) => event.currentTarget.blur()}
                           step="any"
                           value={detail.qty ?? detail.quantity ?? ''}
                           onChange={(event) => updateBomDetail(index, { qty: event.target.value })}
@@ -2523,6 +2525,7 @@ export default function ProductionOrder() {
                         <Form.Control
                           size="sm"
                           type="number"
+                          onWheel={(event) => event.currentTarget.blur()}
                           step="any"
                           value={plannedQuantity || ''}
                           readOnly={!isEditMode && !isReleaseMode}

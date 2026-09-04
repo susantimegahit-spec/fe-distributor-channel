@@ -2336,12 +2336,6 @@ export default function OrderPost({ cmoMode = false }) {
                         Save &amp; Close
                       </Button>
                     ) : null}
-                    {!cmoMode && (
-                      <Button onClick={() => handleShowConfirm('WAITING_OM')} variant="primary">
-                        <i className="ti ti-send" />
-                        Send
-                      </Button>
-                    )}
                   </>
                 ) : null}
                 {isAdminSalesRole && isDetailMode && !cmoMode && (

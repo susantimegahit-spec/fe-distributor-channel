@@ -1480,6 +1480,7 @@ export default function InventoryTransfer() {
                             <Form.Control
                               size="sm"
                               type="number"
+                              onWheel={(event) => event.currentTarget.blur()}
                               min="0.000001"
                               step="any"
                               value={line.quantity}
@@ -1503,6 +1504,7 @@ export default function InventoryTransfer() {
                               <InputGroup size="sm">
                                 <Form.Control
                                   type="number"
+                                  onWheel={(event) => event.currentTarget.blur()}
                                   min="0"
                                   step="any"
                                   value={line.fromBinQuantity}
@@ -1531,6 +1533,7 @@ export default function InventoryTransfer() {
                               <InputGroup size="sm">
                                 <Form.Control
                                   type="number"
+                                  onWheel={(event) => event.currentTarget.blur()}
                                   min="0"
                                   step="any"
                                   value={line.toBinQuantity}
@@ -1666,6 +1669,7 @@ export default function InventoryTransfer() {
                     <td>
                       <Form.Control
                         type="number"
+                        onWheel={(event) => event.currentTarget.blur()}
                         min="0"
                         max={bin.availableQty || undefined}
                         step="any"

@@ -100,7 +100,7 @@
       "actions": ["view", "add", "edit", "delete", "approve", "download"],
       "buttons": {
         "view": ["Detail Order"],
-        "add": ["Create Order"],
+        "add": ["Create Order", "Save Draft"],
         "edit": ["Edit Order"],
         "delete": ["Delete"],
         "approve": ["Approve"],
@@ -350,8 +350,8 @@
       "menu_id": "production-issue",
       "route": "/production/issue",
       "source": "src/views/production/production/IssueProduction/IssueProduction.jsx",
-      "actions": ["view", "add"],
-      "buttons": { "view": ["Detail"], "add": ["Add Issue"] }
+      "actions": ["view", "add", "edit"],
+      "buttons": { "view": ["Detail"], "add": ["Add Issue"], "edit": ["Edit Comment"] }
     },
     {
       "menu_key": 53,

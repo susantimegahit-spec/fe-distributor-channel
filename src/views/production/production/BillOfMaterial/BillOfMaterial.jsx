@@ -1001,6 +1001,7 @@ export default function BillOfMaterial() {
                 </Form.Label>
                 <Form.Control
                   type="number"
+                  onWheel={(event) => event.currentTarget.blur()}
                   min="0"
                   step="any"
                   value={form.quantity}
@@ -1192,6 +1193,7 @@ export default function BillOfMaterial() {
                             <td>
                               <Form.Control
                                 type="number"
+                                onWheel={(event) => event.currentTarget.blur()}
                                 min="0"
                                 step="any"
                                 inputMode="decimal"
