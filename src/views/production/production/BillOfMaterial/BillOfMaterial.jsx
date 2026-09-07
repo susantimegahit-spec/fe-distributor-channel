@@ -26,6 +26,7 @@ import ProductionServices from '../../../../services/production/ProductionServic
 import { useAlert } from '../../../../utils/alertContext';
 import { useConfirm } from '../../../../utils/confirmContext';
 import { getOrganizationAssignmentDefault } from '../../../../utils/cookies';
+import './bill-of-material.scss';
 
 const createDetailRow = () => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -1001,6 +1002,7 @@ export default function BillOfMaterial() {
                 </Form.Label>
                 <Form.Control
                   type="number"
+                  className="bom-quantity-no-spinner"
                   onWheel={(event) => event.currentTarget.blur()}
                   min="0"
                   step="any"
@@ -1154,7 +1156,7 @@ export default function BillOfMaterial() {
                   </thead>
                   <tbody>
                     {form.details.length ? (
-                      form.details.map((detail) => {
+                      form.details.map((detail, index) => {
                         const isResource = String(detail.type) === COMPONENT_TYPE_RESOURCE;
                         const sourceItems = isResource ? resourceItems : materialItems;
                         const componentOptions = detail.type ? sourceItems.map((item) => normalizeComponentOption(item, detail.type)) : [];
@@ -1193,6 +1195,8 @@ export default function BillOfMaterial() {
                             <td>
                               <Form.Control
                                 type="number"
+                                className="bom-quantity-no-spinner"
+                                data-bom-quantity-index={index}
                                 onWheel={(event) => event.currentTarget.blur()}
                                 min="0"
                                 step="any"
@@ -1204,6 +1208,17 @@ export default function BillOfMaterial() {
                                   })
                                 }
                                 placeholder="Qty"
+                                onKeyDownCapture={(event) => {
+                                  if (event.key !== 'Enter' && event.code !== 'NumpadEnter') return;
+
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  const nextIndex = index + 1;
+                                  window.requestAnimationFrame(() => {
+                                    const nextInput = document.querySelector(`[data-bom-quantity-index="${nextIndex}"]`);
+                                    nextInput?.focus();
+                                  });
+                                }}
                               />
                             </td>
                             <td>

@@ -8,6 +8,7 @@ import NotFound from '../views/ErrorBoundary';
 
 // render - dashboard pages
 const Dashboard = Loadable(lazy(() => import('views/customer-portal/dashboard/Dashboard')));
+const ShippingSchedule = Loadable(lazy(() => import('views/customer-portal/shipping-schedule/ShippingSchedule')));
 const SystemSelector = Loadable(lazy(() => import('views/system/SystemSelector')));
 const AccessDenied = Loadable(lazy(() => import('views/system/AccessDenied')));
 const VendorPortalMonitoring = Loadable(lazy(() => import('views/vendor-portal/VendorPortalMonitoring')));
@@ -18,6 +19,10 @@ const NavigationRoutes = {
   path: '/',
   ErrorBoundary: NotFound,
   children: [
+    {
+      path: 'customer-portal/shipping-schedule',
+      element: <ShippingSchedule />
+    },
     {
       path: 'access-denied',
       element: <AccessDenied />

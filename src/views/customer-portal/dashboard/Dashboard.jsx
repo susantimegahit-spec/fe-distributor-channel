@@ -22,6 +22,7 @@ import Table from 'react-bootstrap/Table';
 // project-imports
 import ConfirmDialog from 'components/ConfirmDialog';
 import MainCard from 'components/MainCard';
+import { canUseMenuAction } from '../../../utils/actionPermissions';
 import DashboardServices from '../../../services/customer-portal/DashboardServices';
 import DistributorServices from '../../../services/customer-portal/DistributorServices';
 import OrderServices from '../../../services/customer-portal/OrderServices';
@@ -740,6 +741,7 @@ const normalizeChartData = (payload = {}) => {
 
 export default function Dashboard() {
   const { showAlert } = useAlert();
+  const canOpenShippingSchedule = canUseMenuAction(3, 'shipping-schedule');
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [receivingOrderId, setReceivingOrderId] = useState(null);
   const [orderToComplete, setOrderToComplete] = useState(null);
@@ -1444,10 +1446,27 @@ export default function Dashboard() {
             </Stack>
           }
           secondary={
-            <Button as={Link} to="/customer-portal/order/order-list" variant="light" className="dashboard-title-action">
-              <i className="ph ph-list-bullets me-1" />
-              View Order
-            </Button>
+            <Stack direction="horizontal" gap={2} className="flex-wrap">
+              {canOpenShippingSchedule && (
+                <Button
+                  variant="primary"
+                  className="dashboard-title-action dashboard-shipping-schedule-action"
+                  data-permission-action="shipping-schedule"
+                  data-permission-menu-key="3"
+                  as={Link}
+                  to="/customer-portal/shipping-schedule"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <i className="ti ti-calendar me-1" aria-hidden="true" />
+                  Shipping Schedule
+                </Button>
+              )}
+              <Button as={Link} to="/customer-portal/order/order-list" variant="light" className="dashboard-title-action">
+                <i className="ph ph-list-bullets me-1" />
+                View Order
+              </Button>
+            </Stack>
           }
         />
 

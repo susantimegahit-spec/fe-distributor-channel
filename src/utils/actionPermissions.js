@@ -17,7 +17,8 @@ export const ACTION_ALIASES = {
   download: 'export',
   export: 'export',
   sync: 'sync',
-  synchronize: 'sync'
+  synchronize: 'sync',
+  'shipping-schedule': 'shipping-schedule'
 };
 
 const normalizeKey = (value) =>
@@ -97,7 +98,8 @@ const ACTION_BITS = {
   delete: 8,
   approve: 16,
   export: 32,
-  sync: 64
+  sync: 64,
+  'shipping-schedule': 128
 };
 
 const ROW_ACTION_KEYS = ['read', 'view', 'detail', 'update', 'edit', 'delete', 'remove', 'approve', 'export', 'download'];

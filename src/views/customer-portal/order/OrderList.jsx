@@ -625,21 +625,27 @@ export default function OrderList({ showOnlyCommitment = false }) {
     const handleIncomingNotification = () => {
       pendingOrderRefreshRef.current = true;
       window.sessionStorage.setItem('sm-orders-refresh-pending', 'true');
-
-      if (document.hasFocus()) refreshIfPending();
+      refreshIfPending();
     };
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') refreshIfPending();
     };
 
+    const handleWindowMessage = (event) => {
+      if (event.origin !== window.location.origin || event.data?.type !== 'sm:orders-refresh-needed') return;
+      handleIncomingNotification();
+    };
+
     window.addEventListener('sm:orders-refresh-needed', handleIncomingNotification);
+    window.addEventListener('message', handleWindowMessage);
     window.addEventListener('focus', refreshIfPending);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     if (document.hasFocus()) refreshIfPending();
 
     return () => {
       window.removeEventListener('sm:orders-refresh-needed', handleIncomingNotification);
+      window.removeEventListener('message', handleWindowMessage);
       window.removeEventListener('focus', refreshIfPending);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
@@ -3223,7 +3229,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                         {selectedCreditRemaining !== '' ? (
                           <div className="text-end">
                             <div className="text-muted f-12 mb-1">Sisa Limit Kredit</div>
-                            <h4 className={`mb-0 ${selectedCreditRemaining > 0 ? 'text-success' : 'text-danger'}`}>
+                            <h4 className={`mb-0 ${parseAmount(selectedCreditRemaining) < 0 ? 'text-danger' : 'text-success'}`}>
                               {formatCreditAmount(selectedCreditRemaining)}
                             </h4>
                           </div>

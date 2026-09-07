@@ -176,10 +176,16 @@ export default function Header({ showSidebar = true }) {
         knownNotificationIdsRef.current.add(notificationKey);
       }
 
-      if (notification.unread && isNewNotification) {
-        playNotificationSound();
+      if (isNewNotification) {
         window.sessionStorage.setItem('sm-orders-refresh-pending', 'true');
         window.dispatchEvent(new CustomEvent('sm:orders-refresh-needed'));
+        Array.from(window.frames).forEach((frame) => {
+          frame.postMessage({ type: 'sm:orders-refresh-needed' }, window.location.origin);
+        });
+      }
+
+      if (notification.unread && isNewNotification) {
+        playNotificationSound();
       }
 
       setNotifications((prevState) => {
@@ -201,7 +207,7 @@ export default function Header({ showSidebar = true }) {
       });
 
       // Show the notification popup in real time
-      showAlert(`${notification.title}: ${notification.description}`, 'info', 8000);
+      showAlert(`${notification.title}: ${notification.description}`, 'info');
     },
     [playNotificationSound, showAlert]
   );
@@ -410,7 +416,8 @@ export default function Header({ showSidebar = true }) {
         channel.stopListening(customEvent);
       }
 
-      echo.leave(channelName);
+      // This effect owns the client; disconnect also ends its subscriptions.
+      // Calling leave first queues an unsubscribe that can run after the socket closes.
       echo.disconnect();
     };
   }, [handleIncomingNotification, userId]);

@@ -1552,7 +1552,7 @@ export default function ProductionOrder() {
               disabled={loadingOrders || Boolean(issuingOrderId)}
             >
               <i className="ti ti-package-export me-1" />
-              Add Issue
+              Create Issue
             </Button>
             <Button variant="success" onClick={handleOpenCreate}>
               <i className="ti ti-plus me-1" />
@@ -1928,7 +1928,7 @@ export default function ProductionOrder() {
 
       <Modal show={showAddIssueModal} onHide={() => !issuingOrderId && setShowAddIssueModal(false)} size="xl" centered scrollable>
         <Modal.Header closeButton={!issuingOrderId}>
-          <Modal.Title>Add Issue Production</Modal.Title>
+          <Modal.Title>Create Issue Production</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Table className="mb-0 align-middle" responsive hover>
@@ -1963,7 +1963,7 @@ export default function ProductionOrder() {
                       <td className="text-center">
                         <Button size="sm" variant="success" disabled={Boolean(issuingOrderId)} onClick={() => handleAddIssue(order)}>
                           <i className={isIssuing ? 'ti ti-loader-2 me-1' : 'ti ti-package-export me-1'} />
-                          {isIssuing ? 'Adding...' : 'Add Issue'}
+                          {isIssuing ? 'Creating...' : 'Create Issue'}
                         </Button>
                       </td>
                     </tr>

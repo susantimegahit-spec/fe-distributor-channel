@@ -9,7 +9,8 @@
     { "value": "approve", "label": "Approve", "permission": "approve" },
     { "value": "download", "label": "Download", "permission": "export" },
     { "value": "upload", "label": "Upload", "permission": "create" },
-    { "value": "sync", "label": "Sync", "permission": "sync" }
+    { "value": "sync", "label": "Sync", "permission": "sync" },
+    { "value": "shipping-schedule", "label": "Shipping Schedule", "permission": "shipping-schedule" }
   ],
   "menus": [
     {
@@ -18,8 +19,8 @@
       "menu_id": "dashboard-overview",
       "route": "/customer-portal/dashboard",
       "source": "src/views/customer-portal/dashboard/Dashboard.jsx",
-      "actions": ["view", "upload"],
-      "buttons": { "view": ["View Order", "View Detail"], "upload": ["Upload Attachment"] }
+      "actions": ["view", "upload", "shipping-schedule"],
+      "buttons": { "view": ["View Order", "View Detail"], "upload": ["Upload Attachment"], "shipping-schedule": ["Shipping Schedule"] }
     },
     {
       "menu_key": 5,
@@ -342,7 +343,7 @@
       "route": "/production/receipt",
       "source": "src/views/production/production/ReceiptProduction/ReceiptProduction.jsx",
       "actions": ["view", "add"],
-      "buttons": { "view": ["Detail"], "add": ["Add Receipt"] }
+      "buttons": { "view": ["Detail"], "add": ["Create Receipt"] }
     },
     {
       "menu_key": 52,
@@ -351,7 +352,7 @@
       "route": "/production/issue",
       "source": "src/views/production/production/IssueProduction/IssueProduction.jsx",
       "actions": ["view", "add", "edit"],
-      "buttons": { "view": ["Detail"], "add": ["Add Issue"], "edit": ["Edit Comment"] }
+      "buttons": { "view": ["Detail"], "add": ["Create Issue"], "edit": ["Edit Comment"] }
     },
     {
       "menu_key": 53,

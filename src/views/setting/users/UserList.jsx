@@ -116,6 +116,7 @@ const normalizeActionAssignments = (value) => {
           isGrantedAction(actions.delete) && 'delete',
           isGrantedAction(actions.approve) && 'approve',
           isGrantedAction(actions.export) && 'download',
+          isGrantedAction(actions['shipping-schedule']) && 'shipping-schedule',
           (isGrantedAction(actions.sync) || isGrantedAction(actions.synchronize) || isGrantedAction(actions.can_sync)) && 'sync'
         ].filter(Boolean);
         if (isGrantedAction(actions.create)) {
@@ -922,7 +923,8 @@ export default function UserList() {
             delete: selectedActions.includes('delete'),
             approve: selectedActions.includes('approve'),
             export: selectedActions.includes('download'),
-            sync: selectedActions.includes('sync')
+            sync: selectedActions.includes('sync'),
+            'shipping-schedule': selectedActions.includes('shipping-schedule')
           }
         };
       })

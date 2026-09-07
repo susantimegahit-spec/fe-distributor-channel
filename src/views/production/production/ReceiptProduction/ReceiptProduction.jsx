@@ -707,6 +707,11 @@ export default function ReceiptProduction() {
   };
 
   const handleDeleteReceiptLine = (lineIndex) => {
+    if (receiptForm.Lines.length <= 1) {
+      handleResetReceiptItems();
+      return;
+    }
+
     setReceiptForm((current) => ({
       ...current,
       Lines: current.Lines.filter((_, index) => index !== lineIndex)
@@ -963,7 +968,7 @@ export default function ReceiptProduction() {
             }}
           >
             <i className="ti ti-plus me-1" />
-            Add Receipt
+            Create Receipt
           </Button>
         }
       >
@@ -992,7 +997,14 @@ export default function ReceiptProduction() {
                     <i className={loadingReceipts ? 'ti ti-loader-2 me-1' : 'ti ti-search me-1'} />
                     {loadingReceipts ? 'Loading...' : 'Search'}
                   </Button>
-                  <Button variant="light-secondary" disabled={loadingReceipts} aria-label="Reset receipt filters" onClick={handleReset}>
+                  <Button
+                    className="btn-icon rounded flex-shrink-0"
+                    variant="light-secondary"
+                    disabled={loadingReceipts}
+                    aria-label="Reset receipt filters"
+                    title="Reset filters"
+                    onClick={handleReset}
+                  >
                     <i className="ti ti-refresh" />
                   </Button>
                 </Stack>
@@ -1067,7 +1079,7 @@ export default function ReceiptProduction() {
 
       <Modal show={showAddReceipt} onHide={() => !savingReceipt && setShowAddReceipt(false)} fullscreen scrollable>
         <Modal.Header closeButton={!savingReceipt}>
-          <Modal.Title>Add Receipt Production</Modal.Title>
+          <Modal.Title>Create Receipt Production</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Row className="g-3 mb-4">

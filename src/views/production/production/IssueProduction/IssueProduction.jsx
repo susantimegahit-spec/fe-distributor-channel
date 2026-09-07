@@ -799,23 +799,15 @@ export default function IssueProduction() {
   };
 
   const handleDeleteIssueLine = (lineIndex) => {
-    setIssueForm((current) => {
-      const nextLines = current.Lines.filter((_, index) => index !== lineIndex);
+    if (issueForm.Lines.length <= 1) {
+      handleResetIssueItems();
+      return;
+    }
 
-      if (nextLines.length) return { ...current, Lines: nextLines };
-
-      return {
-        ...current,
-        Series: '',
-        Shift: '',
-        Unit: '',
-        WhsCode: '',
-        OcrCode: '',
-        OcrCode2: '',
-        OcrCode3: '',
-        Lines: []
-      };
-    });
+    setIssueForm((current) => ({
+      ...current,
+      Lines: current.Lines.filter((_, index) => index !== lineIndex)
+    }));
   };
 
   const handleResetIssueItems = () => {
@@ -910,7 +902,7 @@ export default function IssueProduction() {
             }}
           >
             <i className="ti ti-plus me-1" />
-            Add Issue
+            Create Issue
           </Button>
         }
       >
@@ -939,7 +931,14 @@ export default function IssueProduction() {
                     <i className={loading ? 'ti ti-loader-2 me-1' : 'ti ti-search me-1'} />
                     {loading ? 'Loading...' : 'Search'}
                   </Button>
-                  <Button variant="light-secondary" disabled={loading} aria-label="Reset issue filters" onClick={handleReset}>
+                  <Button
+                    className="btn-icon rounded flex-shrink-0"
+                    variant="light-secondary"
+                    disabled={loading}
+                    aria-label="Reset issue filters"
+                    title="Reset filters"
+                    onClick={handleReset}
+                  >
                     <i className="ti ti-refresh" />
                   </Button>
                 </Stack>
@@ -1060,7 +1059,7 @@ export default function IssueProduction() {
 
       <Modal show={showAddIssue} onHide={() => !savingIssue && setShowAddIssue(false)} fullscreen scrollable>
         <Modal.Header closeButton={!savingIssue}>
-          <Modal.Title>Add Issue Production</Modal.Title>
+          <Modal.Title>Create Issue Production</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Row className="g-3 mb-4">
@@ -1179,7 +1178,7 @@ export default function IssueProduction() {
               </Button>
             </Stack>
           </Stack>
-          <Table responsive bordered className="align-middle mb-0">
+          <Table responsive bordered className="issue-items-table align-middle mb-0">
             <thead>
               <tr>
                 <th>Item</th>
@@ -1234,10 +1233,10 @@ export default function IssueProduction() {
                       <div className="text-muted f-12">{line.ItemName || '-'}</div>
                     </td>
                     <td style={{ minWidth: 120 }}>
-                      <Form.Control size="sm" type="number" value={line.PlannedQty} readOnly />
+                      <Form.Control size="sm" type="number" value={line.PlannedQty} disabled />
                     </td>
                     <td style={{ minWidth: 120 }}>
-                      <Form.Control size="sm" type="number" value={line.IssuedQty} readOnly />
+                      <Form.Control size="sm" type="number" value={line.IssuedQty} disabled />
                     </td>
                     <td style={{ minWidth: 120 }}>
                       <Form.Control
@@ -1247,7 +1246,7 @@ export default function IssueProduction() {
                             ? 'Loading...'
                             : (itemStocks[getStockKey(line.ItemCode, line.WhsCode || issueForm.WhsCode)] ?? '-')
                         }
-                        readOnly
+                        disabled
                       />
                     </td>
                     <td style={{ minWidth: 120 }}>

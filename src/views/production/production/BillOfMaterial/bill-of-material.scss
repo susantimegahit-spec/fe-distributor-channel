@@ -1,0 +1,10 @@
+.bom-quantity-no-spinner {
+  appearance: textfield;
+  font-weight: 700;
+
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+    margin: 0;
+    appearance: none;
+  }
+}

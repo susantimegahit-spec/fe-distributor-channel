@@ -3358,6 +3358,18 @@ body {
   box-shadow: 0 10px 20px rgba(10, 36, 78, 0.16);
 }
 
+.pc-content .dashboard-shipping-schedule-action.btn {
+  background-color: var(--system-primary);
+  color: #fff;
+
+  &:hover,
+  &:focus,
+  &:active {
+    background-color: color-mix(in srgb, var(--system-primary) 86%, #000);
+    color: #fff;
+  }
+}
+
 .pc-content .dashboard-summary-card.card {
   border-color: rgba(49, 95, 180, 0.08) !important;
   background: #fff !important;
