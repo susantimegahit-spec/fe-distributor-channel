@@ -155,7 +155,14 @@ const formatDate = (value) => {
     : date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 const formatShift = (value) => ({ A: '1', B: '2', C: '3', X: 'All' })[String(value || '').toUpperCase()] || value || '-';
-const pdoProductBadgeVariants = ['primary', 'success', 'warning', 'info', 'danger', 'secondary'];
+const pdoProductBadgeClasses = [
+  'issue-product-badge--blue',
+  'issue-product-badge--sage',
+  'issue-product-badge--amber',
+  'issue-product-badge--plum',
+  'issue-product-badge--slate',
+  'issue-product-badge--clay'
+];
 const normalizeIssue = (item = {}, index = 0) => ({
   id: getValue(item, ['DocEntry', 'docEntry', 'doc_entry', 'id', 'issue_id'], index),
   documentNumber: getValue(item, ['DocNum', 'doc_num', 'document_number', 'issue_number', 'number'], '-'),
@@ -312,7 +319,7 @@ export default function IssueProduction() {
     issueForm.Lines.forEach((line) => {
       const pdoKey = String(line.BaseEntry || line.ProductionOrderNumber || '');
       if (pdoKey && !variantsByPdo.has(pdoKey)) {
-        variantsByPdo.set(pdoKey, pdoProductBadgeVariants[variantsByPdo.size % pdoProductBadgeVariants.length]);
+        variantsByPdo.set(pdoKey, pdoProductBadgeClasses[variantsByPdo.size % pdoProductBadgeClasses.length]);
       }
     });
 
@@ -1197,26 +1204,23 @@ export default function IssueProduction() {
                     className={
                       !loadingItemStocks &&
                       (Number(itemStocks[getStockKey(line.ItemCode, line.WhsCode || issueForm.WhsCode)]) === 0 ||
-                        Number(itemStocks[getStockKey(line.ItemCode, line.WhsCode || issueForm.WhsCode)]) - Number(line.PlannedQty || 0) < 0)
+                        Number(itemStocks[getStockKey(line.ItemCode, line.WhsCode || issueForm.WhsCode)]) - Number(line.PlannedQty || 0) <
+                          0)
                         ? 'issue-out-of-stock-row'
                         : undefined
                     }
                   >
                     <td style={{ minWidth: 180 }}>
                       <div className="d-flex align-items-center flex-wrap gap-2">
-                        <span className="fw-semibold">{line.ItemCode || '-'}</span>
-                        <Badge
-                          bg={pdoBadgeVariantMap.get(String(line.BaseEntry || line.ProductionOrderNumber || '')) || 'secondary'}
-                          className="fw-normal"
-                        >
-                          {line.ProductionItemCode || '-'}
-                        </Badge>
+                        <span className="fw-semibold issue-item-code">{line.ItemCode || '-'}</span>
                         <Badge
                           as="button"
                           type="button"
-                          bg="light"
-                          text="primary"
-                          className="border fw-normal"
+                          bg={null}
+                          className={`fw-normal issue-product-badge issue-pdo-badge ${
+                            pdoBadgeVariantMap.get(String(line.BaseEntry || line.ProductionOrderNumber || '')) ||
+                            'issue-product-badge--slate'
+                          }`}
                           disabled={String(loadingPdoDetailId) === String(line.BaseEntry)}
                           onClick={() => handleOpenPdoDetail(line)}
                         >
@@ -1224,13 +1228,13 @@ export default function IssueProduction() {
                             'Loading...'
                           ) : (
                             <>
-                              PDO {line.ProductionOrderNumber || '-'}
+                              {line.ProductionItemCode || '-'} - PDO {line.ProductionOrderNumber || '-'}
                               <i className="ti ti-info-circle ms-1" aria-hidden="true" />
                             </>
                           )}
                         </Badge>
                       </div>
-                      <div className="text-muted f-12">{line.ItemName || '-'}</div>
+                      <div className="f-12 issue-item-name">{line.ItemName || '-'}</div>
                     </td>
                     <td style={{ minWidth: 120 }}>
                       <Form.Control size="sm" type="number" value={line.PlannedQty} disabled />

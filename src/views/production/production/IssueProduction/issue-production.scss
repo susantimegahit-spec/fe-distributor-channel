@@ -22,3 +22,69 @@
   color: #000;
   -webkit-text-fill-color: #000;
 }
+
+.issue-items-table .issue-item-code,
+.issue-items-table .issue-item-name {
+  color: #16191f;
+}
+
+.issue-items-table .issue-item-code {
+  font-weight: 700;
+}
+
+.issue-items-table .issue-item-name {
+  margin-top: 0.3rem;
+  font-weight: 500;
+}
+
+.issue-product-badge {
+  border: 1px solid transparent;
+  font-weight: 600 !important;
+}
+
+.issue-product-badge--blue {
+  color: #344f68 !important;
+  background-color: #e5edf3 !important;
+  border-color: #d1dde7 !important;
+}
+
+.issue-product-badge--sage {
+  color: #555064 !important;
+  background-color: #ece8f0 !important;
+  border-color: #ddd6e3 !important;
+}
+
+.issue-product-badge--amber {
+  color: #6b5939 !important;
+  background-color: #f1ebdf !important;
+  border-color: #e2d8c5 !important;
+}
+
+.issue-product-badge--plum {
+  color: #654e5c !important;
+  background-color: #f0e7eb !important;
+  border-color: #e2d4da !important;
+}
+
+.issue-product-badge--slate {
+  color: #4c5868 !important;
+  background-color: #e9edf1 !important;
+  border-color: #d7dde4 !important;
+}
+
+.issue-product-badge--clay {
+  color: #6a514a !important;
+  background-color: #f1e8e5 !important;
+  border-color: #e2d5d0 !important;
+}
+
+.issue-pdo-badge {
+  border-width: 1px !important;
+  border-style: solid !important;
+  font-weight: 500 !important;
+}
+
+.issue-pdo-badge:hover,
+.issue-pdo-badge:focus {
+  filter: brightness(0.96);
+}

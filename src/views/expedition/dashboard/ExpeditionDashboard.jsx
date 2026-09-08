@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Select from 'react-select';
+import CreatePicklistModal from './CreatePicklistModal';
 import AsyncSelect from 'react-select/async';
 
 // react-bootstrap
@@ -94,38 +95,6 @@ const dummyDeliveryOrders = [
     deliveryDate: '31 Agu 2026'
   }
 ];
-
-const getDummyRecommendations = (order) => {
-  const basePrice = Math.max(Number(order.weight) * 2850, 850000);
-  const weightRange = `${Math.max(1, Math.floor(order.weight * 0.75)).toLocaleString('id-ID')} - ${Math.ceil(order.weight * 1.25).toLocaleString('id-ID')} kg`;
-
-  return [
-    {
-      id: `${order.id}-sm-logistics`,
-      name: 'SM Logistics',
-      serviceType: order.serviceType,
-      weightRange,
-      totalPrice: Math.round(basePrice),
-      price: Math.round(basePrice)
-    },
-    {
-      id: `${order.id}-nusantara`,
-      name: 'Nusantara Cargo',
-      serviceType: order.serviceType,
-      weightRange,
-      totalPrice: Math.round(basePrice * 1.08),
-      price: Math.round(basePrice * 1.08)
-    },
-    {
-      id: `${order.id}-lintas`,
-      name: 'Lintas Samudra Express',
-      serviceType: order.serviceType,
-      weightRange,
-      totalPrice: Math.round(basePrice * 1.16),
-      price: Math.round(basePrice * 1.16)
-    }
-  ];
-};
 
 const vendorStatusBadge = {
   'Pending Review': { bg: 'light', text: 'primary', className: 'border border-primary' },
@@ -241,7 +210,14 @@ const normalizeShipToOption = (item, index) => {
 export default function ExpeditionDashboard() {
   const { showAlert } = useAlert();
   const [activeTab, setActiveTab] = useState('orders');
+  const [createPicklist, setCreatePicklist] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [picklists, setPicklists] = useState({});
+  const picklistRows = picklists[selectedOrder?.id] || [];
+  const totalPicklistWeight = picklistRows.reduce((total, row) => total + (Number(row.weight) || 0), 0);
+  const remainingWeight = Math.round(((selectedOrder?.weight || 0) - totalPicklistWeight) * 1000) / 1000;
+  const updatePicklist = (rows) => setPicklists((current) => ({ ...current, [selectedOrder.id]: rows }));
+
   const [showRecommendationModal, setShowRecommendationModal] = useState(false);
   const [vendorRequests, setVendorRequests] = useState(dummyVendorRequests);
   const [originOptions, setOriginOptions] = useState([]);
@@ -492,31 +468,12 @@ export default function ExpeditionDashboard() {
   };
 
   const handleOrderRecommendation = (order) => {
-    const orderCriteria = {
-      originCode: order.originCode,
-      departure: order.originCity,
-      originLabel: order.origin,
-      originStreet: '',
-      originCity: order.originCity,
-      destinationCode: order.destinationCode,
-      destination: order.destinationCity,
-      destinationLabel: order.destination,
-      destinationStreet: '',
-      destinationCity: order.destinationCity,
-      weight: order.weight,
-      serviceType: order.serviceType,
-      route: order.route
-    };
-
     setSelectedOrder(order);
+    setPicklists((current) => ({
+      ...current,
+      [order.id]: current[order.id] || [{ id: 1, description: '', weight: '' }]
+    }));
     setShowRecommendationModal(true);
-    setForm(orderCriteria);
-    setRecommendations(getDummyRecommendations(order));
-  };
-
-  const handleSelectRecommendation = (recommendation) => {
-    showAlert(`${recommendation.name} dipilih untuk ${selectedOrder?.id}`, 'success');
-    setShowRecommendationModal(false);
   };
 
   const handleVendorRequest = (request, status) => {
@@ -526,6 +483,12 @@ export default function ExpeditionDashboard() {
 
   return (
     <Stack gap={3}>
+      <Stack direction="horizontal" gap={3} className="justify-content-between flex-wrap">
+        <h4 className="mb-0">Dashboard Ekspedisi</h4>
+        <Button data-permission-action="utility" className="ms-auto flex-shrink-0" onClick={() => setCreatePicklist({})}>
+          <i className="ti ti-plus me-1" /> Create Picklist
+        </Button>
+      </Stack>
       <MainCard
         title={
           <Stack gap={1}>
@@ -623,9 +586,11 @@ export default function ExpeditionDashboard() {
 
         {activeTab === 'orders' ? (
           <div>
-            <Stack gap={1} className="mb-4">
-              <h5 className="mb-0">Delivery Orders</h5>
-              <span className="text-muted f-12">Pilih rekomendasi ekspedisi berdasarkan origin, tujuan, dan berat pengiriman.</span>
+            <Stack direction="horizontal" className="justify-content-between mb-4" gap={3}>
+              <div>
+                <h5 className="mb-1">Delivery Orders</h5>
+                <span className="text-muted f-12">Kelola alokasi berat dan buat picklist dari Sales Order yang disetujui.</span>
+              </div>
             </Stack>
             <Table responsive hover className="mb-0 align-middle">
               <thead>
@@ -664,7 +629,7 @@ export default function ExpeditionDashboard() {
                     </td>
                     <td className="text-end">
                       <Button size="sm" onClick={() => handleOrderRecommendation(order)}>
-                        <i className="ti ti-sparkles me-1" /> Choose Recommendation
+                        <i className="ti ti-sparkles me-1" /> Picklist
                       </Button>
                     </td>
                   </tr>
@@ -854,7 +819,7 @@ export default function ExpeditionDashboard() {
 
       <Modal show={showRecommendationModal} onHide={() => setShowRecommendationModal(false)} size="lg" centered>
         <Modal.Header closeButton>
-          <Modal.Title>Expedition Recommendation</Modal.Title>
+          <Modal.Title>Picklist</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           {selectedOrder ? (
@@ -885,66 +850,120 @@ export default function ExpeditionDashboard() {
               </Col>
             </Row>
           ) : null}
-          {loadingRatesRank ? (
-            <div className="text-center py-5">
-              <span className="spinner-border text-primary mb-3" aria-hidden="true" />
-              <h6 className="mb-1">Finding the best expedition</h6>
-              <p className="text-muted f-12 mb-0">Mencocokkan origin, tujuan, dan berat order.</p>
+          <div className="d-flex justify-content-between align-items-center gap-3 mb-3">
+            <div>
+              <h6 className="mb-1">Weight Allocation</h6>
+              <small className="text-muted">Add picklist items and split the selected order weight in kilograms.</small>
             </div>
-          ) : recommendations.length ? (
-            <Table responsive hover className="mb-0 align-middle">
-              <thead>
-                <tr>
-                  <th>Expedition</th>
-                  <th>Service</th>
-                  <th>Weight Range</th>
-                  <th className="text-end">Price</th>
-                  <th className="text-end">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recommendations.map((recommendation, index) => (
-                  <tr key={`${recommendation.id}-${index}`}>
+            <Button
+              size="sm"
+              className="flex-shrink-0"
+              data-permission-action="utility"
+              disabled={remainingWeight <= 0}
+              onClick={() =>
+                updatePicklist([
+                  ...picklistRows,
+                  { id: Math.max(0, ...picklistRows.map((row) => row.id)) + 1, description: '', weight: '' }
+                ])
+              }
+            >
+              <i className="ti ti-plus me-1" /> Add Item
+            </Button>
+          </div>
+          <Table responsive className="align-middle">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Description (optional)</th>
+                <th>Weight (kg)</th>
+                <th className="text-end">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {picklistRows.map((row, index) => {
+                const rowWeight = Number(row.weight) || 0;
+                const maxWeight = Math.round((remainingWeight + rowWeight) * 1000) / 1000;
+                const invalid = row.weight !== '' && (!Number.isFinite(Number(row.weight)) || rowWeight <= 0 || rowWeight > maxWeight);
+                return (
+                  <tr key={row.id}>
+                    <td>{index + 1}</td>
                     <td>
-                      <div className="fw-semibold">{recommendation.name}</div>
-                      {index === 0 ? (
-                        <Badge bg="success" className="mt-1">
-                          Best recommendation
-                        </Badge>
-                      ) : null}
+                      <Form.Control
+                        aria-label={`Description item ${index + 1}`}
+                        placeholder="Item description"
+                        value={row.description}
+                        onChange={(event) =>
+                          updatePicklist(
+                            picklistRows.map((item) => (item.id === row.id ? { ...item, description: event.target.value } : item))
+                          )
+                        }
+                      />
                     </td>
-                    <td>{recommendation.serviceType}</td>
-                    <td>{recommendation.weightRange}</td>
-                    <td className="text-end fw-semibold">{currency(recommendation.totalPrice || recommendation.price)}</td>
+                    <td style={{ minWidth: 180 }}>
+                      <Form.Control
+                        aria-label={`Weight item ${index + 1} in kilograms`}
+                        type="number"
+                        min="0.001"
+                        max={maxWeight}
+                        step="0.001"
+                        placeholder="0"
+                        value={row.weight}
+                        isInvalid={invalid}
+                        onChange={(event) =>
+                          updatePicklist(picklistRows.map((item) => (item.id === row.id ? { ...item, weight: event.target.value } : item)))
+                        }
+                      />
+                      <Form.Control.Feedback type="invalid">Enter a positive weight within the order total.</Form.Control.Feedback>
+                    </td>
                     <td className="text-end">
                       <Button
+                        variant="outline-danger"
                         size="sm"
-                        variant={index === 0 ? 'primary' : 'outline-primary'}
-                        onClick={() => handleSelectRecommendation(recommendation)}
+                        aria-label={`Remove item ${index + 1}`}
+                        data-permission-action="utility"
+                        onClick={() => updatePicklist(picklistRows.filter((item) => item.id !== row.id))}
                       >
-                        <i className="ti ti-check me-1" /> Select
+                        <i className="ti ti-trash" />
                       </Button>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </Table>
-          ) : (
-            <div className="text-center py-5">
-              <span className="avtar avtar-xl bg-light-secondary text-secondary mb-3">
-                <i className="ti ti-truck-off f-28" />
-              </span>
-              <h6 className="mb-1">No recommendation found</h6>
-              <p className="text-muted f-12 mb-0">Belum ada rates yang sesuai dengan kriteria order ini.</p>
-            </div>
+                );
+              })}
+            </tbody>
+          </Table>
+          <div className="rounded border bg-light p-3 d-flex justify-content-between gap-3" aria-live="polite">
+            <span>
+              Allocated: <strong>{totalPicklistWeight.toLocaleString('id-ID', { maximumFractionDigits: 3 })} kg</strong>
+            </span>
+            <span className={remainingWeight < 0 ? 'text-danger' : 'text-primary'}>
+              Remaining: <strong>{remainingWeight.toLocaleString('id-ID', { maximumFractionDigits: 3 })} kg</strong>
+            </span>
+          </div>
+          {remainingWeight < 0 && (
+            <p className="text-danger mt-2 mb-0" role="alert">
+              Allocated weight exceeds the selected order weight. Reduce the weight before adding another item.
+            </p>
           )}
+          <p className="text-muted f-12 mt-3 mb-0">
+            Draft inputs are kept while this dashboard is open and are not yet saved to the server.
+          </p>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="light-secondary" onClick={() => setShowRecommendationModal(false)}>
             Close
           </Button>
+          <Button
+            data-permission-action="utility"
+            onClick={() => {
+              setShowRecommendationModal(false);
+              setCreatePicklist({ order: selectedOrder });
+            }}
+          >
+            <i className="ti ti-plus me-1" /> Create Picklist
+          </Button>
         </Modal.Footer>
       </Modal>
+      {createPicklist && <CreatePicklistModal order={createPicklist.order} onClose={() => setCreatePicklist(null)} />}
     </Stack>
   );
 }
