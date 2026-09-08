@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import Select from 'react-select';
 
@@ -340,8 +340,8 @@ const normalizeProductionOrder = (item = {}, index = 0) => ({
   status: item.ProductionOrderStatus || item.Status || item.status || item.order_status || '',
   orderDate:
     item.PostingDate || item.PostDate || item.DocDate || item.post_date || item.order_date || item.posting_date || item.created_at || '',
-  dueDate: item.DueDate || item.due_date || item.end_date || '',
-  startDate: item.StartDate || item.start_date || '',
+  dueDate: item.DueDate || item.dueDate || item.due_date || item.end_date || '',
+  startDate: item.StartDate || item.startDate || item.start_date || '',
   type: item.type || item.order_type || '',
   series: item.seriesName || item.SeriesName || item.series || item.series_code || '',
   shift: item.U_Shift || item.u_shift || item.Shift || item.shift || '',
@@ -570,6 +570,7 @@ export default function ProductionOrder() {
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [search, setSearch] = useState('');
   const [boms, setBoms] = useState([]);
+  const bomSearchTimeoutRef = useRef(null);
   const [seriesOptions, setSeriesOptions] = useState([]);
   const [warehouseOptions, setWarehouseOptions] = useState([]);
   const [ocrOptions, setOcrOptions] = useState({ ocrCode: [], ocrCode2: [], ocrCode3: [] });
@@ -684,7 +685,7 @@ export default function ProductionOrder() {
         case 'completedQuantity':
           return Number(order[orderSort.key]) || 0;
         case 'orderDate':
-        case 'dueDate':
+        case 'startDate':
           return new Date(order[orderSort.key] || 0).getTime() || 0;
         case 'status':
           return getStatus(order.status)?.label || order.status || '';
@@ -1225,6 +1226,7 @@ export default function ProductionOrder() {
   };
 
   const handleOpenBomSelection = () => {
+    clearTimeout(bomSearchTimeoutRef.current);
     setSearch('');
     setShowBomModal(true);
     fetchBoms('');
@@ -1232,8 +1234,23 @@ export default function ProductionOrder() {
 
   const handleSearchBoms = (event) => {
     event.preventDefault();
+    clearTimeout(bomSearchTimeoutRef.current);
     fetchBoms(search.trim());
   };
+
+  const handleBomSearchChange = (event) => {
+    const keyword = event.target.value;
+    setSearch(keyword);
+    clearTimeout(bomSearchTimeoutRef.current);
+    bomSearchTimeoutRef.current = setTimeout(() => fetchBoms(keyword.trim()), 500);
+  };
+
+  useEffect(
+    () => () => {
+      clearTimeout(bomSearchTimeoutRef.current);
+    },
+    []
+  );
 
   const handleSelectBom = async (bom) => {
     setLoadingBomDetail(true);
@@ -1446,6 +1463,7 @@ export default function ProductionOrder() {
       ProductionOrderStatus: status,
       PlannedQty: plannedQuantity,
       PostingDate: formatPayloadDate(form.orderDate),
+      StartDate: formatPayloadDate(form.startDate),
       DueDate: formatPayloadDate(form.dueDate),
       WhsCode: warehouse,
       Remarks: form.product.comments ?? form.product.remarks ?? '',
@@ -1670,7 +1688,7 @@ export default function ProductionOrder() {
               <th className="text-end">{renderOrderSortableHeader('Completed Qty', 'completedQuantity', 'end')}</th>
               <th>{renderOrderSortableHeader('Unit', 'unit')}</th>
               <th>{renderOrderSortableHeader('Posting Date', 'orderDate')}</th>
-              <th>{renderOrderSortableHeader('Due Date', 'dueDate')}</th>
+              <th>{renderOrderSortableHeader('Start Date', 'startDate')}</th>
               <th>Remarks</th>
               <th>{renderOrderSortableHeader('Status', 'status')}</th>
               <th className="text-center">#</th>
@@ -1698,7 +1716,7 @@ export default function ProductionOrder() {
                     <td className="text-end">{numberFormatter.format(Number(order.completedQuantity) || 0)}</td>
                     <td>{order.unit || '-'}</td>
                     <td>{formatDate(order.orderDate)}</td>
-                    <td>{formatDate(order.dueDate)}</td>
+                    <td>{formatDate(order.startDate)}</td>
                     <td>{order.comments || '-'}</td>
                     <td>{status ? <Badge bg={status.variant}>{status.label}</Badge> : '-'}</td>
                     <td className="text-center">
@@ -2216,7 +2234,6 @@ export default function ProductionOrder() {
                           onWheel={(event) => event.currentTarget.blur()}
                           step="any"
                           value={form.plannedQuantity}
-                          disabled={isReleaseMode || isEditMode}
                           onChange={(event) =>
                             setForm((current) => ({
                               ...current,
@@ -2336,7 +2353,13 @@ export default function ProductionOrder() {
                           value={form.orderDate}
                           onChange={(event) => {
                             const orderDate = event.target.value;
-                            setForm((current) => ({ ...current, orderDate, series: '' }));
+                            setForm((current) => ({
+                              ...current,
+                              orderDate,
+                              startDate: orderDate,
+                              dueDate: orderDate,
+                              series: ''
+                            }));
                             fetchSeries(orderDate);
                           }}
                         />
@@ -2660,7 +2683,11 @@ export default function ProductionOrder() {
 
       <Modal
         show={showBomModal}
-        onHide={() => !loadingBomDetail && setShowBomModal(false)}
+        onHide={() => {
+          if (loadingBomDetail) return;
+          clearTimeout(bomSearchTimeoutRef.current);
+          setShowBomModal(false);
+        }}
         size="lg"
         className="production-nested-modal"
         backdropClassName="production-nested-modal-backdrop"
@@ -2673,7 +2700,7 @@ export default function ProductionOrder() {
         <Modal.Body>
           <Form onSubmit={handleSearchBoms} className="mb-3">
             <InputGroup>
-              <Form.Control value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search BOM code or product" />
+              <Form.Control value={search} onChange={handleBomSearchChange} placeholder="Search BOM code or product" />
               <Button type="submit" variant="primary" disabled={loadingBoms}>
                 <i className="ti ti-search" />
               </Button>
