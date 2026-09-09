@@ -76,6 +76,19 @@ body {
     0 20px 52px rgba(18, 35, 68, 0.2);
 }
 
+.vendor-detail-dialog {
+  width: calc(100vw - 48px);
+  max-width: 1500px !important;
+}
+
+@media (max-width: 575.98px) {
+  .vendor-detail-dialog {
+    width: calc(100vw - 24px);
+    margin-right: auto;
+    margin-left: auto;
+  }
+}
+
 .modal-content > .modal-header:first-child {
   border-radius: var(--bs-modal-inner-border-radius) var(--bs-modal-inner-border-radius) 0 0;
 }

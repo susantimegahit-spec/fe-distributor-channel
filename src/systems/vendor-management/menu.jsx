@@ -2,22 +2,32 @@ const withBasePath = (path) => `/vendor-management${path}`;
 
 const vendorManagementMenu = [
   {
-    id: 'vendor-management',
-    title: 'Vendor Management',
+    id: 'dashboard',
+    title: 'Dashboard',
     type: 'group',
-    value: 'vendorManagement',
-    label: 'Vendor Management',
+    value: 'dashboard',
+    label: 'Dashboard',
     selected: true,
     children: [
       {
-        id: 'vendor-registrations',
-        title: 'Vendor Registrations',
+        id: 'vendor-management-dashboard',
+        title: 'Dashboard',
         type: 'item',
-        value: 'vendor-registrations',
-        label: 'Vendor Registrations',
+        value: 'vendor-management-dashboard',
+        label: 'Dashboard',
+        selected: true,
+        icon: 'ti ti-layout-dashboard',
+        url: withBasePath('/dashboard')
+      },
+      {
+        id: 'vendor-list',
+        title: 'Vendor',
+        type: 'item',
+        value: 'vendor-list',
+        label: 'Vendor',
         selected: true,
         icon: 'ti ti-building-store',
-        url: withBasePath('/registrations')
+        url: withBasePath('/vendor')
       }
     ]
   }

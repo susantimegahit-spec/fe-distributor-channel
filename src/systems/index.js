@@ -68,7 +68,7 @@ export const systems = [
     description: 'Review vendor registrations and manage onboarding.',
     icon: 'ti ti-building-store',
     basePath: '/vendor-management',
-    defaultPath: '/vendor-management/registrations',
+    defaultPath: '/vendor-management/dashboard',
     menu: vendorManagementMenu
   }
 ];

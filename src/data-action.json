@@ -375,11 +375,20 @@
     {
       "menu_key": 57,
       "system_key": "vendor-management",
-      "menu_id": "vendor-registrations",
-      "route": "/vendor-management/registrations",
+      "menu_id": "vendor-management-dashboard",
+      "route": "/vendor-management/dashboard",
+      "source": "src/views/vendor-management/VendorManagementDashboard.jsx",
+      "actions": ["view", "approve"],
+      "buttons": { "view": ["View Vendor Registration"], "approve": ["Approve", "Reject"] }
+    },
+    {
+      "menu_key": 58,
+      "system_key": "vendor-management",
+      "menu_id": "vendor-list",
+      "route": "/vendor-management/vendor",
       "source": "src/views/vendor-management/VendorRegistrations.jsx",
-      "actions": ["view"],
-      "buttons": { "view": ["View Vendor Registration"] }
+      "actions": ["view", "approve"],
+      "buttons": { "view": ["View Vendor"], "approve": ["Approve", "Reject"] }
     }
   ]
 }
