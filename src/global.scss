@@ -254,14 +254,14 @@ body {
 }
 
 [data-system-theme='vendor-management'] {
-  --system-primary: #0f766e;
-  --system-primary-rgb: 15, 118, 110;
-  --system-secondary: #14b8a6;
-  --system-sidebar-start: #062c2a;
-  --system-sidebar-middle: #075e56;
-  --system-sidebar-end: #0f766e;
-  --system-accent: #99f6e4;
-  --system-accent-rgb: 153, 246, 228;
+  --system-primary: #475569;
+  --system-primary-rgb: 71, 85, 105;
+  --system-secondary: #64748b;
+  --system-sidebar-start: #0f172a;
+  --system-sidebar-middle: #1e293b;
+  --system-sidebar-end: #475569;
+  --system-accent: #cbd5e1;
+  --system-accent-rgb: 203, 213, 225;
 }
 
 [data-system-theme='picking-list'] {
@@ -2680,8 +2680,8 @@ body {
 
 .sm-system-switcher-icon.is-vendor-management,
 .sm-system-switcher-item-icon.is-vendor-management {
-  --switcher-color: #0f766e;
-  --switcher-rgb: 15, 118, 110;
+  --switcher-color: #475569;
+  --switcher-rgb: 71, 85, 105;
 }
 
 .sm-system-switcher-icon.is-picking-list,

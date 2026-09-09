@@ -67,7 +67,7 @@ const accessibleSystemOptions = [
   { value: SYSTEM_KEYS.CUSTOMER_PORTAL, label: 'Customer Portal', color: '#315fb4' },
   { value: SYSTEM_KEYS.ENTERPRISE, label: 'Corporate', color: '#c0265e' },
   { value: SYSTEM_KEYS.LOGISTICS, label: 'Logistics', color: '#e8590c' },
-  { value: SYSTEM_KEYS.VENDOR_MANAGEMENT, label: 'Vendor Management', color: '#0f766e' },
+  { value: SYSTEM_KEYS.VENDOR_MANAGEMENT, label: 'Vendor Management', color: '#475569' },
   { value: SYSTEM_KEYS.PICKING_LIST, label: 'Picking List', color: '#7048e8' },
   { value: SYSTEM_KEYS.PRODUCTION, label: 'Production', color: '#198754' }
 ];

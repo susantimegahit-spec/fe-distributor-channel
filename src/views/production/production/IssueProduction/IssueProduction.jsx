@@ -716,7 +716,7 @@ export default function IssueProduction() {
             throw new Error(`DocEntry was not found in Production Order ${order.number}`);
           }
           const lines = items.flatMap((line, index) =>
-            isBackflushIssueLine(line)
+            isBackflushIssueLine(line) || getIssuePlannedQuantity(line) < 0
               ? []
               : [
                   {
@@ -727,7 +727,9 @@ export default function IssueProduction() {
                   }
                 ]
           );
-          if (!lines.length) throw new Error(`No non-backflush material lines were found in Production Order ${order.number}`);
+          if (!lines.length) {
+            throw new Error(`No eligible material lines were found in Production Order ${order.number}`);
+          }
           return { header, lines };
         })
       );
@@ -758,13 +760,15 @@ export default function IssueProduction() {
         Lines: [
           ...current.Lines.filter((line) => selectedOrderIds.includes(String(line.BaseEntry))),
           ...orderDetails.flatMap((detail) => detail.lines)
-        ].map((line) => ({
-          ...line,
-          WhsCode: current.WhsCode || line.WhsCode,
-          OcrCode: current.OcrCode || line.OcrCode,
-          OcrCode2: current.OcrCode2 || line.OcrCode2,
-          OcrCode3: current.OcrCode3 || line.OcrCode3
-        }))
+        ]
+          .filter((line) => Number(line.PlannedQty) >= 0)
+          .map((line) => ({
+            ...line,
+            WhsCode: current.WhsCode || line.WhsCode,
+            OcrCode: current.OcrCode || line.OcrCode,
+            OcrCode2: current.OcrCode2 || line.OcrCode2,
+            OcrCode3: current.OcrCode3 || line.OcrCode3
+          }))
       }));
       setShowOrderModal(false);
     } catch (error) {

@@ -13,8 +13,8 @@ class VendorManagementServices {
     return DataService.getBlob(`vendor-management/documents/${encodeURIComponent(documentId)}/preview`);
   }
 
-  postRevisionDocument(documentId, payload) {
-    return DataService.post(`vendor-management/documents/${encodeURIComponent(documentId)}/revision`, payload);
+  postVerifyDocument(documentId, payload) {
+    return DataService.post(`vendor-management/documents/${encodeURIComponent(documentId)}/verify`, payload);
   }
 
   postApproveVendor(id, payload) {

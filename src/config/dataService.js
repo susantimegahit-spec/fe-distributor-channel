@@ -6,10 +6,7 @@ import { useAlert } from '../utils/alertContext';
 import store from '../redux/store';
 import { destroyAuthState } from '../redux/authReducer';
 import { notifyNetworkUnavailable } from '../utils/networkEvents';
-import {
-  requestSapConnectionRetry,
-  SAP_CONNECTION_ERROR_MESSAGE
-} from '../utils/sapConnectionEvents';
+import { requestSapConnectionRetry, SAP_CONNECTION_ERROR_MESSAGE } from '../utils/sapConnectionEvents';
 
 const API_ENDPOINT = import.meta.env.VITE_APP_API_ENDPOINT_DEVELOPMENT;
 
@@ -26,8 +23,9 @@ const client = axios.create({
 
 const isFormData = (data) => typeof FormData !== 'undefined' && data instanceof FormData;
 
-const isSapConnectionTimeout = (error) => {
+const isSapConnectionError = (error) => {
   const responseData = error?.response?.data;
+  const requestUrl = String(error?.config?.url ?? error?.response?.config?.url ?? '').toLowerCase();
   let serializedResponse = '';
   try {
     serializedResponse = JSON.stringify(responseData);
@@ -44,7 +42,31 @@ const isSapConnectionTimeout = (error) => {
     serializedResponse
   ];
 
-  return messages.some((message) => String(message || '').toLowerCase().includes('curl error 28'));
+  const normalizedMessage = messages.map((message) => String(message || '').toLowerCase()).join(' ');
+  const explicitlyMentionsSapConnection = [
+    'curl error 28',
+    'sap connection failed',
+    'sap connection error',
+    'connection to sap failed',
+    'connection failed from sap',
+    'failed to connect to sap',
+    'cannot connect to sap',
+    'could not connect to sap',
+    'koneksi sap gagal',
+    'koneksi ke sap gagal',
+    'gagal koneksi ke sap',
+    'connection gagal dari sap'
+  ].some((pattern) => normalizedMessage.includes(pattern));
+  const isProductionSapRequest = requestUrl.includes('/production/') || requestUrl.includes('-sap') || requestUrl.includes('/sap/');
+  const hasGenericConnectionFailure = [
+    'connection failed',
+    'connection error',
+    'connection timed out',
+    'connect timeout',
+    'koneksi gagal'
+  ].some((pattern) => normalizedMessage.includes(pattern));
+
+  return explicitlyMentionsSapConnection || (isProductionSapRequest && hasGenericConnectionFailure);
 };
 
 const setSapConnectionErrorMessage = (error) => {
@@ -170,7 +192,7 @@ client.interceptors.request.use((config) => {
 
 client.interceptors.response.use(
   (response) => {
-    if (isSapConnectionTimeout({ response }) && response.config) {
+    if (isSapConnectionError({ response }) && response.config) {
       const error = new Error(SAP_CONNECTION_ERROR_MESSAGE);
       error.response = response;
       error.config = response.config;
@@ -186,7 +208,7 @@ client.interceptors.response.use(
      */
     const { response } = error;
     const originalRequest = error.config;
-    if (isSapConnectionTimeout(error) && originalRequest) {
+    if (isSapConnectionError(error) && originalRequest) {
       return retrySapConnectionRequest(error, originalRequest);
     }
     if (!response || [502, 503, 504].includes(response.status)) {
