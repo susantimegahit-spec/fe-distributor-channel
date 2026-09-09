@@ -1,3 +1,4 @@
+import { normalizeLogisticsPermission } from '../../../utils/logisticsMigration';
 import { useEffect, useMemo, useState } from 'react';
 
 // react-bootstrap
@@ -24,7 +25,7 @@ import LoaderButton from '../../../components/LoaderButton';
 import LoaderData from '../../../components/LoaderData';
 import DistributorServices from '../../../services/customer-portal/DistributorServices';
 import WarehouseServices from '../../../services/customer-portal/WarehouseServices';
-import ExpeditionServices from '../../../services/expedition/ExpeditionServices';
+import ExpeditionServices from '../../../services/logistics/ExpeditionServices';
 import ProductionServices from '../../../services/production/ProductionServices';
 import RoleServices from '../../../services/setting/RoleServices';
 import UserServices from '../../../services/setting/UserServices';
@@ -65,7 +66,8 @@ const allDistributorOption = {
 const accessibleSystemOptions = [
   { value: SYSTEM_KEYS.CUSTOMER_PORTAL, label: 'Customer Portal', color: '#315fb4' },
   { value: SYSTEM_KEYS.ENTERPRISE, label: 'Corporate', color: '#c0265e' },
-  { value: SYSTEM_KEYS.EXPEDITION, label: 'Expedition', color: '#e8590c' },
+  { value: SYSTEM_KEYS.LOGISTICS, label: 'Logistics', color: '#e8590c' },
+  { value: SYSTEM_KEYS.VENDOR_MANAGEMENT, label: 'Vendor Management', color: '#0f766e' },
   { value: SYSTEM_KEYS.PICKING_LIST, label: 'Picking List', color: '#7048e8' },
   { value: SYSTEM_KEYS.PRODUCTION, label: 'Production', color: '#198754' }
 ];
@@ -104,7 +106,9 @@ const normalizeActionAssignments = (value) => {
   return assignments.reduce((result, assignment) => {
     const menuId = assignment?.menu_key || assignment?.menuKey || assignment?.menu_id || assignment?.menuId || assignment?.id;
     const actions = assignment?.actions || assignment?.action || assignment;
-    const matchingMenu = actionMenuOptions.find((menu) => String(menu.menu_key) === String(menuId) || String(menu.id) === String(menuId));
+    const matchingMenu = actionMenuOptions.find(
+      (menu) => String(menu.menu_key) === String(menuId) || String(menu.id) === normalizeLogisticsPermission(String(menuId))
+    );
 
     if (matchingMenu) {
       if (Array.isArray(actions)) {
@@ -140,8 +144,13 @@ const accessibleSystemAliases = {
   distributor: SYSTEM_KEYS.CUSTOMER_PORTAL,
   'customer-portal': SYSTEM_KEYS.CUSTOMER_PORTAL,
   'customer portal': SYSTEM_KEYS.CUSTOMER_PORTAL,
-  ekspedisi: SYSTEM_KEYS.EXPEDITION,
-  expedition: SYSTEM_KEYS.EXPEDITION,
+  ekspedisi: SYSTEM_KEYS.LOGISTICS,
+  expedition: SYSTEM_KEYS.LOGISTICS,
+  logistics: SYSTEM_KEYS.LOGISTICS,
+  vendor: SYSTEM_KEYS.VENDOR_MANAGEMENT,
+  vendors: SYSTEM_KEYS.VENDOR_MANAGEMENT,
+  'vendor-management': SYSTEM_KEYS.VENDOR_MANAGEMENT,
+  vendor_management: SYSTEM_KEYS.VENDOR_MANAGEMENT,
   pickinglist: SYSTEM_KEYS.PICKING_LIST,
   picking_list: SYSTEM_KEYS.PICKING_LIST,
   'picking-list': SYSTEM_KEYS.PICKING_LIST,
@@ -824,7 +833,7 @@ export default function UserList() {
     setInput((currentInput) => ({
       ...currentInput,
       accessibleSystems: selectedSystems,
-      expeditionCode: selectedSystems.includes(SYSTEM_KEYS.EXPEDITION) ? currentInput.expeditionCode : '',
+      expeditionCode: selectedSystems.includes(SYSTEM_KEYS.LOGISTICS) ? currentInput.expeditionCode : '',
       distributorCodes: selectedSystems.includes(SYSTEM_KEYS.CUSTOMER_PORTAL) ? currentInput.distributorCodes : [],
       distributorIds: selectedSystems.includes(SYSTEM_KEYS.CUSTOMER_PORTAL) ? currentInput.distributorIds : []
     }));
@@ -887,7 +896,7 @@ export default function UserList() {
   const selectedOcr2 = getSelectedOcrOptions(input.ocrCodes2, listOcr2);
   const selectedOcr3 = getSelectedOcrOptions(input.ocrCodes3, listOcr3);
   const hasCustomerPortalAccess = input.accessibleSystems.includes(SYSTEM_KEYS.CUSTOMER_PORTAL);
-  const hasExpeditionAccess = input.accessibleSystems.includes(SYSTEM_KEYS.EXPEDITION);
+  const hasExpeditionAccess = input.accessibleSystems.includes(SYSTEM_KEYS.LOGISTICS);
   const selectedUserAccessibleSystems = selectedUser ? getUserAccessibleSystems(selectedUser) : [];
   const selectedUserDistributors = selectedUser ? getUserDistributors(selectedUser) : [];
   const selectedUserExpeditionCode = selectedUser ? String(getUserExpeditionCode(selectedUser)) : '';
@@ -1909,7 +1918,7 @@ export default function UserList() {
                           )}
                         </Stack>
                       </Col>
-                      {selectedUserAccessibleSystems.includes(SYSTEM_KEYS.EXPEDITION) || selectedUserExpeditionCode ? (
+                      {selectedUserAccessibleSystems.includes(SYSTEM_KEYS.LOGISTICS) || selectedUserExpeditionCode ? (
                         <Col md={6}>
                           <Form.Label className="f-12 text-muted">Expedition</Form.Label>
                           <div className="fw-semibold">

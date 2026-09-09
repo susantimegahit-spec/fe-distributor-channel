@@ -19,7 +19,7 @@ import Table from 'react-bootstrap/Table';
 import MainCard from 'components/MainCard';
 import LoaderData from 'components/LoaderData';
 import TablePagination from 'components/TablePagination';
-import ExpeditionServices from '../../../services/expedition/ExpeditionServices';
+import ExpeditionServices from '../../../services/logistics/ExpeditionServices';
 import { useAlert } from '../../../utils/alertContext';
 
 const selectStyles = {

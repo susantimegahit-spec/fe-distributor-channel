@@ -200,46 +200,46 @@
 
     {
       "menu_key": 30,
-      "system_key": "expedition",
-      "menu_id": "expedition-overview",
-      "route": "/expedition/dashboard",
-      "source": "src/views/expedition/dashboard/ExpeditionDashboard.jsx",
+      "system_key": "logistics",
+      "menu_id": "logistics-overview",
+      "route": "/logistics/dashboard",
+      "source": "src/views/logistics/dashboard/LogisticsDashboard.jsx",
       "actions": ["view"],
       "buttons": { "view": ["View Shipment"] }
     },
     {
       "menu_key": 32,
-      "system_key": "expedition",
-      "menu_id": "expedition-origin",
-      "route": "/expedition/master/origin",
-      "source": "src/views/expedition/master/MasterOrigin.jsx",
+      "system_key": "logistics",
+      "menu_id": "logistics-origin",
+      "route": "/logistics/master/origin",
+      "source": "src/views/logistics/master/MasterOrigin.jsx",
       "actions": ["add", "edit", "delete"],
       "buttons": { "add": ["Add Origin"], "edit": ["Edit Origin"], "delete": ["Delete Origin"] }
     },
     {
       "menu_key": 33,
-      "system_key": "expedition",
-      "menu_id": "expedition-destination",
-      "route": "/expedition/master/destination",
-      "source": "src/views/expedition/master/MasterDestination.jsx",
+      "system_key": "logistics",
+      "menu_id": "logistics-destination",
+      "route": "/logistics/master/destination",
+      "source": "src/views/logistics/master/MasterDestination.jsx",
       "actions": ["view", "download", "upload"],
       "buttons": { "view": ["View Destination"], "download": ["Download Template"], "upload": ["Upload Excel"] }
     },
     {
       "menu_key": 34,
-      "system_key": "expedition",
-      "menu_id": "expedition-master",
-      "route": "/expedition/master/expedition",
-      "source": "src/views/expedition/master/MasterExpedition.jsx",
+      "system_key": "logistics",
+      "menu_id": "logistics-master",
+      "route": "/logistics/master/expedition",
+      "source": "src/views/logistics/master/MasterExpedition.jsx",
       "actions": ["view", "add", "edit", "upload"],
       "buttons": { "view": ["Detail"], "add": ["Add Expedition"], "edit": ["Edit"], "upload": ["Upload Excel"] }
     },
     {
       "menu_key": 35,
-      "system_key": "expedition",
-      "menu_id": "expedition-rates",
-      "route": "/expedition/master/rates",
-      "source": "src/views/expedition/master/Rates.jsx",
+      "system_key": "logistics",
+      "menu_id": "logistics-rates",
+      "route": "/logistics/master/rates",
+      "source": "src/views/logistics/master/Rates.jsx",
       "actions": ["view", "add", "edit", "delete", "approve", "download", "upload"],
       "buttons": {
         "view": ["Detail"],
@@ -371,6 +371,15 @@
       "source": "src/views/production/production/ChangeProduct/ChangeProduct.jsx",
       "actions": ["add"],
       "buttons": { "add": ["Create Change Product"] }
+    },
+    {
+      "menu_key": 57,
+      "system_key": "vendor-management",
+      "menu_id": "vendor-registrations",
+      "route": "/vendor-management/registrations",
+      "source": "src/views/vendor-management/VendorRegistrations.jsx",
+      "actions": ["view"],
+      "buttons": { "view": ["View Vendor Registration"] }
     }
   ]
 }

@@ -16,7 +16,7 @@ import LoaderData from 'components/LoaderData';
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
 import WarehouseServices from '../../../services/customer-portal/WarehouseServices';
-import OriginServices from '../../../services/expedition/OriginServices';
+import OriginServices from '../../../services/logistics/OriginServices';
 import { useAlert } from '../../../utils/alertContext';
 
 const pageSize = 10;

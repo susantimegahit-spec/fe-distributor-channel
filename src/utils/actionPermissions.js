@@ -1,3 +1,4 @@
+import { normalizeLogisticsPermission, normalizeLogisticsPath } from './logisticsMigration';
 import { getMenuNumber } from '../systems';
 import { getCookies } from './cookies';
 
@@ -22,9 +23,13 @@ export const ACTION_ALIASES = {
 };
 
 const normalizeKey = (value) =>
-  String(value ?? '')
-    .trim()
-    .toLowerCase()
+  normalizeLogisticsPermission(
+    normalizeLogisticsPath(
+      String(value ?? '')
+        .trim()
+        .toLowerCase()
+    )
+  )
     .replaceAll('_', '-')
     .replace(/[^a-z0-9-]/g, '');
 

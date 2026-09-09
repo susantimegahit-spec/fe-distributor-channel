@@ -1,14 +1,17 @@
+import { normalizeLogisticsPermission } from '../utils/logisticsMigration';
 import customerPortalMenu from './customer-portal/menu';
 import enterpriseMenu from './corporate/menu';
-import expeditionMenu from './expedition/menu';
+import logisticsMenu from './logistics/menu';
 import pickingListMenu from './picking-list/menu';
 import productionMenu from './production/menu';
+import vendorManagementMenu from './vendor-management/menu';
 import { matchPath } from 'react-router-dom';
 
 export const SYSTEM_KEYS = {
   CUSTOMER_PORTAL: 'customer-portal',
   ENTERPRISE: 'enterprise',
-  EXPEDITION: 'expedition',
+  LOGISTICS: 'logistics',
+  VENDOR_MANAGEMENT: 'vendor-management',
   PICKING_LIST: 'picking-list',
   PRODUCTION: 'production'
 };
@@ -33,13 +36,13 @@ export const systems = [
     menu: enterpriseMenu
   },
   {
-    key: SYSTEM_KEYS.EXPEDITION,
-    title: 'Expedition',
-    description: 'Shipping operations and expedition monitoring.',
+    key: SYSTEM_KEYS.LOGISTICS,
+    title: 'Logistics',
+    description: 'Shipping operations and logistics monitoring.',
     icon: 'ti ti-truck-delivery',
-    basePath: '/expedition',
-    defaultPath: '/expedition/dashboard',
-    menu: expeditionMenu
+    basePath: '/logistics',
+    defaultPath: '/logistics/dashboard',
+    menu: logisticsMenu
   },
   {
     key: SYSTEM_KEYS.PICKING_LIST,
@@ -58,6 +61,15 @@ export const systems = [
     basePath: '/production',
     defaultPath: '/production/dashboard',
     menu: productionMenu
+  },
+  {
+    key: SYSTEM_KEYS.VENDOR_MANAGEMENT,
+    title: 'Vendor Management',
+    description: 'Review vendor registrations and manage onboarding.',
+    icon: 'ti ti-building-store',
+    basePath: '/vendor-management',
+    defaultPath: '/vendor-management/registrations',
+    menu: vendorManagementMenu
   }
 ];
 
@@ -86,7 +98,10 @@ const menuNumberByKey = (() => {
   return numbers;
 })();
 
-export const getMenuNumber = (systemKey, menuId) => menuNumberByKey.get(menuId ? `${systemKey}:${menuId}` : systemKey);
+export const getMenuNumber = (systemKey, menuId) =>
+  menuNumberByKey.get(
+    menuId ? `${normalizeLogisticsPermission(systemKey)}:${normalizeLogisticsPermission(menuId)}` : normalizeLogisticsPermission(systemKey)
+  );
 
 const adminRoleId = 5;
 const systemAccessAliases = {
@@ -101,8 +116,14 @@ const systemAccessAliases = {
   purchasing: SYSTEM_KEYS.ENTERPRISE,
   procurement: SYSTEM_KEYS.ENTERPRISE,
   pembelian: SYSTEM_KEYS.ENTERPRISE,
-  ekspedisi: SYSTEM_KEYS.EXPEDITION,
-  expedition: SYSTEM_KEYS.EXPEDITION,
+  ekspedisi: SYSTEM_KEYS.LOGISTICS,
+  expedition: SYSTEM_KEYS.LOGISTICS,
+  logistics: SYSTEM_KEYS.LOGISTICS,
+  vendor: SYSTEM_KEYS.VENDOR_MANAGEMENT,
+  vendors: SYSTEM_KEYS.VENDOR_MANAGEMENT,
+  'vendor-management': SYSTEM_KEYS.VENDOR_MANAGEMENT,
+  vendor_management: SYSTEM_KEYS.VENDOR_MANAGEMENT,
+  'vendor management': SYSTEM_KEYS.VENDOR_MANAGEMENT,
   pickinglist: SYSTEM_KEYS.PICKING_LIST,
   picking_list: SYSTEM_KEYS.PICKING_LIST,
   'picking-list': SYSTEM_KEYS.PICKING_LIST,
@@ -130,7 +151,8 @@ export const normalizePermissionMenu = (menu = []) => {
       if (typeof item === 'string') return item;
       return item?.id || item?.value || item?.menu_id || item?.menuId;
     })
-    .filter(Boolean);
+    .filter(Boolean)
+    .map(normalizeLogisticsPermission);
 };
 
 const normalizeArray = (value) => {
@@ -173,7 +195,7 @@ export const normalizeAccessibleSystems = (value) => {
 
 export const isAdministratorRole = (roleId) => Number(roleId) === adminRoleId;
 
-export const getSystemByKey = (key) => systems.find((system) => system.key === key) || systems[0];
+export const getSystemByKey = (key) => systems.find((system) => system.key === normalizeLogisticsPermission(key)) || systems[0];
 
 export const getSystemByPathname = (pathname = '') => systems.find((system) => pathname.startsWith(system.basePath)) || null;
 

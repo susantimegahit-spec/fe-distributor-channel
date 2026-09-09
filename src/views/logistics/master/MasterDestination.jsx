@@ -15,7 +15,7 @@ import Table from 'react-bootstrap/Table';
 import LoaderData from 'components/LoaderData';
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
-import DestinationServices from '../../../services/expedition/DestinationServices';
+import DestinationServices from '../../../services/logistics/DestinationServices';
 import { useAlert } from '../../../utils/alertContext';
 
 const pageSize = 10;

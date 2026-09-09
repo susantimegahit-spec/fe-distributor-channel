@@ -17,10 +17,10 @@ import Table from 'react-bootstrap/Table';
 // project-imports
 import MainCard from 'components/MainCard';
 import LoaderData from 'components/LoaderData';
-import DestinationServices from '../../../services/expedition/DestinationServices';
-import ExpeditionServices from '../../../services/expedition/ExpeditionServices';
-import OriginServices from '../../../services/expedition/OriginServices';
-import RateServices from '../../../services/expedition/RateServices';
+import DestinationServices from '../../../services/logistics/DestinationServices';
+import ExpeditionServices from '../../../services/logistics/ExpeditionServices';
+import OriginServices from '../../../services/logistics/OriginServices';
+import RateServices from '../../../services/logistics/RateServices';
 import { canUseMenuAction } from '../../../utils/actionPermissions';
 import { getMenuNumber, SYSTEM_KEYS } from '../../../systems';
 import { useAlert } from '../../../utils/alertContext';
@@ -271,7 +271,7 @@ export default function Rates() {
   const { showAlert } = useAlert();
   const isAdministrator = Number(getCookies('role')) === 5;
   const canApproveRates = canUseMenuAction(
-    ['expedition-rates', getMenuNumber(SYSTEM_KEYS.EXPEDITION, 'expedition-rates')],
+    ['expedition-rates', getMenuNumber(SYSTEM_KEYS.LOGISTICS, 'expedition-rates')],
     'approve'
   );
   const uploadInputRef = useRef(null);

@@ -1,6 +1,6 @@
-const withBasePath = (path) => `/expedition${path}`;
+const withBasePath = (path) => `/logistics${path}`;
 
-const expeditionMenu = [
+const logisticsMenu = [
   {
     id: 'dashboard',
     title: 'Dashboard',
@@ -10,10 +10,10 @@ const expeditionMenu = [
     selected: true,
     children: [
       {
-        id: 'expedition-overview',
+        id: 'logistics-overview',
         title: 'Dashboard',
         type: 'item',
-        value: 'expedition-overview',
+        value: 'logistics-overview',
         label: 'Dashboard',
         selected: true,
         icon: 'ti ti-truck-delivery',
@@ -30,40 +30,40 @@ const expeditionMenu = [
     selected: true,
     children: [
       {
-        id: 'expedition-origin',
+        id: 'logistics-origin',
         title: 'Origin',
         type: 'item',
-        value: 'expedition-origin',
+        value: 'logistics-origin',
         label: 'Origin',
         selected: true,
         icon: 'ti ti-building-warehouse',
         url: withBasePath('/master/origin')
       },
       {
-        id: 'expedition-destination',
+        id: 'logistics-destination',
         title: 'Destination',
         type: 'item',
-        value: 'expedition-destination',
+        value: 'logistics-destination',
         label: 'Destination',
         selected: true,
         icon: 'ti ti-map-pin',
         url: withBasePath('/master/destination')
       },
       {
-        id: 'expedition-master',
+        id: 'logistics-master',
         title: 'Expeditions',
         type: 'item',
-        value: 'expedition-master',
+        value: 'logistics-master',
         label: 'Expeditions',
         selected: true,
         icon: 'ti ti-package-export',
         url: withBasePath('/master/expedition')
       },
       {
-        id: 'expedition-rates',
+        id: 'logistics-rates',
         title: 'Rates',
         type: 'item',
-        value: 'expedition-rates',
+        value: 'logistics-rates',
         label: 'Rates',
         selected: true,
         icon: 'ti ti-receipt-2',
@@ -74,4 +74,4 @@ const expeditionMenu = [
   }
 ];
 
-export default expeditionMenu;
+export default logisticsMenu;

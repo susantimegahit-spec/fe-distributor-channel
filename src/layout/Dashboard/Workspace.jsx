@@ -1,3 +1,4 @@
+import { normalizeLogisticsPath, normalizeLogisticsPermission } from '../../utils/logisticsMigration';
 import PropTypes from 'prop-types';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -5,7 +6,8 @@ import { useNavigate } from 'react-router-dom';
 const WORKSPACE_STORAGE_KEY = 'dc-browser-workspace-v1';
 
 const getSystemKeyFromPath = (path = '') => {
-  if (path.startsWith('/expedition')) return 'expedition';
+  if (normalizeLogisticsPath(path).startsWith('/logistics')) return 'logistics';
+  if (path.startsWith('/vendor-management')) return 'vendor-management';
   if (path.startsWith('/picking-list')) return 'picking-list';
   if (path.startsWith('/production')) return 'production';
   if (path.startsWith('/purchasing')) return 'purchasing';
@@ -17,8 +19,16 @@ const readWorkspace = () => {
   try {
     const stored = JSON.parse(sessionStorage.getItem(WORKSPACE_STORAGE_KEY) || '{}');
     return {
-      tabs: Array.isArray(stored.tabs) ? stored.tabs : [],
-      activePath: typeof stored.activePath === 'string' ? stored.activePath : ''
+      tabs: Array.isArray(stored.tabs)
+        ? stored.tabs.map((tab) => ({
+            ...tab,
+            path: normalizeLogisticsPath(tab.path),
+            systemKey: normalizeLogisticsPermission(tab.systemKey),
+            systemTitle: tab.systemKey === 'expedition' ? 'Logistics' : tab.systemTitle,
+            title: tab.title === 'Expedition Dashboard' ? 'Logistics Dashboard' : tab.title
+          }))
+        : [],
+      activePath: typeof stored.activePath === 'string' ? normalizeLogisticsPath(stored.activePath) : ''
     };
   } catch {
     return { tabs: [], activePath: '' };

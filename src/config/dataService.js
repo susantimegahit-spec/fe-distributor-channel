@@ -111,9 +111,10 @@ class DataService {
     });
   }
 
-  static post(path = '', data = {}, optionalHeader = {}) {
+  static post(path = '', data = {}, optionalHeader = {}, { onUploadProgress } = {}) {
     return client({
       method: 'POST',
+      onUploadProgress,
       url: path,
       data,
       headers: buildHeaders(data, optionalHeader)

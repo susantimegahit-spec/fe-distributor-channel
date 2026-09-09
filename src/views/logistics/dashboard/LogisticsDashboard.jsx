@@ -15,9 +15,9 @@ import Table from 'react-bootstrap/Table';
 
 // project-imports
 import MainCard from 'components/MainCard';
-import DestinationServices from '../../../services/expedition/DestinationServices';
-import OriginServices from '../../../services/expedition/OriginServices';
-import RateServices from '../../../services/expedition/RateServices';
+import DestinationServices from '../../../services/logistics/DestinationServices';
+import OriginServices from '../../../services/logistics/OriginServices';
+import RateServices from '../../../services/logistics/RateServices';
 import { useAlert } from '../../../utils/alertContext';
 import { currency } from '../../../utils/global';
 
@@ -207,7 +207,7 @@ const normalizeShipToOption = (item, index) => {
   };
 };
 
-export default function ExpeditionDashboard() {
+export default function LogisticsDashboard() {
   const { showAlert } = useAlert();
   const [activeTab, setActiveTab] = useState('orders');
   const [createPicklist, setCreatePicklist] = useState(null);
@@ -640,7 +640,7 @@ export default function ExpeditionDashboard() {
         ) : (
           <div>
             <Stack gap={1} className="mb-4">
-              <h5 className="mb-0">Expedition Dashboard</h5>
+              <h5 className="mb-0">Logistics Dashboard</h5>
               <span className="text-muted f-12">Find expedition recommendations based on route and shipment weight.</span>
             </Stack>
             <Row className="g-3">

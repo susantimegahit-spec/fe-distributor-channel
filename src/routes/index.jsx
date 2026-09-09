@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
 
 // project-imports
 import OtherRoutes from './OtherRoutes';
@@ -7,7 +7,8 @@ import MasterRoutes from './MasterRoutes';
 import SettingRoutes from './SettingRoutes';
 import OrderRoutes from './OrderRoutes';
 import FinanceRoutes from './FinanceRoutes';
-import ExpeditionRoutes from './ExpeditionRoutes';
+import LogisticsRoutes, { LegacyExpeditionRedirect } from './LogisticsRoutes';
+import VendorManagementRoutes from './VendorManagementRoutes';
 import EnterpriseRoutes from './EnterpriseRoutes';
 import PickingListRoutes from './PickingListRoutes';
 import ProductionRoutes from './ProductionRoutes';
@@ -32,7 +33,10 @@ const router = createBrowserRouter(
     OrderRoutes,
     FinanceRoutes,
     EnterpriseRoutes,
-    ExpeditionRoutes,
+    LogisticsRoutes,
+    VendorManagementRoutes,
+    { path: '/logistics', element: <Navigate to="/logistics/dashboard" replace /> },
+    { path: '/expedition/*', element: <LegacyExpeditionRedirect /> },
     PickingListRoutes,
     ProductionRoutes,
     HelpDeskRoutes,
