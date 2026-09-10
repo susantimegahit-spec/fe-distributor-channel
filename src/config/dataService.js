@@ -9,7 +9,7 @@ import { notifyNetworkUnavailable } from '../utils/networkEvents';
 import { requestSapConnectionRetry, SAP_CONNECTION_ERROR_MESSAGE } from '../utils/sapConnectionEvents';
 import { clearVendorPortalSession, getVendorPortalSession } from '../utils/vendorPortal';
 
-const API_ENDPOINT = import.meta.env.VITE_APP_API_ENDPOINT_DEVELOPMENT;
+const API_ENDPOINT = import.meta.env.VITE_APP_API_ENDPOINT_PRODUCTION;
 
 const authHeader = () => ({
   Authorization: `Bearer ${getCookies('session-token')}`
