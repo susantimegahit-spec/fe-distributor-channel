@@ -303,6 +303,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
   const [permissionDetail, setPermissionDetail] = useState(null);
   const pendingOrderRefreshRef = useRef(false);
   const refreshOrdersRef = useRef(null);
+  const orderRefreshTimeoutsRef = useRef([]);
 
   useEffect(() => {
     getPermissionDetail();
@@ -584,11 +585,14 @@ export default function OrderList({ showOnlyCommitment = false }) {
     }
   };
 
-  const fetchData = async (customerCode = distributor) => {
+  const fetchData = async (customerCode = distributor, refreshToken = '') => {
     setIsLoading(true);
 
     try {
-      const customerFilter = customerCode ? { customer_code: customerCode } : {};
+      const customerFilter = {
+        ...(customerCode ? { customer_code: customerCode } : {}),
+        ...(refreshToken ? { _refresh: refreshToken } : {})
+      };
       const [resp, draftResp] = await Promise.all([
         OrderServices.getSalesOrder(customerFilter),
         OrderServices.getSalesOrder({ ...customerFilter, status: 'DRAFT' })
@@ -610,7 +614,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
     }
   };
 
-  refreshOrdersRef.current = () => (showOnlyCommitment ? fetchCommitmentOrders() : fetchData());
+  refreshOrdersRef.current = () => (showOnlyCommitment ? fetchCommitmentOrders() : fetchData(distributor, Date.now()));
 
   useEffect(() => {
     const refreshIfPending = () => {
@@ -626,6 +630,9 @@ export default function OrderList({ showOnlyCommitment = false }) {
       pendingOrderRefreshRef.current = true;
       window.sessionStorage.setItem('sm-orders-refresh-pending', 'true');
       refreshIfPending();
+
+      orderRefreshTimeoutsRef.current.forEach(window.clearTimeout);
+      orderRefreshTimeoutsRef.current = [1500, 5000].map((delay) => window.setTimeout(() => refreshOrdersRef.current?.(), delay));
     };
 
     const handleVisibilityChange = () => {
@@ -644,6 +651,8 @@ export default function OrderList({ showOnlyCommitment = false }) {
     if (document.hasFocus()) refreshIfPending();
 
     return () => {
+      orderRefreshTimeoutsRef.current.forEach(window.clearTimeout);
+      orderRefreshTimeoutsRef.current = [];
       window.removeEventListener('sm:orders-refresh-needed', handleIncomingNotification);
       window.removeEventListener('message', handleWindowMessage);
       window.removeEventListener('focus', refreshIfPending);

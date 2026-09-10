@@ -17,7 +17,7 @@ class OrderServices {
       typeof params === 'string' ? { status: params, start_date: startDate, end_date: endDate, customer_code: customerCode } : params || {};
     const query = new URLSearchParams();
 
-    ['status', 'start_date', 'end_date', 'customer_code'].forEach((key) => {
+    ['status', 'start_date', 'end_date', 'customer_code', '_refresh'].forEach((key) => {
       if (filters[key] !== undefined && filters[key] !== null && filters[key] !== '') {
         query.set(key, filters[key]);
       }
