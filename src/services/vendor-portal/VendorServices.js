@@ -1,6 +1,10 @@
 import { DataService } from '../../config/dataService';
 
 class VendorServices {
+  postLoginVendor(payload) {
+    return DataService.post('vendor-portal/login', payload);
+  }
+
   getCheckEmail(email) {
     return DataService.get('vendor-portal/check-email', { email });
   }

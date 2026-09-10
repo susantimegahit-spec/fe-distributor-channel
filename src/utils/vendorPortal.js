@@ -18,13 +18,30 @@ export const getVendorPortalSession = () => {
   }
 };
 
-export const setVendorPortalSession = (vendorType = 'expedition') => {
-  Cookies.set(VENDOR_PORTAL_COOKIE, JSON.stringify({ token: 'preview-session', vendorType }), {
-    expires: 1,
+const getVendorType = (data = {}) =>
+  data.vendorType ??
+  data.vendor_type ??
+  data.type ??
+  data.vendor?.vendor_type ??
+  data.vendor?.vendorType ??
+  data.user?.vendor_type ??
+  data.user?.vendorType;
+
+export const setVendorPortalSession = (responseData = {}, remember = false) => {
+  const data = responseData?.data && typeof responseData.data === 'object' ? responseData.data : responseData;
+  const vendorType = String(getVendorType(data) || '').toLowerCase();
+  const token = data.access_token ?? data.accessToken ?? data.token;
+  const session = { ...data, token, vendorType };
+  const options = {
     sameSite: 'strict',
     secure: window.location.protocol === 'https:',
     path: getVendorPortalCookiePath()
-  });
+  };
+
+  if (remember) options.expires = 30;
+  Cookies.set(VENDOR_PORTAL_COOKIE, JSON.stringify(session), options);
+
+  return session;
 };
 
 export const clearVendorPortalSession = () => {

@@ -225,7 +225,8 @@ client.interceptors.response.use(
       } else if (response.status === 403) {
         return response;
       } else if (response.status === 401) {
-        const isLoginRequest = String(originalRequest?.url || '').includes('/auth/login');
+        const requestUrl = String(originalRequest?.url || '');
+        const isLoginRequest = requestUrl.includes('/auth/login') || requestUrl.includes('vendor-portal/login');
         const hadActiveSession = Boolean(Cookies.get('isLoggedIn') || Cookies.get('accessToken'));
 
         if (isLoginRequest && !hadActiveSession) {

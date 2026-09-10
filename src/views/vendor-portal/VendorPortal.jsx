@@ -57,15 +57,43 @@ function AuthShell({ children, step }) {
 
 function LoginPage() {
   const navigate = useNavigate();
+  const { showAlert } = useAlert();
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState('');
-  const [vendorType, setVendorType] = useState('expedition');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [remember, setRemember] = useState(false);
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
-  const signIn = (event) => {
+  const signIn = async (event) => {
     event.preventDefault();
-    setVendorPortalSession(vendorType);
-    recordVendorPortalActivity('SIGN_IN_PREVIEW', `Vendor ${vendorType} membuka preview portal`);
-    navigate(`/vendor-portal/dashboard/${vendorType}`);
+    if (isSigningIn) return;
+
+    setMessage('');
+    setIsSigningIn(true);
+    try {
+      const response = await VendorServices.postLoginVendor({ email: email.trim(), password });
+      if (!(response?.status >= 200 && response.status < 300) || response?.data?.success === false) {
+        throw Object.assign(new Error('Login vendor gagal.'), { response });
+      }
+
+      const session = setVendorPortalSession(response.data, remember);
+      if (!session.token || !['expedition', 'distributor'].includes(session.vendorType)) {
+        clearVendorPortalSession();
+        throw new Error('Response login vendor tidak lengkap.');
+      }
+
+      recordVendorPortalActivity('SIGN_IN', `Vendor ${session.vendorType} masuk ke portal`);
+      navigate(`/vendor-portal/dashboard/${session.vendorType}`);
+    } catch (error) {
+      const data = error.response?.data;
+      const validationErrors = Object.values(data?.errors || {})
+        .flat()
+        .filter((errorMessage) => typeof errorMessage === 'string');
+      showAlert(validationErrors.join(' ') || data?.message || error.message || 'Login vendor gagal. Silakan coba lagi.', 'danger');
+    } finally {
+      setIsSigningIn(false);
+    }
   };
 
   return (
@@ -85,14 +113,32 @@ function LoginPage() {
           Email vendor
           <span className="vp-input">
             <i className="ti ti-mail" />
-            <input type="email" placeholder="nama@perusahaan.com" />
+            <input
+              type="email"
+              name="email"
+              value={email}
+              placeholder="nama@perusahaan.com"
+              autoComplete="email"
+              disabled={isSigningIn}
+              onChange={(event) => setEmail(event.target.value)}
+              required
+            />
           </span>
         </label>
         <label>
           Password
           <span className="vp-input">
             <i className="ti ti-lock" />
-            <input type={showPassword ? 'text' : 'password'} placeholder="Masukkan password" />
+            <input
+              type={showPassword ? 'text' : 'password'}
+              name="password"
+              value={password}
+              placeholder="Masukkan password"
+              autoComplete="current-password"
+              disabled={isSigningIn}
+              onChange={(event) => setPassword(event.target.value)}
+              required
+            />
             <button type="button" aria-label="Tampilkan password" onClick={() => setShowPassword((value) => !value)}>
               <i className={`ti ${showPassword ? 'ti-eye' : 'ti-eye-off'}`} />
             </button>
@@ -100,35 +146,17 @@ function LoginPage() {
         </label>
         <div className="vp-form-tools">
           <label className="vp-check">
-            <input type="checkbox" /> Ingat saya
+            <input type="checkbox" checked={remember} disabled={isSigningIn} onChange={(event) => setRemember(event.target.checked)} />{' '}
+            Ingat saya
           </label>
           <button type="button" className="vp-link" onClick={() => setMessage('Fitur reset password akan aktif setelah API tersedia.')}>
             Lupa password?
           </button>
         </div>
-        <fieldset className="vp-type-fieldset vp-login-type">
-          <legend>Preview dashboard sebagai</legend>
-          <div className="vp-type-grid">
-            <button type="button" className={vendorType === 'expedition' ? 'active' : ''} onClick={() => setVendorType('expedition')}>
-              <i className="ti ti-truck-delivery" />
-              <span>
-                <strong>Ekspedisi</strong>
-                <small>Dashboard rates</small>
-              </span>
-              <i className="ti ti-circle-check vp-selected" />
-            </button>
-            <button type="button" className={vendorType === 'distributor' ? 'active' : ''} onClick={() => setVendorType('distributor')}>
-              <i className="ti ti-building-warehouse" />
-              <span>
-                <strong>Distributor</strong>
-                <small>Dashboard distributor</small>
-              </span>
-              <i className="ti ti-circle-check vp-selected" />
-            </button>
-          </div>
-        </fieldset>
-        <button className="vp-primary" type="submit">
-          Sign in as vendor <i className="ti ti-arrow-right" />
+        <button className="vp-primary" type="submit" disabled={isSigningIn} aria-busy={isSigningIn}>
+          {isSigningIn ? <span className="spinner-border spinner-border-sm" aria-hidden="true" /> : null}
+          <span>{isSigningIn ? 'Signing in...' : 'Sign in as vendor'}</span>
+          {!isSigningIn ? <i className="ti ti-arrow-right" /> : null}
         </button>
       </form>
       <div className="vp-divider">
