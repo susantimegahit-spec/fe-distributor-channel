@@ -7,6 +7,7 @@ import store from '../redux/store';
 import { destroyAuthState } from '../redux/authReducer';
 import { notifyNetworkUnavailable } from '../utils/networkEvents';
 import { requestSapConnectionRetry, SAP_CONNECTION_ERROR_MESSAGE } from '../utils/sapConnectionEvents';
+import { clearVendorPortalSession, getVendorPortalSession } from '../utils/vendorPortal';
 
 const API_ENDPOINT = import.meta.env.VITE_APP_API_ENDPOINT_DEVELOPMENT;
 
@@ -180,7 +181,13 @@ client.interceptors.request.use((config) => {
   // For example tag along the bearer access token to request header or set a cookie
   const requestConfig = config;
   const { headers } = config;
-  requestConfig.headers = { ...headers, Authorization: `Bearer ${getCookies('accessToken')}` };
+  const requestUrl = String(config.url || '');
+  const isVendorPortalPage = window.location.pathname.includes('/vendor-portal');
+  const vendorToken = requestUrl.includes('vendor-portal/') || isVendorPortalPage ? getVendorPortalSession()?.token : '';
+  const accessToken = vendorToken || getCookies('accessToken');
+  requestConfig.headers = { ...headers };
+  if (accessToken) requestConfig.headers.Authorization = `Bearer ${accessToken}`;
+  else delete requestConfig.headers.Authorization;
 
   if (isFormData(config.data)) {
     delete requestConfig.headers['Content-Type'];
@@ -226,10 +233,19 @@ client.interceptors.response.use(
         return response;
       } else if (response.status === 401) {
         const requestUrl = String(originalRequest?.url || '');
-        const isLoginRequest = requestUrl.includes('/auth/login') || requestUrl.includes('vendor-portal/login');
+        const isMainLoginRequest = requestUrl.includes('/auth/login');
+        const isVendorLoginRequest = requestUrl.includes('vendor-portal/login');
+        const isVendorPortalRequest = requestUrl.includes('vendor-portal/');
         const hadActiveSession = Boolean(Cookies.get('isLoggedIn') || Cookies.get('accessToken'));
 
-        if (isLoginRequest && !hadActiveSession) {
+        if (isVendorLoginRequest || (isMainLoginRequest && !hadActiveSession)) {
+          return Promise.reject(error);
+        }
+
+        if (isVendorPortalRequest) {
+          clearVendorPortalSession();
+          const baseName = (import.meta.env.VITE_APP_BASE_NAME || '').replace(/\/$/, '');
+          window.top.location.replace(`${baseName}/vendor-portal`);
           return Promise.reject(error);
         }
 

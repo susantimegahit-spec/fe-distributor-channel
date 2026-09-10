@@ -5,6 +5,36 @@ class VendorServices {
     return DataService.post('vendor-portal/login', payload);
   }
 
+  getAccountDetail() {
+    return DataService.get('vendor-portal/me');
+  }
+
+  putAccountDetail(payload) {
+    return DataService.put('vendor-portal/me', payload);
+  }
+
+  postChangePassword(payload) {
+    return DataService.post('vendor-portal/change-password', payload);
+  }
+
+  postReuploadDocument(documentId, payload) {
+    const formData = new FormData();
+    formData.append('notes', payload.notes);
+    formData.append('file', payload.file);
+    return DataService.post(`vendor-portal/documents/${encodeURIComponent(documentId)}/reupload`, formData);
+  }
+
+  getRatesHeader(params = {}) {
+    return DataService.get('vendor-portal/rates/headers', params);
+  }
+
+  postVendorRates(payload) {
+    const formData = new FormData();
+    formData.append('periode', payload.periode);
+    formData.append('file', payload.file);
+    return DataService.post('vendor-portal/rates/upload', formData);
+  }
+
   getCheckEmail(email) {
     return DataService.get('vendor-portal/check-email', { email });
   }

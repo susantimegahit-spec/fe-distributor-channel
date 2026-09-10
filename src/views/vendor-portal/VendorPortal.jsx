@@ -7,6 +7,7 @@ import SmestaLogo from 'assets/images/smesta_text_tagline_transparent.png';
 import { clearVendorPortalSession, getVendorPortalSession, recordVendorPortalActivity, setVendorPortalSession } from 'utils/vendorPortal';
 import DistributorDashboard from './distributor/DistributorDashboard';
 import ExpeditionDashboard from './expedition/ExpeditionDashboard';
+import VendorAccount from './account/VendorAccount';
 import './vendor-portal.scss';
 
 const documentRequirements = [
@@ -462,6 +463,7 @@ export default function VendorPortal() {
   const session = getVendorPortalSession();
 
   if (page === 'register') return <RegisterPage />;
+  if (page === 'account') return session ? <VendorAccount /> : <Navigate to="/vendor-portal" replace />;
   if (vendorType) {
     if (!session) return <Navigate to="/vendor-portal" replace />;
     if (vendorType !== session.vendorType) return <Navigate to={`/vendor-portal/dashboard/${session.vendorType}`} replace />;
