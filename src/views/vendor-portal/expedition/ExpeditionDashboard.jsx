@@ -18,6 +18,26 @@ const getList = (response, keys = []) => {
 
 const firstValue = (item, keys) => keys.map((key) => item?.[key]).find((value) => String(value || '').trim()) || '';
 const uniqueValues = (values) => [...new Set(values.map((value) => String(value || '').trim()).filter(Boolean))];
+const formatWeight = (route) => {
+  const minimum = route?.min_weight_kg;
+  const maximum = route?.max_weight_kg;
+  const hasMinimum = minimum !== null && minimum !== undefined && String(minimum).trim() !== '';
+  const hasMaximum = maximum !== null && maximum !== undefined && String(maximum).trim() !== '';
+
+  if (!hasMinimum && !hasMaximum) return '-';
+  if (!hasMinimum) return maximum;
+  if (!hasMaximum || Number(minimum) === Number(maximum)) return minimum;
+  return `${minimum} - ${maximum}`;
+};
+const transportModeLabels = { D: 'Darat', L: 'Laut', U: 'Udara' };
+const formatTransportMode = (value) => transportModeLabels[String(value || '').toUpperCase()] || value || '-';
+const formatRate = (route) => {
+  const rate = route?.rate ?? route?.amount;
+  const serviceType = route?.service_type ?? route?.serviceType;
+  if (rate === null || rate === undefined || String(rate).trim() === '') return '-';
+  return serviceType ? `${rate}/${serviceType}` : rate;
+};
+const formatLeadTime = (value) => (value === null || value === undefined || String(value).trim() === '' ? '-' : `${value} days`);
 const getOriginRow = (item) => {
   const name = firstValue(item, ['whsNameOrigin', 'whs_name_origin', 'origin_name', 'warehouse_name', 'name']);
   return { name };
@@ -109,26 +129,8 @@ const ongoingShipments = [
   }
 ];
 
-const formatDateTime = (value) => {
-  if (!value) return '-';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? String(value)
-    : date.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-};
-
-const formatPeriod = (value) => {
-  if (!value) return '-';
-  const match = String(value).match(/^(\d{4})-(\d{2})/);
-  if (!match) return String(value);
-  return new Intl.DateTimeFormat('en', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
-    new Date(`${match[1]}-${match[2]}-01T00:00:00Z`)
-  );
-};
-
 export default function ExpeditionDashboard() {
   const { showAlert } = useAlert();
-  const [notice, setNotice] = useState('');
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showAddRates, setShowAddRates] = useState(false);
   const [ratePeriod, setRatePeriod] = useState('');
@@ -137,6 +139,9 @@ export default function ExpeditionDashboard() {
   const [downloadingTemplate, setDownloadingTemplate] = useState(false);
   const [rateHeaders, setRateHeaders] = useState([]);
   const [loadingRates, setLoadingRates] = useState(true);
+  const [showRateDetail, setShowRateDetail] = useState(false);
+  const [rateDetail, setRateDetail] = useState(null);
+  const [loadingRateDetail, setLoadingRateDetail] = useState(false);
 
   const fetchRateHeaders = useCallback(async () => {
     setLoadingRates(true);
@@ -158,10 +163,23 @@ export default function ExpeditionDashboard() {
     fetchRateHeaders();
   }, [fetchRateHeaders]);
 
-  const handleAction = (rate) => {
-    const detail = firstValue(rate, ['id', 'uuid', 'header_id', 'period', 'file_name']) || 'selected rate';
-    setNotice(`The action for ${detail} is ready for API integration.`);
-    recordVendorPortalActivity('EXPEDITION_RATE_ACTION', detail);
+  const openRateDetail = async (batchId) => {
+    if (!batchId || loadingRateDetail) return;
+    setShowRateDetail(true);
+    setRateDetail(null);
+    setLoadingRateDetail(true);
+    try {
+      const response = await VendorServices.getDetailBatch(batchId);
+      if (!(response?.status >= 200 && response.status < 300) || response?.data?.success === false) {
+        throw Object.assign(new Error('Unable to load rate details.'), { response });
+      }
+      setRateDetail(response?.data?.data ?? response?.data ?? null);
+    } catch (error) {
+      setShowRateDetail(false);
+      showAlert(error.response?.data?.message || error.message || 'Unable to load rate details.', 'danger');
+    } finally {
+      setLoadingRateDetail(false);
+    }
   };
 
   const openAddRates = () => {
@@ -268,8 +286,8 @@ export default function ExpeditionDashboard() {
       return;
     }
 
-    const periodLabel = new Intl.DateTimeFormat('en', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
-      new Date(`${ratePeriod}-01T00:00:00Z`)
+    const periodLabel = new Intl.DateTimeFormat('en', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(
+      new Date(`${ratePeriod}T00:00:00Z`)
     );
     setUploadingRates(true);
     try {
@@ -384,28 +402,19 @@ export default function ExpeditionDashboard() {
               </button>
             </div>
           </div>
-          {notice ? (
-            <div className="vp-rate-notice">
-              <i className="ti ti-info-circle" /> {notice}
-            </div>
-          ) : null}
           <div className="vp-table-wrap">
             <table>
               <thead>
                 <tr>
                   <th>Period</th>
-                  <th>File Name</th>
-                  <th>Total Rates</th>
+                  <th>Total Routes</th>
                   <th>Status</th>
-                  <th>Notes</th>
-                  <th>Uploaded At</th>
-                  <th className="vp-text-end">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {loadingRates ? (
                   <tr>
-                    <td colSpan={7}>
+                    <td colSpan={3}>
                       <div className="vp-rates-state">
                         <span className="spinner-border" aria-hidden="true" />
                         <p>Loading rates...</p>
@@ -414,36 +423,29 @@ export default function ExpeditionDashboard() {
                   </tr>
                 ) : rateHeaders.length ? (
                   rateHeaders.map((rate, index) => {
-                    const id = firstValue(rate, ['id', 'uuid', 'header_id', 'headerId']) || index;
-                    const period = firstValue(rate, ['period', 'rate_period', 'ratePeriod', 'month']);
-                    const fileName = firstValue(rate, ['file_name', 'fileName', 'original_name', 'originalName', 'filename']) || '-';
-                    const totalRates =
-                      firstValue(rate, ['total_rates', 'totalRates', 'details_count', 'detailsCount', 'total', 'count']) || '0';
-                    const status = firstValue(rate, ['status', 'upload_status', 'uploadStatus']) || 'Pending';
-                    const notes = firstValue(rate, ['notes', 'remarks', 'message']) || '-';
-                    const uploadedAt = firstValue(rate, ['uploaded_at', 'uploadedAt', 'created_at', 'createdAt']);
+                    const batchId = firstValue(rate, ['batch_id', 'batchId', 'id', 'uuid', 'header_id', 'headerId']);
+                    const id = batchId || index;
+                    const periodLabel = rate?.period_label || '-';
+                    const totalRoutes = rate?.total_routes ?? 0;
+                    const status = rate?.status || '-';
 
                     return (
                       <tr key={id}>
-                        <td className="fw-semibold">{formatPeriod(period)}</td>
-                        <td>{fileName}</td>
-                        <td>{totalRates}</td>
+                        <td className="fw-semibold">
+                          <button type="button" className="vp-period-link" onClick={() => openRateDetail(batchId)} disabled={!batchId}>
+                            {periodLabel}
+                          </button>
+                        </td>
+                        <td>{totalRoutes}</td>
                         <td>
                           <span className="vp-service-badge">{status}</span>
-                        </td>
-                        <td>{notes}</td>
-                        <td>{formatDateTime(uploadedAt)}</td>
-                        <td className="vp-text-end">
-                          <button type="button" className="vp-rate-action" onClick={() => handleAction(rate)}>
-                            <i className="ti ti-dots-vertical" /> Actions <i className="ti ti-chevron-down" />
-                          </button>
                         </td>
                       </tr>
                     );
                   })
                 ) : (
                   <tr>
-                    <td colSpan={7}>
+                    <td colSpan={3}>
                       <div className="vp-rates-state">
                         <i className="ti ti-file-off" />
                         <p>No rates have been uploaded.</p>
@@ -482,7 +484,7 @@ export default function ExpeditionDashboard() {
               <Form.Group controlId="rate-period">
                 <Form.Label>Rate period</Form.Label>
                 <Form.Control
-                  type="month"
+                  type="date"
                   value={ratePeriod}
                   onChange={(event) => setRatePeriod(event.target.value)}
                   disabled={uploadingRates}
@@ -512,6 +514,67 @@ export default function ExpeditionDashboard() {
             </Button>
           </Modal.Footer>
         </Form>
+      </Modal>
+      <Modal
+        show={showRateDetail}
+        onHide={() => !loadingRateDetail && setShowRateDetail(false)}
+        centered
+        size="xl"
+        className="vp-rate-detail-modal"
+      >
+        <Modal.Header closeButton={!loadingRateDetail}>
+          <Modal.Title>Rate Details</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {loadingRateDetail ? (
+            <div className="vp-rates-state">
+              <span className="spinner-border" aria-hidden="true" />
+              <p>Loading rate details...</p>
+            </div>
+          ) : (
+            <div className="vp-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Origin</th>
+                    <th>Destination</th>
+                    <th>City</th>
+                    <th>Transport Mode</th>
+                    <th>Weight (Kg)</th>
+                    <th>Service Type</th>
+                    <th>Rate</th>
+                    <th>Lead Time</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {getList({ data: rateDetail }, ['details', 'routes', 'rates']).length ? (
+                    getList({ data: rateDetail }, ['details', 'routes', 'rates']).map((route, index) => (
+                      <tr key={firstValue(route, ['id', 'uuid', 'route_id', 'routeId']) || index}>
+                        <td>{firstValue(route, ['origin_name', 'originName', 'origin']) || '-'}</td>
+                        <td>{firstValue(route, ['destination_name', 'destinationName', 'destination']) || '-'}</td>
+                        <td>{route?.destination_city || '-'}</td>
+                        <td>{formatTransportMode(route?.transport_mode ?? route?.transportMode)}</td>
+                        <td>{formatWeight(route)}</td>
+                        <td>{firstValue(route, ['service_type', 'serviceType']) || '-'}</td>
+                        <td>{formatRate(route)}</td>
+                        <td>{formatLeadTime(route?.leadtime)}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={8}>
+                        <div className="vp-rates-state">
+                          <i className="ti ti-file-off" />
+                          <p>No route details are available.</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Modal.Body>
       </Modal>
     </VendorDashboardLayout>
   );

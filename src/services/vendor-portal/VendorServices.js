@@ -28,6 +28,10 @@ class VendorServices {
     return DataService.get('vendor-portal/rates/headers', params);
   }
 
+  getDetailBatch(batchId) {
+    return DataService.get(`vendor-portal/rates/headers/${encodeURIComponent(batchId)}`);
+  }
+
   postVendorRates(payload) {
     const formData = new FormData();
     formData.append('periode', payload.periode);

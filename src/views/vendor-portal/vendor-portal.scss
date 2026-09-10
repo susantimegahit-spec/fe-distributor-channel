@@ -1291,6 +1291,29 @@
   font-size: 11px;
   font-weight: 800;
 }
+.vp-period-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #16778a;
+  font: inherit;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.vp-period-link:disabled {
+  color: #40516a;
+  cursor: default;
+  text-decoration: none;
+}
+.vp-rate-detail-modal .modal-title {
+  color: #233750;
+  font-size: 20px;
+  font-weight: 800;
+}
+.vp-rate-detail-modal .modal-body {
+  padding: 24px;
+}
 .vp-rate-notice {
   padding: 10px 16px;
   border-bottom: 1px solid #dcebf0;
