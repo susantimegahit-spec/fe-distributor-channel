@@ -809,15 +809,36 @@ export default function ReceiptProduction() {
           const headerItems = Array.isArray(header) ? header : [header];
           const detailItems = payload?.items ?? payload?.Items ?? payload?.details ?? payload?.order_details ?? [];
           const firstDetail = Array.isArray(detailItems) ? detailItems[0] : {};
+          const negativeItemOrders = (Array.isArray(detailItems) ? detailItems : []).flatMap((item, index) => {
+            const plannedQuantity = getPlannedQuantity(item);
+            if (plannedQuantity >= 0 || !Number.isFinite(plannedQuantity)) return [];
+
+            const normalizedItem = normalizeProductionOrder(item);
+            return [
+              {
+                ...normalizeProductionOrder({ ...order.raw, ...headerItems[0], ...item }),
+                id: order.id,
+                number: order.number,
+                itemCode: normalizedItem.itemCode,
+                itemName: normalizedItem.itemName,
+                plannedQuantity: Math.abs(plannedQuantity),
+                completedQuantity: Math.abs(getCompletedQuantity(item)),
+                baseLine: item.BaseLine ?? item.base_line ?? item.LineNum ?? item.line_num ?? index
+              }
+            ];
+          });
 
           return {
             header: headerItems[0] || {},
             firstDetail: firstDetail || {},
             raw: order.raw || {},
-            orders: headerItems.filter(Boolean).map((headerItem, index) => ({
-              ...normalizeProductionOrder({ ...order.raw, ...firstDetail, ...headerItem }),
-              baseLine: headerItem.BaseLine ?? headerItem.base_line ?? headerItem.LineNum ?? headerItem.line_num ?? index
-            }))
+            orders: [
+              ...headerItems.filter(Boolean).map((headerItem, index) => ({
+                ...normalizeProductionOrder({ ...order.raw, ...firstDetail, ...headerItem }),
+                baseLine: headerItem.BaseLine ?? headerItem.base_line ?? headerItem.LineNum ?? headerItem.line_num ?? index
+              })),
+              ...negativeItemOrders
+            ]
           };
         })
       );

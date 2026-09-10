@@ -197,13 +197,19 @@ export const canUseAction = ({ action, system, menuItem, menuKey, pathname = '',
 
   const candidates = getMenuCandidates(system, menuItem, pathname);
   const entries = normalizeEntries(actionsCookie ?? getCookies('actions'));
-  const exactMenuKeys = [menuKey, menuItem?.menu_key, menuItem?.menuKey]
+  const suppliedMenuKeys = (Array.isArray(menuKey) ? menuKey : String(menuKey ?? '').split(','))
+    .map((value) => String(value).trim())
+    .filter(Boolean);
+  const resolvedMenuKeys = suppliedMenuKeys.flatMap((value) => [value, system?.key ? getMenuNumber(system.key, value) : null]);
+  const exactMenuKeys = [...resolvedMenuKeys, menuItem?.menu_key, menuItem?.menuKey]
     .filter((value) => value !== undefined && value !== null && value !== '')
     .map(normalizeKey);
-  const matchedEntry =
-    entries.find((entry) => exactMenuKeys.includes(normalizeKey(getEntryKey(entry)))) ||
-    entries.find((entry) => candidates.has(normalizeKey(getEntryKey(entry))));
+  const exactEntries = entries.filter((entry) => exactMenuKeys.includes(normalizeKey(getEntryKey(entry))));
+  if (exactEntries.length) {
+    return exactEntries.some((entry) => getActionValue(getEntryActions(entry), normalizedAction));
+  }
 
+  const matchedEntry = entries.find((entry) => candidates.has(normalizeKey(getEntryKey(entry))));
   return matchedEntry ? getActionValue(getEntryActions(matchedEntry), normalizedAction) : false;
 };
 

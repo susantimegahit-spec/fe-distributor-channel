@@ -379,7 +379,10 @@
       "route": "/vendor-management/dashboard",
       "source": "src/views/vendor-management/VendorManagementDashboard.jsx",
       "actions": ["view", "approve"],
-      "buttons": { "view": ["View Vendor Registration"], "approve": ["Approve", "Reject"] }
+      "buttons": {
+        "view": ["View Vendor Registration"],
+        "approve": ["Approve Vendor", "Reject Vendor", "Verify Document", "Revision Document", "Reject Document"]
+      }
     },
     {
       "menu_key": 58,
@@ -388,7 +391,10 @@
       "route": "/vendor-management/vendor",
       "source": "src/views/vendor-management/VendorRegistrations.jsx",
       "actions": ["view", "approve"],
-      "buttons": { "view": ["View Vendor"], "approve": ["Approve", "Reject"] }
+      "buttons": {
+        "view": ["View Vendor"],
+        "approve": ["Approve Vendor", "Reject Vendor", "Verify Document", "Revision Document", "Reject Document"]
+      }
     }
   ]
 }

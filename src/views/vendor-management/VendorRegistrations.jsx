@@ -14,6 +14,7 @@ import VendorManagementServices from 'services/vendor-management/VendorManagemen
 import { useAlert } from 'utils/alertContext';
 
 const pageSize = 10;
+const vendorActionMenuKeys = 'vendor-management-dashboard,vendor-list';
 const documentLabels = {
   akta: 'Deed of Incorporation (Akta Perusahaan)',
   nib: 'Business Identification Number (NIB)',
@@ -62,8 +63,21 @@ const statusVariant = (status) => {
   if (['needs_revision', 'revision', 'revised'].includes(normalized)) return 'warning';
   if (['pending_legal_approval', 'legal_review', 'in_review', 'under_review', 'review'].includes(normalized)) return 'info';
   if (['submitted', 'registered'].includes(normalized)) return 'primary';
-  if (['pending', 'waiting'].includes(normalized)) return 'warning';
+  if (['pending', 'waiting'].includes(normalized)) return 'secondary';
   if (['inactive', 'cancelled', 'canceled'].includes(normalized)) return 'secondary';
+  return 'secondary';
+};
+
+const vendorTypeVariant = (type) => {
+  const normalized = String(type || '')
+    .trim()
+    .toLowerCase()
+    .replaceAll('_', '-');
+
+  if (['expedition', 'logistics'].includes(normalized)) return 'warning';
+  if (normalized === 'distributor') return 'info';
+  if (normalized === 'supplier') return 'success';
+  if (['service', 'services'].includes(normalized)) return 'primary';
   return 'secondary';
 };
 
@@ -265,12 +279,12 @@ export default function VendorRegistrations({
     }
   };
 
-  const openDocumentRevision = (document) => {
+  const openDocumentRevision = (document, status = 'NEEDS_REVISION') => {
     const documentId = getDocumentId(document);
     if (!documentId) return;
     setDocumentActionMenu(null);
     setRevisionReason('');
-    setRevisionDocument({ id: documentId, label: getDocumentLabel(document) });
+    setRevisionDocument({ id: documentId, label: getDocumentLabel(document), status });
   };
 
   const closeDocumentRevision = () => {
@@ -307,7 +321,7 @@ export default function VendorRegistrations({
   const submitDocumentRevision = async (event) => {
     event.preventDefault();
     if (!revisionDocument || !revisionReason.trim() || submittingDocumentAction) return;
-    const updated = await updateDocumentStatus(revisionDocument.id, 'NEEDS_REVISION', revisionReason.trim());
+    const updated = await updateDocumentStatus(revisionDocument.id, revisionDocument.status, revisionReason.trim());
     if (updated) {
       setRevisionDocument(null);
     }
@@ -389,7 +403,17 @@ export default function VendorRegistrations({
                         <small className="text-muted">{getValue(vendor, ['company_email', 'email'])}</small>
                       </Button>
                     </td>
-                    <td className="text-capitalize">{getValue(vendor, ['vendor_type', 'type'])}</td>
+                    <td>
+                      {(() => {
+                        const vendorType = getValue(vendor, ['vendor_type', 'type']);
+                        const variant = vendorTypeVariant(vendorType);
+                        return (
+                          <Badge bg={`light-${variant}`} text={variant} className="text-capitalize">
+                            {formatStatus(vendorType)}
+                          </Badge>
+                        );
+                      })()}
+                    </td>
                     <td>
                       <span className="d-block">{getValue(vendor, ['pic_name', 'contact_name'])}</span>
                       <small className="text-muted">{getValue(vendor, ['pic_phone', 'phone'])}</small>
@@ -464,7 +488,15 @@ export default function VendorRegistrations({
               </div>
               <div className="col-md-6">
                 <small className="text-muted d-block">Vendor type</small>
-                <span className="text-capitalize">{getValue(vendorDetail, ['vendor_type', 'type'])}</span>
+                {(() => {
+                  const vendorType = getValue(vendorDetail, ['vendor_type', 'type']);
+                  const variant = vendorTypeVariant(vendorType);
+                  return (
+                    <Badge bg={`light-${variant}`} text={variant} className="text-capitalize mt-1">
+                      {formatStatus(vendorType)}
+                    </Badge>
+                  );
+                })()}
               </div>
               <div className="col-md-6">
                 <small className="text-muted d-block">Company NPWP</small>
@@ -550,10 +582,20 @@ export default function VendorRegistrations({
           <Button variant="light-secondary" data-permission-action="none" onClick={closeVendorDetail} disabled={detailLoading}>
             Close
           </Button>
-          <Button variant="outline-danger" data-permission-action="approve" onClick={() => openRegistrationAction('reject')}>
+          <Button
+            variant="outline-danger"
+            data-permission-action="approve"
+            data-permission-menu-key={vendorActionMenuKeys}
+            onClick={() => openRegistrationAction('reject')}
+          >
             <i className="ti ti-x me-1" aria-hidden="true" /> Reject
           </Button>
-          <Button variant="success" data-permission-action="approve" onClick={() => openRegistrationAction('approve')}>
+          <Button
+            variant="success"
+            data-permission-action="approve"
+            data-permission-menu-key={vendorActionMenuKeys}
+            onClick={() => openRegistrationAction('approve')}
+          >
             <i className="ti ti-check me-1" aria-hidden="true" /> Approve
           </Button>
         </Modal.Footer>
@@ -592,6 +634,7 @@ export default function VendorRegistrations({
                   type="button"
                   className="dropdown-item"
                   data-permission-action="approve"
+                  data-permission-menu-key={vendorActionMenuKeys}
                   disabled={!documentId || Boolean(submittingDocumentAction)}
                   onClick={() => updateDocumentStatus(documentId, 'VALID')}
                 >
@@ -601,8 +644,9 @@ export default function VendorRegistrations({
                   type="button"
                   className="dropdown-item"
                   data-permission-action="approve"
+                  data-permission-menu-key={vendorActionMenuKeys}
                   disabled={!documentId || Boolean(submittingDocumentAction)}
-                  onClick={() => openDocumentRevision(selectedDocument)}
+                  onClick={() => openDocumentRevision(selectedDocument, 'NEEDS_REVISION')}
                 >
                   <i className="ti ti-edit text-warning me-2" aria-hidden="true" /> Revision
                 </button>
@@ -610,8 +654,9 @@ export default function VendorRegistrations({
                   type="button"
                   className="dropdown-item"
                   data-permission-action="approve"
+                  data-permission-menu-key={vendorActionMenuKeys}
                   disabled={!documentId || Boolean(submittingDocumentAction)}
-                  onClick={() => updateDocumentStatus(documentId, 'INVALID')}
+                  onClick={() => openDocumentRevision(selectedDocument, 'INVALID')}
                 >
                   <i className="ti ti-circle-x text-danger me-2" aria-hidden="true" /> Reject
                 </button>
@@ -624,19 +669,25 @@ export default function VendorRegistrations({
       <Modal show={Boolean(revisionDocument)} onHide={closeDocumentRevision} centered>
         <Form onSubmit={submitDocumentRevision}>
           <Modal.Header closeButton={!submittingDocumentAction}>
-            <Modal.Title>Request document revision</Modal.Title>
+            <Modal.Title>{revisionDocument?.status === 'INVALID' ? 'Reject document' : 'Request document revision'}</Modal.Title>
           </Modal.Header>
           <Modal.Body>
-            <p className="text-muted mb-3">Provide the revision reason for {revisionDocument?.label}.</p>
+            <p className="text-muted mb-3">
+              Provide the {revisionDocument?.status === 'INVALID' ? 'rejection' : 'revision'} reason for {revisionDocument?.label}.
+            </p>
             <Form.Group>
-              <Form.Label>Revision reason</Form.Label>
+              <Form.Label>{revisionDocument?.status === 'INVALID' ? 'Rejection reason' : 'Revision reason'}</Form.Label>
               <Form.Control
                 as="textarea"
                 rows={5}
                 value={revisionReason}
                 onChange={(event) => setRevisionReason(event.target.value)}
                 disabled={Boolean(submittingDocumentAction)}
-                placeholder="Enter the required document revision"
+                placeholder={
+                  revisionDocument?.status === 'INVALID'
+                    ? 'Enter the reason for rejecting this document'
+                    : 'Enter the required document revision'
+                }
                 autoFocus
                 required
               />
@@ -653,12 +704,13 @@ export default function VendorRegistrations({
             </Button>
             <Button
               type="submit"
-              variant="warning"
+              variant={revisionDocument?.status === 'INVALID' ? 'danger' : 'warning'}
               data-permission-action="approve"
+              data-permission-menu-key={vendorActionMenuKeys}
               disabled={Boolean(submittingDocumentAction) || !revisionReason.trim()}
             >
               {submittingDocumentAction ? <Spinner size="sm" className="me-2" aria-hidden="true" /> : null}
-              Submit revision
+              {revisionDocument?.status === 'INVALID' ? 'Reject document' : 'Submit revision'}
             </Button>
           </Modal.Footer>
         </Form>
@@ -737,6 +789,7 @@ export default function VendorRegistrations({
               type="submit"
               variant={registrationAction?.type === 'approve' ? 'success' : 'danger'}
               data-permission-action="approve"
+              data-permission-menu-key={vendorActionMenuKeys}
               disabled={submittingRegistrationAction || (registrationAction?.type === 'reject' && !rejectionReason.trim())}
             >
               {submittingRegistrationAction ? <Spinner size="sm" className="me-2" aria-hidden="true" /> : null}
