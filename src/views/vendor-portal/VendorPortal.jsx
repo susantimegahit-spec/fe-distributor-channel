@@ -74,23 +74,23 @@ function LoginPage() {
     try {
       const response = await VendorServices.postLoginVendor({ email: email.trim(), password });
       if (!(response?.status >= 200 && response.status < 300) || response?.data?.success === false) {
-        throw Object.assign(new Error('Login vendor gagal.'), { response });
+        throw Object.assign(new Error('Vendor login failed.'), { response });
       }
 
       const session = setVendorPortalSession(response.data, remember);
       if (!session.token || !['expedition', 'distributor'].includes(session.vendorType)) {
         clearVendorPortalSession();
-        throw new Error('Response login vendor tidak lengkap.');
+        throw new Error('The vendor login response is incomplete.');
       }
 
-      recordVendorPortalActivity('SIGN_IN', `Vendor ${session.vendorType} masuk ke portal`);
+      recordVendorPortalActivity('SIGN_IN', `${session.vendorType} vendor signed in to the portal`);
       navigate(`/vendor-portal/dashboard/${session.vendorType}`);
     } catch (error) {
       const data = error.response?.data;
       const validationErrors = Object.values(data?.errors || {})
         .flat()
         .filter((errorMessage) => typeof errorMessage === 'string');
-      showAlert(validationErrors.join(' ') || data?.message || error.message || 'Login vendor gagal. Silakan coba lagi.', 'danger');
+      showAlert(validationErrors.join(' ') || data?.message || error.message || 'Vendor login failed. Please try again.', 'danger');
     } finally {
       setIsSigningIn(false);
     }
@@ -101,7 +101,7 @@ function LoginPage() {
       <div className="vp-form-heading">
         <span className="vp-kicker">Welcome back</span>
         <h2>Sign in as vendor</h2>
-        <p>Masuk menggunakan akun vendor yang telah terdaftar.</p>
+        <p>Sign in using your registered vendor account.</p>
       </div>
       {message ? (
         <div className="vp-notice">
@@ -110,14 +110,14 @@ function LoginPage() {
       ) : null}
       <form className="vp-form" onSubmit={signIn}>
         <label>
-          Email vendor
+          Vendor email
           <span className="vp-input">
             <i className="ti ti-mail" />
             <input
               type="email"
               name="email"
               value={email}
-              placeholder="nama@perusahaan.com"
+              placeholder="name@company.com"
               autoComplete="email"
               disabled={isSigningIn}
               onChange={(event) => setEmail(event.target.value)}
@@ -133,13 +133,13 @@ function LoginPage() {
               type={showPassword ? 'text' : 'password'}
               name="password"
               value={password}
-              placeholder="Masukkan password"
+              placeholder="Enter your password"
               autoComplete="current-password"
               disabled={isSigningIn}
               onChange={(event) => setPassword(event.target.value)}
               required
             />
-            <button type="button" aria-label="Tampilkan password" onClick={() => setShowPassword((value) => !value)}>
+            <button type="button" aria-label="Show password" onClick={() => setShowPassword((value) => !value)}>
               <i className={`ti ${showPassword ? 'ti-eye' : 'ti-eye-off'}`} />
             </button>
           </span>
@@ -147,10 +147,10 @@ function LoginPage() {
         <div className="vp-form-tools">
           <label className="vp-check">
             <input type="checkbox" checked={remember} disabled={isSigningIn} onChange={(event) => setRemember(event.target.checked)} />{' '}
-            Ingat saya
+            Remember me
           </label>
-          <button type="button" className="vp-link" onClick={() => setMessage('Fitur reset password akan aktif setelah API tersedia.')}>
-            Lupa password?
+          <button type="button" className="vp-link" onClick={() => setMessage('Password reset will be available once the API is ready.')}>
+            Forgot password?
           </button>
         </div>
         <button className="vp-primary" type="submit" disabled={isSigningIn} aria-busy={isSigningIn}>
@@ -160,10 +160,10 @@ function LoginPage() {
         </button>
       </form>
       <div className="vp-divider">
-        <span>Belum menjadi vendor?</span>
+        <span>Not a vendor yet?</span>
       </div>
       <button className="vp-secondary" type="button" onClick={() => navigate('/vendor-portal/register')}>
-        Registrasi sebagai vendor
+        Register as a vendor
       </button>
     </AuthShell>
   );
