@@ -65,6 +65,14 @@ body {
   z-index: 1065;
 }
 
+.modal-backdrop.sap-connection-retry-backdrop {
+  z-index: 1100;
+}
+
+.modal.sap-connection-retry-modal {
+  z-index: 1105;
+}
+
 .modal-content {
   --bs-modal-border-radius: 14px;
   --bs-modal-inner-border-radius: 13px;

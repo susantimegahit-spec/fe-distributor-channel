@@ -17,7 +17,7 @@ class VendorManagementServices {
     return DataService.post(`vendor-management/documents/${encodeURIComponent(documentId)}/verify`, payload);
   }
 
-  postApproveVendor(id, payload) {
+  postApproveVendor(id, payload = {}) {
     return DataService.post(`vendor-management/registrations/${encodeURIComponent(id)}/approve`, payload);
   }
 

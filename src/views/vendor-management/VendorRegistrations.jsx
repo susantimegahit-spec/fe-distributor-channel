@@ -142,7 +142,6 @@ export default function VendorRegistrations({
   const [revisionReason, setRevisionReason] = useState('');
   const [submittingDocumentAction, setSubmittingDocumentAction] = useState(null);
   const [registrationAction, setRegistrationAction] = useState(null);
-  const [approveForm, setApproveForm] = useState({ legal_notes: '', sap_vendor_code: '', initial_password: '' });
   const [rejectionReason, setRejectionReason] = useState('');
   const [submittingRegistrationAction, setSubmittingRegistrationAction] = useState(false);
 
@@ -207,7 +206,6 @@ export default function VendorRegistrations({
   const openRegistrationAction = (type) => {
     const id = vendorDetail?.id ?? vendorDetail?.uuid ?? vendorDetail?.vendor_id;
     if (id === undefined || id === null || id === '') return;
-    setApproveForm({ legal_notes: '', sap_vendor_code: '', initial_password: '' });
     setRejectionReason('');
     setRegistrationAction({ type, id, company: getValue(vendorDetail, ['company_name', 'name']) });
     if (type !== 'reject') closeVendorDetail();
@@ -225,7 +223,7 @@ export default function VendorRegistrations({
     try {
       const response =
         registrationAction.type === 'approve'
-          ? await VendorManagementServices.postApproveVendor(registrationAction.id, approveForm)
+          ? await VendorManagementServices.postApproveVendor(registrationAction.id)
           : await VendorManagementServices.postRejectVendor(registrationAction.id, { rejection_reason: rejectionReason.trim() });
       if (!(response?.status >= 200 && response.status < 300) || response?.data?.success === false) {
         throw Object.assign(new Error(`Unable to ${registrationAction.type} vendor.`), { response });
@@ -724,42 +722,13 @@ export default function VendorRegistrations({
           <Modal.Body>
             <p className="text-muted mb-3">
               {registrationAction?.type === 'approve'
-                ? `Complete the approval information for ${registrationAction?.company}.`
+                ? `Are you sure you want to approve ${registrationAction?.company}?`
                 : `Provide the rejection reason for ${registrationAction?.company}.`}
             </p>
             {registrationAction?.type === 'approve' ? (
-              <div className="d-grid gap-3">
-                <Form.Group>
-                  <Form.Label>SAP vendor code</Form.Label>
-                  <Form.Control
-                    value={approveForm.sap_vendor_code}
-                    onChange={(event) => setApproveForm((current) => ({ ...current, sap_vendor_code: event.target.value }))}
-                    disabled={submittingRegistrationAction}
-                    placeholder="Enter SAP vendor code"
-                  />
-                </Form.Group>
-                <Form.Group>
-                  <Form.Label>Initial password</Form.Label>
-                  <Form.Control
-                    type="password"
-                    autoComplete="new-password"
-                    value={approveForm.initial_password}
-                    onChange={(event) => setApproveForm((current) => ({ ...current, initial_password: event.target.value }))}
-                    disabled={submittingRegistrationAction}
-                    placeholder="Enter initial password"
-                  />
-                </Form.Group>
-                <Form.Group>
-                  <Form.Label>Legal notes</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={4}
-                    value={approveForm.legal_notes}
-                    onChange={(event) => setApproveForm((current) => ({ ...current, legal_notes: event.target.value }))}
-                    disabled={submittingRegistrationAction}
-                    placeholder="Enter legal notes"
-                  />
-                </Form.Group>
+              <div className="alert alert-warning mb-0 d-flex align-items-start gap-2" role="alert">
+                <i className="ti ti-alert-triangle mt-1" aria-hidden="true" />
+                <span>This action will approve the vendor registration.</span>
               </div>
             ) : (
               <Form.Group>

@@ -47,6 +47,9 @@ const isSapConnectionError = (error) => {
     'curl error 28',
     'sap connection failed',
     'sap connection error',
+    'sap connection issue',
+    'connection issue to sap',
+    'connection issue ke sap',
     'connection to sap failed',
     'connection failed from sap',
     'failed to connect to sap',
@@ -61,6 +64,7 @@ const isSapConnectionError = (error) => {
   const hasGenericConnectionFailure = [
     'connection failed',
     'connection error',
+    'connection issue',
     'connection timed out',
     'connect timeout',
     'koneksi gagal'
@@ -94,10 +98,6 @@ const retrySapConnectionRequest = (error, originalRequest) => {
         }
       },
       cancel: () => {
-        if (sapConnectionError.response) {
-          resolve(sapConnectionError.response);
-          return;
-        }
         reject(sapConnectionError);
       }
     });

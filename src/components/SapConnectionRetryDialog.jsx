@@ -27,7 +27,14 @@ export default function SapConnectionRetryDialog() {
   };
 
   return (
-    <Modal show={Boolean(request)} onHide={handleCancel} centered backdrop="static">
+    <Modal
+      show={Boolean(request)}
+      onHide={handleCancel}
+      centered
+      backdrop="static"
+      className="sap-connection-retry-modal"
+      backdropClassName="sap-connection-retry-backdrop"
+    >
       <Modal.Body className="p-4 text-center">
         <div className="avtar avtar-xl bg-light-danger text-danger mx-auto mb-3">
           <i className="ti ti-plug-connected-x f-28" />
