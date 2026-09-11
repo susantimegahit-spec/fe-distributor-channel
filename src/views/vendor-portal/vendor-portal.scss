@@ -1745,3 +1745,53 @@
   font-size: 12px;
   overflow-wrap: anywhere;
 }
+
+.vp-region-field {
+  display: grid;
+  gap: 7px;
+  align-content: start;
+  min-width: 0;
+
+  > label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: #34445e;
+  }
+  select {
+    min-height: 47px;
+    border-radius: 11px;
+    font-size: 12px;
+  }
+  small {
+    color: #a52828;
+  }
+}
+
+.vp-region-field {
+  .vp-region-select__control {
+    min-height: 47px;
+    border-color: #dbe3ee;
+    border-radius: 11px;
+    font-size: 12px;
+  }
+
+  .vp-region-select__control--is-focused {
+    border-color: #1594aa;
+    box-shadow: 0 0 0 1px #1594aa;
+  }
+
+  .vp-region-select__input-container input {
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .vp-region-select__menu {
+    z-index: 1060;
+    font-size: 12px;
+  }
+}

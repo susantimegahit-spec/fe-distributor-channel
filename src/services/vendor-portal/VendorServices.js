@@ -2,6 +2,10 @@ import { getVendorDocuments } from '../../config/vendorDocuments';
 import { DataService } from '../../config/dataService';
 
 class VendorServices {
+  getRegions(resource, params = {}) {
+    return DataService.get(`ekspedisi/wilayah/${resource}`, params);
+  }
+
   postLoginVendor(payload) {
     return DataService.post('vendor-portal/login', payload);
   }
@@ -51,9 +55,12 @@ class VendorServices {
   postRegisterVendor(payload, onUploadProgress) {
     const formData = new FormData();
 
-    ['vendor_type', 'company_name', 'company_email', 'company_npwp', 'address', 'pic_name', 'pic_phone'].forEach((key) => {
+    ['vendor_type', 'company_name', 'company_email', 'company_npwp', 'address', 'pic_name', 'pic_phone', 'postal_code'].forEach((key) => {
       formData.append(key, payload[key]);
     });
+    Object.entries({ province: 'province_id', city: 'regency_id', district: 'district_id', village: 'village_id' }).forEach(
+      ([field, source]) => formData.append(field, payload[source])
+    );
     // Multipart fields are strings; encode the boolean as 1/0 for the API.
     formData.append('terms_agreed', payload.terms_agreed ? '1' : '0');
     getVendorDocuments(payload.vendor_type)

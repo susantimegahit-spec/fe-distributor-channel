@@ -10,6 +10,7 @@ import { clearVendorPortalSession, getVendorPortalSession, recordVendorPortalAct
 import DistributorDashboard from './distributor/DistributorDashboard';
 import ExpeditionDashboard from './expedition/ExpeditionDashboard';
 import VendorAccount from './account/VendorAccount';
+import RegionSelect from './shared/RegionSelect';
 import './vendor-portal.scss';
 
 function PortalBrand() {
@@ -194,6 +195,20 @@ function RegisterPage() {
   const navigate = useNavigate();
   const { showAlert } = useAlert();
   const vendorType = 'expedition';
+  const [region, setRegion] = useState({ province_id: '', regency_id: '', district_id: '', village_id: '' });
+  const [regionLabels, setRegionLabels] = useState({});
+  const [streetAddress, setStreetAddress] = useState('');
+  const [postalCode, setPostalCode] = useState('');
+  const fullAddress = [
+    streetAddress.trim(),
+    regionLabels.province_id,
+    regionLabels.regency_id,
+    regionLabels.district_id,
+    regionLabels.village_id,
+    postalCode.trim()
+  ]
+    .filter(Boolean)
+    .join(', ');
   const [activeTab, setActiveTab] = useState('profile');
   const [validationMessage, setValidationMessage] = useState('');
   const [downloadingTemplate, setDownloadingTemplate] = useState(null);
@@ -315,6 +330,11 @@ function RegisterPage() {
       requestAnimationFrame(() => invalidInput.reportValidity());
       return false;
     }
+    if (Object.values(region).some((value) => !value)) {
+      setActiveTab('profile');
+      setValidationMessage('Please select a province, regency / city, district, and village / urban village.');
+      return false;
+    }
     if (emailCheck !== 'available') {
       setActiveTab('profile');
       requestAnimationFrame(() => emailInputRef.current?.focus());
@@ -361,10 +381,12 @@ function RegisterPage() {
     try {
       const response = await VendorServices.postRegisterVendor({
         vendor_type: vendorType,
+        ...region,
         company_name: values.get('company_name').trim(),
         company_email: values.get('company_email').trim(),
         company_npwp: values.get('company_npwp').trim(),
-        address: values.get('address').trim(),
+        address: values.get('full_address').trim(),
+        postal_code: values.get('postal_code').trim(),
         pic_name: values.get('pic_name').trim(),
         pic_phone: values.get('pic_phone').trim(),
         terms_agreed: values.get('terms_agreed') === 'on',
@@ -550,19 +572,75 @@ function RegisterPage() {
                 pattern={'.*\\S.*'}
               />
             </label>
+            {[
+              { name: 'province_id', label: 'Province', resource: 'provinces' },
+              { name: 'regency_id', label: 'Regency / City', resource: 'regencies', parentKey: 'province_id' },
+              { name: 'district_id', label: 'District', resource: 'districts', parentKey: 'regency_id' },
+              { name: 'village_id', label: 'Village / Urban Village', resource: 'villages', parentKey: 'district_id' }
+            ].map((field, index, fields) => (
+              <RegionSelect
+                key={`${field.name}-${field.parentKey ? region[field.parentKey] : 'root'}`}
+                {...field}
+                parentId={region[field.parentKey]}
+                value={region[field.name]}
+                disabled={isSubmitting}
+                onChange={(value, label) => {
+                  setRegionLabels((current) => ({
+                    ...current,
+                    [field.name]: label,
+                    ...Object.fromEntries(fields.slice(index + 1).map(({ name }) => [name, '']))
+                  }));
+                  setRegion((current) => ({
+                    ...current,
+                    [field.name]: value,
+                    ...Object.fromEntries(fields.slice(index + 1).map(({ name }) => [name, '']))
+                  }));
+                }}
+              />
+            ))}
+            <label>
+              <span>
+                Postal Code{' '}
+                <span className="text-danger" aria-hidden="true">
+                  *
+                </span>
+              </span>
+              <input
+                type="text"
+                name="postal_code"
+                value={postalCode}
+                onChange={(event) => setPostalCode(event.target.value)}
+                placeholder="Enter postal code"
+                autoComplete="postal-code"
+                inputMode="numeric"
+                pattern="[0-9]{5}"
+                maxLength={5}
+                title="Enter a 5-digit postal code."
+                required
+                aria-required="true"
+                disabled={isSubmitting}
+              />
+            </label>
             <label className="vp-full-row">
               Company address
               <textarea
                 name="address"
+                value={streetAddress}
                 placeholder="Enter company address"
                 autoComplete="street-address"
                 rows={3}
                 required
                 disabled={isSubmitting}
                 onChange={(event) => {
+                  setStreetAddress(event.target.value);
                   event.target.setCustomValidity(event.target.value.trim() ? '' : 'Please enter your company address.');
                 }}
               />
+            </label>
+            <label className="vp-full-row">
+              Full address
+              <textarea name="full_address" value={fullAddress} readOnly rows={3} placeholder="Your complete address will appear here" />
+              <small className="text-muted">This address will be submitted with your registration.</small>
             </label>
             <label>
               Contact person name
