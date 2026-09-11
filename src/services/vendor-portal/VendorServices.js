@@ -1,3 +1,4 @@
+import { getVendorDocuments } from '../../config/vendorDocuments';
 import { DataService } from '../../config/dataService';
 
 class VendorServices {
@@ -39,6 +40,10 @@ class VendorServices {
     return DataService.post('vendor-portal/rates/upload', formData);
   }
 
+  getDocumentTemplate(template) {
+    return DataService.getBlob(`vendor-portal/templates/${encodeURIComponent(template)}`);
+  }
+
   getCheckEmail(email) {
     return DataService.get('vendor-portal/check-email', { email });
   }
@@ -51,9 +56,12 @@ class VendorServices {
     });
     // Multipart fields are strings; encode the boolean as 1/0 for the API.
     formData.append('terms_agreed', payload.terms_agreed ? '1' : '0');
-    ['akta', 'nib', 'npwp', 'support'].forEach((key) => {
-      if (payload[key]) formData.append(key, payload[key]);
-    });
+    getVendorDocuments(payload.vendor_type)
+      .filter(({ key }) => payload[key])
+      .forEach(({ key }, index) => {
+        formData.append(`documents[${index}][document_type]`, key);
+        formData.append(`documents[${index}][file]`, payload[key]);
+      });
 
     return DataService.post('vendor-portal/register', formData, {}, { onUploadProgress });
   }

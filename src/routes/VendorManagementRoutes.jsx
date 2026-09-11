@@ -27,7 +27,7 @@ const VendorManagementRoutes = {
     },
     {
       path: 'vendor-management/vendor',
-      element: <VendorRegistrations title="Vendors" subheader="Browse vendor registration records." />
+      element: <VendorRegistrations approvedOnly title="Vendors" subheader="Browse approved vendors." />
     }
   ]
 };

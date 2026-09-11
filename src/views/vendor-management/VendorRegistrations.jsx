@@ -7,7 +7,10 @@ import Modal from 'react-bootstrap/Modal';
 import Overlay from 'react-bootstrap/Overlay';
 import Spinner from 'react-bootstrap/Spinner';
 import Table from 'react-bootstrap/Table';
+import Tab from 'react-bootstrap/Tab';
+import Tabs from 'react-bootstrap/Tabs';
 
+import { expeditionDocuments } from 'config/vendorDocuments';
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
 import VendorManagementServices from 'services/vendor-management/VendorManagementServices';
@@ -19,7 +22,8 @@ const documentLabels = {
   akta: 'Deed of Incorporation (Akta Perusahaan)',
   nib: 'Business Identification Number (NIB)',
   npwp: 'Company Tax ID (NPWP)',
-  support: 'Supporting Document'
+  support: 'Supporting Document',
+  ...Object.fromEntries(expeditionDocuments.map(({ key, label }) => [key, label]))
 };
 
 const getRegistrations = (response) => {
@@ -123,6 +127,7 @@ const getDocumentFileName = (document) =>
 const getDocumentStatus = (document) => document?.status ?? document?.verification_status ?? 'Pending';
 
 export default function VendorRegistrations({
+  approvedOnly = false,
   title = 'Vendor Registrations',
   subheader = 'Review companies that have registered through the Vendor Portal.'
 }) {
@@ -135,6 +140,7 @@ export default function VendorRegistrations({
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const [vendorDetail, setVendorDetail] = useState(null);
+  const [detailTab, setDetailTab] = useState('profile');
   const [detailLoading, setDetailLoading] = useState(false);
   const [previewingDocumentId, setPreviewingDocumentId] = useState(null);
   const [documentActionMenu, setDocumentActionMenu] = useState(null);
@@ -153,36 +159,63 @@ export default function VendorRegistrations({
     return () => clearTimeout(timer);
   }, [search]);
 
-  const fetchRegistrations = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await VendorManagementServices.getVendorRegister({
-        page,
-        per_page: pageSize,
-        search: debouncedSearch || undefined
-      });
-      if (!(response?.status >= 200 && response.status < 300)) {
-        throw Object.assign(new Error('Unable to load vendor registrations.'), { response });
+  const fetchRegistrations = useCallback(
+    async (isCurrent) => {
+      setLoading(true);
+      try {
+        // Filter the full result set before paginating; the API has no documented status-exclusion filter.
+        const rows = [];
+        let requestPage = 1;
+        let result;
+        do {
+          const response = await VendorManagementServices.getVendorRegister({
+            page: requestPage,
+            per_page: 100,
+            search: debouncedSearch || undefined
+          });
+          if (!isCurrent()) return;
+          if (!(response?.status >= 200 && response.status < 300)) {
+            throw Object.assign(new Error('Unable to load vendor registrations.'), { response });
+          }
+          result = getRegistrations(response);
+          rows.push(...result.rows);
+          requestPage += 1;
+        } while (result.rows.length > 0 && rows.length < result.total);
+
+        const filteredRows = rows.filter((vendor) => {
+          const status = String(getValue(vendor, ['status', 'registration_status'], ''))
+            .trim()
+            .toLowerCase();
+          return approvedOnly ? status === 'approved' : status !== 'approved';
+        });
+        setRegistrations(filteredRows);
+        setTotal(filteredRows.length);
+        setPage((current) => Math.min(current, Math.max(1, Math.ceil(filteredRows.length / pageSize))));
+      } catch (error) {
+        if (!isCurrent()) return;
+        setRegistrations([]);
+        setTotal(0);
+        showAlert(error.response?.data?.message || error.message || 'Unable to load vendor registrations.', 'danger');
+      } finally {
+        if (isCurrent()) setLoading(false);
       }
-      const result = getRegistrations(response);
-      setRegistrations(result.rows);
-      setTotal(result.total);
-    } catch (error) {
-      setRegistrations([]);
-      setTotal(0);
-      showAlert(error.response?.data?.message || error.message || 'Unable to load vendor registrations.', 'danger');
-    } finally {
-      setLoading(false);
-    }
-  }, [debouncedSearch, page, showAlert]);
+    },
+    [approvedOnly, debouncedSearch, showAlert]
+  );
 
   useEffect(() => {
-    fetchRegistrations();
+    let active = true;
+    fetchRegistrations(() => active);
+    return () => {
+      active = false;
+    };
   }, [fetchRegistrations, refreshKey]);
 
   const showVendorDetail = async (id) => {
     if (!id) return;
     setVendorDetail(null);
+    setDetailTab('profile');
+    setDocumentActionMenu(null);
     setDetailLoading(true);
     try {
       const response = await VendorManagementServices.getDetailVendor(id);
@@ -207,8 +240,18 @@ export default function VendorRegistrations({
     const id = vendorDetail?.id ?? vendorDetail?.uuid ?? vendorDetail?.vendor_id;
     if (id === undefined || id === null || id === '') return;
     setRejectionReason('');
-    setRegistrationAction({ type, id, company: getValue(vendorDetail, ['company_name', 'name']) });
-    if (type !== 'reject') closeVendorDetail();
+    const documents = getDocuments(vendorDetail);
+    const unapprovedDocumentCount = documents.filter(
+      (document) => !['VALID', 'APPROVED'].includes(String(getDocumentStatus(document)).trim().toUpperCase())
+    ).length;
+    setRegistrationAction({
+      type,
+      id,
+      company: getValue(vendorDetail, ['company_name', 'name']),
+      documentCount: documents.length,
+      unapprovedDocumentCount
+    });
+    setDocumentActionMenu(null);
   };
 
   const closeRegistrationAction = () => {
@@ -232,6 +275,7 @@ export default function VendorRegistrations({
         response?.data?.message || `Vendor ${registrationAction.type === 'approve' ? 'approved' : 'rejected'} successfully.`,
         'success'
       );
+      if (registrationAction.type === 'approve') closeVendorDetail();
       setRegistrationAction(null);
       setRefreshKey((value) => value + 1);
     } catch (error) {
@@ -385,7 +429,7 @@ export default function VendorRegistrations({
             </tr>
           ) : null}
           {!loading && hasRows
-            ? registrations.map((vendor, index) => {
+            ? registrations.slice((page - 1) * pageSize, page * pageSize).map((vendor, index) => {
                 const status = getValue(vendor, ['status', 'registration_status'], 'Pending');
                 const vendorId = vendor?.id ?? vendor?.uuid ?? vendor?.vendor_id;
                 return (
@@ -467,113 +511,126 @@ export default function VendorRegistrations({
               <Spinner size="sm" className="me-2" /> Loading vendor details...
             </div>
           ) : vendorDetail ? (
-            <div className="row g-4">
-              <div className="col-md-8">
-                <small className="text-muted d-block mb-1">Company</small>
-                <h5 className="mb-1">{getValue(vendorDetail, ['company_name', 'name'])}</h5>
-                <span className="text-muted">{getValue(vendorDetail, ['company_email', 'email'])}</span>
-              </div>
-              <div className="col-md-4">
-                <small className="text-muted d-block mb-1">Status</small>
-                {(() => {
-                  const status = getValue(vendorDetail, ['status', 'registration_status'], 'Pending');
-                  return (
-                    <Badge bg={`light-${statusVariant(status)}`} text={statusVariant(status)} className="text-capitalize">
-                      {formatStatus(status)}
-                    </Badge>
-                  );
-                })()}
-              </div>
-              <div className="col-md-6">
-                <small className="text-muted d-block">Vendor type</small>
-                {(() => {
-                  const vendorType = getValue(vendorDetail, ['vendor_type', 'type']);
-                  const variant = vendorTypeVariant(vendorType);
-                  return (
-                    <Badge bg={`light-${variant}`} text={variant} className="text-capitalize mt-1">
-                      {formatStatus(vendorType)}
-                    </Badge>
-                  );
-                })()}
-              </div>
-              <div className="col-md-6">
-                <small className="text-muted d-block">Company NPWP</small>
-                <span>{getValue(vendorDetail, ['company_npwp', 'npwp_number'])}</span>
-              </div>
-              <div className="col-12">
-                <small className="text-muted d-block">Company address</small>
-                <span>{getValue(vendorDetail, ['address', 'company_address'])}</span>
-              </div>
-              <div className="col-md-6">
-                <small className="text-muted d-block">Contact person</small>
-                <span>{getValue(vendorDetail, ['pic_name', 'contact_name'])}</span>
-              </div>
-              <div className="col-md-6">
-                <small className="text-muted d-block">Phone number</small>
-                <span>{getValue(vendorDetail, ['pic_phone', 'phone'])}</span>
-              </div>
-              <div className="col-12">
-                <small className="text-muted d-block">Registered at</small>
-                <span>{formatDate(getValue(vendorDetail, ['registered_at', 'created_at']))}</span>
-              </div>
-              <div className="col-12">
-                <hr className="my-1" />
-                <h6 className="mb-3">Legal documents</h6>
-                <div className="row g-3">
-                  {detailDocuments.length ? (
-                    detailDocuments.map((document, index) => {
-                      const documentId = getDocumentId(document);
-                      const label = getDocumentLabel(document);
-                      const status = getDocumentStatus(document);
-                      const documentKey = documentId ?? `${getDocumentType(document)}-${index}`;
-                      const isPreviewing = documentId != null && previewingDocumentId === documentId;
-                      const isActionOpen = documentActionMenu?.key === documentKey;
+            <Tabs
+              id="vendor-detail-tabs"
+              activeKey={detailTab}
+              onSelect={(key) => {
+                setDetailTab(key);
+                setDocumentActionMenu(null);
+              }}
+              className="mb-4"
+              mountOnEnter
+            >
+              <Tab eventKey="profile" title="Company profile">
+                <div className="row g-4">
+                  <div className="col-md-8">
+                    <small className="text-muted d-block mb-1">Company</small>
+                    <h5 className="mb-1">{getValue(vendorDetail, ['company_name', 'name'])}</h5>
+                    <span className="text-muted">{getValue(vendorDetail, ['company_email', 'email'])}</span>
+                  </div>
+                  <div className="col-md-4">
+                    <small className="text-muted d-block mb-1">Status</small>
+                    {(() => {
+                      const status = getValue(vendorDetail, ['status', 'registration_status'], 'Pending');
                       return (
-                        <div className="col-12 col-lg-6" key={documentKey}>
-                          <div className="border rounded p-3 h-100 d-flex flex-column gap-3">
-                            <div className="d-flex align-items-start gap-2">
-                              <i className="ti ti-file-description f-22 text-primary flex-shrink-0" aria-hidden="true" />
-                              <div className="text-break">
-                                <strong className="d-block">{label}</strong>
-                                <small className="text-muted d-block mt-1">{getDocumentFileName(document)}</small>
+                        <Badge bg={`light-${statusVariant(status)}`} text={statusVariant(status)} className="text-capitalize">
+                          {formatStatus(status)}
+                        </Badge>
+                      );
+                    })()}
+                  </div>
+                  <div className="col-md-6">
+                    <small className="text-muted d-block">Vendor type</small>
+                    {(() => {
+                      const vendorType = getValue(vendorDetail, ['vendor_type', 'type']);
+                      const variant = vendorTypeVariant(vendorType);
+                      return (
+                        <Badge bg={`light-${variant}`} text={variant} className="text-capitalize mt-1">
+                          {formatStatus(vendorType)}
+                        </Badge>
+                      );
+                    })()}
+                  </div>
+                  <div className="col-md-6">
+                    <small className="text-muted d-block">Company NPWP</small>
+                    <span>{getValue(vendorDetail, ['company_npwp', 'npwp_number'])}</span>
+                  </div>
+                  <div className="col-12">
+                    <small className="text-muted d-block">Company address</small>
+                    <span>{getValue(vendorDetail, ['address', 'company_address'])}</span>
+                  </div>
+                  <div className="col-md-6">
+                    <small className="text-muted d-block">Contact person</small>
+                    <span>{getValue(vendorDetail, ['pic_name', 'contact_name'])}</span>
+                  </div>
+                  <div className="col-md-6">
+                    <small className="text-muted d-block">Phone number</small>
+                    <span>{getValue(vendorDetail, ['pic_phone', 'phone'])}</span>
+                  </div>
+                  <div className="col-12">
+                    <small className="text-muted d-block">Registered at</small>
+                    <span>{formatDate(getValue(vendorDetail, ['registered_at', 'created_at']))}</span>
+                  </div>
+                </div>
+              </Tab>
+              <Tab eventKey="documents" title={`Legal documents (${detailDocuments.length})`}>
+                <div>
+                  <div className="row g-3">
+                    {detailDocuments.length ? (
+                      detailDocuments.map((document, index) => {
+                        const documentId = getDocumentId(document);
+                        const label = getDocumentLabel(document);
+                        const status = getDocumentStatus(document);
+                        const documentKey = documentId ?? `${getDocumentType(document)}-${index}`;
+                        const isPreviewing = documentId != null && previewingDocumentId === documentId;
+                        const isActionOpen = documentActionMenu?.key === documentKey;
+                        return (
+                          <div className="col-12 col-lg-6" key={documentKey}>
+                            <div className="border rounded p-3 h-100 d-flex flex-column gap-3">
+                              <div className="d-flex align-items-start gap-2">
+                                <i className="ti ti-file-description f-22 text-primary flex-shrink-0" aria-hidden="true" />
+                                <div className="text-break">
+                                  <strong className="d-block">{label}</strong>
+                                  <small className="text-muted d-block mt-1">{getDocumentFileName(document)}</small>
+                                </div>
+                              </div>
+                              <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-auto">
+                                <Badge bg={`light-${statusVariant(status)}`} text={statusVariant(status)} className="text-capitalize">
+                                  {formatStatus(status)}
+                                </Badge>
+                                <Button
+                                  size="sm"
+                                  variant={isActionOpen ? 'primary' : 'outline-primary'}
+                                  aria-label={`Open actions for ${label}`}
+                                  aria-expanded={isActionOpen}
+                                  aria-haspopup="true"
+                                  data-permission-action="none"
+                                  disabled={Boolean(previewingDocumentId)}
+                                  onClick={(event) =>
+                                    setDocumentActionMenu(isActionOpen ? null : { key: documentKey, document, target: event.currentTarget })
+                                  }
+                                >
+                                  {isPreviewing ? (
+                                    <Spinner size="sm" className="me-1" />
+                                  ) : (
+                                    <i className="ti ti-dots-vertical me-1" aria-hidden="true" />
+                                  )}
+                                  Actions <i className="ti ti-chevron-down ms-1" aria-hidden="true" />
+                                </Button>
                               </div>
                             </div>
-                            <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-auto">
-                              <Badge bg={`light-${statusVariant(status)}`} text={statusVariant(status)} className="text-capitalize">
-                                {formatStatus(status)}
-                              </Badge>
-                              <Button
-                                size="sm"
-                                variant={isActionOpen ? 'primary' : 'outline-primary'}
-                                aria-label={`Open actions for ${label}`}
-                                aria-expanded={isActionOpen}
-                                aria-haspopup="true"
-                                data-permission-action="none"
-                                disabled={Boolean(previewingDocumentId)}
-                                onClick={(event) =>
-                                  setDocumentActionMenu(isActionOpen ? null : { key: documentKey, document, target: event.currentTarget })
-                                }
-                              >
-                                {isPreviewing ? (
-                                  <Spinner size="sm" className="me-1" />
-                                ) : (
-                                  <i className="ti ti-dots-vertical me-1" aria-hidden="true" />
-                                )}
-                                Actions <i className="ti ti-chevron-down ms-1" aria-hidden="true" />
-                              </Button>
-                            </div>
                           </div>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="col-12">
-                      <div className="border rounded py-4 text-center text-muted">No documents available.</div>
-                    </div>
-                  )}
+                        );
+                      })
+                    ) : (
+                      <div className="col-12">
+                        <div className="border rounded py-4 text-center text-muted">No documents available.</div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </div>
+              </Tab>
+            </Tabs>
           ) : null}
         </Modal.Body>
         <Modal.Footer>
@@ -728,7 +785,21 @@ export default function VendorRegistrations({
             {registrationAction?.type === 'approve' ? (
               <div className="alert alert-warning mb-0 d-flex align-items-start gap-2" role="alert">
                 <i className="ti ti-alert-triangle mt-1" aria-hidden="true" />
-                <span>This action will approve the vendor registration.</span>
+                <div>
+                  {registrationAction.unapprovedDocumentCount > 0 ? (
+                    <>
+                      <strong className="d-block mb-1">
+                        {registrationAction.unapprovedDocumentCount} dari {registrationAction.documentCount} dokumen belum disetujui.
+                      </strong>
+                      <span>Periksa kembali dokumen vendor sebelum melanjutkan persetujuan.</span>
+                    </>
+                  ) : registrationAction.documentCount === 0 ? (
+                    <span>Vendor ini belum memiliki dokumen untuk ditinjau.</span>
+                  ) : (
+                    <span>Semua {registrationAction.documentCount} dokumen telah disetujui.</span>
+                  )}
+                  <small className="d-block mt-2">This action will approve the vendor registration.</small>
+                </div>
               </div>
             ) : (
               <Form.Group>

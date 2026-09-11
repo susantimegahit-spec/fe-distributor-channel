@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import Modal from 'react-bootstrap/Modal';
 
+import { getVendorDocuments } from 'config/vendorDocuments';
 import VendorServices from 'services/vendor-portal/VendorServices';
 import { useAlert } from 'utils/alertContext';
 import SmestaLogo from 'assets/images/smesta_text_tagline_transparent.png';
@@ -9,13 +11,6 @@ import DistributorDashboard from './distributor/DistributorDashboard';
 import ExpeditionDashboard from './expedition/ExpeditionDashboard';
 import VendorAccount from './account/VendorAccount';
 import './vendor-portal.scss';
-
-const documentRequirements = [
-  { key: 'akta', label: 'Deed of Incorporation (Akta Perusahaan)', icon: 'ti-file-description' },
-  { key: 'nib', label: 'Business Identification Number (NIB)', icon: 'ti-building-bank' },
-  { key: 'npwp', label: 'Company Tax ID (NPWP)', icon: 'ti-receipt-tax' },
-  { key: 'support', label: 'Supporting Document', icon: 'ti-files' }
-];
 
 function PortalBrand() {
   return (
@@ -170,11 +165,41 @@ function LoginPage() {
   );
 }
 
+function RegistrationModal({ children, footer, submitting = false, completed = false }) {
+  const navigate = useNavigate();
+  return (
+    <Modal
+      show
+      centered
+      scrollable
+      size="lg"
+      className="vp-registration-modal"
+      aria-labelledby="vp-registration-title"
+      backdrop="static"
+      keyboard={!submitting}
+      onHide={() => {
+        if (!submitting) navigate('/vendor-portal');
+      }}
+    >
+      <Modal.Header closeButton={!submitting}>
+        <Modal.Title id="vp-registration-title">{completed ? 'Registration complete' : 'Vendor registration'}</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>{children}</Modal.Body>
+      {footer ? <Modal.Footer className="vp-registration-footer">{footer}</Modal.Footer> : null}
+    </Modal>
+  );
+}
+
 function RegisterPage() {
   const navigate = useNavigate();
   const { showAlert } = useAlert();
-  const [vendorType, setVendorType] = useState('expedition');
+  const vendorType = 'expedition';
+  const [activeTab, setActiveTab] = useState('profile');
+  const [validationMessage, setValidationMessage] = useState('');
+  const [downloadingTemplate, setDownloadingTemplate] = useState(null);
+  const registrationFormRef = useRef(null);
   const [files, setFiles] = useState({});
+  const documentRequirements = getVendorDocuments(vendorType);
   const [submitted, setSubmitted] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -233,11 +258,102 @@ function RegisterPage() {
     setFiles((current) => ({ ...current, [key]: file || null }));
   };
 
+  const downloadTemplate = async (requirement) => {
+    if (downloadingTemplate) return;
+    setDownloadingTemplate(requirement.key);
+    try {
+      const response = await VendorServices.getDocumentTemplate(requirement.template);
+      if (!(response?.status >= 200 && response.status < 300) || !(response.data instanceof Blob) || !response.data.size) {
+        throw Object.assign(new Error('Unable to download template.'), { response });
+      }
+      const disposition = response.headers?.['content-disposition'] || '';
+      const encodedName = disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+      const plainName = disposition.match(/filename="([^"\r\n]+)"|filename=([^;\r\n]+)/i);
+      let filename = plainName?.[1] || plainName?.[2]?.trim();
+      if (encodedName) {
+        try {
+          filename = decodeURIComponent(encodedName);
+        } catch {
+          /* Use the plain filename when encoding is invalid. */
+        }
+      }
+      const extension =
+        {
+          'application/pdf': '.pdf',
+          'application/msword': '.doc',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx'
+        }[response.data.type.split(';')[0]] || '';
+      const url = URL.createObjectURL(response.data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = (filename || `${requirement.template}${extension}`).split(/[\\/]/).pop();
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (error) {
+      let data = error.response?.data;
+      if (data instanceof Blob) {
+        try {
+          data = JSON.parse(await data.text());
+        } catch {
+          data = null;
+        }
+      }
+      showAlert(data?.message || error.message || 'Unable to download template. Please try again.', 'danger');
+    } finally {
+      setDownloadingTemplate(null);
+    }
+  };
+
+  const validateProfile = () => {
+    const invalidInput = registrationFormRef.current?.querySelector('#vp-registration-profile :invalid');
+    if (invalidInput) {
+      const label = invalidInput.closest('label')?.firstChild?.textContent?.trim() || invalidInput.name;
+      setValidationMessage(`${label}: ${invalidInput.validationMessage}`);
+      setActiveTab('profile');
+      requestAnimationFrame(() => invalidInput.reportValidity());
+      return false;
+    }
+    if (emailCheck !== 'available') {
+      setActiveTab('profile');
+      requestAnimationFrame(() => emailInputRef.current?.focus());
+      setValidationMessage(emailCheckMessage || 'Please wait for the company email availability check.');
+      return false;
+    }
+    return true;
+  };
+
+  const changeTab = (tab) => {
+    if (isSubmitting || (tab === 'documents' && !validateProfile())) return false;
+    setActiveTab(tab);
+    return true;
+  };
+
+  const handleTabKeyDown = (event) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const tab = event.key === 'Home' ? 'profile' : event.key === 'End' ? 'documents' : activeTab === 'profile' ? 'documents' : 'profile';
+    if (changeTab(tab)) registrationFormRef.current?.querySelector(`#vp-tab-${tab}`)?.focus();
+  };
+
   const submit = async (event) => {
     event.preventDefault();
     if (isSubmitting) return;
-    if (emailCheck !== 'available') {
-      emailInputRef.current?.focus();
+    setValidationMessage('');
+    if (!validateProfile()) return;
+    if (activeTab === 'profile') {
+      setActiveTab('documents');
+      requestAnimationFrame(() => registrationFormRef.current?.querySelector('#vp-tab-documents')?.focus());
+      return;
+    }
+    const invalidInput = event.currentTarget.querySelector(':invalid');
+    if (invalidInput) {
+      const requirement = documentRequirements.find(({ key }) => key === invalidInput.name);
+      const label = requirement?.label || (invalidInput.name === 'terms_agreed' ? 'Vendor partnership terms' : invalidInput.name);
+      setValidationMessage(`${label}: ${invalidInput.validationMessage}`);
+      invalidInput.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      invalidInput.reportValidity();
       return;
     }
     const values = new FormData(event.currentTarget);
@@ -252,13 +368,13 @@ function RegisterPage() {
         pic_name: values.get('pic_name').trim(),
         pic_phone: values.get('pic_phone').trim(),
         terms_agreed: values.get('terms_agreed') === 'on',
-        ...files
+        ...Object.fromEntries(documentRequirements.map(({ key }) => [key, files[key]]))
       });
       if (!(response?.status >= 200 && response.status < 300) || response?.data?.success === false) {
         throw Object.assign(new Error('Registration failed. Please try again.'), { response });
       }
       setSubmitted(true);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      registrationFormRef.current?.closest('.modal-body')?.scrollTo({ top: 0 });
     } catch (requestError) {
       const data = requestError.response?.data;
       const validationErrors = Object.values(data?.errors || {})
@@ -272,7 +388,7 @@ function RegisterPage() {
 
   if (submitted) {
     return (
-      <AuthShell step="Registration complete">
+      <RegistrationModal completed>
         <div className="vp-success">
           <span>
             <i className="ti ti-rosette-discount-check" />
@@ -283,178 +399,249 @@ function RegisterPage() {
             Back to sign in
           </button>
         </div>
-      </AuthShell>
+      </RegistrationModal>
     );
   }
 
   return (
-    <AuthShell step="Vendor registration">
+    <RegistrationModal
+      submitting={isSubmitting}
+      footer={
+        <>
+          {validationMessage ? (
+            <div className="vp-registration-error" role="alert">
+              {validationMessage}
+            </div>
+          ) : null}
+          <div className="vp-registration-actions">
+            {activeTab === 'documents' ? (
+              <button className="vp-secondary" type="button" disabled={isSubmitting} onClick={() => changeTab('profile')}>
+                <i className="ti ti-arrow-left" aria-hidden="true" /> Back
+              </button>
+            ) : null}
+            <button className="vp-primary" type="submit" form="vp-registration-form" disabled={isSubmitting} aria-busy={isSubmitting}>
+              {isSubmitting ? <span className="spinner-border spinner-border-sm" aria-hidden="true" /> : null}
+              <span aria-live="polite">
+                {isSubmitting ? 'Submitting registration...' : activeTab === 'profile' ? 'Next: Legal documents' : 'Submit registration'}
+              </span>
+              {!isSubmitting ? <i className={`ti ${activeTab === 'profile' ? 'ti-arrow-right' : 'ti-send'}`} aria-hidden="true" /> : null}
+            </button>
+          </div>
+          <button className="vp-link vp-back" type="button" disabled={isSubmitting} onClick={() => navigate('/vendor-portal')}>
+            <i className="ti ti-arrow-left" /> Already have an account? Sign in
+          </button>
+        </>
+      }
+    >
       <div className="vp-form-heading vp-register-heading">
         <span className="vp-kicker">Join our network</span>
         <h2>Register your company</h2>
         <p>Complete your company profile and upload your legal documents.</p>
       </div>
-      <form className="vp-form" onSubmit={submit} aria-busy={isSubmitting}>
-        <fieldset className="vp-type-fieldset" disabled={isSubmitting}>
-          <legend>Vendor type</legend>
-          <div className="vp-type-grid">
-            <button type="button" className={vendorType === 'expedition' ? 'active' : ''} onClick={() => setVendorType('expedition')}>
-              <i className="ti ti-truck-delivery" />
-              <span>
-                <strong>Expedition</strong>
-                <small>Shipping and logistics partner</small>
-              </span>
-              <i className="ti ti-circle-check vp-selected" />
+      <form id="vp-registration-form" ref={registrationFormRef} className="vp-form" onSubmit={submit} aria-busy={isSubmitting} noValidate>
+        <div className="vp-registration-tabs" role="tablist" aria-label="Registration steps">
+          {[
+            { key: 'profile', label: 'Company profile' },
+            { key: 'documents', label: 'Legal documents' }
+          ].map((tab, index) => (
+            <button
+              key={tab.key}
+              id={`vp-tab-${tab.key}`}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === tab.key}
+              aria-controls={`vp-registration-${tab.key}`}
+              tabIndex={activeTab === tab.key ? 0 : -1}
+              disabled={isSubmitting}
+              onClick={() => changeTab(tab.key)}
+              onKeyDown={handleTabKeyDown}
+            >
+              <span>{index + 1}</span> {tab.label}
             </button>
-            <button type="button" className={vendorType === 'distributor' ? 'active' : ''} onClick={() => setVendorType('distributor')}>
-              <i className="ti ti-building-warehouse" />
-              <span>
-                <strong>Distributor</strong>
-                <small>Product distribution partner</small>
-              </span>
-              <i className="ti ti-circle-check vp-selected" />
-            </button>
-          </div>
-        </fieldset>
-        <div className="vp-two-columns">
-          <label className="vp-full-row">
-            Company name
-            <input type="text" name="company_name" placeholder="PT Company Name" required disabled={isSubmitting} pattern={'.*\\S.*'} />
-          </label>
-          <label className="vp-full-row">
-            Company email
-            <span className="vp-email-input">
-              <input
-                ref={emailInputRef}
-                type="email"
-                name="company_email"
-                placeholder="vendor@company.com"
-                required
-                disabled={isSubmitting}
-                value={companyEmail}
-                aria-describedby="vp-email-status"
-                aria-invalid={emailCheck === 'exists'}
-                onChange={(event) => {
-                  emailVersionRef.current += 1;
-                  setCompanyEmail(event.target.value);
-                  setEmailCheckMessage('');
-                  setEmailCheck(event.target.value.trim() && event.target.validity.valid ? 'checking' : 'idle');
-                }}
-              />
-              {emailCheck === 'available' || emailCheck === 'exists' ? (
-                <i
-                  className={`ti ${emailCheck === 'available' ? 'ti-circle-check is-available' : 'ti-circle-x is-unavailable'} vp-email-icon`}
-                  aria-hidden="true"
-                />
-              ) : null}
-            </span>
-            <span className={`vp-email-feedback${emailCheck === 'error' || emailCheck === 'exists' ? ' has-error' : ''}`}>
-              <small id="vp-email-status" role="status" aria-live="polite">
-                {emailCheck === 'checking' ? (
-                  <>
-                    <span className="spinner-border spinner-border-sm" aria-hidden="true" /> Checking email...
-                  </>
-                ) : null}
-                {emailCheck === 'available' ? emailCheckMessage : null}
-                {emailCheck === 'exists' || emailCheck === 'error' ? emailCheckMessage : null}
-              </small>
-              {emailCheck === 'error' ? (
-                <button
-                  className="vp-link"
-                  type="button"
-                  aria-label="Retry email check"
-                  title="Retry email check"
-                  onClick={() => {
-                    setEmailCheckMessage('');
-                    setEmailCheck('checking');
-                    setEmailCheckAttempt((attempt) => attempt + 1);
-                  }}
-                >
-                  <i className="ti ti-refresh" aria-hidden="true" />
-                </button>
-              ) : null}
-            </span>
-          </label>
-          <label className="vp-full-row">
-            Company NPWP
-            <input
-              type="text"
-              name="company_npwp"
-              placeholder="Enter company NPWP number"
-              required
-              disabled={isSubmitting}
-              pattern={'.*\\S.*'}
-            />
-          </label>
-          <label className="vp-full-row">
-            Company address
-            <textarea
-              name="address"
-              placeholder="Enter company address"
-              autoComplete="street-address"
-              rows={3}
-              required
-              disabled={isSubmitting}
-              onChange={(event) => {
-                event.target.setCustomValidity(event.target.value.trim() ? '' : 'Please enter your company address.');
-              }}
-            />
-          </label>
-          <label>
-            Contact person name
-            <input
-              type="text"
-              name="pic_name"
-              placeholder="Full name of contact person"
-              required
-              disabled={isSubmitting}
-              pattern={'.*\\S.*'}
-            />
-          </label>
-          <label>
-            Phone number
-            <input type="tel" name="pic_phone" placeholder="08xx xxxx xxxx" required disabled={isSubmitting} pattern={'.*\\S.*'} />
-          </label>
+          ))}
         </div>
-        <div className="vp-document-section">
-          <div>
-            <h3>Legal documents</h3>
-            <p>PDF, JPG, or PNG. Maximum 10 MB per file.</p>
-          </div>
-          <div className="vp-upload-grid">
-            {documentRequirements.map((document) => (
-              <label className={files[document.key] ? 'vp-upload has-file' : 'vp-upload'} key={document.key}>
+        <div
+          id="vp-registration-profile"
+          className="vp-registration-panel"
+          role="tabpanel"
+          aria-labelledby="vp-tab-profile"
+          hidden={activeTab !== 'profile'}
+        >
+          <fieldset className="vp-type-fieldset" disabled={isSubmitting}>
+            <legend>Vendor type</legend>
+            <div className="vp-type-grid">
+              <button type="button" className="active" aria-pressed="true">
+                <i className="ti ti-truck-delivery" />
+                <span>
+                  <strong>Expedition</strong>
+                  <small>Shipping and logistics partner</small>
+                </span>
+                <i className="ti ti-circle-check vp-selected" />
+              </button>
+            </div>
+          </fieldset>
+          <div className="vp-two-columns">
+            <label className="vp-full-row">
+              Company name
+              <input type="text" name="company_name" placeholder="PT Company Name" required disabled={isSubmitting} pattern={'.*\\S.*'} />
+            </label>
+            <label className="vp-full-row">
+              Company email
+              <span className="vp-email-input">
                 <input
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  name={document.key}
+                  ref={emailInputRef}
+                  type="email"
+                  name="company_email"
+                  placeholder="vendor@company.com"
                   required
                   disabled={isSubmitting}
-                  onChange={(event) => setFile(document.key, event.target)}
+                  value={companyEmail}
+                  aria-describedby="vp-email-status"
+                  aria-invalid={emailCheck === 'exists'}
+                  onChange={(event) => {
+                    emailVersionRef.current += 1;
+                    setCompanyEmail(event.target.value);
+                    setEmailCheckMessage('');
+                    setEmailCheck(event.target.value.trim() && event.target.validity.valid ? 'checking' : 'idle');
+                  }}
                 />
-                <i className={`ti ${files[document.key] ? 'ti-circle-check' : document.icon}`} />
-                <span>
-                  <strong>{files[document.key]?.name || document.label}</strong>
-                  <small>{files[document.key] ? 'File ready to upload' : 'Click to select a file'}</small>
-                </span>
-              </label>
-            ))}
+                {emailCheck === 'available' || emailCheck === 'exists' ? (
+                  <i
+                    className={`ti ${emailCheck === 'available' ? 'ti-circle-check is-available' : 'ti-circle-x is-unavailable'} vp-email-icon`}
+                    aria-hidden="true"
+                  />
+                ) : null}
+              </span>
+              <span className={`vp-email-feedback${emailCheck === 'error' || emailCheck === 'exists' ? ' has-error' : ''}`}>
+                <small id="vp-email-status" role="status" aria-live="polite">
+                  {emailCheck === 'checking' ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm" aria-hidden="true" /> Checking email...
+                    </>
+                  ) : null}
+                  {emailCheck === 'available' ? emailCheckMessage : null}
+                  {emailCheck === 'exists' || emailCheck === 'error' ? emailCheckMessage : null}
+                </small>
+                {emailCheck === 'error' ? (
+                  <button
+                    className="vp-link"
+                    type="button"
+                    aria-label="Retry email check"
+                    title="Retry email check"
+                    onClick={() => {
+                      setEmailCheckMessage('');
+                      setEmailCheck('checking');
+                      setEmailCheckAttempt((attempt) => attempt + 1);
+                    }}
+                  >
+                    <i className="ti ti-refresh" aria-hidden="true" />
+                  </button>
+                ) : null}
+              </span>
+            </label>
+            <label className="vp-full-row">
+              Company NPWP
+              <input
+                type="text"
+                name="company_npwp"
+                placeholder="Enter company NPWP number"
+                required
+                disabled={isSubmitting}
+                pattern={'.*\\S.*'}
+              />
+            </label>
+            <label className="vp-full-row">
+              Company address
+              <textarea
+                name="address"
+                placeholder="Enter company address"
+                autoComplete="street-address"
+                rows={3}
+                required
+                disabled={isSubmitting}
+                onChange={(event) => {
+                  event.target.setCustomValidity(event.target.value.trim() ? '' : 'Please enter your company address.');
+                }}
+              />
+            </label>
+            <label>
+              Contact person name
+              <input
+                type="text"
+                name="pic_name"
+                placeholder="Full name of contact person"
+                required
+                disabled={isSubmitting}
+                pattern={'.*\\S.*'}
+              />
+            </label>
+            <label>
+              Phone number
+              <input type="tel" name="pic_phone" placeholder="08xx xxxx xxxx" required disabled={isSubmitting} pattern={'.*\\S.*'} />
+            </label>
           </div>
         </div>
-        <label className="vp-check vp-terms">
-          <input type="checkbox" name="terms_agreed" required disabled={isSubmitting} /> I agree to the vendor partnership terms and
-          policies.
-        </label>
-        <button className="vp-primary" type="submit" disabled={isSubmitting || emailCheck !== 'available'} aria-busy={isSubmitting}>
-          {isSubmitting ? <span className="spinner-border spinner-border-sm" aria-hidden="true" /> : null}
-          <span aria-live="polite">{isSubmitting ? 'Submitting registration...' : 'Submit registration'}</span>
-          {!isSubmitting ? <i className="ti ti-send" aria-hidden="true" /> : null}
-        </button>
-        <button className="vp-link vp-back" type="button" onClick={() => navigate('/vendor-portal')}>
-          <i className="ti ti-arrow-left" /> Already have an account? Sign in
-        </button>
+        <div
+          id="vp-registration-documents"
+          className="vp-registration-panel"
+          role="tabpanel"
+          aria-labelledby="vp-tab-documents"
+          hidden={activeTab !== 'documents'}
+        >
+          <div className="vp-document-section">
+            <div>
+              <h3>Legal documents</h3>
+              <p>PDF, JPG, or PNG. Maximum 10 MB per file.</p>
+            </div>
+            <div className="vp-upload-grid">
+              {documentRequirements.map((document) => (
+                <div
+                  className={`vp-registration-upload-card${document.template ? ' vp-document-upload-template' : ''}`}
+                  key={`${vendorType}-${document.key}`}
+                >
+                  {document.template ? (
+                    <div className="vp-template-download">
+                      <button
+                        type="button"
+                        className="vp-link"
+                        disabled={isSubmitting || Boolean(downloadingTemplate)}
+                        onClick={() => downloadTemplate(document)}
+                      >
+                        <i className="ti ti-download" aria-hidden="true" />
+                        {downloadingTemplate === document.key ? 'Downloading...' : `Download ${document.label}`}
+                      </button>
+                      <small>Download and complete the template, then upload the completed document below.</small>
+                    </div>
+                  ) : null}
+                  <label className={files[document.key] ? 'vp-upload has-file' : 'vp-upload'}>
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      name={document.key}
+                      required={document.required}
+                      disabled={isSubmitting}
+                      onChange={(event) => setFile(document.key, event.target)}
+                    />
+                    <i className={`ti ${files[document.key] ? 'ti-circle-check' : document.icon}`} />
+                    <span>
+                      <strong>{document.label}</strong>
+                      <small>{document.required ? 'Required' : 'Optional'}</small>
+                      <small>
+                        {files[document.key]?.name || (document.template ? 'Upload completed document' : 'Click to select a file')}
+                      </small>
+                    </span>
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
+          <label className="vp-check vp-terms">
+            <input type="checkbox" name="terms_agreed" required disabled={isSubmitting} /> I agree to the vendor partnership terms and
+            policies.
+          </label>
+        </div>
       </form>
-    </AuthShell>
+    </RegistrationModal>
   );
 }
 
@@ -462,7 +649,13 @@ export default function VendorPortal() {
   const { page, vendorType } = useParams();
   const session = getVendorPortalSession();
 
-  if (page === 'register') return <RegisterPage />;
+  if (page === 'register')
+    return (
+      <>
+        {' '}
+        <LoginPage /> <RegisterPage />{' '}
+      </>
+    );
   if (page === 'account') return session ? <VendorAccount /> : <Navigate to="/vendor-portal" replace />;
   if (vendorType) {
     if (!session) return <Navigate to="/vendor-portal" replace />;

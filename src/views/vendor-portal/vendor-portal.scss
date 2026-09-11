@@ -364,8 +364,18 @@
   background: #f9fbfd;
   cursor: pointer;
 }
+.vp-upload {
+  position: relative;
+}
 .vp-upload input {
-  display: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.vp-upload:focus-within {
+  outline: 2px solid #168da1;
+  outline-offset: 2px;
 }
 .vp-upload > i {
   color: #3788a2;
@@ -1490,4 +1500,248 @@
       color: #dc2626;
     }
   }
+}
+
+.vp-registration-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 5px;
+  border-radius: 12px;
+  background: #f4f7fb;
+
+  button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 8px;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    background: transparent;
+    color: #617087;
+    font-size: 11px;
+    font-weight: 700;
+
+    &[aria-selected='true'] {
+      border-color: #168da1;
+      background: #effbfc;
+      color: #118399;
+    }
+
+    &:focus-visible {
+      outline: 2px solid #168da1;
+      outline-offset: 2px;
+    }
+
+    span {
+      display: grid;
+      place-items: center;
+      width: 22px;
+      height: 22px;
+      flex-shrink: 0;
+      border: 1px solid currentColor;
+      border-radius: 50%;
+    }
+  }
+}
+
+.vp-registration-panel {
+  display: grid;
+  gap: 18px;
+
+  &[hidden] {
+    display: none;
+  }
+}
+
+.vp-registration-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+
+  .vp-primary {
+    flex: 1;
+  }
+
+  .vp-secondary {
+    width: auto;
+  }
+}
+
+.vp-registration-upload-card {
+  min-width: 0;
+  width: 100%;
+  align-items: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .vp-upload {
+    flex: 1;
+    width: 100%;
+    margin: 0;
+  }
+}
+
+.vp-template-download {
+  display: grid;
+  gap: 5px;
+
+  button {
+    text-align: left;
+    font-size: 11px;
+  }
+
+  small {
+    font-size: 10px;
+    color: #617087;
+  }
+}
+
+.vp-registration-modal {
+  color: #15233c;
+
+  .modal-content {
+    border: 1px solid #dfe7f1;
+    border-radius: 20px;
+    overflow: hidden;
+  }
+
+  .modal-header {
+    padding: 20px 28px;
+    border-bottom-color: #e8edf4;
+  }
+
+  .modal-title {
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  .modal-body {
+    padding: 24px 28px;
+  }
+
+  .vp-register-heading {
+    margin: 0 0 16px;
+
+    .vp-kicker {
+      margin-bottom: 6px;
+      font-size: 9px;
+    }
+
+    h2 {
+      margin-bottom: 5px;
+      font-size: 22px;
+    }
+
+    p {
+      font-size: 11px;
+      line-height: 1.5;
+    }
+  }
+
+  .vp-registration-tabs {
+    padding: 4px;
+    gap: 6px;
+
+    button {
+      padding: 8px;
+      gap: 6px;
+      font-size: 10px;
+
+      span {
+        width: 18px;
+        height: 18px;
+      }
+    }
+  }
+
+  .vp-form,
+  .vp-registration-panel {
+    gap: 12px;
+  }
+
+  .vp-type-fieldset legend {
+    margin-bottom: 6px;
+    font-size: 10px;
+  }
+
+  .vp-type-grid button {
+    min-height: 50px;
+    padding: 8px 10px;
+    gap: 8px;
+
+    > i:first-child {
+      font-size: 19px;
+    }
+
+    strong {
+      font-size: 10px;
+    }
+  }
+
+  .vp-upload strong {
+    white-space: normal;
+  }
+
+  .vp-upload small {
+    overflow-wrap: anywhere;
+  }
+}
+
+.vp-document-upload-template {
+  grid-column: 1 / -1;
+  padding: 14px;
+  border: 1px solid #dfe7f1;
+  border-radius: 12px;
+  background: #f9fbfd;
+}
+
+@media (max-width: 575px) {
+  .vp-registration-modal {
+    .modal-header,
+    .modal-body {
+      padding: 18px 16px;
+    }
+
+    .vp-upload-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+}
+
+.vp-registration-modal .vp-registration-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  flex-shrink: 0;
+  gap: 12px;
+  padding: 18px 28px;
+  border-top: 1px solid #e8edf4;
+  background: #fff;
+
+  > * {
+    margin: 0;
+  }
+
+  .vp-back {
+    text-align: center;
+  }
+}
+
+@media (max-width: 575px) {
+  .vp-registration-modal .vp-registration-footer {
+    padding: 16px;
+  }
+}
+
+.vp-registration-error {
+  padding: 8px 12px;
+  border: 1px solid #efb5b5;
+  border-radius: 8px;
+  background: #fff3f3;
+  color: #a52828;
+  font-size: 12px;
+  overflow-wrap: anywhere;
 }
