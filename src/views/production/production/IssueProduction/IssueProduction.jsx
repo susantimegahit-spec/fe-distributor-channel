@@ -1119,7 +1119,6 @@ export default function IssueProduction() {
                 menuShouldScrollIntoView={false}
                 options={shiftOptions}
                 value={shiftOptions.find((option) => option.value === issueForm.Shift) || null}
-                isDisabled
                 placeholder="Select shift"
                 onChange={(option) => setIssueForm((current) => ({ ...current, Shift: option?.value || '' }))}
               />

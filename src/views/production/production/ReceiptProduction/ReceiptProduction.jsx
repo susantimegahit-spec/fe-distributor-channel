@@ -1149,7 +1149,6 @@ export default function ReceiptProduction() {
                 menuShouldScrollIntoView={false}
                 options={shiftOptions}
                 value={shiftOptions.find((option) => option.value === receiptForm.Shift) || null}
-                isDisabled
                 placeholder="Select shift"
                 onChange={(option) => setReceiptForm((current) => ({ ...current, Shift: option?.value || '' }))}
               />
