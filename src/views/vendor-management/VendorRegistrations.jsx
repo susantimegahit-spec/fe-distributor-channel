@@ -42,6 +42,12 @@ const getValue = (vendor, keys, fallback = '-') => {
   return value ?? fallback;
 };
 
+const getRegionValue = (vendor, keys) => {
+  const value = getValue(vendor, keys);
+  if (value && typeof value === 'object') return value.name ?? value.label ?? value.id ?? '-';
+  return value;
+};
+
 const formatDate = (value) => {
   if (!value || value === '-') return '-';
   const date = new Date(value);
@@ -49,10 +55,8 @@ const formatDate = (value) => {
 
   return new Intl.DateTimeFormat('en-GB', {
     day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
+    month: 'long',
+    year: 'numeric'
   }).format(date);
 };
 
@@ -560,6 +564,26 @@ export default function VendorRegistrations({
                     <span>{getValue(vendorDetail, ['address', 'company_address'])}</span>
                   </div>
                   <div className="col-md-6">
+                    <small className="text-muted d-block">Province</small>
+                    <span>{getRegionValue(vendorDetail, ['province_name', 'province'])}</span>
+                  </div>
+                  <div className="col-md-6">
+                    <small className="text-muted d-block">Regency / City</small>
+                    <span>{getRegionValue(vendorDetail, ['city_name', 'regency_name', 'city', 'regency'])}</span>
+                  </div>
+                  <div className="col-md-6">
+                    <small className="text-muted d-block">District</small>
+                    <span>{getRegionValue(vendorDetail, ['district_name', 'district'])}</span>
+                  </div>
+                  <div className="col-md-6">
+                    <small className="text-muted d-block">Village / Urban Village</small>
+                    <span>{getRegionValue(vendorDetail, ['village_name', 'village'])}</span>
+                  </div>
+                  <div className="col-md-6">
+                    <small className="text-muted d-block">Postal code</small>
+                    <span>{getValue(vendorDetail, ['postal_code', 'zip_code'])}</span>
+                  </div>
+                  <div className="col-md-6">
                     <small className="text-muted d-block">Contact person</small>
                     <span>{getValue(vendorDetail, ['pic_name', 'contact_name'])}</span>
                   </div>
@@ -581,6 +605,7 @@ export default function VendorRegistrations({
                         const documentId = getDocumentId(document);
                         const label = getDocumentLabel(document);
                         const status = getDocumentStatus(document);
+                        const isValid = String(status).trim().toLowerCase() === 'valid';
                         const documentKey = documentId ?? `${getDocumentType(document)}-${index}`;
                         const isPreviewing = documentId != null && previewingDocumentId === documentId;
                         const isActionOpen = documentActionMenu?.key === documentKey;
@@ -595,7 +620,12 @@ export default function VendorRegistrations({
                                 </div>
                               </div>
                               <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-auto">
-                                <Badge bg={`light-${statusVariant(status)}`} text={statusVariant(status)} className="text-capitalize">
+                                <Badge
+                                  bg={isValid ? '' : `light-${statusVariant(status)}`}
+                                  text={isValid ? 'white' : statusVariant(status)}
+                                  className="text-capitalize"
+                                  style={isValid ? { backgroundColor: '#146c43' } : undefined}
+                                >
                                   {formatStatus(status)}
                                 </Badge>
                                 <Button

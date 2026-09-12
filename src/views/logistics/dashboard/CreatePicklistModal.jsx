@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import Select from 'react-select';
 import { Alert, Badge, Button, Col, Form, Modal, Row, Stack, Table } from 'react-bootstrap';
 import PicklistRecommendations from './PicklistRecommendations';
+import SalesOrderDetailModal from './SalesOrderDetailModal';
 import OrderServices from '../../../services/customer-portal/OrderServices';
 
 const approved = (order) =>
@@ -9,6 +11,19 @@ const approved = (order) =>
     .toUpperCase() === 'ORDER_APPROVED';
 const orderNumber = (order) => order.sap_doc_num || order.order_no || order.id;
 const formatNumber = (value) => Number(value || 0).toLocaleString('id-ID', { maximumFractionDigits: 3 });
+const licensePlateOptions = [
+  { value: 'L 1234 AB', label: 'L 1234 AB — Truck (Mockup)' },
+  { value: 'L 5678 CD', label: 'L 5678 CD — Box (Mockup)' },
+  { value: 'B 9012 EF', label: 'B 9012 EF — Trailer (Mockup)' }
+];
+const driverOptions = [
+  { value: 'driver-1', label: 'Driver 1 (Mockup)' },
+  { value: 'driver-2', label: 'Driver 2 (Mockup)' }
+];
+const checkerOptions = [
+  { value: 'checker-1', label: 'Checker 1 (Mockup)' },
+  { value: 'checker-2', label: 'Checker 2 (Mockup)' }
+];
 const today = () => {
   const date = new Date();
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -24,6 +39,8 @@ export default function CreatePicklistModal({ onClose, order }) {
   const [lines, setLines] = useState([]);
   const [shippingType, setShippingType] = useState('');
   const [licensePlate, setLicensePlate] = useState('');
+  const [driver, setDriver] = useState(null);
+  const [checker, setChecker] = useState(null);
   const [selecting, setSelecting] = useState(false);
   const [orders, setOrders] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -33,9 +50,12 @@ export default function CreatePicklistModal({ onClose, order }) {
   const [error, setError] = useState('');
   const [resetting, setResetting] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
+  const [detailOrder, setDetailOrder] = useState(null);
   const [capacity, setCapacity] = useState(order?.weight || '');
   const totalWeight = lines.reduce((total, line) => total + (Number(line.quantity) || 0) * (Number(line.unitWeight) || 0), 0);
   const orderCount = new Set(lines.map((line) => line.orderId)).size;
+  const allowsMultipleOrders = shippingType === 'internal';
+  const singleOrderLimitReached = !allowsMultipleOrders && orderCount >= 1;
   const filteredOrders = orders.filter((item) =>
     `${orderNumber(item)} ${item.customer_name || ''} ${item.card_code || ''}`.toLowerCase().includes(query.toLowerCase())
   );
@@ -61,12 +81,18 @@ export default function CreatePicklistModal({ onClose, order }) {
     }
   };
   const openSelection = () => {
+    if (!shippingType || singleOrderLimitReached) return;
     setSelectedIds([]);
     setQuery('');
     setSelecting(true);
     fetchOrders();
   };
   const addOrders = async () => {
+    if (adding || !selectedIds.length) return;
+    if (!shippingType || (!allowsMultipleOrders && new Set([...lines.map((line) => line.orderId), ...selectedIds]).size > 1)) {
+      setError('External and Pickup shipping allow only one Sales Order.');
+      return;
+    }
     setAdding(true);
     setError('');
     try {
@@ -82,6 +108,8 @@ export default function CreatePicklistModal({ onClose, order }) {
             orderId: String(id),
             orderNumber: orderNumber(detail),
             customer: detail.customer_name,
+            depo: detail.depo,
+            address: detail.address || detail.bill_to_address || detail.Address,
             destinationCode: detail.card_code,
             itemCode: item.item_code,
             itemName: item.item_name,
@@ -107,7 +135,7 @@ export default function CreatePicklistModal({ onClose, order }) {
 
   return (
     <>
-      <Modal show={!selecting && !resetting && !confirmClose} onHide={requestClose} fullscreen scrollable>
+      <Modal show={!selecting && !resetting && !confirmClose && !detailOrder} onHide={requestClose} fullscreen scrollable>
         <Modal.Header closeButton>
           <Modal.Title>
             Create Picklist{' '}
@@ -119,37 +147,75 @@ export default function CreatePicklistModal({ onClose, order }) {
         <Modal.Body>
           <Row className="g-3 mb-4">
             <Col md={4}>
-              <Form.Label htmlFor="picklist-shipping-type">Pilih Pengiriman *</Form.Label>
+              <Form.Label htmlFor="picklist-shipping-type">Shipping Type *</Form.Label>
               <Form.Select
                 id="picklist-shipping-type"
                 value={shippingType}
                 onChange={(event) => {
+                  if (event.target.value !== 'internal' && orderCount > 1) {
+                    setError('Remove extra Sales Orders before changing shipping type. External and Pickup allow only one Sales Order.');
+                    return;
+                  }
+                  setError('');
                   setShippingType(event.target.value);
                   setLicensePlate('');
+                  setDriver(null);
+                  setChecker(null);
                 }}
               >
-                <option value="">Pilih jenis pengiriman</option>
+                <option value="">Select shipping type</option>
                 <option value="internal">Internal</option>
-                <option value="external">Eksternal</option>
+                <option value="external">External</option>
                 <option value="pickup">Pickup</option>
               </Form.Select>
             </Col>
             {shippingType === 'internal' && (
-              <Col md={4}>
-                <Form.Label htmlFor="picklist-license-plate">Nomor Polisi *</Form.Label>
-                <Form.Select id="picklist-license-plate" value={licensePlate} onChange={(event) => setLicensePlate(event.target.value)}>
-                  <option value="">Pilih nomor polisi</option>
-                  <option value="L 1234 AB">L 1234 AB — Truk (Mockup)</option>
-                  <option value="L 5678 CD">L 5678 CD — Box (Mockup)</option>
-                  <option value="B 9012 EF">B 9012 EF — Trailer (Mockup)</option>
-                </Form.Select>
-                <Form.Text>Data kendaraan contoh untuk preview.</Form.Text>
+              <Col xs={12}>
+                <Row className="g-3">
+                  <Col md={4}>
+                    <Form.Label htmlFor="picklist-license-plate">License Plate Number *</Form.Label>
+                    <Select
+                      inputId="picklist-license-plate"
+                      classNamePrefix="react-select"
+                      options={licensePlateOptions}
+                      value={licensePlateOptions.find((option) => option.value === licensePlate) || null}
+                      onChange={(option) => setLicensePlate(option?.value || '')}
+                      placeholder="Select license plate number"
+                      isClearable
+                    />
+                    <Form.Text>Sample vehicle data for preview.</Form.Text>
+                  </Col>
+                  <Col md={4}>
+                    <Form.Label htmlFor="picklist-driver">Driver</Form.Label>
+                    <Select
+                      inputId="picklist-driver"
+                      classNamePrefix="react-select"
+                      options={driverOptions}
+                      value={driver}
+                      onChange={setDriver}
+                      placeholder="Select driver"
+                      isClearable
+                    />
+                  </Col>
+                  <Col md={4}>
+                    <Form.Label htmlFor="picklist-checker">Checker</Form.Label>
+                    <Select
+                      inputId="picklist-checker"
+                      classNamePrefix="react-select"
+                      options={checkerOptions}
+                      value={checker}
+                      onChange={setChecker}
+                      placeholder="Select checker"
+                      isClearable
+                    />
+                  </Col>
+                </Row>
               </Col>
             )}
             {shippingType === 'pickup' && (
               <Col md={8} className="d-flex align-items-end">
                 <Alert variant="light" className="mb-0 w-100">
-                  Barang diambil oleh pelanggan. Pilih SO dan kuantitas barang yang akan diambil.
+                  The customer will collect the goods. Select the Sales Orders and quantities to pick up.
                 </Alert>
               </Col>
             )}
@@ -200,7 +266,13 @@ export default function CreatePicklistModal({ onClose, order }) {
               />
             </Col>
           </Row>
-          {!shippingType && <Alert variant="light">Pilih jenis pengiriman untuk menambahkan Sales Order.</Alert>}
+          {error && <Alert variant="danger">{error}</Alert>}
+          {!shippingType && <Alert variant="light">Select a shipping type to add Sales Orders.</Alert>}
+          {shippingType && !allowsMultipleOrders && (
+            <Alert variant="info">
+              External and Pickup allow only one Sales Order. Remove the current SO items or reset to select another SO.
+            </Alert>
+          )}
           {shippingType && (
             <>
               <Stack direction="horizontal" className="justify-content-between mb-3">
@@ -218,7 +290,13 @@ export default function CreatePicklistModal({ onClose, order }) {
                   >
                     <i className="ti ti-refresh me-1" /> Reset
                   </Button>
-                  <Button data-permission-action="utility" size="sm" variant="outline-primary" onClick={openSelection}>
+                  <Button
+                    data-permission-action="utility"
+                    size="sm"
+                    variant="outline-primary"
+                    disabled={singleOrderLimitReached}
+                    onClick={openSelection}
+                  >
                     <i className="ti ti-plus me-1" /> Add SO
                   </Button>
                 </Stack>
@@ -227,10 +305,11 @@ export default function CreatePicklistModal({ onClose, order }) {
                 <thead>
                   <tr>
                     <th>Item / Sales Order</th>
+                    <th>Customer</th>
+                    <th>Address</th>
                     <th>Warehouse</th>
                     <th>Ordered Qty</th>
                     <th>Pick Qty</th>
-                    <th>Weight / Unit (kg)</th>
                     <th className="text-end">Total Weight (kg)</th>
                     <th className="text-center">Action</th>
                   </tr>
@@ -240,11 +319,28 @@ export default function CreatePicklistModal({ onClose, order }) {
                     <tr key={line.id}>
                       <td style={{ minWidth: 220 }}>
                         <span className="fw-semibold">{line.itemCode}</span>
-                        <Badge bg="light" text="primary" className="border ms-2">
+                        <Badge
+                          as="button"
+                          type="button"
+                          bg="light"
+                          text="primary"
+                          className="border ms-2 d-inline-flex align-items-center gap-1"
+                          data-permission-action="utility"
+                          aria-label={`View sales order ${line.orderNumber} details`}
+                          title="Sales Order Detail"
+                          onClick={() => setDetailOrder({ id: line.orderId, number: line.orderNumber })}
+                        >
                           SO {line.orderNumber}
+                          <i className="ti ti-info-circle" aria-hidden="true" />
                         </Badge>
                         <div className="text-muted f-12">{line.itemName || '-'}</div>
-                        <small className="text-muted">{line.customer}</small>
+                      </td>
+                      <td style={{ minWidth: 180 }}>
+                        <div className="fw-semibold">{line.customer || '-'}</div>
+                        <small className="text-muted d-block">{line.depo || '-'}</small>
+                      </td>
+                      <td className="text-break" style={{ minWidth: 220, whiteSpace: 'pre-line' }}>
+                        {line.address || '-'}
                       </td>
                       <td>{line.warehouse || '-'}</td>
                       <td>
@@ -254,34 +350,22 @@ export default function CreatePicklistModal({ onClose, order }) {
                         <Form.Control
                           aria-label={`Pick quantity ${line.itemCode}`}
                           size="sm"
-                          type="number"
-                          min="0.0001"
-                          max={line.orderedQuantity}
-                          step="any"
+                          type="text"
+                          inputMode="decimal"
                           value={line.quantity}
                           isInvalid={
                             !Number.isFinite(Number(line.quantity)) ||
                             Number(line.quantity) <= 0 ||
                             Number(line.quantity) > line.orderedQuantity
                           }
-                          onChange={(event) => changeLine(line.id, 'quantity', event.target.value)}
+                          onChange={(event) => {
+                            const value = event.target.value.replace(',', '.');
+                            if (/^\d*\.?\d*$/.test(value)) changeLine(line.id, 'quantity', value);
+                          }}
                         />
                         <Form.Control.Feedback type="invalid">
                           Enter a positive quantity up to {line.orderedQuantity}.
                         </Form.Control.Feedback>
-                      </td>
-                      <td style={{ minWidth: 140 }}>
-                        <Form.Control
-                          aria-label={`Unit weight ${line.itemCode}`}
-                          size="sm"
-                          type="number"
-                          min="0.0001"
-                          step="any"
-                          value={line.unitWeight}
-                          isInvalid={!Number.isFinite(Number(line.unitWeight)) || Number(line.unitWeight) <= 0}
-                          onChange={(event) => changeLine(line.id, 'unitWeight', event.target.value)}
-                        />
-                        <Form.Control.Feedback type="invalid">Enter the weight per unit.</Form.Control.Feedback>
                       </td>
                       <td className="text-end fw-semibold">{formatNumber(Number(line.quantity) * Number(line.unitWeight))}</td>
                       <td className="text-center">
@@ -299,7 +383,7 @@ export default function CreatePicklistModal({ onClose, order }) {
                   ))}
                   {!lines.length && (
                     <tr>
-                      <td colSpan={7} className="text-center text-muted py-5">
+                      <td colSpan={8} className="text-center text-muted py-5">
                         <i className="ti ti-package d-block fs-1 mb-2" />
                         No items added. Click Add SO to select approved Sales Orders.
                       </td>
@@ -324,7 +408,7 @@ export default function CreatePicklistModal({ onClose, order }) {
               {shippingType === 'external' && <PicklistRecommendations lines={lines} />}
             </>
           )}
-          <p className="text-muted small mt-3">Review the weight per unit before proceeding. This mockup does not save or assign orders.</p>
+          <p className="text-muted small mt-3">This mockup does not save or assign orders.</p>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="light-secondary" onClick={requestClose}>
@@ -335,6 +419,7 @@ export default function CreatePicklistModal({ onClose, order }) {
           </Button>
         </Modal.Footer>
       </Modal>
+      {detailOrder && <SalesOrderDetailModal order={detailOrder} onClose={() => setDetailOrder(null)} />}
       <Modal show={selecting} onHide={() => !adding && setSelecting(false)} size="xl" centered scrollable>
         <Modal.Header closeButton={!adding}>
           <Modal.Title>Select Sales Orders</Modal.Title>
@@ -377,20 +462,35 @@ export default function CreatePicklistModal({ onClose, order }) {
               ) : (
                 filteredOrders.map((item) => {
                   const id = String(item.id);
+                  const selectOrder = () => {
+                    if (adding) return;
+                    setSelectedIds((current) =>
+                      allowsMultipleOrders ? (current.includes(id) ? current.filter((value) => value !== id) : [...current, id]) : [id]
+                    );
+                  };
                   return (
-                    <tr key={id}>
+                    <tr
+                      key={id}
+                      className={selectedIds.includes(id) ? 'table-active' : undefined}
+                      style={{ cursor: adding ? 'default' : 'pointer' }}
+                      onClick={selectOrder}
+                    >
                       <td>
                         <Form.Check
+                          type={allowsMultipleOrders ? 'checkbox' : 'radio'}
+                          name="picklist-sales-order"
                           aria-label={`Select SO ${orderNumber(item)}`}
                           checked={selectedIds.includes(id)}
                           disabled={adding}
-                          onChange={(event) =>
-                            setSelectedIds((current) => (event.target.checked ? [...current, id] : current.filter((value) => value !== id)))
-                          }
+                          onClick={(event) => event.stopPropagation()}
+                          onChange={selectOrder}
                         />
                       </td>
                       <td className="fw-semibold">{orderNumber(item)}</td>
-                      <td>{item.customer_name || item.card_code}</td>
+                      <td>
+                        <div>{item.customer_name || item.card_code || '-'}</div>
+                        <small className="text-muted d-block">{item.depo || '-'}</small>
+                      </td>
                       <td>{item.doc_date?.slice(0, 10) || '-'}</td>
                       <td>{item.doc_due_date?.slice(0, 10) || '-'}</td>
                       <td>

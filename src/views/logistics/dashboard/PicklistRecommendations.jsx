@@ -3,7 +3,7 @@ import { Alert, Badge, Form, Table } from 'react-bootstrap';
 import { currency } from '../../../utils/global';
 
 export default function PicklistRecommendations({ lines }) {
-  const [selectedExpeditions, setSelectedExpeditions] = useState({});
+  const [selectedExpedition, setSelectedExpedition] = useState(null);
   const routes = useMemo(() => {
     const grouped = new Map();
     lines.forEach((line) => {
@@ -54,18 +54,13 @@ export default function PicklistRecommendations({ lines }) {
       { id: 'samudra', name: 'Samudra Trans', service: 'Economy', eta: '4–5 hari', price: Math.max(350000, route.weight * 1500) }
     ]
   }));
-  const toggleExpedition = (key, id, checked) =>
-    setSelectedExpeditions((current) => ({
-      ...current,
-      [key]: checked ? [...(current[key] || []), id] : (current[key] || []).filter((value) => value !== id)
-    }));
 
   return (
     <section className="mt-4 border rounded p-3">
       <div className="d-flex justify-content-between align-items-center gap-3 mb-3">
         <div>
           <h6 className="mb-1">Rekomendasi Ekspedisi</h6>
-          <small className="text-muted">Centang ekspedisi yang ingin dipilih. Anda dapat memilih lebih dari satu.</small>
+          <small className="text-muted">Pilih satu ekspedisi. Memilih ekspedisi lain akan menggantikan pilihan sebelumnya.</small>
         </div>
         <Badge bg="light" text="secondary" className="border">
           Data Contoh
@@ -80,7 +75,7 @@ export default function PicklistRecommendations({ lines }) {
         </p>
       )}
       {results.map((route) => {
-        const selected = selectedExpeditions[route.selectionKey] || [];
+        const selected = selectedExpedition?.key === route.selectionKey ? selectedExpedition.id : null;
         return (
           <div key={route.key} className="mb-3">
             <div className="fw-semibold mb-2">
@@ -104,12 +99,20 @@ export default function PicklistRecommendations({ lines }) {
                   </thead>
                   <tbody>
                     {route.rates.map((rate) => (
-                      <tr key={rate.id} className={selected.includes(rate.id) ? 'table-primary' : undefined}>
+                      <tr
+                        key={rate.id}
+                        className={selected === rate.id ? 'table-primary' : undefined}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => setSelectedExpedition({ key: route.selectionKey, id: rate.id })}
+                      >
                         <td className="text-center">
                           <Form.Check
+                            type="radio"
+                            name="picklist-expedition"
                             aria-label={`Pilih ${rate.name} untuk SO ${route.orderNumber}`}
-                            checked={selected.includes(rate.id)}
-                            onChange={(event) => toggleExpedition(route.selectionKey, rate.id, event.target.checked)}
+                            checked={selected === rate.id}
+                            onClick={(event) => event.stopPropagation()}
+                            onChange={() => setSelectedExpedition({ key: route.selectionKey, id: rate.id })}
                           />
                         </td>
                         <td className="fw-semibold">{rate.name}</td>
@@ -121,11 +124,8 @@ export default function PicklistRecommendations({ lines }) {
                   </tbody>
                 </Table>
                 <div className="small text-muted mt-2" aria-live="polite">
-                  {selected.length
-                    ? `${selected.length} ekspedisi dipilih: ${route.rates
-                        .filter((rate) => selected.includes(rate.id))
-                        .map((rate) => rate.name)
-                        .join(', ')}`
+                  {selected
+                    ? `Ekspedisi dipilih: ${route.rates.find((rate) => rate.id === selected)?.name}`
                     : 'Belum ada ekspedisi dipilih.'}
                 </div>
               </>

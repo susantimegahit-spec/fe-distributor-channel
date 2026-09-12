@@ -778,6 +778,8 @@ export default function OrderList({ showOnlyCommitment = false }) {
           )}`;
         case 'date':
           return moment(getOrderValue(order, ['doc_date', 'docDate', 'date'], null)).valueOf() || 0;
+        case 'eta':
+          return moment(getOrderValue(order, ['eta_date', 'etaDate', 'ETA', 'u_eta', 'U_ETA'], null)).valueOf() || 0;
         case 'totalItem':
           return getOrderLines(order).length;
         case 'kg':
@@ -2251,6 +2253,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                         <th>{renderSortableOrderHeader('No. SO', 'soNumber')}</th>
                         <th>{renderSortableOrderHeader('Depo', 'depo')}</th>
                         <th>{renderSortableOrderHeader('Date', 'date')}</th>
+                        <th>{renderSortableOrderHeader('ETA', 'eta')}</th>
                         <th>{renderSortableOrderHeader('Total Item', 'totalItem')}</th>
                         <th>{renderSortableOrderHeader('Total Order (Kg)', 'totalKg')}</th>
                         <th>{renderSortableOrderHeader('Status', 'status')}</th>
@@ -2275,6 +2278,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                                 {order.depo} - {order.customer_name}
                               </td>
                               <td>{moment(order.doc_date).format('DD MMM YYYY')}</td>
+                              <td>{formatOrderDate(getOrderValue(order, ['eta_date', 'etaDate', 'ETA', 'u_eta', 'U_ETA'], ''))}</td>
                               <td>{getOrderLines(order).length}</td>
                               <td className="fw-semibold">{formatKg(getOrderTotalKg(order))}</td>
                               <td>
