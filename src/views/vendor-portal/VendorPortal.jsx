@@ -191,6 +191,16 @@ function RegistrationModal({ children, footer, submitting = false, completed = f
   );
 }
 
+const normalizeCompanyName = (value = '') => {
+  const companyName = String(value).trim().toUpperCase();
+  const prefixMatch = companyName.match(/^(PT|CV|UD)\.\s*(.+)$/i);
+
+  if (!prefixMatch) return companyName;
+
+  const [, companyType, name] = prefixMatch;
+  return `${name.trim()}, ${companyType.toUpperCase()}.`;
+};
+
 function RegisterPage() {
   const navigate = useNavigate();
   const { showAlert } = useAlert();
@@ -208,7 +218,8 @@ function RegisterPage() {
     postalCode.trim()
   ]
     .filter(Boolean)
-    .join(', ');
+    .join(', ')
+    .toUpperCase();
   const [activeTab, setActiveTab] = useState('profile');
   const [validationMessage, setValidationMessage] = useState('');
   const [downloadingTemplate, setDownloadingTemplate] = useState(null);
@@ -382,7 +393,7 @@ function RegisterPage() {
       const response = await VendorServices.postRegisterVendor({
         vendor_type: vendorType,
         ...region,
-        company_name: values.get('company_name').trim(),
+        company_name: normalizeCompanyName(values.get('company_name')),
         company_email: values.get('company_email').trim(),
         company_npwp: values.get('company_npwp').trim(),
         address: values.get('full_address').trim(),
@@ -505,7 +516,20 @@ function RegisterPage() {
           <div className="vp-two-columns">
             <label className="vp-full-row">
               Company name
-              <input type="text" name="company_name" placeholder="PT Company Name" required disabled={isSubmitting} pattern={'.*\\S.*'} />
+              <input
+                type="text"
+                name="company_name"
+                placeholder="Company Name, PT."
+                required
+                disabled={isSubmitting}
+                pattern={'.*\\S.*'}
+                onChange={(event) => {
+                  event.currentTarget.value = event.currentTarget.value.toUpperCase();
+                }}
+                onBlur={(event) => {
+                  event.currentTarget.value = normalizeCompanyName(event.currentTarget.value);
+                }}
+              />
             </label>
             <label className="vp-full-row">
               Company email
@@ -632,7 +656,7 @@ function RegisterPage() {
                 required
                 disabled={isSubmitting}
                 onChange={(event) => {
-                  setStreetAddress(event.target.value);
+                  setStreetAddress(event.target.value.toUpperCase());
                   event.target.setCustomValidity(event.target.value.trim() ? '' : 'Please enter your company address.');
                 }}
               />

@@ -309,6 +309,14 @@ const getEtaListPayload = (payload) => {
   return [];
 };
 
+const getRescheduleListPayload = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  const list = getFirstValue(payload, ['data', 'items', 'results', 'orders', 'reschedules', 'reschedule_orders', 'rescheduleOrders']);
+  if (Array.isArray(list)) return list;
+  if (list && typeof list === 'object') return [list];
+  return payload && typeof payload === 'object' ? [payload] : [];
+};
+
 const getComparisonListPayload = (payload) => {
   if (Array.isArray(payload)) return payload;
 
@@ -761,6 +769,9 @@ export default function Dashboard() {
   const [submittingReturn, setSubmittingReturn] = useState(false);
   const [compressingAttachments, setCompressingAttachments] = useState(false);
   const [orders, setOrders] = useState([]);
+  const [rescheduleOrders, setRescheduleOrders] = useState([]);
+  const [isLoadingRescheduleOrders, setIsLoadingRescheduleOrders] = useState(false);
+  const [loadingRescheduleOrderId, setLoadingRescheduleOrderId] = useState(null);
   const [isChartReady, setIsChartReady] = useState(false);
   const [orderSummary, setOrderSummary] = useState({ totalOrder: 0, totalAmount: 0, totalItem: 0 });
   const [chartData, setChartData] = useState(() => emptyChartData());
@@ -998,6 +1009,58 @@ export default function Dashboard() {
   }, []);
 
   const deliveryOrders = useMemo(() => orders.filter((order) => normalizeStatus(order.status) === 'DELIVERY'), [orders]);
+
+  useEffect(() => {
+    const fetchRescheduleOrders = async () => {
+      if (!orders.length) {
+        setRescheduleOrders([]);
+        return;
+      }
+
+      setIsLoadingRescheduleOrders(true);
+      const results = await Promise.allSettled(
+        orders.map(async (order) => {
+          const orderId = getOrderValue(order, ['id', 'sales_order_id', 'salesOrderId'], '');
+          if (!orderId) return [];
+          const response = await OrderServices.getRescheduleOrder(orderId);
+          if (response?.data?.success === false) return [];
+          return getRescheduleListPayload(getResponsePayload(response)).map((item) => ({ ...order, ...item, requested_order_id: orderId }));
+        })
+      );
+
+      setRescheduleOrders(results.flatMap((result) => (result.status === 'fulfilled' ? result.value : [])));
+      setIsLoadingRescheduleOrders(false);
+    };
+
+    fetchRescheduleOrders();
+  }, [orders]);
+
+  const requestRescheduleOrder = async (orderId) => {
+    setLoadingRescheduleOrderId(orderId);
+    try {
+      const response = await OrderServices.getRescheduleOrder(orderId);
+      if (response?.data?.success === false) {
+        throw new Error(response.data.message || 'Failed to request order reschedule');
+      }
+      const sourceOrder = orders.find(
+        (order) => String(getOrderValue(order, ['id', 'sales_order_id', 'salesOrderId'], '')) === String(orderId)
+      );
+      const refreshedRows = getRescheduleListPayload(getResponsePayload(response)).map((item) => ({
+        ...(sourceOrder || {}),
+        ...item,
+        requested_order_id: orderId
+      }));
+      setRescheduleOrders((current) => [
+        ...current.filter((item) => String(getOrderValue(item, ['requested_order_id'], '')) !== String(orderId)),
+        ...refreshedRows
+      ]);
+      showAlert(response?.data?.message || 'Order reschedule requested successfully', 'success');
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to request order reschedule', 'danger');
+    } finally {
+      setLoadingRescheduleOrderId(null);
+    }
+  };
   const returnSummaryByDoItem = useMemo(() => {
     const requestsByDoItem = new Map();
 
@@ -1469,6 +1532,88 @@ export default function Dashboard() {
             </Stack>
           }
         />
+
+        <MainCard
+          className="claim-transaction-card dashboard-reschedule-card border border-warning"
+          title={
+            <Stack direction="horizontal" className="justify-content-between align-items-start" gap={3}>
+              <Stack gap={1}>
+                <Stack direction="horizontal" gap={2} className="align-items-center">
+                  <h5 className="mb-0">Request Reschedule Order</h5>
+                  <Badge bg="warning" text="dark">
+                    Logistic
+                  </Badge>
+                </Stack>
+                <span className="text-muted f-12">Sales orders available for logistic rescheduling.</span>
+              </Stack>
+              <span className="avtar avtar-s bg-light-warning text-warning">
+                <i className="ti ti-calendar-time" />
+              </span>
+            </Stack>
+          }
+        >
+          <Table responsive hover className="mb-0 align-middle">
+            <thead>
+              <tr>
+                <th>No. SO</th>
+                <th>Customer</th>
+                <th>Depo</th>
+                <th>Order Date</th>
+                <th>ETA</th>
+                <th>Status</th>
+                <th className="text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoadingOrders || isLoadingRescheduleOrders ? (
+                <tr>
+                  <td colSpan={7} className="text-center text-muted py-4">
+                    Loading reschedule orders...
+                  </td>
+                </tr>
+              ) : rescheduleOrders.length ? (
+                rescheduleOrders.map((order, index) => {
+                  const id = getOrderValue(order, ['requested_order_id', 'id', 'sales_order_id', 'salesOrderId'], '');
+                  const status = normalizeStatus(getOrderValue(order, ['status'], ''));
+                  const statusMeta = getStatusMeta(status);
+                  const isRequesting = String(loadingRescheduleOrderId) === String(id);
+
+                  return (
+                    <tr key={id || index}>
+                      <td className="fw-semibold">
+                        {getOrderValue(order, ['sap_doc_num', 'sapDocNum', 'doc_num', 'docNum', 'order_no', 'orderNo'])}
+                      </td>
+                      <td>{getOrderValue(order, ['customer_name', 'customerName', 'card_name', 'cardName'])}</td>
+                      <td>{getOrderValue(order, ['depo', 'depot', 'warehouse_name', 'warehouseName'])}</td>
+                      <td>{formatOrderDate(getOrderValue(order, ['doc_date', 'docDate', 'created_at', 'createdAt'], ''))}</td>
+                      <td>{formatOrderDate(getOrderValue(order, ['eta_date', 'etaDate', 'doc_due_date', 'docDueDate'], ''))}</td>
+                      <td>
+                        <Badge bg={statusMeta.color}>{statusMeta.label}</Badge>
+                      </td>
+                      <td className="text-center">
+                        <Button
+                          variant="outline-warning"
+                          size="sm"
+                          disabled={!id || loadingRescheduleOrderId !== null}
+                          onClick={() => requestRescheduleOrder(id)}
+                        >
+                          <i className="ti ti-calendar-time me-1" />
+                          {isRequesting ? 'Requesting...' : 'Request Reschedule'}
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={7} className="text-center text-muted py-4">
+                    No reschedule orders available.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </Table>
+        </MainCard>
 
         {!isLoadingComparison && (
           <>

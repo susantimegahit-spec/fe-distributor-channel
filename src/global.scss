@@ -89,6 +89,58 @@ body {
   max-width: 1500px !important;
 }
 
+.vendor-rates-approval-dialog {
+  width: calc(100vw - 48px);
+  max-width: 1600px !important;
+}
+
+.vendor-rates-approval-dialog .modal-body {
+  max-height: 65vh;
+  overflow-y: auto;
+  font-size: 13px;
+}
+
+.vendor-rates-approval-dialog .modal-title {
+  font-size: 20px;
+}
+
+.vendor-rates-approval-dialog .table th,
+.vendor-rates-approval-dialog .table td {
+  font-size: 13px;
+}
+
+.vendor-rates-approval-dialog .table th,
+.vendor-rates-approval-dialog .table .badge {
+  font-size: 11px;
+}
+
+.vendor-rates-approval-dialog .modal-footer .btn {
+  font-size: 13px;
+}
+
+.logistics-order-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.logistics-order-action--confirm {
+  background-color: transparent;
+  border-color: #146c43;
+  color: #146c43;
+}
+
+.logistics-order-action--confirm:hover,
+.logistics-order-action--confirm:focus-visible {
+  background-color: #0f5132;
+  border-color: #0f5132;
+  color: #fff;
+}
+
 @media (max-width: 575.98px) {
   .vendor-detail-dialog {
     width: calc(100vw - 24px);

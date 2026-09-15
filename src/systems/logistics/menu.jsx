@@ -50,16 +50,6 @@ const logisticsMenu = [
         url: withBasePath('/master/destination')
       },
       {
-        id: 'logistics-master',
-        title: 'Expeditions',
-        type: 'item',
-        value: 'logistics-master',
-        label: 'Expeditions',
-        selected: true,
-        icon: 'ti ti-package-export',
-        url: withBasePath('/master/expedition')
-      },
-      {
         id: 'logistics-rates',
         title: 'Rates',
         type: 'item',
@@ -69,6 +59,16 @@ const logisticsMenu = [
         icon: 'ti ti-receipt-2',
         url: withBasePath('/master/rates'),
         activeUrls: [withBasePath('/master/rates'), withBasePath('/master/tariff')]
+      },
+      {
+        id: 'logistics-lead-time',
+        title: 'Lead Time',
+        type: 'item',
+        value: 'logistics-lead-time',
+        label: 'Lead Time',
+        selected: true,
+        icon: 'ti ti-clock-hour-4',
+        url: withBasePath('/master/lead-time')
       }
     ]
   }

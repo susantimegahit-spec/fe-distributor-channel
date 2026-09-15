@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Select from 'react-select';
 import CreatePicklistModal from './CreatePicklistModal';
 import AsyncSelect from 'react-select/async';
@@ -15,9 +15,13 @@ import Table from 'react-bootstrap/Table';
 
 // project-imports
 import MainCard from 'components/MainCard';
+import TablePagination from 'components/TablePagination';
 import DestinationServices from '../../../services/logistics/DestinationServices';
 import OriginServices from '../../../services/logistics/OriginServices';
 import RateServices from '../../../services/logistics/RateServices';
+import LogisticsServices from '../../../services/logistics/LogisticsServices';
+import LeadTimeServices from '../../../services/logistics/LeadTimeServices';
+import VendorManagementServices from '../../../services/vendor-management/VendorManagementServices';
 import { useAlert } from '../../../utils/alertContext';
 import { currency } from '../../../utils/global';
 
@@ -37,102 +41,71 @@ const serviceTypeOptions = [
   { value: 'FEET', label: 'CONTAINER' }
 ];
 
-const dummyDeliveryOrders = [
-  {
-    id: 'ORD-2026-10482',
-    customer: 'PT Sumber Pangan Sejahtera',
-    originCode: 'SBY-01',
-    origin: 'Gudang Surabaya',
-    originCity: 'Surabaya',
-    destinationCode: 'JKT-PST-01',
-    destination: 'Jakarta Pusat',
-    destinationCity: 'DKI Jakarta',
-    weight: 350,
-    route: ['D'],
-    serviceType: 'TONASE',
-    deliveryDate: '28 Agu 2026'
-  },
-  {
-    id: 'ORD-2026-10477',
-    customer: 'CV Berkah Niaga',
-    originCode: 'GRS-01',
-    origin: 'Gudang Gresik',
-    originCity: 'Gresik',
-    destinationCode: 'SMG-01',
-    destination: 'Semarang',
-    destinationCity: 'Jawa Tengah',
-    weight: 1200,
-    route: ['D'],
-    serviceType: 'RIT',
-    deliveryDate: '29 Agu 2026'
-  },
-  {
-    id: 'ORD-2026-10469',
-    customer: 'PT Mitra Distribusi Utama',
-    originCode: 'JKT-02',
-    origin: 'Gudang Jakarta',
-    originCity: 'Jakarta',
-    destinationCode: 'MDN-01',
-    destination: 'Medan',
-    destinationCity: 'Sumatera Utara',
-    weight: 18000,
-    route: ['L'],
-    serviceType: 'FEET',
-    deliveryDate: '30 Agu 2026'
-  },
-  {
-    id: 'ORD-2026-10461',
-    customer: 'PT Karya Retail Indonesia',
-    originCode: 'MKS-01',
-    origin: 'Gudang Makassar',
-    originCity: 'Makassar',
-    destinationCode: 'BPN-01',
-    destination: 'Balikpapan',
-    destinationCity: 'Kalimantan Timur',
-    weight: 780,
-    route: ['L'],
-    serviceType: 'TONASE',
-    deliveryDate: '31 Agu 2026'
-  }
-];
+const orderPageSize = 10;
 
-const vendorStatusBadge = {
-  'Pending Review': { bg: 'light', text: 'primary', className: 'border border-primary' },
-  'Under Review': { bg: 'info', text: 'dark', className: 'border border-info' },
-  'Need Document': { bg: 'warning', text: 'dark', className: 'border border-warning' },
-  Approved: { bg: 'success', text: 'light', className: 'border border-success' },
-  Rejected: { bg: 'danger', text: 'light', className: 'border border-danger' }
+const getLogisticOrderPage = (response, requestedPageSize, requestedPage) => {
+  const root = response?.data ?? {};
+  const payload = root?.data && !Array.isArray(root.data) ? root.data : root;
+  const page = payload?.orders || payload?.data || payload;
+  const rows = Array.isArray(page) ? page : page?.data || page?.items || [];
+  const meta = payload?.pagination || payload?.meta || page?.pagination || page?.meta || page;
+  const total = Number(meta?.total ?? payload?.total ?? rows.length) || 0;
+  const currentPage = Number(meta?.current_page ?? meta?.page ?? payload?.current_page ?? requestedPage) || requestedPage;
+  const lastPage = Number(meta?.last_page ?? meta?.lastPage ?? payload?.last_page ?? 0) || 0;
+
+  return {
+    rows: Array.isArray(rows) ? rows : [],
+    total,
+    currentPage,
+    pageCount: lastPage || Math.max(Math.ceil(total / (Number(meta?.per_page) || requestedPageSize)), 1)
+  };
 };
-
-const dummyVendorRequests = [
-  {
-    id: 'VREG-2026-0041',
-    company: 'PT Trans Logistik Nusantara',
-    pic: 'Rama Wijaya',
-    email: 'rama@translogistik.co.id',
-    submittedAt: '26 Agu 2026, 09:15',
-    documents: 4,
-    status: 'Pending Review'
-  },
-  {
-    id: 'VREG-2026-0038',
-    company: 'CV Lintas Kargo Mandiri',
-    pic: 'Dewi Anggraini',
-    email: 'dewi@lintaskargo.id',
-    submittedAt: '25 Agu 2026, 14:42',
-    documents: 4,
-    status: 'Pending Review'
-  },
-  {
-    id: 'VREG-2026-0035',
-    company: 'PT Armada Cepat Indonesia',
-    pic: 'Agus Setiawan',
-    email: 'agus@armadacepat.co.id',
-    submittedAt: '24 Agu 2026, 11:20',
-    documents: 3,
-    status: 'Need Document'
-  }
-];
+const getOrderLines = (order) => order.details || order.lines || order.document_lines || [];
+const getOrderWeight = (order) => getOrderLines(order).reduce((total, line) => {
+  const productName = line.item_name || line.item?.item_name || line.description || '';
+  const match = [...String(productName).matchAll(/(\d+(?:[.,]\d+)?)\s*(kg|kilogram|g|gr|gram)\b/gi)].at(-1);
+  const unitWeight = match ? Number(match[1].replace(',', '.')) / (/^(g|gr|gram)$/i.test(match[2]) ? 1000 : 1) : 0;
+  return total + unitWeight * (Number(line.quantity ?? line.qty ?? 0) || 0);
+}, 0);
+const formatOrderDate = (value) => {
+  if (!value) return '-';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '-' : new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
+};
+const normalizeLocationName = (value) =>
+  String(value || '')
+    .replace(/\s*\([^)]*\)\s*$/, '')
+    .trim()
+    .toUpperCase();
+const subtractDays = (dateValue, days) => {
+  if (!dateValue || !Number.isFinite(Number(days))) return '';
+  const date = new Date(`${dateValue}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return '';
+  date.setDate(date.getDate() - Math.round(Number(days)));
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+const normalizeDeliveryOrder = (order) => {
+  const salesOrder = { ...order, ...(order.sales_order || order.order || {}) };
+  const firstLine = getOrderLines(salesOrder)[0] || {};
+  return {
+    ...salesOrder,
+    id: salesOrder.id,
+    status: String(salesOrder.status || '').trim().toUpperCase(),
+    orderNumber: salesOrder.sap_doc_num || salesOrder.order_no || salesOrder.id,
+    customer: salesOrder.customer_name || salesOrder.distributor?.name || '-',
+    depo: salesOrder.depo || '-',
+    originCode: salesOrder.origin_code || firstLine.whs_code || '-',
+    origin: salesOrder.origin_name || firstLine.whs_name || firstLine.warehouse?.whs_name || firstLine.whs_code || '-',
+    destination: salesOrder.destination_name || salesOrder.ship_to_name || salesOrder.ship_to_code || salesOrder.address2 || '-',
+    destinationCity: salesOrder.destination_city || salesOrder.ship_to_city || '',
+    weight: Number(salesOrder.total_weight_kg ?? salesOrder.total_kg ?? salesOrder.weight ?? getOrderWeight(salesOrder)) || 0,
+    loadingDate: formatOrderDate(salesOrder.doc_due_date),
+    etaDate: formatOrderDate(salesOrder.eta_date)
+  };
+};
 
 const getPayloadList = (response, keys = []) => {
   const payload = response?.data?.data ?? response?.data ?? [];
@@ -144,6 +117,12 @@ const getPayloadList = (response, keys = []) => {
 
   return [];
 };
+
+const getVendorRateValue = (item, keys) => keys.map((key) => item?.[key]).find((value) => value !== undefined && value !== null && String(value).trim() !== '') ?? '';
+const getVendorRateBatchId = (header) => getVendorRateValue(header, ['batch_id', 'batchId', 'id', 'uuid', 'header_id', 'headerId']);
+const getVendorRateName = (header) =>
+  getVendorRateValue(header, ['vendor_name', 'company_name', 'expedition_name', 'vendorName', 'companyName']) ||
+  header?.vendor?.company_name || header?.vendor?.name || header?.expedition?.expedition_name || '-';
 
 const formatMasterOption = ({ label, code, customerCode }) => (
   <div>
@@ -210,22 +189,37 @@ const normalizeShipToOption = (item, index) => {
 export default function LogisticsDashboard() {
   const { showAlert } = useAlert();
   const [activeTab, setActiveTab] = useState('orders');
+  const [deliveryOrders, setDeliveryOrders] = useState([]);
+  const [orderSearch, setOrderSearch] = useState('');
+  const [debouncedOrderSearch, setDebouncedOrderSearch] = useState('');
+  const [orderPage, setOrderPage] = useState(1);
+  const [orderPageCount, setOrderPageCount] = useState(1);
+  const [orderTotal, setOrderTotal] = useState(0);
+  const ordersRequestIdRef = useRef(0);
+  const [loadingDeliveryOrders, setLoadingDeliveryOrders] = useState(true);
+  const [deliveryOrdersError, setDeliveryOrdersError] = useState('');
+  const [approvingOrderId, setApprovingOrderId] = useState(null);
+  const [orderToApprove, setOrderToApprove] = useState(null);
+  const [orderToClose, setOrderToClose] = useState(null);
+  const [closeOrderForm, setCloseOrderForm] = useState({ etaDate: '', loadingDate: '', comment: '' });
+  const [reschedulingOrderId, setReschedulingOrderId] = useState(null);
+  const [rescheduleLeadTimeDays, setRescheduleLeadTimeDays] = useState(null);
+  const [loadingRescheduleLeadTime, setLoadingRescheduleLeadTime] = useState(false);
   const [createPicklist, setCreatePicklist] = useState(null);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [picklists, setPicklists] = useState({});
-  const picklistRows = picklists[selectedOrder?.id] || [];
-  const totalPicklistWeight = picklistRows.reduce((total, row) => total + (Number(row.weight) || 0), 0);
-  const remainingWeight = Math.round(((selectedOrder?.weight || 0) - totalPicklistWeight) * 1000) / 1000;
-  const updatePicklist = (rows) => setPicklists((current) => ({ ...current, [selectedOrder.id]: rows }));
-
-  const [showRecommendationModal, setShowRecommendationModal] = useState(false);
-  const [vendorRequests, setVendorRequests] = useState(dummyVendorRequests);
   const [originOptions, setOriginOptions] = useState([]);
   const [destinationOptions, setDestinationOptions] = useState([]);
   const [loadingOrigins, setLoadingOrigins] = useState(false);
   const [loadingDestinations, setLoadingDestinations] = useState(false);
   const [loadingRatesRank, setLoadingRatesRank] = useState(false);
   const [recommendations, setRecommendations] = useState([]);
+  const [pendingRateHeaders, setPendingRateHeaders] = useState([]);
+  const [selectedRateHeader, setSelectedRateHeader] = useState(null);
+  const [selectedRateDetails, setSelectedRateDetails] = useState([]);
+  const [loadingRateDetails, setLoadingRateDetails] = useState(false);
+  const [rateDetailsError, setRateDetailsError] = useState('');
+  const [processingRateApproval, setProcessingRateApproval] = useState(null);
+  const [loadingPendingRates, setLoadingPendingRates] = useState(true);
+  const [pendingRatesError, setPendingRatesError] = useState('');
   const [form, setForm] = useState({
     originCode: '',
     departure: '',
@@ -300,6 +294,224 @@ export default function LogisticsDashboard() {
   useEffect(() => {
     fetchMasterRoutes();
   }, [fetchMasterRoutes]);
+
+  const fetchDeliveryOrders = useCallback(async () => {
+    const requestId = ++ordersRequestIdRef.current;
+    setLoadingDeliveryOrders(true);
+    setDeliveryOrdersError('');
+    try {
+      const response = await LogisticsServices.getLogisticOrders({
+        search: debouncedOrderSearch,
+        per_page: orderPageSize,
+        page: orderPage
+      });
+      if (!(response?.status >= 200 && response.status < 300) || response?.data?.success === false) {
+        throw new Error(response?.data?.message || 'Failed to load logistics orders');
+      }
+      if (requestId !== ordersRequestIdRef.current) return;
+      const result = getLogisticOrderPage(response, orderPageSize, orderPage);
+      setDeliveryOrders(result.rows.map(normalizeDeliveryOrder));
+      setOrderTotal(result.total);
+      setOrderPageCount(result.pageCount);
+      if (result.currentPage !== orderPage) setOrderPage(result.currentPage);
+    } catch (error) {
+      if (requestId !== ordersRequestIdRef.current) return;
+      setDeliveryOrders([]);
+      setOrderTotal(0);
+      setOrderPageCount(1);
+      setDeliveryOrdersError(error?.response?.data?.message || error?.message || 'Failed to load logistics orders');
+    } finally {
+      if (requestId === ordersRequestIdRef.current) setLoadingDeliveryOrders(false);
+    }
+  }, [debouncedOrderSearch, orderPage]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedOrderSearch(orderSearch.trim()), 350);
+    return () => window.clearTimeout(timeout);
+  }, [orderSearch]);
+
+  useEffect(() => {
+    fetchDeliveryOrders();
+  }, [fetchDeliveryOrders]);
+
+  const openCloseOrderModal = async (order) => {
+    const etaDate = order.eta_date ? String(order.eta_date).slice(0, 10) : '';
+    setOrderToClose(order);
+    setRescheduleLeadTimeDays(null);
+    setCloseOrderForm({
+      etaDate,
+      loadingDate: '',
+      comment: ''
+    });
+    setLoadingRescheduleLeadTime(true);
+    try {
+      const response = await LeadTimeServices.getLeadTimes({ per_page: 100 });
+      if (!(response?.status >= 200 && response.status < 300) || response?.data?.success === false) {
+        throw new Error(response?.data?.message || 'Failed to load lead time');
+      }
+      const depo = normalizeLocationName(order.depo);
+      const leadTime = getPayloadList(response, ['leadtimes']).find((item) => {
+        const destination = normalizeLocationName(item.destination_name || item.destination_city || item.destination_code);
+        return Boolean(depo && destination) && (destination === depo || destination.includes(depo) || depo.includes(destination));
+      });
+      const averageDays = Number(leadTime?.avg_lead_time_days);
+      if (!leadTime || !Number.isFinite(averageDays)) {
+        showAlert(`Lead time for depo ${order.depo || '-'} was not found.`, 'warning');
+        return;
+      }
+      setRescheduleLeadTimeDays(averageDays);
+      setCloseOrderForm((current) => ({ ...current, loadingDate: subtractDays(current.etaDate, averageDays) }));
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to load lead time', 'danger');
+    } finally {
+      setLoadingRescheduleLeadTime(false);
+    }
+  };
+
+  const submitOrderReschedule = async () => {
+    if (!orderToClose?.id || reschedulingOrderId !== null) return;
+    if (!closeOrderForm.loadingDate || !closeOrderForm.comment.trim()) {
+      showAlert('Proposed loading date and notes are required.', 'warning');
+      return;
+    }
+
+    setReschedulingOrderId(orderToClose.id);
+    try {
+      const response = await LogisticsServices.postRescheduleOrder(orderToClose.id, {
+        proposed_delivery_date: closeOrderForm.loadingDate,
+        proposed_eta_date: closeOrderForm.etaDate || undefined,
+        notes: closeOrderForm.comment.trim()
+      });
+      if (!(response?.status >= 200 && response.status < 300) || response?.data?.success === false) {
+        throw new Error(response?.data?.message || 'Failed to reschedule order');
+      }
+      showAlert(response?.data?.message || `Order ${orderToClose.orderNumber} rescheduled successfully`, 'success');
+      setOrderToClose(null);
+      await fetchDeliveryOrders();
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to reschedule order', 'danger');
+    } finally {
+      setReschedulingOrderId(null);
+    }
+  };
+
+  const approveOrderPacking = async (order) => {
+    if (!order?.id || approvingOrderId !== null) return;
+
+    setApprovingOrderId(order.id);
+    try {
+      const response = await LogisticsServices.postApproveOrdersPacking(order.id);
+      if (!(response?.status >= 200 && response.status < 300) || response?.data?.success === false) {
+        throw new Error(response?.data?.message || 'Failed to approve order for packing');
+      }
+      showAlert(response?.data?.message || `Order ${order.orderNumber} approved for packing`, 'success');
+      setOrderToApprove(null);
+      await fetchDeliveryOrders();
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to approve order for packing', 'danger');
+    } finally {
+      setApprovingOrderId(null);
+    }
+  };
+
+  useEffect(() => {
+    let refreshTimeouts = [];
+    const refreshOrders = () => {
+      fetchDeliveryOrders();
+      refreshTimeouts.forEach(window.clearTimeout);
+      refreshTimeouts = [1500, 5000].map((delay) => window.setTimeout(fetchDeliveryOrders, delay));
+    };
+    const refreshIfPending = () => {
+      if (window.sessionStorage.getItem('sm-orders-refresh-pending') !== 'true') return;
+      window.sessionStorage.removeItem('sm-orders-refresh-pending');
+      refreshOrders();
+    };
+    const handleWindowMessage = (event) => {
+      if (event.origin === window.location.origin && event.data?.type === 'sm:orders-refresh-needed') refreshOrders();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshIfPending();
+    };
+
+    window.addEventListener('sm:orders-refresh-needed', refreshOrders);
+    window.addEventListener('message', handleWindowMessage);
+    window.addEventListener('focus', refreshIfPending);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    refreshIfPending();
+
+    return () => {
+      refreshTimeouts.forEach(window.clearTimeout);
+      window.removeEventListener('sm:orders-refresh-needed', refreshOrders);
+      window.removeEventListener('message', handleWindowMessage);
+      window.removeEventListener('focus', refreshIfPending);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [fetchDeliveryOrders]);
+
+  const fetchPendingVendorRates = useCallback(async () => {
+    setLoadingPendingRates(true);
+    setPendingRatesError('');
+    try {
+      const response = await VendorManagementServices.getVendorRates();
+      if (!(response?.status >= 200 && response.status < 300) || response?.data?.success === false) {
+        throw new Error(response?.data?.message || 'Failed to load pending rates');
+      }
+      setPendingRateHeaders(
+        getPayloadList(response, ['headers', 'rates']).filter(
+          (header) => String(getVendorRateValue(header, ['approval_status', 'approvalStatus'])).trim().toUpperCase() === 'PENDING'
+        )
+      );
+    } catch (error) {
+      setPendingRateHeaders([]);
+      setPendingRatesError(error?.response?.data?.message || error?.message || 'Failed to load pending rates');
+    } finally {
+      setLoadingPendingRates(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPendingVendorRates();
+  }, [fetchPendingVendorRates]);
+
+  const openPendingRateDetails = async (header) => {
+    setSelectedRateHeader(header);
+    setSelectedRateDetails([]);
+    setRateDetailsError('');
+    setLoadingRateDetails(true);
+    try {
+      const response = await VendorManagementServices.getVendorRateDetail(getVendorRateBatchId(header));
+      if (!(response?.status >= 200 && response.status < 300) || response?.data?.success === false) {
+        throw new Error(response?.data?.message || 'Failed to load rate details');
+      }
+      setSelectedRateDetails(getPayloadList(response, ['details', 'routes', 'rates']));
+    } catch (error) {
+      setRateDetailsError(error?.response?.data?.message || error?.message || 'Failed to load rate details');
+    } finally {
+      setLoadingRateDetails(false);
+    }
+  };
+
+  const handleRateApproval = async (action) => {
+    if (!selectedRateHeader || processingRateApproval) return;
+    setProcessingRateApproval(action);
+    setRateDetailsError('');
+    try {
+      const batchId = getVendorRateBatchId(selectedRateHeader);
+      const response = action === 'approve'
+        ? await VendorManagementServices.postApproveVendorRates(batchId)
+        : await VendorManagementServices.postRejectVendorRates(batchId);
+      if (!(response?.status >= 200 && response.status < 300) || response?.data?.success === false) {
+        throw new Error(response?.data?.message || `Failed to ${action} vendor rates`);
+      }
+      showAlert(response?.data?.message || `Vendor rates ${action === 'approve' ? 'approved' : 'rejected'} successfully`, 'success');
+      setSelectedRateHeader(null);
+      await fetchPendingVendorRates();
+    } catch (error) {
+      setRateDetailsError(error?.response?.data?.message || error?.message || `Failed to ${action} vendor rates`);
+    } finally {
+      setProcessingRateApproval(null);
+    }
+  };
 
   const searchShipToOptions = useCallback(async (inputValue) => {
     try {
@@ -467,114 +679,20 @@ export default function LogisticsDashboard() {
     }
   };
 
-  const handleOrderRecommendation = (order) => {
-    setSelectedOrder(order);
-    setPicklists((current) => ({
-      ...current,
-      [order.id]: current[order.id] || [{ id: 1, description: '', weight: '' }]
-    }));
-    setShowRecommendationModal(true);
-  };
-
-  const handleVendorRequest = (request, status) => {
-    setVendorRequests((current) => current.map((item) => (item.id === request.id ? { ...item, status } : item)));
-    showAlert(`${request.company}: ${status}`, status === 'Approved' ? 'success' : status === 'Rejected' ? 'danger' : 'info');
-  };
-
   return (
     <Stack gap={3}>
       <Stack direction="horizontal" gap={3} className="justify-content-between flex-wrap">
-        <h4 className="mb-0">Dashboard Ekspedisi</h4>
+        <h4 className="mb-0">Dashboard</h4>
         <Button data-permission-action="utility" className="ms-auto flex-shrink-0" onClick={() => setCreatePicklist({})}>
           <i className="ti ti-plus me-1" /> Create Picklist
         </Button>
       </Stack>
-      <MainCard
-        title={
-          <Stack gap={1}>
-            <Stack direction="horizontal" gap={2}>
-              <h5 className="mb-0">Vendor Registration Requests</h5>
-              <Badge bg="warning" text="dark">
-                {vendorRequests.filter((request) => ['Pending Review', 'Under Review', 'Need Document'].includes(request.status)).length}{' '}
-                REQUEST
-              </Badge>
-            </Stack>
-            <span className="text-muted f-12">Pengajuan vendor ekspedisi baru dari Vendor Portal.</span>
-          </Stack>
-        }
-      >
-        <Table responsive hover className="mb-0 align-middle">
-          <thead>
-            <tr>
-              <th>Request</th>
-              <th>Company</th>
-              <th>PIC</th>
-              <th>Submitted At</th>
-              <th>Legal Documents</th>
-              <th>Status</th>
-              <th className="text-end">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {vendorRequests.map((request) => (
-              <tr key={request.id}>
-                <td>
-                  <span className="fw-semibold">{request.id}</span>
-                  <small className="text-muted d-block">Expedition vendor</small>
-                </td>
-                <td>
-                  <div className="fw-semibold">{request.company}</div>
-                  <small className="text-muted">{request.email}</small>
-                </td>
-                <td>{request.pic}</td>
-                <td>{request.submittedAt}</td>
-                <td>
-                  <Badge
-                    bg={request.documents === 4 ? 'light' : 'warning'}
-                    text={request.documents === 4 ? 'success' : 'dark'}
-                    className="border"
-                  >
-                    {request.documents}/4 uploaded
-                  </Badge>
-                </td>
-                <td>
-                  <Badge {...(vendorStatusBadge[request.status] || vendorStatusBadge['Pending Review'])}>{request.status}</Badge>
-                </td>
-                <td className="text-end">
-                  <Stack direction="horizontal" gap={1} className="justify-content-end">
-                    <Button size="sm" variant="light-secondary" onClick={() => handleVendorRequest(request, 'Under Review')}>
-                      <i className="ti ti-eye" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline-danger"
-                      disabled={request.status === 'Rejected'}
-                      onClick={() => handleVendorRequest(request, 'Rejected')}
-                    >
-                      <i className="ti ti-x" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline-success"
-                      disabled={request.documents < 4 || request.status === 'Approved'}
-                      onClick={() => handleVendorRequest(request, 'Approved')}
-                    >
-                      <i className="ti ti-check" />
-                    </Button>
-                  </Stack>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      </MainCard>
-
       <MainCard>
         <Stack direction="horizontal" gap={2} className="flex-wrap">
           <Button variant={activeTab === 'orders' ? 'primary' : 'light-secondary'} onClick={() => setActiveTab('orders')}>
             <i className="ti ti-package me-2" /> Orders
             <Badge bg={activeTab === 'orders' ? 'light' : 'primary'} text={activeTab === 'orders' ? 'primary' : undefined} className="ms-2">
-              {dummyDeliveryOrders.length}
+              {orderTotal}
             </Badge>
           </Button>
           <Button variant={activeTab === 'find' ? 'primary' : 'light-secondary'} onClick={() => setActiveTab('find')}>
@@ -586,56 +704,122 @@ export default function LogisticsDashboard() {
 
         {activeTab === 'orders' ? (
           <div>
-            <Stack direction="horizontal" className="justify-content-between mb-4" gap={3}>
+            <Stack direction="horizontal" className="justify-content-between mb-4 flex-wrap" gap={3}>
               <div>
-                <h5 className="mb-1">Delivery Orders</h5>
-                <span className="text-muted f-12">Kelola alokasi berat dan buat picklist dari Sales Order yang disetujui.</span>
+                <h5 className="mb-1">Orders Ready for Packing</h5>
+                <span className="text-muted f-12">Orders awaiting packing by the Logistics team.</span>
               </div>
+              <Stack direction="horizontal" gap={2} className="flex-wrap">
+                <Form.Control
+                  type="search"
+                  aria-label="Search packing orders"
+                  placeholder="Search orders..."
+                  value={orderSearch}
+                  onChange={(event) => {
+                    setOrderSearch(event.target.value);
+                    setOrderPage(1);
+                  }}
+                  style={{ width: 220 }}
+                />
+                <Button size="sm" variant="light-primary" onClick={fetchDeliveryOrders} disabled={loadingDeliveryOrders}>
+                  <i className={`ti ${loadingDeliveryOrders ? 'ti-loader-2' : 'ti-refresh'} me-1`} /> Refresh
+                </Button>
+              </Stack>
             </Stack>
             <Table responsive hover className="mb-0 align-middle">
               <thead>
                 <tr>
                   <th>Order</th>
-                  <th>Customer</th>
+                  <th>Customer / Depo</th>
                   <th>Origin</th>
-                  <th>Destination</th>
                   <th className="text-end">Weight</th>
-                  <th>Delivery Date</th>
+                  <th>Loading Date</th>
+                  <th>ETA Date</th>
                   <th>Status</th>
                   <th className="text-end">Action</th>
                 </tr>
               </thead>
               <tbody>
-                {dummyDeliveryOrders.map((order) => (
+                {loadingDeliveryOrders ? (
+                  <tr>
+                    <td colSpan={8} className="text-center py-4">Loading Sales Orders...</td>
+                  </tr>
+                ) : deliveryOrdersError ? (
+                  <tr>
+                    <td colSpan={8} className="text-center text-danger py-4">{deliveryOrdersError}</td>
+                  </tr>
+                ) : deliveryOrders.length ? deliveryOrders.map((order) => (
                   <tr key={order.id}>
                     <td>
-                      <span className="fw-semibold">{order.id}</span>
+                      <span className="fw-semibold">{order.orderNumber}</span>
                     </td>
-                    <td>{order.customer}</td>
+                    <td>
+                      <div className="fw-semibold">{order.customer}</div>
+                      <small className="text-muted d-block">
+                        {order.depo}
+                      </small>
+                    </td>
                     <td>
                       <div>{order.origin}</div>
                       <small className="text-muted">{order.originCode}</small>
                     </td>
-                    <td>
-                      <div>{order.destination}</div>
-                      <small className="text-muted">{order.destinationCity}</small>
-                    </td>
                     <td className="text-end fw-semibold">{order.weight.toLocaleString('id-ID')} kg</td>
-                    <td>{order.deliveryDate}</td>
+                    <td>{order.loadingDate}</td>
+                    <td>{order.etaDate}</td>
                     <td>
-                      <Badge bg="light" text="primary" className="border border-primary">
-                        DELIVERY
+                      <Badge
+                        bg={order.status === 'ORDER_APPROVED' ? 'success' : 'warning'}
+                        text={order.status === 'ORDER_APPROVED' ? 'light' : 'dark'}
+                      >
+                        {order.status.replaceAll('_', ' ')}
                       </Badge>
                     </td>
                     <td className="text-end">
-                      <Button size="sm" onClick={() => handleOrderRecommendation(order)}>
-                        <i className="ti ti-sparkles me-1" /> Picklist
-                      </Button>
+                      <Stack direction="horizontal" gap={1} className="justify-content-end">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline-success"
+                          className="logistics-order-action logistics-order-action--confirm"
+                          aria-label={`Approve order ${order.orderNumber} for packing`}
+                          title="Approve for Packing"
+                          disabled={approvingOrderId !== null}
+                          onClick={() => setOrderToApprove(order)}
+                        >
+                          <i className={`ti ${String(approvingOrderId) === String(order.id) ? 'ti-loader-2' : 'ti-check'}`} />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline-danger"
+                          className="logistics-order-action"
+                          aria-label={`Reschedule order ${order.orderNumber}`}
+                          title="Reschedule Order"
+                          disabled={approvingOrderId !== null || reschedulingOrderId !== null}
+                          onClick={() => openCloseOrderModal(order)}
+                        >
+                          <i className="ti ti-x" />
+                        </Button>
+                      </Stack>
                     </td>
                   </tr>
-                ))}
+                )) : (
+                  <tr>
+                    <td colSpan={8} className="text-center text-muted py-4">
+                      No logistics orders found.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </Table>
+            <TablePagination
+              currentPage={orderPage}
+              onPageChange={setOrderPage}
+              pageCount={orderPageCount}
+              pageSize={orderPageSize}
+              total={orderTotal}
+              itemLabel="orders"
+            />
           </div>
         ) : (
           <div>
@@ -816,153 +1000,234 @@ export default function LogisticsDashboard() {
           </div>
         )}
       </MainCard>
-
-      <Modal show={showRecommendationModal} onHide={() => setShowRecommendationModal(false)} size="lg" centered>
+      <MainCard
+        title={
+          <Stack direction="horizontal" gap={2} className="justify-content-between flex-wrap">
+            <Stack direction="horizontal" gap={2}>
+              <h5 className="mb-0">Approval Rates Vendor</h5>
+              <Badge bg="warning" text="dark">
+                {pendingRateHeaders.length} PENDING
+              </Badge>
+            </Stack>
+            <Stack direction="horizontal" gap={2}>
+              <Button size="sm" variant="light-primary" onClick={fetchPendingVendorRates} disabled={loadingPendingRates}>
+                <i className={`ti ${loadingPendingRates ? 'ti-loader-2' : 'ti-refresh'} me-1`} /> Refresh
+              </Button>
+            </Stack>
+          </Stack>
+        }
+      >
+        {pendingRatesError ? <div className="text-danger py-3">{pendingRatesError}</div> : null}
+        <Table responsive hover className="mb-0 align-middle">
+          <thead>
+            <tr>
+              <th>Vendor</th>
+              <th>Period</th>
+              <th>Batch</th>
+              <th>Total Routes</th>
+              <th>Approval Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loadingPendingRates ? (
+              <tr>
+                <td colSpan={5} className="text-center py-4">Loading pending rates...</td>
+              </tr>
+            ) : pendingRateHeaders.length ? (
+              pendingRateHeaders.map((header) => (
+                <tr key={getVendorRateBatchId(header)}>
+                  <td>
+                    <Button variant="link" className="p-0 fw-semibold" onClick={() => openPendingRateDetails(header)} disabled={!getVendorRateBatchId(header)}>
+                      {getVendorRateName(header)}
+                    </Button>
+                  </td>
+                  <td>{header.period_label || '-'}</td>
+                  <td>{getVendorRateBatchId(header) || '-'}</td>
+                  <td>{header.total_routes ?? 0}</td>
+                  <td>
+                    <Badge bg="warning" text="dark">{getVendorRateValue(header, ['approval_status', 'approvalStatus'])}</Badge>
+                  </td>
+                </tr>
+              ))
+            ) : !pendingRatesError ? (
+              <tr>
+                <td colSpan={5} className="text-center text-muted py-4">Tidak ada rates yang menunggu approval.</td>
+              </tr>
+            ) : null}
+          </tbody>
+        </Table>
+      </MainCard>
+      <Modal
+        show={Boolean(selectedRateHeader)}
+        onHide={() => !processingRateApproval && setSelectedRateHeader(null)}
+        dialogClassName="vendor-rates-approval-dialog"
+        centered
+      >
         <Modal.Header closeButton>
-          <Modal.Title>Picklist</Modal.Title>
+          <Modal.Title>Rates {selectedRateHeader ? getVendorRateName(selectedRateHeader) : ''}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          {selectedOrder ? (
-            <Row className="g-2 mb-4">
-              <Col md={3}>
-                <div className="rounded border bg-light px-3 py-2 h-100">
-                  <small className="text-muted d-block">Order</small>
-                  <span className="fw-semibold f-12">{selectedOrder.id}</span>
-                </div>
-              </Col>
-              <Col md={3}>
-                <div className="rounded border bg-light px-3 py-2 h-100">
-                  <small className="text-muted d-block">Origin</small>
-                  <span className="fw-semibold f-12">{selectedOrder.origin}</span>
-                </div>
-              </Col>
-              <Col md={3}>
-                <div className="rounded border bg-light px-3 py-2 h-100">
-                  <small className="text-muted d-block">Destination</small>
-                  <span className="fw-semibold f-12">{selectedOrder.destination}</span>
-                </div>
-              </Col>
-              <Col md={3}>
-                <div className="rounded border bg-light px-3 py-2 h-100">
-                  <small className="text-muted d-block">Weight</small>
-                  <span className="fw-semibold f-12">{selectedOrder.weight.toLocaleString('id-ID')} kg</span>
-                </div>
-              </Col>
-            </Row>
-          ) : null}
-          <div className="d-flex justify-content-between align-items-center gap-3 mb-3">
-            <div>
-              <h6 className="mb-1">Weight Allocation</h6>
-              <small className="text-muted">Add picklist items and split the selected order weight in kilograms.</small>
-            </div>
-            <Button
-              size="sm"
-              className="flex-shrink-0"
-              data-permission-action="utility"
-              disabled={remainingWeight <= 0}
-              onClick={() =>
-                updatePicklist([
-                  ...picklistRows,
-                  { id: Math.max(0, ...picklistRows.map((row) => row.id)) + 1, description: '', weight: '' }
-                ])
-              }
-            >
-              <i className="ti ti-plus me-1" /> Add Item
-            </Button>
-          </div>
-          <Table responsive className="align-middle">
+          <div className="text-muted mb-3">{selectedRateHeader?.period_label} · {selectedRateHeader ? getVendorRateBatchId(selectedRateHeader) : ''}</div>
+          {rateDetailsError ? <div className="text-danger mb-3">{rateDetailsError}</div> : null}
+          <Table responsive hover className="mb-0 align-middle">
             <thead>
               <tr>
-                <th>#</th>
-                <th>Description (optional)</th>
-                <th>Weight (kg)</th>
-                <th className="text-end">Action</th>
+                <th>Origin</th>
+                <th>Destination</th>
+                <th>Service</th>
+                <th>Weight</th>
+                <th>Rate</th>
+                <th>Approval Status</th>
               </tr>
             </thead>
             <tbody>
-              {picklistRows.map((row, index) => {
-                const rowWeight = Number(row.weight) || 0;
-                const maxWeight = Math.round((remainingWeight + rowWeight) * 1000) / 1000;
-                const invalid = row.weight !== '' && (!Number.isFinite(Number(row.weight)) || rowWeight <= 0 || rowWeight > maxWeight);
-                return (
-                  <tr key={row.id}>
-                    <td>{index + 1}</td>
+              {loadingRateDetails ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-4">Loading rate details...</td>
+                </tr>
+              ) : selectedRateDetails.length ? (
+                selectedRateDetails.map((rate) => (
+                  <tr key={rate.id}>
+                    <td>{getVendorRateValue(rate, ['origin_name', 'originName', 'origin']) || '-'}</td>
+                    <td>{getVendorRateValue(rate, ['destination_name', 'destinationName', 'destination']) || '-'}</td>
+                    <td>{rate.service_type || '-'}</td>
+                    <td>{formatWeightRange(rate.min_weight_kg, rate.max_weight_kg)}</td>
                     <td>
-                      <Form.Control
-                        aria-label={`Description item ${index + 1}`}
-                        placeholder="Item description"
-                        value={row.description}
-                        onChange={(event) =>
-                          updatePicklist(
-                            picklistRows.map((item) => (item.id === row.id ? { ...item, description: event.target.value } : item))
-                          )
-                        }
-                      />
+                      {currency(rate.rate ?? rate.amount ?? 0)}
+                      {rate.service_type ? `/${rate.service_type}` : ''}
                     </td>
-                    <td style={{ minWidth: 180 }}>
-                      <Form.Control
-                        aria-label={`Weight item ${index + 1} in kilograms`}
-                        type="number"
-                        min="0.001"
-                        max={maxWeight}
-                        step="0.001"
-                        placeholder="0"
-                        value={row.weight}
-                        isInvalid={invalid}
-                        onChange={(event) =>
-                          updatePicklist(picklistRows.map((item) => (item.id === row.id ? { ...item, weight: event.target.value } : item)))
-                        }
-                      />
-                      <Form.Control.Feedback type="invalid">Enter a positive weight within the order total.</Form.Control.Feedback>
-                    </td>
-                    <td className="text-end">
-                      <Button
-                        variant="outline-danger"
-                        size="sm"
-                        aria-label={`Remove item ${index + 1}`}
-                        data-permission-action="utility"
-                        onClick={() => updatePicklist(picklistRows.filter((item) => item.id !== row.id))}
-                      >
-                        <i className="ti ti-trash" />
-                      </Button>
+                    <td>
+                      <Badge bg="warning" text="dark">{getVendorRateValue(rate, ['approval_status', 'approvalStatus']) || 'PENDING'}</Badge>
                     </td>
                   </tr>
-                );
-              })}
+                ))
+              ) : !rateDetailsError ? (
+                <tr>
+                  <td colSpan={6} className="text-center text-muted py-4">Tidak ada detail rates.</td>
+                </tr>
+              ) : null}
             </tbody>
           </Table>
-          <div className="rounded border bg-light p-3 d-flex justify-content-between gap-3" aria-live="polite">
-            <span>
-              Allocated: <strong>{totalPicklistWeight.toLocaleString('id-ID', { maximumFractionDigits: 3 })} kg</strong>
-            </span>
-            <span className={remainingWeight < 0 ? 'text-danger' : 'text-primary'}>
-              Remaining: <strong>{remainingWeight.toLocaleString('id-ID', { maximumFractionDigits: 3 })} kg</strong>
-            </span>
-          </div>
-          {remainingWeight < 0 && (
-            <p className="text-danger mt-2 mb-0" role="alert">
-              Allocated weight exceeds the selected order weight. Reduce the weight before adding another item.
-            </p>
-          )}
-          <p className="text-muted f-12 mt-3 mb-0">
-            Draft inputs are kept while this dashboard is open and are not yet saved to the server.
-          </p>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="light-secondary" onClick={() => setShowRecommendationModal(false)}>
+          <Button variant="light-secondary" onClick={() => setSelectedRateHeader(null)} disabled={Boolean(processingRateApproval)}>
             Close
           </Button>
           <Button
-            data-permission-action="utility"
-            onClick={() => {
-              setShowRecommendationModal(false);
-              setCreatePicklist({ order: selectedOrder });
-            }}
+            variant="outline-danger"
+            onClick={() => handleRateApproval('reject')}
+            disabled={loadingRateDetails || Boolean(processingRateApproval) || !selectedRateDetails.length}
           >
-            <i className="ti ti-plus me-1" /> Create Picklist
+            {processingRateApproval === 'reject' ? 'Rejecting...' : 'Reject'}
+          </Button>
+          <Button
+            variant="success"
+            onClick={() => handleRateApproval('approve')}
+            disabled={loadingRateDetails || Boolean(processingRateApproval) || !selectedRateDetails.length}
+          >
+            {processingRateApproval === 'approve' ? 'Approving...' : 'Approve'}
           </Button>
         </Modal.Footer>
       </Modal>
+
+      <Modal
+        show={Boolean(orderToApprove)}
+        onHide={() => approvingOrderId === null && setOrderToApprove(null)}
+        centered
+      >
+        <Modal.Header closeButton={approvingOrderId === null}>
+          <Modal.Title>Approve Order for Packing</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          Are you sure you want to approve order <strong>{orderToApprove?.orderNumber}</strong> for packing?
+          <div className="text-muted mt-2">
+            {orderToApprove?.customer} · {orderToApprove?.destination}
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" disabled={approvingOrderId !== null} onClick={() => setOrderToApprove(null)}>
+            Cancel
+          </Button>
+          <Button
+            variant="success"
+            disabled={approvingOrderId !== null}
+            onClick={() => approveOrderPacking(orderToApprove)}
+          >
+            <i className={`ti ${approvingOrderId !== null ? 'ti-loader-2' : 'ti-check'} me-1`} />
+            {approvingOrderId !== null ? 'Approving...' : 'Yes, Approve'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal
+        show={Boolean(orderToClose)}
+        onHide={() => reschedulingOrderId === null && setOrderToClose(null)}
+        centered
+      >
+        <Modal.Header closeButton={reschedulingOrderId === null}>
+          <Modal.Title>Reschedule Order {orderToClose?.orderNumber}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form.Group className="mb-3" controlId="reject-order-eta-date">
+            <Form.Label>Proposed ETA Date <span className="text-muted">(Optional)</span></Form.Label>
+            <Form.Control
+              type="date"
+              value={closeOrderForm.etaDate}
+              disabled={reschedulingOrderId !== null || loadingRescheduleLeadTime}
+              onChange={(event) =>
+                setCloseOrderForm((current) => ({
+                  ...current,
+                  etaDate: event.target.value,
+                  loadingDate: subtractDays(event.target.value, rescheduleLeadTimeDays)
+                }))
+              }
+            />
+          </Form.Group>
+          <Form.Group className="mb-3" controlId="reject-order-loading-date">
+            <Form.Label>Proposed Loading Date <span className="text-danger">*</span></Form.Label>
+            <Form.Control
+              type="date"
+              required
+              value={closeOrderForm.loadingDate}
+              disabled={reschedulingOrderId !== null || loadingRescheduleLeadTime}
+              onChange={(event) => setCloseOrderForm((current) => ({ ...current, loadingDate: event.target.value }))}
+            />
+            <Form.Text className="text-muted">
+              {loadingRescheduleLeadTime
+                ? 'Loading lead time...'
+                : rescheduleLeadTimeDays !== null
+                  ? `Calculated from ETA minus ${rescheduleLeadTimeDays} day${rescheduleLeadTimeDays === 1 ? '' : 's'} for depo ${orderToClose?.depo || '-'}.`
+                  : 'Lead time for this depo is unavailable.'}
+            </Form.Text>
+          </Form.Group>
+          <Form.Group controlId="close-order-comment">
+            <Form.Label>Notes <span className="text-danger">*</span></Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={4}
+              required
+              value={closeOrderForm.comment}
+              disabled={reschedulingOrderId !== null}
+              onChange={(event) => setCloseOrderForm((current) => ({ ...current, comment: event.target.value }))}
+              placeholder="Enter the reason for rescheduling..."
+            />
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" disabled={reschedulingOrderId !== null} onClick={() => setOrderToClose(null)}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            disabled={reschedulingOrderId !== null || !closeOrderForm.loadingDate || !closeOrderForm.comment.trim()}
+            onClick={submitOrderReschedule}
+          >
+            <i className={`ti ${reschedulingOrderId !== null ? 'ti-loader-2' : 'ti-calendar-time'} me-1`} />
+            {reschedulingOrderId !== null ? 'Submitting...' : 'Submit Reschedule'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
       {createPicklist && <CreatePicklistModal order={createPicklist.order} onClose={() => setCreatePicklist(null)} />}
     </Stack>
   );

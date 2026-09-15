@@ -258,6 +258,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
   const [loadingDuplicateCmo, setLoadingDuplicateCmo] = useState(false);
   const [savingDuplicateCmo, setSavingDuplicateCmo] = useState(false);
   const [expandedCommitmentOrderId, setExpandedCommitmentOrderId] = useState(null);
+  const [expandedOrderId, setExpandedOrderId] = useState(null);
   const [commitmentStartDate, setCommitmentStartDate] = useState('');
   const [commitmentEndDate, setCommitmentEndDate] = useState('');
   const [commitmentCustomerCode, setCommitmentCustomerCode] = useState('');
@@ -2250,6 +2251,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                   <Table className="mb-0 align-middle" responsive hover>
                     <thead>
                       <tr>
+                        <th aria-label="Expand product details" style={{ width: 48 }} />
                         <th>{renderSortableOrderHeader('No. SO', 'soNumber')}</th>
                         <th>{renderSortableOrderHeader('Depo', 'depo')}</th>
                         <th>{renderSortableOrderHeader('Date', 'date')}</th>
@@ -2263,7 +2265,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                     {isLoading ? (
                       <tbody>
                         <tr>
-                          <td colSpan={8}>
+                          <td colSpan={9}>
                             <LoaderData />
                           </td>
                         </tr>
@@ -2271,8 +2273,26 @@ export default function OrderList({ showOnlyCommitment = false }) {
                     ) : (
                       <tbody>
                         {paginatedOrders.length > 0 ? (
-                          paginatedOrders.map((order) => (
-                            <tr key={order.id}>
+                          paginatedOrders.map((order) => {
+                            const isExpanded = String(expandedOrderId) === String(order.id);
+                            const productLines = getOrderLines(order);
+
+                            return (
+                            <Fragment key={order.id}>
+                            <tr>
+                              <td className="text-center">
+                                <Button
+                                  className="rounded-circle p-0"
+                                  size="sm"
+                                  variant="light-primary"
+                                  aria-label={isExpanded ? 'Hide product details' : 'Show product details'}
+                                  aria-expanded={isExpanded}
+                                  style={{ width: 32, height: 32 }}
+                                  onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
+                                >
+                                  <i className={`ti ${isExpanded ? 'ti-chevron-up' : 'ti-chevron-down'}`} />
+                                </Button>
+                              </td>
                               <td className="fw-semibold">{order.sap_doc_num ?? '-'}</td>
                               <td>
                                 {order.depo} - {order.customer_name}
@@ -2301,10 +2321,54 @@ export default function OrderList({ showOnlyCommitment = false }) {
                               </td>
                               <td className="text-center">{getAccessAction(order)}</td>
                             </tr>
-                          ))
+                            {isExpanded ? (
+                              <tr className="bg-light">
+                                <td colSpan={9} className="p-3">
+                                  <div className="border rounded bg-white overflow-hidden">
+                                    <Table className="mb-0 align-middle" responsive size="sm">
+                                      <thead>
+                                        <tr>
+                                          <th>Product</th>
+                                          <th className="text-end">Qty</th>
+                                          <th className="text-end">Kg / Item</th>
+                                          <th className="text-end">Total Kg</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {productLines.length ? (
+                                          productLines.map((line, index) => {
+                                            const productName = getProductName(line);
+                                            const quantity = Number(getOrderValue(line, ['quantity', 'qty', 'Quantity'], 0)) || 0;
+                                            const kgPerItem = getKgFromProductName(productName);
+
+                                            return (
+                                              <tr key={line.id || getOrderValue(line, ['item_code', 'itemCode'], index)}>
+                                                <td>{productName}</td>
+                                                <td className="text-end">{quantity}</td>
+                                                <td className="text-end">{formatKg(kgPerItem)}</td>
+                                                <td className="text-end fw-semibold">{formatKg(kgPerItem * quantity)}</td>
+                                              </tr>
+                                            );
+                                          })
+                                        ) : (
+                                          <tr>
+                                            <td colSpan={4} className="text-center text-muted py-3">
+                                              Product details are not available.
+                                            </td>
+                                          </tr>
+                                        )}
+                                      </tbody>
+                                    </Table>
+                                  </div>
+                                </td>
+                              </tr>
+                            ) : null}
+                            </Fragment>
+                            );
+                          })
                         ) : (
                           <tr>
-                            <td colSpan={8}>
+                            <td colSpan={9}>
                               <div className="text-center py-5">
                                 <div className="avtar avtar-xl bg-light-primary text-primary mx-auto mb-3">
                                   <i className="ti ti-clipboard-list f-24" />

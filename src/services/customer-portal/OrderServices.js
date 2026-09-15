@@ -97,6 +97,10 @@ class OrderServices {
     return DataService.get(`/sales-orders/${id}`);
   }
 
+  getRescheduleOrder(id) {
+    return DataService.post(`/logistic/orders/${id}/reschedule`);
+  }
+
   getSalesOrderDetail(id) {
     return this.getDetailOrder(id);
   }

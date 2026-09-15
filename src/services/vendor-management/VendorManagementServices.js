@@ -1,6 +1,22 @@
 import { DataService } from '../../config/dataService';
 
 class VendorManagementServices {
+  getVendorRates(params = {}) {
+    return DataService.get('vendor-management/rates/headers', params);
+  }
+
+  getVendorRateDetail(batchId) {
+    return DataService.get(`vendor-management/rates/headers/${encodeURIComponent(batchId)}`);
+  }
+
+  postApproveVendorRates(batchId) {
+    return DataService.post(`vendor-management/rates/headers/${encodeURIComponent(batchId)}/approve`);
+  }
+
+  postRejectVendorRates(batchId) {
+    return DataService.post(`vendor-management/rates/headers/${encodeURIComponent(batchId)}/reject`);
+  }
+
   getVendorRegister(params = {}) {
     return DataService.get('vendor-management/registrations', params);
   }

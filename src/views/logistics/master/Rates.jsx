@@ -809,7 +809,7 @@ export default function Rates() {
               <h5 className="mb-1">Rates</h5>
               <span className="text-muted f-12">Kelola tarif pengiriman untuk setiap ekspedisi dan rute.</span>
             </div>
-            <Stack direction="horizontal" gap={2}>
+            <Stack direction="horizontal" gap={2} className="d-none">
               {canApproveRates ? (
                 <Button
                   variant="success"
@@ -865,7 +865,7 @@ export default function Rates() {
           <thead>
             <tr>
               {canApproveRates ? (
-                <th className="text-center" style={{ width: 48 }}>
+                <th className="d-none" style={{ width: 48 }}>
                   <Form.Check
                     type="checkbox"
                     className="m-0 d-inline-flex"
@@ -882,13 +882,13 @@ export default function Rates() {
               <th>Weight Range (Kg)</th>
               <th>Service Type</th>
               <th className="text-end">Rate</th>
-              <th className="text-end">Action</th>
+              <th className="d-none">Action</th>
             </tr>
           </thead>
           <tbody>
             {loadingRates ? (
               <tr>
-                <td colSpan={canApproveRates ? 8 : 7}>
+                <td colSpan={6}>
                   <LoaderData />
                 </td>
               </tr>
@@ -947,7 +947,7 @@ export default function Rates() {
                     className={!isApproved ? undefined : isRateUnavailable ? 'table-danger' : 'table-success'}
                   >
                     {canApproveRates ? (
-                      <td className="text-center">
+                      <td className="d-none">
                         {!isApproved ? (
                           <Form.Check
                             type="checkbox"
@@ -982,7 +982,7 @@ export default function Rates() {
                         `Rp ${formatNumber(rateValue)}/${getServiceTypeLabel(serviceType) || '-'}`
                       )}
                     </td>
-                    <td className="text-end">
+                    <td className="d-none">
                       <Button
                         size="sm"
                         variant={
@@ -1015,7 +1015,7 @@ export default function Rates() {
               })
             ) : (
               <tr>
-                <td colSpan={canApproveRates ? 8 : 7} className="text-center text-muted py-5">
+                <td colSpan={6} className="text-center text-muted py-5">
                   No rates data found.
                 </td>
               </tr>

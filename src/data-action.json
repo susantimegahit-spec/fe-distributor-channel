@@ -253,6 +253,16 @@
     },
 
     {
+      "menu_key": 36,
+      "system_key": "logistics",
+      "menu_id": "logistics-lead-time",
+      "route": "/logistics/master/lead-time",
+      "source": "src/views/logistics/master/MasterLeadTime.jsx",
+      "actions": ["view", "add"],
+      "buttons": { "view": ["View Lead Times"], "add": ["Add Lead Time"] }
+    },
+
+    {
       "menu_key": 38,
       "system_key": "picking-list",
       "menu_id": "picking-list-overview",

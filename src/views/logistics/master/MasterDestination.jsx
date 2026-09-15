@@ -192,22 +192,36 @@ export default function MasterDestination() {
               <th>City</th>
               <th>Address</th>
               <th>Status</th>
-              <th className="text-center">Action</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6}>
+                <td colSpan={5}>
                   <LoaderData />
                 </td>
               </tr>
             ) : paginatedDestinations.length ? (
               paginatedDestinations.map((destination, index) => (
                 <tr key={destination.id || `${destination.customerCode}-${destination.shipToCode}-${index}`}>
-                  <td>
-                    <div className="fw-semibold">{destination.customerCode || '-'}</div>
-                    <div className="text-muted">{destination.customerName || '-'}</div>
+                  <td
+                    role="button"
+                    tabIndex={0}
+                    title="View destination"
+                    aria-label={`View destination for ${destination.customerName || destination.customerCode || 'customer'}`}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => setSelectedDestination(destination)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        setSelectedDestination(destination);
+                      }
+                    }}
+                  >
+                    <div className="fw-semibold" style={{ color: '#03a9f4' }}>
+                      {destination.customerCode || '-'}
+                    </div>
+                    <div>{destination.customerName || '-'}</div>
                   </td>
                   <td>{destination.alias || '-'}</td>
                   <td>{destination.city || '-'}</td>
@@ -222,23 +236,11 @@ export default function MasterDestination() {
                       {['ACTIVE', '1', 'TRUE'].includes(destination.status) ? 'ACTIVE' : 'INACTIVE'}
                     </Badge>
                   </td>
-                  <td className="text-center">
-                    <Button
-                      className="rounded-circle p-0"
-                      variant="outline-primary"
-                      size="sm"
-                      style={{ width: 32, height: 32 }}
-                      title="View destination"
-                      onClick={() => setSelectedDestination(destination)}
-                    >
-                      <i className="ti ti-eye" />
-                    </Button>
-                  </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={6} className="text-center text-muted py-5">
+                <td colSpan={5} className="text-center text-muted py-5">
                   No destination data found.
                 </td>
               </tr>

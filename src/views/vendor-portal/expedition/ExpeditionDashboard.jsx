@@ -17,6 +17,14 @@ const getList = (response, keys = []) => {
 };
 
 const firstValue = (item, keys) => keys.map((key) => item?.[key]).find((value) => String(value || '').trim()) || '';
+const approvalStatus = (item) => firstValue(item, ['approval_status', 'approvalStatus']) || '-';
+const statusBadgeClass = (status) => {
+  const value = String(status || '').trim().toUpperCase();
+  if (['ACTIVE', 'APPROVED'].includes(value)) return 'vp-service-badge vp-service-badge--success';
+  if (value === 'PENDING') return 'vp-service-badge vp-service-badge--pending';
+  if (['INACTIVE', 'REJECTED'].includes(value)) return 'vp-service-badge vp-service-badge--danger';
+  return 'vp-service-badge';
+};
 const uniqueValues = (values) => [...new Set(values.map((value) => String(value || '').trim()).filter(Boolean))];
 const formatWeight = (route) => {
   const minimum = route?.min_weight_kg;
@@ -409,12 +417,13 @@ export default function ExpeditionDashboard() {
                   <th>Period</th>
                   <th>Total Routes</th>
                   <th>Status</th>
+                  <th>Approval Status</th>
                 </tr>
               </thead>
               <tbody>
                 {loadingRates ? (
                   <tr>
-                    <td colSpan={3}>
+                    <td colSpan={4}>
                       <div className="vp-rates-state">
                         <span className="spinner-border" aria-hidden="true" />
                         <p>Loading rates...</p>
@@ -438,14 +447,17 @@ export default function ExpeditionDashboard() {
                         </td>
                         <td>{totalRoutes}</td>
                         <td>
-                          <span className="vp-service-badge">{status}</span>
+                          <span className={statusBadgeClass(status)}>{status}</span>
+                        </td>
+                        <td>
+                          <span className={statusBadgeClass(approvalStatus(rate))}>{approvalStatus(rate)}</span>
                         </td>
                       </tr>
                     );
                   })
                 ) : (
                   <tr>
-                    <td colSpan={3}>
+                    <td colSpan={4}>
                       <div className="vp-rates-state">
                         <i className="ti ti-file-off" />
                         <p>No rates have been uploaded.</p>
@@ -544,6 +556,7 @@ export default function ExpeditionDashboard() {
                     <th>Service Type</th>
                     <th>Rate</th>
                     <th>Lead Time</th>
+                    <th>Approval Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -558,11 +571,14 @@ export default function ExpeditionDashboard() {
                         <td>{firstValue(route, ['service_type', 'serviceType']) || '-'}</td>
                         <td>{formatRate(route)}</td>
                         <td>{formatLeadTime(route?.leadtime)}</td>
+                        <td>
+                          <span className={statusBadgeClass(approvalStatus(route))}>{approvalStatus(route)}</span>
+                        </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={8}>
+                      <td colSpan={9}>
                         <div className="vp-rates-state">
                           <i className="ti ti-file-off" />
                           <p>No route details are available.</p>
