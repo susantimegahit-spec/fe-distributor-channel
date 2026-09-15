@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import ReactSelect from 'react-select';
 import Badge from 'react-bootstrap/Badge';
 import Button from 'react-bootstrap/Button';
 import Form from 'react-bootstrap/Form';
@@ -16,6 +17,7 @@ import { useAlert } from 'utils/alertContext';
 import './master-lead-time.scss';
 
 const pageSize = 10;
+const selectStyles = { menuPortal: (base) => ({ ...base, zIndex: 1060 }) };
 const createEmptyRow = (id) => ({ id, originId: '', destinationId: '', average: '' });
 const getPayload = (response) => response?.data?.data ?? response?.data ?? {};
 const getRows = (payload) => {
@@ -47,6 +49,14 @@ export default function MasterLeadTime() {
   const [actionMenu, setActionMenu] = useState(null);
   const nextRowId = useRef(1);
   const [formRows, setFormRows] = useState([createEmptyRow(0)]);
+  const originOptions = origins.map((item) => ({
+    value: String(item.id ?? item.origin_id),
+    label: `${item.whs_code || item.whsCode || '-'} - ${item.whs_name_origin || item.whsNameOrigin || '-'}`
+  }));
+  const destinationOptions = destinations.map((item) => ({
+    value: String(item.id ?? item.shipto_id ?? item.ship_to_id),
+    label: item.alias || item.ship_to_name || item.name || String(item.id ?? '-')
+  }));
 
   const fetchLeadTimes = useCallback(async () => {
     setLoading(true);
@@ -352,34 +362,34 @@ export default function MasterLeadTime() {
                 {formRows.map((row, index) => (
                   <tr key={row.id}>
                     <td>
-                      <Form.Select
-                        required
+                      <ReactSelect
+                        classNamePrefix="react-select"
                         aria-label={`Origin row ${index + 1}`}
-                        value={row.originId}
-                        onChange={(event) => setField(row.id, 'originId', event.target.value)}
-                      >
-                        <option value="">Select origin</option>
-                        {origins.map((item) => (
-                          <option key={item.id ?? item.origin_id} value={item.id ?? item.origin_id}>
-                            {item.whs_code || item.whsCode} - {item.whs_name_origin || item.whsNameOrigin}
-                          </option>
-                        ))}
-                      </Form.Select>
+                        options={originOptions}
+                        value={originOptions.find((option) => option.value === row.originId) || null}
+                        onChange={(option) => setField(row.id, 'originId', option?.value || '')}
+                        placeholder="Select origin"
+                        isSearchable
+                        isClearable
+                        isDisabled={saving}
+                        menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                        styles={selectStyles}
+                      />
                     </td>
                     <td>
-                      <Form.Select
-                        required
+                      <ReactSelect
+                        classNamePrefix="react-select"
                         aria-label={`Destination row ${index + 1}`}
-                        value={row.destinationId}
-                        onChange={(event) => setField(row.id, 'destinationId', event.target.value)}
-                      >
-                        <option value="">Select destination</option>
-                        {destinations.map((item) => (
-                          <option key={item.id ?? item.shipto_id ?? item.ship_to_id} value={item.id ?? item.shipto_id ?? item.ship_to_id}>
-                            {item.alias || item.ship_to_name || item.name || item.id}
-                          </option>
-                        ))}
-                      </Form.Select>
+                        options={destinationOptions}
+                        value={destinationOptions.find((option) => option.value === row.destinationId) || null}
+                        onChange={(option) => setField(row.id, 'destinationId', option?.value || '')}
+                        placeholder="Select destination"
+                        isSearchable
+                        isClearable
+                        isDisabled={saving}
+                        menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
+                        styles={selectStyles}
+                      />
                     </td>
                     <td>
                       <Form.Control

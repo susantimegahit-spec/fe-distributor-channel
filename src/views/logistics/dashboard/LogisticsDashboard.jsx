@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Select from 'react-select';
 import CreatePicklistModal from './CreatePicklistModal';
+import RescheduleLogModal from '../../customer-portal/dashboard/RescheduleLogModal';
 import AsyncSelect from 'react-select/async';
 
 // react-bootstrap
@@ -42,6 +43,18 @@ const serviceTypeOptions = [
 ];
 
 const orderPageSize = 10;
+const logisticStatusColors = {
+  PENDING: '#92400e',
+  RESCHEDULE_REQUESTED: '#7c3aed',
+  RESCHEDULE_APPROVED: '#0e7490',
+  RESCHEDULE_REJECTED: '#be123c',
+  APPROVED: '#1d4ed8',
+  PACKING: '#4338ca',
+  PACKED: '#0f766e',
+  COMPLETED: '#334155',
+  CANCELLED: '#6b7280',
+  REJECTED: '#b91c1c'
+};
 
 const getLogisticOrderPage = (response, requestedPageSize, requestedPage) => {
   const root = response?.data ?? {};
@@ -94,6 +107,7 @@ const normalizeDeliveryOrder = (order) => {
     ...salesOrder,
     id: salesOrder.id,
     status: String(salesOrder.status || '').trim().toUpperCase(),
+    logisticStatus: String(salesOrder.logistic_status || '').trim().toUpperCase(),
     orderNumber: salesOrder.sap_doc_num || salesOrder.order_no || salesOrder.id,
     customer: salesOrder.customer_name || salesOrder.distributor?.name || '-',
     depo: salesOrder.depo || '-',
@@ -190,6 +204,7 @@ export default function LogisticsDashboard() {
   const { showAlert } = useAlert();
   const [activeTab, setActiveTab] = useState('orders');
   const [deliveryOrders, setDeliveryOrders] = useState([]);
+  const [orderLogDetail, setOrderLogDetail] = useState(null);
   const [orderSearch, setOrderSearch] = useState('');
   const [debouncedOrderSearch, setDebouncedOrderSearch] = useState('');
   const [orderPage, setOrderPage] = useState(1);
@@ -736,22 +751,32 @@ export default function LogisticsDashboard() {
                   <th>Loading Date</th>
                   <th>ETA Date</th>
                   <th>Status</th>
+                  <th>Logistic Status</th>
                   <th className="text-end">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {loadingDeliveryOrders ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-4">Loading Sales Orders...</td>
+                    <td colSpan={9} className="text-center py-4">Loading Sales Orders...</td>
                   </tr>
                 ) : deliveryOrdersError ? (
                   <tr>
-                    <td colSpan={8} className="text-center text-danger py-4">{deliveryOrdersError}</td>
+                    <td colSpan={9} className="text-center text-danger py-4">{deliveryOrdersError}</td>
                   </tr>
                 ) : deliveryOrders.length ? deliveryOrders.map((order) => (
                   <tr key={order.id}>
                     <td>
-                      <span className="fw-semibold">{order.orderNumber}</span>
+                      <button
+                        type="button"
+                        className="border-0 bg-transparent p-0 fw-semibold text-start"
+                        style={{ color: '#315fb4' }}
+                        disabled={!order.id}
+                        aria-label={`View reschedule history for order ${order.orderNumber}`}
+                        onClick={() => setOrderLogDetail(order)}
+                      >
+                        {order.orderNumber}
+                      </button>
                     </td>
                     <td>
                       <div className="fw-semibold">{order.customer}</div>
@@ -774,7 +799,20 @@ export default function LogisticsDashboard() {
                         {order.status.replaceAll('_', ' ')}
                       </Badge>
                     </td>
+                    <td>
+                      {order.logisticStatus ? (
+                        <Badge
+                          bg=""
+                          style={{ backgroundColor: logisticStatusColors[order.logisticStatus] || '#6b7280', color: '#ffffff' }}
+                        >
+                          {order.logisticStatus.replaceAll('_', ' ')}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted">-</span>
+                      )}
+                    </td>
                     <td className="text-end">
+                      {order.logisticStatus !== 'RESCHEDULE_APPROVED' && (
                       <Stack direction="horizontal" gap={1} className="justify-content-end">
                         <Button
                           type="button"
@@ -801,11 +839,12 @@ export default function LogisticsDashboard() {
                           <i className="ti ti-x" />
                         </Button>
                       </Stack>
+                      )}
                     </td>
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan={8} className="text-center text-muted py-4">
+                    <td colSpan={9} className="text-center text-muted py-4">
                       No logistics orders found.
                     </td>
                   </tr>
@@ -1228,6 +1267,13 @@ export default function LogisticsDashboard() {
         </Modal.Footer>
       </Modal>
 
+      {orderLogDetail && (
+        <RescheduleLogModal
+          order={orderLogDetail}
+          onClose={() => setOrderLogDetail(null)}
+          onSuccess={fetchDeliveryOrders}
+        />
+      )}
       {createPicklist && <CreatePicklistModal order={createPicklist.order} onClose={() => setCreatePicklist(null)} />}
     </Stack>
   );
