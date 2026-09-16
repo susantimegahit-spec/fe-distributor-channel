@@ -94,6 +94,18 @@ body {
   max-width: 1600px !important;
 }
 
+.picklist-sales-order-dialog {
+  width: calc(100vw - 64px);
+  max-width: 1500px !important;
+}
+
+.picklist-approved-badge {
+  border: 1px solid #176b4b;
+  background-color: #176b4b !important;
+  color: #fff !important;
+  font-weight: 600;
+}
+
 .vendor-rates-approval-dialog .modal-body {
   max-height: 65vh;
   overflow-y: auto;
@@ -116,6 +128,49 @@ body {
 
 .vendor-rates-approval-dialog .modal-footer .btn {
   font-size: 13px;
+}
+
+.reschedule-chat-bubble {
+  position: relative;
+  max-width: min(85%, 760px);
+  padding: 16px 18px;
+  border: 1px solid var(--chat-accent);
+  border-radius: 18px;
+  background: var(--chat-background);
+  color: #334155;
+  box-shadow: 0 2px 5px rgba(15, 23, 42, 0.12);
+}
+
+.reschedule-chat-bubble::after {
+  position: absolute;
+  bottom: 11px;
+  width: 14px;
+  height: 14px;
+  background: var(--chat-background);
+  content: '';
+  transform: rotate(45deg);
+}
+
+.reschedule-chat-bubble.is-left {
+  margin-left: 8px;
+  border-bottom-left-radius: 6px;
+}
+
+.reschedule-chat-bubble.is-left::after {
+  left: -8px;
+  border-bottom: 1px solid var(--chat-accent);
+  border-left: 1px solid var(--chat-accent);
+}
+
+.reschedule-chat-bubble.is-right {
+  margin-right: 8px;
+  border-bottom-right-radius: 6px;
+}
+
+.reschedule-chat-bubble.is-right::after {
+  right: -8px;
+  border-top: 1px solid var(--chat-accent);
+  border-right: 1px solid var(--chat-accent);
 }
 
 .logistics-order-action {

@@ -40,6 +40,7 @@ const statusConfig = {
   WAITING_ASM: { label: 'Waiting ASM', color: 'info', icon: 'ti ti-clock-hour-4' },
   WAITING_ADMIN_SALES: { label: 'Waiting Admin Sales', color: 'primary', icon: 'ti ti-clock-hour-4' },
   WAITING_APPROVAL: { label: 'Waiting Approval', color: 'warning', icon: 'ti ti-clock-hour-4' },
+  ORDER_APPROVED: { label: 'Order Approved', color: 'success', icon: 'ti ti-circle-check' },
   DELIVERY: { label: 'Delivery', color: 'info', icon: 'ti ti-truck-delivery' },
   APPROVED: { label: 'Approved', color: 'success', icon: 'ti ti-circle-check' },
   ARRIVED: { label: 'Arrived', color: 'success', icon: 'ti ti-package' },

@@ -7,6 +7,36 @@ import RescheduleOrderActions from './RescheduleOrderActions';
 
 const textValue = (...values) => values.find((value) => typeof value === 'string' || typeof value === 'number') ?? '';
 const dateLabel = (value) => value && moment(value).isValid() ? moment(value).format('DD MMM YYYY') : '-';
+const chatPalettes = [
+  { background: '#f1f5f9', accent: '#64748b' },
+  { background: '#e0efff', accent: '#2f80d1' },
+  { background: '#fff7ed', accent: '#c2410c' },
+  { background: '#fdf2f8', accent: '#be185d' }
+];
+
+const getLogParticipant = (log) => {
+  const role = String(textValue(log.actor_type, log.user_type, log.role, log.created_by?.role, log.user?.role)).toUpperCase();
+  const action = String(textValue(log.action, log.status, log.event)).toUpperCase().replaceAll('_', ' ');
+  const identity = `${role} ${action}`;
+  const fallback = /ADMIN SALES/.test(identity)
+    ? 'Admin Sales'
+    : /CUSTOMER|DISTRIBUTOR/.test(identity)
+      ? 'Customer'
+      : /LOGISTIC/.test(identity)
+        ? 'Logistics'
+        : 'Activity';
+
+  return String(textValue(
+    log.username,
+    log.user_name,
+    log.created_by?.username,
+    log.user?.username,
+    log.created_by?.name,
+    log.user?.name,
+    log.actor_name,
+    log.created_by_name
+  ) || fallback).trim();
+};
 
 export default function RescheduleLogModal({ order, onClose, onSuccess }) {
   const [logs, setLogs] = useState([]);
@@ -14,6 +44,7 @@ export default function RescheduleLogModal({ order, onClose, onSuccess }) {
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
   const id = order.requested_order_id ?? order.id ?? order.sales_order_id;
+  const participants = [...new Set(logs.map(getLogParticipant))];
 
   useEffect(() => {
     let active = true;
@@ -52,27 +83,21 @@ export default function RescheduleLogModal({ order, onClose, onSuccess }) {
         {loading ? <div className="text-center py-5" role="status"><Spinner size="sm" /> Loading history...</div> : error ? (
           <Alert variant="danger">{error} <Button variant="link" onClick={() => setAttempt((value) => value + 1)}>Retry</Button></Alert>
         ) : !logs.length ? <p className="text-center text-muted py-5">No negotiation history yet.</p> : (
-          <ol className="list-unstyled mb-0" aria-label="Negotiation history">
+          <ol className="list-unstyled mb-0 w-100" aria-label="Negotiation history">
             {logs.map((log, index) => {
-              const role = String(textValue(log.actor_type, log.user_type, log.role, log.created_by?.role, log.user?.role)).toLowerCase();
               const action = textValue(log.action, log.status, log.event);
-              const identity = `${role} ${action}`.toUpperCase().replaceAll('_', ' ');
-              const customer = /ADMIN SALES|CUSTOMER|DISTRIBUTOR/.test(identity);
-              const party = /ADMIN SALES/.test(identity) ? 'Admin Sales' : /CUSTOMER|DISTRIBUTOR/.test(identity) ? 'Customer' : /LOGISTIC/.test(identity) ? 'Logistics' : 'Activity';
-              const sender = textValue(log.created_by?.name, log.user?.name, log.actor_name, log.created_by_name) || party;
-              const status = String(action).toUpperCase();
-              const colors = /REJECT|CANCEL/.test(status)
-                ? { background: '#fff1f2', accent: '#be123c' }
-                : /APPROV|ACCEPT|CONFIRM/.test(status)
-                  ? { background: '#ecfdf5', accent: '#047857' }
-                  : /RESCHEDULE/.test(status)
-                    ? { background: '#f3e8ff', accent: '#7e22ce' }
-                    : { background: '#eff6ff', accent: '#1d4ed8' };
+              const sender = getLogParticipant(log);
+              const participantIndex = Math.max(participants.indexOf(sender), 0);
+              const isRightAligned = participantIndex % 2 === 1;
+              const colors = chatPalettes[participantIndex % chatPalettes.length];
               const details = log.payload ?? log.metadata ?? log;
               const notes = textValue(log.notes, log.message, log.comment, details.notes);
               return (
-                <li key={log.id ?? index} className={`d-flex mb-3 ${customer ? 'justify-content-end' : 'justify-content-start'}`}>
-                  <div className="p-3 shadow-sm" style={{ maxWidth: '85%', borderRadius: 16, background: colors.background, border: `1px solid ${colors.accent}`, color: '#334155' }}>
+                <li key={log.id ?? index} className={`d-flex w-100 mb-3 ${isRightAligned ? 'justify-content-end' : 'justify-content-start'}`}>
+                  <div
+                    className={`reschedule-chat-bubble ${isRightAligned ? 'is-right' : 'is-left'}`}
+                    style={{ '--chat-background': colors.background, '--chat-accent': colors.accent }}
+                  >
                     <div className="fw-semibold" style={{ color: colors.accent }}>{sender}</div>
                     {action && <small className="d-block mb-2 fw-semibold" style={{ color: colors.accent }}>{String(action).replaceAll('_', ' ')}</small>}
                     {notes && <div style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{notes}</div>}

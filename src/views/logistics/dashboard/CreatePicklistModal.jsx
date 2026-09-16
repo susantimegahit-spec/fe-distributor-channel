@@ -4,12 +4,23 @@ import { Alert, Badge, Button, Col, Form, Modal, Row, Stack, Table } from 'react
 import PicklistRecommendations from './PicklistRecommendations';
 import SalesOrderDetailModal from './SalesOrderDetailModal';
 import OrderServices from '../../../services/customer-portal/OrderServices';
+import LogisticsServices from '../../../services/logistics/LogisticsServices';
 
 const approved = (order) =>
   String(order.status || '')
     .trim()
     .toUpperCase() === 'ORDER_APPROVED';
 const orderNumber = (order) => order.sap_doc_num || order.order_no || order.id;
+const orderDate = (...values) => {
+  const value = values.find((item) => item !== undefined && item !== null && String(item).trim() !== '');
+  return value ? String(value).slice(0, 10) : '-';
+};
+const getLogisticOrderRows = (response) => {
+  const root = response?.data?.data ?? response?.data ?? [];
+  const payload = root?.orders || root?.data || root;
+  const rows = Array.isArray(payload) ? payload : payload?.data || payload?.items || [];
+  return Array.isArray(rows) ? rows : [];
+};
 const formatNumber = (value) => Number(value || 0).toLocaleString('id-ID', { maximumFractionDigits: 3 });
 const licensePlateOptions = [
   { value: 'L 1234 AB', label: 'L 1234 AB — Truck (Mockup)' },
@@ -67,12 +78,31 @@ export default function CreatePicklistModal({ onClose, order }) {
     setLoading(true);
     setError('');
     try {
-      const response = await OrderServices.getListOrders({ status: 'ORDER_APPROVED' });
-      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to load Sales Orders.');
-      const payload = response?.data?.data ?? response?.data;
-      const list = Array.isArray(payload) ? payload : payload?.orders || payload?.sales_orders || payload?.items || payload?.data;
-      if (!Array.isArray(list)) throw new Error('Sales Order response is invalid.');
-      setOrders(list.filter(approved));
+      const statuses = ['RESCHEDULE_APPROVED', 'APPROVED'];
+      const responses = await Promise.all(
+        statuses.map((logisticStatus) => LogisticsServices.getLogisticOrders({
+          logistic_status: logisticStatus,
+          per_page: 1000,
+          page: 1
+        }))
+      );
+      responses.forEach((response) => {
+        if (!(response?.status >= 200 && response.status < 300) || response?.data?.success === false) {
+          throw new Error(response?.data?.message || 'Failed to load logistics orders.');
+        }
+      });
+      const uniqueOrders = new Map();
+      responses.flatMap(getLogisticOrderRows).forEach((item, index) => {
+        const nestedOrder = item.sales_order || item.order || {};
+        const normalizedOrder = {
+          ...item,
+          ...nestedOrder,
+          logistic_status: nestedOrder.logistic_status || item.logistic_status
+        };
+        const uniqueId = normalizedOrder.id ?? normalizedOrder.sales_order_id ?? normalizedOrder.requested_order_id ?? `${orderNumber(normalizedOrder)}-${index}`;
+        uniqueOrders.set(String(uniqueId), { ...normalizedOrder, id: uniqueId });
+      });
+      setOrders([...uniqueOrders.values()]);
     } catch (err) {
       setOrders([]);
       setError(err?.response?.data?.message || err.message || 'Failed to load Sales Orders.');
@@ -371,6 +401,7 @@ export default function CreatePicklistModal({ onClose, order }) {
                       <td className="text-center">
                         <Button
                           data-permission-action="utility"
+                          className="logistics-order-action"
                           size="sm"
                           variant="outline-danger"
                           aria-label={`Remove ${line.itemCode}`}
@@ -420,7 +451,13 @@ export default function CreatePicklistModal({ onClose, order }) {
         </Modal.Footer>
       </Modal>
       {detailOrder && <SalesOrderDetailModal order={detailOrder} onClose={() => setDetailOrder(null)} />}
-      <Modal show={selecting} onHide={() => !adding && setSelecting(false)} size="xl" centered scrollable>
+      <Modal
+        show={selecting}
+        onHide={() => !adding && setSelecting(false)}
+        dialogClassName="picklist-sales-order-dialog"
+        centered
+        scrollable
+      >
         <Modal.Header closeButton={!adding}>
           <Modal.Title>Select Sales Orders</Modal.Title>
         </Modal.Header>
@@ -432,8 +469,8 @@ export default function CreatePicklistModal({ onClose, order }) {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
-            <Badge bg="success" className="flex-shrink-0">
-              Order Approved
+            <Badge className="picklist-approved-badge flex-shrink-0">
+              Approved / Reschedule Approved
             </Badge>
             <Button variant="outline-secondary" size="sm" disabled={loading || adding} onClick={fetchOrders}>
               Refresh
@@ -446,8 +483,8 @@ export default function CreatePicklistModal({ onClose, order }) {
                 <th>Select</th>
                 <th>SO Number</th>
                 <th>Customer</th>
-                <th>Posting Date</th>
-                <th>Due Date</th>
+                <th>Loading Date</th>
+                <th>ETA Date</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -491,10 +528,10 @@ export default function CreatePicklistModal({ onClose, order }) {
                         <div>{item.customer_name || item.card_code || '-'}</div>
                         <small className="text-muted d-block">{item.depo || '-'}</small>
                       </td>
-                      <td>{item.doc_date?.slice(0, 10) || '-'}</td>
-                      <td>{item.doc_due_date?.slice(0, 10) || '-'}</td>
+                      <td>{orderDate(item.doc_due_date, item.loading_date, item.loadingDate)}</td>
+                      <td>{orderDate(item.eta_date, item.etaDate)}</td>
                       <td>
-                        <Badge bg="light" text="success">
+                        <Badge className="picklist-approved-badge">
                           Order Approved
                         </Badge>
                       </td>

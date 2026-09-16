@@ -134,12 +134,6 @@ const normalizeActionAssignments = (value) => {
     return result;
   }, {});
 };
-// Temporary SAP master data. Replace these options with API data when the SAP master endpoints are available.
-const sapOriginatorOptions = [
-  { value: 'SAP001', label: 'SAP001 - Sales Admin' },
-  { value: 'SAP002', label: 'SAP002 - Finance' },
-  { value: 'SAP003', label: 'SAP003 - Warehouse' }
-];
 const accessibleSystemAliases = {
   distributor: SYSTEM_KEYS.CUSTOMER_PORTAL,
   'customer-portal': SYSTEM_KEYS.CUSTOMER_PORTAL,
@@ -223,6 +217,33 @@ const getApprovalStageList = (response) => {
   }
 
   return [];
+};
+
+const getOriginatorList = (response) => {
+  const queue = [response?.data?.data, response?.data];
+  const visited = new Set();
+  const listKeys = ['data', 'items', 'rows', 'originators', 'approval_originators', 'approvalOriginators', 'results', 'value'];
+
+  while (queue.length) {
+    const current = queue.shift();
+    if (Array.isArray(current)) return current;
+    if (!current || typeof current !== 'object' || visited.has(current)) continue;
+
+    visited.add(current);
+    listKeys.forEach((key) => {
+      if (current[key] !== undefined) queue.push(current[key]);
+    });
+  }
+
+  return [];
+};
+
+const getUserOriginatorValue = (item) => {
+  const originator = item?.originator ?? item?.sap_originator;
+
+  if (typeof originator !== 'object' || originator === null) return String(originator ?? '').trim();
+
+  return String(originator.USERID ?? originator.userid ?? originator.user_id ?? originator.id ?? originator.value ?? '').trim();
 };
 
 const getUserDistributors = (item) => {
@@ -451,11 +472,13 @@ export default function UserList() {
   const [listOcr2, setListOcr2] = useState([]);
   const [listOcr3, setListOcr3] = useState([]);
   const [listExpedition, setListExpedition] = useState([]);
+  const [listOriginator, setListOriginator] = useState([]);
   const [listApprovalStage, setListApprovalStage] = useState([]);
   const [loadingWarehouse, setLoadingWarehouse] = useState(false);
   const [loadingUnit, setLoadingUnit] = useState(false);
   const [loadingOcr, setLoadingOcr] = useState(false);
   const [loadingExpedition, setLoadingExpedition] = useState(false);
+  const [loadingOriginator, setLoadingOriginator] = useState(false);
   const [loadingApprovalStage, setLoadingApprovalStage] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showView, setShowView] = useState(false);
@@ -482,6 +505,7 @@ export default function UserList() {
     getListUnit();
     getListOcrCodes();
     getListExpedition();
+    getListOriginator();
     getListApprovalStage();
     // Load all user form master data once when the page is mounted.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -564,6 +588,70 @@ export default function UserList() {
       showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch approval stage data', 'danger');
     } finally {
       setLoadingApprovalStage(false);
+    }
+  };
+
+  const getListOriginator = async () => {
+    setLoadingOriginator(true);
+
+    try {
+      const response = await RoleServices.getOriginator();
+      if (response?.data?.success === false) {
+        throw new Error(response.data.message || 'Failed to fetch originator data');
+      }
+
+      const options = getOriginatorList(response)
+        .map((originator) => {
+          if (typeof originator !== 'object' || originator === null) {
+            const value = String(originator ?? '').trim();
+            return { value, label: value };
+          }
+
+          const value = String(
+            originator.USERID ??
+              originator.userid ??
+              originator.user_id ??
+              originator.originator_id ??
+              originator.id ??
+              originator.originator ??
+              originator.value ??
+              originator.Originator ??
+              ''
+          ).trim();
+          const code = String(
+            originator.USER_CODE ??
+              originator.user_code ??
+              originator.originator_code ??
+              originator.code ??
+              originator.Code ??
+              originator.OriginatorCode ??
+              ''
+          ).trim();
+          const name = String(
+            originator.U_NAME ??
+              originator.u_name ??
+              originator.originator_name ??
+              originator.name ??
+              originator.Name ??
+              originator.description ??
+              originator.label ??
+              originator.OriginatorName ??
+              ''
+          ).trim();
+
+          return {
+            value,
+            label: [code, name].filter(Boolean).join(' - ') || value || '-'
+          };
+        })
+        .filter((originator) => originator.value);
+
+      setListOriginator(options);
+    } catch (error) {
+      setListOriginator([]);
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch originator data', 'danger');
+    } finally {
+      setLoadingOriginator(false);
     }
   };
 
@@ -881,7 +969,9 @@ export default function UserList() {
     : listDistributor.filter((item) => input.distributorCodes.includes(item.value));
   const selectedAccessibleSystems = accessibleSystemOptions.filter((item) => input.accessibleSystems.includes(item.value));
   const selectedExpedition = listExpedition.find((item) => item.value === input.expeditionCode) || null;
-  const selectedSapOriginator = sapOriginatorOptions.find((item) => item.value === input.originator) || null;
+  const selectedSapOriginator =
+    listOriginator.find((item) => item.value === input.originator) ||
+    (input.originator ? { value: input.originator, label: input.originator } : null);
   const selectedSapStage = listApprovalStage.find((item) => item.value === input.stage) || null;
   const availableActionMenus = actionMenuOptions.filter((item) => input.accessibleSystems.includes(item.systemKey));
   const selectedWarehouses = input.whsCodes.map(
@@ -1004,7 +1094,7 @@ export default function UserList() {
       ocrCodes: getUserOcrCodes(item, 'ocr_code', ['ocrCode', 'branches', 'branch_codes']),
       ocrCodes2: getUserOcrCodes(item, 'ocr_code2', ['ocrCode2', 'business_units', 'business_unit_codes']),
       ocrCodes3: getUserOcrCodes(item, 'ocr_code3', ['ocrCode3', 'departments', 'department_codes']),
-      originator: String(item.originator ?? item.sap_originator ?? ''),
+      originator: getUserOriginatorValue(item),
       stage: String(item.stage ?? item.sap_stage ?? ''),
       accessibleSystems: getUserAccessibleSystems(item),
       distributorCodes: hasAllDistributors ? [ALL_DISTRIBUTORS_VALUE] : distributorCodes,
@@ -1686,12 +1776,14 @@ export default function UserList() {
                       <Form.Label className="f-12 text-muted">Originator</Form.Label>
                       <Select
                         value={selectedSapOriginator}
-                        options={sapOriginatorOptions}
+                        options={listOriginator}
                         menuPosition="fixed"
                         onChange={(option) => setInput((currentInput) => ({ ...currentInput, originator: option?.value || '' }))}
-                        placeholder="Select Originator"
+                        placeholder={loadingOriginator ? 'Loading originators...' : 'Select Originator'}
+                        isLoading={loadingOriginator}
                         isClearable
                         isSearchable
+                        noOptionsMessage={() => 'No originator found'}
                       />
                     </Col>
                     <Col md={6}>

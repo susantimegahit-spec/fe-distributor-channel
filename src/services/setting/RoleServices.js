@@ -17,6 +17,10 @@ class RoleServices {
     return DataService.get('/master-approvals/stages');
   }
 
+  getOriginator() {
+    return DataService.get('/master-approvals/originators');
+  }
+
   postCreateRole(payload) {
     return DataService.post('/roles', payload);
   }
