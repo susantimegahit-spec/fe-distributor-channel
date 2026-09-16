@@ -1103,7 +1103,6 @@ export default function IssueProduction() {
                 options={seriesOptions}
                 value={seriesOptions.find((option) => String(option.value) === String(issueForm.Series)) || null}
                 isLoading={loadingSeries}
-                isDisabled
                 placeholder={loadingSeries ? 'Loading series...' : 'Select series'}
                 onChange={(option) => setIssueForm((current) => ({ ...current, Series: option?.value || '' }))}
               />
@@ -1138,7 +1137,6 @@ export default function IssueProduction() {
                   (issueForm.Unit ? { value: issueForm.Unit, label: issueForm.Unit } : null)
                 }
                 isLoading={loadingUnits}
-                isDisabled
                 placeholder={loadingUnits ? 'Loading units...' : 'Select unit'}
                 onChange={(option) => setIssueForm((current) => ({ ...current, Unit: option?.value || '' }))}
               />
@@ -1170,8 +1168,8 @@ export default function IssueProduction() {
                     (issueForm[field] ? { value: issueForm[field], label: issueForm[field] } : null)
                   }
                   isLoading={isLoading}
-                  isDisabled
                   placeholder={`Select ${label.toLowerCase()}`}
+                  onChange={(option) => setIssueForm((current) => ({ ...current, [field]: option?.value || '' }))}
                 />
               </Col>
             ))}

@@ -1133,7 +1133,6 @@ export default function ReceiptProduction() {
                 options={seriesOptions}
                 value={seriesOptions.find((option) => String(option.value) === String(receiptForm.Series)) || null}
                 isLoading={loadingSeries}
-                isDisabled
                 placeholder={loadingSeries ? 'Loading series...' : 'Select series'}
                 onChange={(option) => setReceiptForm((current) => ({ ...current, Series: option?.value || '' }))}
               />
@@ -1168,7 +1167,6 @@ export default function ReceiptProduction() {
                   (receiptForm.Unit ? { value: receiptForm.Unit, label: receiptForm.Unit } : null)
                 }
                 isLoading={loadingUnits}
-                isDisabled
                 placeholder={loadingUnits ? 'Loading units...' : 'Select unit'}
                 onChange={(option) => setReceiptForm((current) => ({ ...current, Unit: option?.value || '' }))}
               />
@@ -1201,8 +1199,8 @@ export default function ReceiptProduction() {
                     (receiptForm[field] ? { value: receiptForm[field], label: receiptForm[field] } : null)
                   }
                   isLoading={isLoading}
-                  isDisabled
                   placeholder={`Select ${label.toLowerCase()}`}
+                  onChange={(option) => setReceiptForm((current) => ({ ...current, [field]: option?.value || '' }))}
                 />
               </Col>
             ))}
