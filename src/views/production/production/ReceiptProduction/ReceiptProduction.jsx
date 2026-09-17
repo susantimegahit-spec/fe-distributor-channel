@@ -232,7 +232,7 @@ const createReceiptLineFromOrder = (order) => {
     ItemName: order.itemName,
     BaseType: 202,
     BaseEntry: order.id,
-    BaseLine: order.baseLine ?? 0,
+    BaseLine: order.baseLine ?? -1,
     PlannedQty: order.plannedQuantity,
     CmpltQty: order.completedQuantity,
     Quantity: remainingQuantity,
@@ -251,6 +251,12 @@ const createReceiptLineFromOrder = (order) => {
 const getRemainingReceiptQuantity = (line = {}) => Math.max(Number(line.PlannedQty || 0) - Number(line.CmpltQty || 0), 0);
 const cannotPostReceiptLine = (line = {}) => Number(line.CmpltQty || 0) >= Number(line.PlannedQty || 0);
 const cannotPostProductionOrder = (order = {}) => Number(order.completedQuantity || 0) >= Number(order.plannedQuantity || 0);
+const normalizeBaseLine = (value) => {
+  if (value === undefined || value === null || String(value).trim() === '') return -1;
+  const baseLine = Number(value);
+  return Number.isFinite(baseLine) ? baseLine : -1;
+};
+const getBaseLineFromLineNum = (line = {}) => normalizeBaseLine(line.LineNum ?? line.line_num);
 
 const normalizeOcr = (item = {}) => {
   const code = item.ocr_code || item.ocrCode || item.OcrCode || item.code || '';
@@ -809,7 +815,7 @@ export default function ReceiptProduction() {
           const headerItems = Array.isArray(header) ? header : [header];
           const detailItems = payload?.items ?? payload?.Items ?? payload?.details ?? payload?.order_details ?? [];
           const firstDetail = Array.isArray(detailItems) ? detailItems[0] : {};
-          const negativeItemOrders = (Array.isArray(detailItems) ? detailItems : []).flatMap((item, index) => {
+          const negativeItemOrders = (Array.isArray(detailItems) ? detailItems : []).flatMap((item) => {
             const plannedQuantity = getPlannedQuantity(item);
             if (plannedQuantity >= 0 || !Number.isFinite(plannedQuantity)) return [];
 
@@ -823,7 +829,7 @@ export default function ReceiptProduction() {
                 itemName: normalizedItem.itemName,
                 plannedQuantity: Math.abs(plannedQuantity),
                 completedQuantity: Math.abs(getCompletedQuantity(item)),
-                baseLine: item.BaseLine ?? item.base_line ?? item.LineNum ?? item.line_num ?? index
+                baseLine: getBaseLineFromLineNum(item)
               }
             ];
           });
@@ -833,9 +839,11 @@ export default function ReceiptProduction() {
             firstDetail: firstDetail || {},
             raw: order.raw || {},
             orders: [
-              ...headerItems.filter(Boolean).map((headerItem, index) => ({
+              ...headerItems.filter(Boolean).map((headerItem) => ({
                 ...normalizeProductionOrder({ ...order.raw, ...firstDetail, ...headerItem }),
-                baseLine: headerItem.BaseLine ?? headerItem.base_line ?? headerItem.LineNum ?? headerItem.line_num ?? index
+                // The production-order header may expose a synthetic LineNum: 0.
+                // Receipt rows sourced from the header are not document lines.
+                baseLine: -1
               })),
               ...negativeItemOrders
             ]
@@ -939,9 +947,10 @@ export default function ReceiptProduction() {
       AddonId: String(getCookies('addonId') ?? ''),
       UserId: String(getCookies('id') ?? ''),
       Lines: receiptForm.Lines.map((line) => ({
+        ItemCode: String(line.ItemCode || line.ProductionItemCode || '').trim(),
         BaseType: Number(line.BaseType),
         BaseEntry: Number(line.BaseEntry),
-        BaseLine: Number(line.BaseLine),
+        BaseLine: normalizeBaseLine(line.BaseLine),
         Quantity: Number(line.Quantity),
         WhsCode: receiptForm.WhsCode || line.WhsCode,
         UoMEntry: line.UoMEntry === '' ? 0 : Number(line.UoMEntry),

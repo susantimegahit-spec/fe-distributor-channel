@@ -46,6 +46,9 @@ const isSapConnectionError = (error) => {
   const normalizedMessage = messages.map((message) => String(message || '').toLowerCase()).join(' ');
   const explicitlyMentionsSapConnection = [
     'curl error 28',
+    'curl error 56',
+    'recv failure',
+    'connection reset by peer',
     'sap connection failed',
     'sap connection error',
     'sap connection issue',
