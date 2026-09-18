@@ -1871,6 +1871,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                       <th aria-label="Expand product details" style={{ width: 48 }} />
                       <th>{renderSortableCommitmentHeader('CMO / Customer', 'cmoCustomer')}</th>
                       <th>{renderSortableCommitmentHeader('Date', 'date')}</th>
+                      <th>{renderSortableCommitmentHeader('ETA Date', 'eta')}</th>
                       <th>{renderSortableCommitmentHeader('Total Item', 'totalItem')}</th>
                       <th>{renderSortableCommitmentHeader('Kg', 'kg')}</th>
                       <th>{renderSortableCommitmentHeader('Total Order', 'totalOrder')}</th>
@@ -1881,7 +1882,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                   {isLoading || isLoadingCommitment ? (
                     <tbody>
                       <tr>
-                        <td colSpan={8}>
+                        <td colSpan={9}>
                           <LoaderData />
                         </td>
                       </tr>
@@ -1922,6 +1923,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                                   </div>
                                 </td>
                                 <td>{moment(order.doc_date).format('DD MMM YYYY')}</td>
+                                <td>{formatOrderDate(getOrderValue(order, ['eta_date', 'etaDate', 'ETA', 'u_eta', 'U_ETA'], ''))}</td>
                                 <td>{productLines.length}</td>
                                 <td className="fw-semibold">{formatKg(getOrderTotalKg(order))}</td>
                                 <td>{currency(order?.doc_total)}</td>
@@ -1950,7 +1952,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                               </tr>
                               {isExpanded ? (
                                 <tr key={`${order.id}-products`} className="bg-light">
-                                  <td colSpan={8} className="p-3">
+                                  <td colSpan={9} className="p-3">
                                     <div className="border rounded bg-white overflow-hidden">
                                       <Table className="mb-0 align-middle" responsive size="sm">
                                         <thead>
@@ -1995,7 +1997,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                         })
                       ) : (
                         <tr>
-                          <td colSpan={8}>
+                          <td colSpan={9}>
                             <div className="text-center text-muted py-4">No draft orders found.</div>
                           </td>
                         </tr>

@@ -134,6 +134,9 @@ const getPayloadList = (response, keys = []) => {
 
 const getVendorRateValue = (item, keys) => keys.map((key) => item?.[key]).find((value) => value !== undefined && value !== null && String(value).trim() !== '') ?? '';
 const getVendorRateBatchId = (header) => getVendorRateValue(header, ['batch_id', 'batchId', 'id', 'uuid', 'header_id', 'headerId']);
+const getVendorRateId = (rate) => getVendorRateValue(rate, ['id', 'rate_id', 'rateId']);
+const isPendingVendorRate = (rate) =>
+  String(getVendorRateValue(rate, ['approval_status', 'approvalStatus']) || 'PENDING').trim().toUpperCase() === 'PENDING';
 const getVendorRateName = (header) =>
   getVendorRateValue(header, ['vendor_name', 'company_name', 'expedition_name', 'vendorName', 'companyName']) ||
   header?.vendor?.company_name || header?.vendor?.name || header?.expedition?.expedition_name || '-';
@@ -230,6 +233,7 @@ export default function LogisticsDashboard() {
   const [pendingRateHeaders, setPendingRateHeaders] = useState([]);
   const [selectedRateHeader, setSelectedRateHeader] = useState(null);
   const [selectedRateDetails, setSelectedRateDetails] = useState([]);
+  const [selectedRateDetailIds, setSelectedRateDetailIds] = useState([]);
   const [loadingRateDetails, setLoadingRateDetails] = useState(false);
   const [rateDetailsError, setRateDetailsError] = useState('');
   const [processingRateApproval, setProcessingRateApproval] = useState(null);
@@ -491,6 +495,7 @@ export default function LogisticsDashboard() {
   const openPendingRateDetails = async (header) => {
     setSelectedRateHeader(header);
     setSelectedRateDetails([]);
+    setSelectedRateDetailIds([]);
     setRateDetailsError('');
     setLoadingRateDetails(true);
     try {
@@ -508,17 +513,34 @@ export default function LogisticsDashboard() {
 
   const handleRateApproval = async (action) => {
     if (!selectedRateHeader || processingRateApproval) return;
+    if (action === 'approve' && !selectedRateDetailIds.length) return;
     setProcessingRateApproval(action);
     setRateDetailsError('');
     try {
-      const batchId = getVendorRateBatchId(selectedRateHeader);
-      const response = action === 'approve'
-        ? await VendorManagementServices.postApproveVendorRates(batchId)
-        : await VendorManagementServices.postRejectVendorRates(batchId);
-      if (!(response?.status >= 200 && response.status < 300) || response?.data?.success === false) {
-        throw new Error(response?.data?.message || `Failed to ${action} vendor rates`);
+      let response;
+      if (action === 'approve') {
+        const responses = await Promise.all(selectedRateDetailIds.map((rateId) => RateServices.postApproveRates(rateId)));
+        const failedResponse = responses.find(
+          (result) => !(result?.status >= 200 && result.status < 300) || result?.data?.success === false
+        );
+        if (failedResponse) {
+          throw new Error(failedResponse?.data?.message || 'Failed to approve selected vendor rates');
+        }
+        response = responses[responses.length - 1];
+      } else {
+        response = await VendorManagementServices.postRejectVendorRates(getVendorRateBatchId(selectedRateHeader));
+        if (!(response?.status >= 200 && response.status < 300) || response?.data?.success === false) {
+          throw new Error(response?.data?.message || 'Failed to reject vendor rates');
+        }
       }
-      showAlert(response?.data?.message || `Vendor rates ${action === 'approve' ? 'approved' : 'rejected'} successfully`, 'success');
+      showAlert(
+        response?.data?.message ||
+          (action === 'approve'
+            ? `${selectedRateDetailIds.length} vendor rate(s) approved successfully`
+            : 'Vendor rates rejected successfully'),
+        'success'
+      );
+      setSelectedRateDetailIds([]);
       setSelectedRateHeader(null);
       await fetchPendingVendorRates();
     } catch (error) {
@@ -526,6 +548,25 @@ export default function LogisticsDashboard() {
     } finally {
       setProcessingRateApproval(null);
     }
+  };
+
+  const selectableVendorRateIds = selectedRateDetails
+    .filter(isPendingVendorRate)
+    .map(getVendorRateId)
+    .filter((id) => id !== '')
+    .map(String);
+  const allVendorRatesSelected =
+    Boolean(selectableVendorRateIds.length) && selectableVendorRateIds.every((id) => selectedRateDetailIds.includes(id));
+
+  const toggleVendorRate = (rateId) => {
+    const normalizedId = String(rateId);
+    setSelectedRateDetailIds((current) =>
+      current.includes(normalizedId) ? current.filter((id) => id !== normalizedId) : [...current, normalizedId]
+    );
+  };
+
+  const toggleAllVendorRates = () => {
+    setSelectedRateDetailIds(allVendorRatesSelected ? [] : selectableVendorRateIds);
   };
 
   const searchShipToOptions = useCallback(async (inputValue) => {
@@ -812,33 +853,33 @@ export default function LogisticsDashboard() {
                       )}
                     </td>
                     <td className="text-end">
-                      {order.logisticStatus !== 'RESCHEDULE_APPROVED' && (
-                      <Stack direction="horizontal" gap={1} className="justify-content-end">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline-success"
-                          className="logistics-order-action logistics-order-action--confirm"
-                          aria-label={`Approve order ${order.orderNumber} for packing`}
-                          title="Approve for Packing"
-                          disabled={approvingOrderId !== null}
-                          onClick={() => setOrderToApprove(order)}
-                        >
-                          <i className={`ti ${String(approvingOrderId) === String(order.id) ? 'ti-loader-2' : 'ti-check'}`} />
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline-danger"
-                          className="logistics-order-action"
-                          aria-label={`Reschedule order ${order.orderNumber}`}
-                          title="Reschedule Order"
-                          disabled={approvingOrderId !== null || reschedulingOrderId !== null}
-                          onClick={() => openCloseOrderModal(order)}
-                        >
-                          <i className="ti ti-x" />
-                        </Button>
-                      </Stack>
+                      {order.status === 'ORDER_APPROVED' && !['APPROVED', 'RESCHEDULE_APPROVED'].includes(order.logisticStatus) && (
+                        <Stack direction="horizontal" gap={1} className="justify-content-end">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline-success"
+                            className="logistics-order-action logistics-order-action--confirm"
+                            aria-label={`Approve order ${order.orderNumber} for packing`}
+                            title="Approve for Packing"
+                            disabled={approvingOrderId !== null}
+                            onClick={() => setOrderToApprove(order)}
+                          >
+                            <i className={`ti ${String(approvingOrderId) === String(order.id) ? 'ti-loader-2' : 'ti-check'}`} />
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline-danger"
+                            className="logistics-order-action"
+                            aria-label={`Reschedule order ${order.orderNumber}`}
+                            title="Reschedule Order"
+                            disabled={approvingOrderId !== null || reschedulingOrderId !== null}
+                            onClick={() => openCloseOrderModal(order)}
+                          >
+                            <i className="ti ti-x" />
+                          </Button>
+                        </Stack>
                       )}
                     </td>
                   </tr>
@@ -1111,6 +1152,16 @@ export default function LogisticsDashboard() {
           <Table responsive hover className="mb-0 align-middle">
             <thead>
               <tr>
+                <th className="text-center" style={{ width: 44 }}>
+                  <Form.Check
+                    type="checkbox"
+                    className="m-0 d-inline-flex"
+                    checked={allVendorRatesSelected}
+                    onChange={toggleAllVendorRates}
+                    disabled={Boolean(processingRateApproval) || !selectableVendorRateIds.length}
+                    aria-label="Select all pending vendor rates"
+                  />
+                </th>
                 <th>Origin</th>
                 <th>Destination</th>
                 <th>Service</th>
@@ -1122,11 +1173,23 @@ export default function LogisticsDashboard() {
             <tbody>
               {loadingRateDetails ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-4">Loading rate details...</td>
+                  <td colSpan={7} className="text-center py-4">Loading rate details...</td>
                 </tr>
               ) : selectedRateDetails.length ? (
-                selectedRateDetails.map((rate) => (
-                  <tr key={rate.id}>
+                selectedRateDetails.map((rate, index) => {
+                  const rateId = getVendorRateId(rate);
+                  const canSelectRate = isPendingVendorRate(rate) && rateId !== '';
+                  return <tr key={rateId || index}>
+                    <td className="text-center">
+                      <Form.Check
+                        type="checkbox"
+                        className="m-0 d-inline-flex"
+                        checked={canSelectRate && selectedRateDetailIds.includes(String(rateId))}
+                        onChange={() => toggleVendorRate(rateId)}
+                        disabled={Boolean(processingRateApproval) || !canSelectRate}
+                        aria-label={`Select vendor rate ${rateId || index + 1}`}
+                      />
+                    </td>
                     <td>{getVendorRateValue(rate, ['origin_name', 'originName', 'origin']) || '-'}</td>
                     <td>{getVendorRateValue(rate, ['destination_name', 'destinationName', 'destination']) || '-'}</td>
                     <td>{rate.service_type || '-'}</td>
@@ -1138,11 +1201,11 @@ export default function LogisticsDashboard() {
                     <td>
                       <Badge bg="warning" text="dark">{getVendorRateValue(rate, ['approval_status', 'approvalStatus']) || 'PENDING'}</Badge>
                     </td>
-                  </tr>
-                ))
+                  </tr>;
+                })
               ) : !rateDetailsError ? (
                 <tr>
-                  <td colSpan={6} className="text-center text-muted py-4">Tidak ada detail rates.</td>
+                  <td colSpan={7} className="text-center text-muted py-4">Tidak ada detail rates.</td>
                 </tr>
               ) : null}
             </tbody>
@@ -1162,9 +1225,11 @@ export default function LogisticsDashboard() {
           <Button
             variant="success"
             onClick={() => handleRateApproval('approve')}
-            disabled={loadingRateDetails || Boolean(processingRateApproval) || !selectedRateDetails.length}
+            disabled={loadingRateDetails || Boolean(processingRateApproval) || !selectedRateDetailIds.length}
           >
-            {processingRateApproval === 'approve' ? 'Approving...' : 'Approve'}
+            {processingRateApproval === 'approve'
+              ? 'Approving...'
+              : `Approve${selectedRateDetailIds.length ? ` (${selectedRateDetailIds.length})` : ''}`}
           </Button>
         </Modal.Footer>
       </Modal>

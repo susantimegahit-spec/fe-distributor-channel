@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Select from 'react-select';
 import { Alert, Badge, Button, Col, Form, Modal, Row, Stack, Table } from 'react-bootstrap';
 import PicklistRecommendations from './PicklistRecommendations';
 import SalesOrderDetailModal from './SalesOrderDetailModal';
 import OrderServices from '../../../services/customer-portal/OrderServices';
 import LogisticsServices from '../../../services/logistics/LogisticsServices';
+import ExpeditionServices from '../../../services/logistics/ExpeditionServices';
 
 const approved = (order) =>
   String(order.status || '')
@@ -15,6 +16,16 @@ const orderDate = (...values) => {
   const value = values.find((item) => item !== undefined && item !== null && String(item).trim() !== '');
   return value ? String(value).slice(0, 10) : '-';
 };
+const formatStatus = (value) =>
+  String(value || '-')
+    .trim()
+    .toLowerCase()
+    .replaceAll('_', ' ')
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+const logisticStatusClass = (value) =>
+  String(value || '').toUpperCase().includes('RESCHEDULE')
+    ? 'picklist-logistic-badge picklist-logistic-badge-reschedule'
+    : 'picklist-logistic-badge';
 const getLogisticOrderRows = (response) => {
   const root = response?.data?.data ?? response?.data ?? [];
   const payload = root?.orders || root?.data || root;
@@ -22,19 +33,158 @@ const getLogisticOrderRows = (response) => {
   return Array.isArray(rows) ? rows : [];
 };
 const formatNumber = (value) => Number(value || 0).toLocaleString('id-ID', { maximumFractionDigits: 3 });
-const licensePlateOptions = [
-  { value: 'L 1234 AB', label: 'L 1234 AB — Truck (Mockup)' },
-  { value: 'L 5678 CD', label: 'L 5678 CD — Box (Mockup)' },
-  { value: 'B 9012 EF', label: 'B 9012 EF — Trailer (Mockup)' }
+const shippingTypeOptions = [
+  { value: 'internal', label: 'Internal' },
+  { value: 'external', label: 'External' },
+  { value: 'pickup', label: 'Pickup' }
 ];
-const driverOptions = [
-  { value: 'driver-1', label: 'Driver 1 (Mockup)' },
-  { value: 'driver-2', label: 'Driver 2 (Mockup)' }
-];
-const checkerOptions = [
-  { value: 'checker-1', label: 'Checker 1 (Mockup)' },
-  { value: 'checker-2', label: 'Checker 2 (Mockup)' }
-];
+const getVehicleRows = (response) => {
+  const payload = response?.data?.data ?? response?.data ?? [];
+  if (Array.isArray(payload)) return payload;
+  for (const key of ['data', 'items', 'vehicles', 'kendaraan', 'results']) {
+    if (Array.isArray(payload?.[key])) return payload[key];
+  }
+  return [];
+};
+const getVehicleValue = (vehicle, keys) =>
+  keys.map((key) => vehicle?.[key]).find((value) => value !== undefined && value !== null && String(value).trim() !== '') ?? '';
+const normalizeVehicleOption = (vehicle, index) => {
+  const licensePlate = String(
+    getVehicleValue(vehicle, [
+      'license_plate',
+      'licensePlate',
+      'LicensePlate',
+      'plate_number',
+      'plateNumber',
+      'NoPolisi',
+      'no_polisi',
+      'Nopol',
+      'nopol',
+      'vehicle_number',
+      'vehicleNumber',
+      'code',
+      'Code'
+    ])
+  ).trim();
+  const vehicleName = String(
+    getVehicleValue(vehicle, [
+      'U_Merk',
+      'u_merk',
+      'vehicle_type',
+      'vehicleType',
+      'type',
+      'jenis_kendaraan',
+      'vehicle_name',
+      'vehicleName',
+      'name',
+      'Name'
+    ])
+  ).trim();
+  const capacityKg = getVehicleValue(vehicle, ['U_KapasitasKg', 'u_kapasitas_kg', 'capacity_kg', 'capacityKg']);
+  const capacityM3 = getVehicleValue(vehicle, ['U_KapasitasM3', 'u_kapasitas_m3', 'capacity_m3', 'capacityM3']);
+  const capacityLabel = [
+    Number(capacityKg) > 0 ? `${Number(capacityKg).toLocaleString('id-ID', { maximumFractionDigits: 3 })} kg` : '',
+    Number(capacityM3) > 0 ? `${Number(capacityM3).toLocaleString('id-ID', { maximumFractionDigits: 3 })} m³` : ''
+  ]
+    .filter(Boolean)
+    .join(' / ');
+  const labelDetails = [vehicleName, capacityLabel].filter(Boolean).join(' · ');
+
+  if (!licensePlate) return null;
+  return {
+    value: licensePlate,
+    label: labelDetails ? `${licensePlate} — ${labelDetails}` : licensePlate,
+    key: String(getVehicleValue(vehicle, ['id', 'vehicle_id', 'vehicleId']) || `${licensePlate}-${index}`),
+    capacityKg: Number(capacityKg) || 0,
+    capacityM3: Number(capacityM3) || 0,
+    brand: vehicleName,
+    vehicle
+  };
+};
+const getDriverRows = (response) => {
+  const payload = response?.data?.data ?? response?.data ?? [];
+  if (Array.isArray(payload)) return payload;
+  for (const key of ['data', 'items', 'drivers', 'sopir', 'results']) {
+    if (Array.isArray(payload?.[key])) return payload[key];
+  }
+  return [];
+};
+const normalizeDriverOption = (driver, index) => {
+  const driverCode = String(
+    getVehicleValue(driver, [
+      'driver_code',
+      'driverCode',
+      'DriverCode',
+      'kode_sopir',
+      'KodeSopir',
+      'code',
+      'Code',
+      'id'
+    ])
+  ).trim();
+  const driverName = String(
+    getVehicleValue(driver, [
+      'driver_name',
+      'driverName',
+      'DriverName',
+      'nama_sopir',
+      'NamaSopir',
+      'name',
+      'Name'
+    ])
+  ).trim();
+
+  if (!driverCode && !driverName) return null;
+  const value = driverCode || driverName;
+  return {
+    value,
+    label: driverCode && driverName && driverCode !== driverName ? `${driverCode} — ${driverName}` : driverName || driverCode,
+    key: `${value}-${index}`,
+    driver
+  };
+};
+const getCheckerRows = (response) => {
+  const payload = response?.data?.data ?? response?.data ?? [];
+  if (Array.isArray(payload)) return payload;
+  for (const key of ['data', 'items', 'checkers', 'checker', 'nama_checker', 'results']) {
+    if (Array.isArray(payload?.[key])) return payload[key];
+  }
+  return [];
+};
+const normalizeCheckerOption = (checker, index) => {
+  const checkerCode = String(
+    getVehicleValue(checker, [
+      'checker_code',
+      'checkerCode',
+      'CheckerCode',
+      'kode_checker',
+      'KodeChecker',
+      'code',
+      'Code',
+      'id'
+    ])
+  ).trim();
+  const checkerName = String(
+    getVehicleValue(checker, [
+      'checker_name',
+      'checkerName',
+      'CheckerName',
+      'nama_checker',
+      'NamaChecker',
+      'name',
+      'Name'
+    ])
+  ).trim();
+
+  if (!checkerCode && !checkerName) return null;
+  const value = checkerCode || checkerName;
+  return {
+    value,
+    label: checkerCode && checkerName && checkerCode !== checkerName ? `${checkerCode} — ${checkerName}` : checkerName || checkerCode,
+    key: `${value}-${index}`,
+    checker
+  };
+};
 const today = () => {
   const date = new Date();
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
@@ -46,12 +196,21 @@ const getUnitWeight = (line) => {
 };
 
 export default function CreatePicklistModal({ onClose, order }) {
-  const [form, setForm] = useState({ postingDate: today(), dueDate: today(), comments: '' });
+  const [form, setForm] = useState({ postingDate: today(), comments: '' });
   const [lines, setLines] = useState([]);
   const [shippingType, setShippingType] = useState('');
   const [licensePlate, setLicensePlate] = useState('');
+  const [licensePlateOptions, setLicensePlateOptions] = useState([]);
+  const [loadingVehicles, setLoadingVehicles] = useState(false);
+  const [vehicleError, setVehicleError] = useState('');
   const [driver, setDriver] = useState(null);
+  const [driverOptions, setDriverOptions] = useState([]);
+  const [loadingDrivers, setLoadingDrivers] = useState(false);
+  const [driverError, setDriverError] = useState('');
   const [checker, setChecker] = useState(null);
+  const [checkerOptions, setCheckerOptions] = useState([]);
+  const [loadingCheckers, setLoadingCheckers] = useState(false);
+  const [checkerError, setCheckerError] = useState('');
   const [selecting, setSelecting] = useState(false);
   const [orders, setOrders] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -62,7 +221,7 @@ export default function CreatePicklistModal({ onClose, order }) {
   const [resetting, setResetting] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
   const [detailOrder, setDetailOrder] = useState(null);
-  const [capacity, setCapacity] = useState(order?.weight || '');
+  const [capacity, setCapacity] = useState('');
   const totalWeight = lines.reduce((total, line) => total + (Number(line.quantity) || 0) * (Number(line.unitWeight) || 0), 0);
   const orderCount = new Set(lines.map((line) => line.orderId)).size;
   const allowsMultipleOrders = shippingType === 'internal';
@@ -73,6 +232,77 @@ export default function CreatePicklistModal({ onClose, order }) {
   const changeLine = (id, field, value) =>
     setLines((current) => current.map((line) => (line.id === id ? { ...line, [field]: value } : line)));
   const requestClose = () => (lines.length || form.comments ? setConfirmClose(true) : onClose());
+
+  const fetchVehicles = async () => {
+    setLoadingVehicles(true);
+    setVehicleError('');
+    try {
+      const response = await ExpeditionServices.getVehicle();
+      if (!(response?.status >= 200 && response.status < 300) || response?.data?.success === false) {
+        throw new Error(response?.data?.message || 'Failed to load vehicle data.');
+      }
+      const options = getVehicleRows(response).map(normalizeVehicleOption).filter(Boolean);
+      setLicensePlateOptions(options);
+      if (!options.some((option) => option.value === licensePlate)) {
+        setLicensePlate('');
+        setCapacity('');
+      }
+    } catch (err) {
+      setLicensePlateOptions([]);
+      setVehicleError(err?.response?.data?.message || err.message || 'Failed to load vehicle data.');
+    } finally {
+      setLoadingVehicles(false);
+    }
+  };
+
+  const fetchDrivers = async () => {
+    setLoadingDrivers(true);
+    setDriverError('');
+    try {
+      const response = await ExpeditionServices.getDriver();
+      if (!(response?.status >= 200 && response.status < 300) || response?.data?.success === false) {
+        throw new Error(response?.data?.message || 'Failed to load driver data.');
+      }
+      const options = getDriverRows(response).map(normalizeDriverOption).filter(Boolean);
+      setDriverOptions(options);
+      setDriver((current) => (options.some((option) => option.value === current?.value) ? current : null));
+    } catch (err) {
+      setDriverOptions([]);
+      setDriver(null);
+      setDriverError(err?.response?.data?.message || err.message || 'Failed to load driver data.');
+    } finally {
+      setLoadingDrivers(false);
+    }
+  };
+
+  const fetchCheckers = async () => {
+    setLoadingCheckers(true);
+    setCheckerError('');
+    try {
+      const response = await ExpeditionServices.getChecker();
+      if (!(response?.status >= 200 && response.status < 300) || response?.data?.success === false) {
+        throw new Error(response?.data?.message || 'Failed to load checker data.');
+      }
+      const options = getCheckerRows(response).map(normalizeCheckerOption).filter(Boolean);
+      setCheckerOptions(options);
+      setChecker((current) => (options.some((option) => option.value === current?.value) ? current : null));
+    } catch (err) {
+      setCheckerOptions([]);
+      setChecker(null);
+      setCheckerError(err?.response?.data?.message || err.message || 'Failed to load checker data.');
+    } finally {
+      setLoadingCheckers(false);
+    }
+  };
+
+  useEffect(() => {
+    if (shippingType !== 'internal') return;
+    if (!licensePlateOptions.length && !loadingVehicles) fetchVehicles();
+    if (!driverOptions.length && !loadingDrivers) fetchDrivers();
+    if (!checkerOptions.length && !loadingCheckers) fetchCheckers();
+    // Vehicle, driver, and checker data are loaded when the internal shipping controls become visible.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shippingType]);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -178,26 +408,27 @@ export default function CreatePicklistModal({ onClose, order }) {
           <Row className="g-3 mb-4">
             <Col md={4}>
               <Form.Label htmlFor="picklist-shipping-type">Shipping Type *</Form.Label>
-              <Form.Select
-                id="picklist-shipping-type"
-                value={shippingType}
-                onChange={(event) => {
-                  if (event.target.value !== 'internal' && orderCount > 1) {
+              <Select
+                inputId="picklist-shipping-type"
+                classNamePrefix="react-select"
+                options={shippingTypeOptions}
+                value={shippingTypeOptions.find((option) => option.value === shippingType) || null}
+                onChange={(option) => {
+                  const nextShippingType = option?.value || '';
+                  if (nextShippingType !== 'internal' && orderCount > 1) {
                     setError('Remove extra Sales Orders before changing shipping type. External and Pickup allow only one Sales Order.');
                     return;
                   }
                   setError('');
-                  setShippingType(event.target.value);
+                  setShippingType(nextShippingType);
                   setLicensePlate('');
+                  setCapacity('');
                   setDriver(null);
                   setChecker(null);
                 }}
-              >
-                <option value="">Select shipping type</option>
-                <option value="internal">Internal</option>
-                <option value="external">External</option>
-                <option value="pickup">Pickup</option>
-              </Form.Select>
+                placeholder="Select shipping type"
+                isClearable
+              />
             </Col>
             {shippingType === 'internal' && (
               <Col xs={12}>
@@ -209,11 +440,26 @@ export default function CreatePicklistModal({ onClose, order }) {
                       classNamePrefix="react-select"
                       options={licensePlateOptions}
                       value={licensePlateOptions.find((option) => option.value === licensePlate) || null}
-                      onChange={(option) => setLicensePlate(option?.value || '')}
+                      onChange={(option) => {
+                        setLicensePlate(option?.value || '');
+                        setCapacity(option?.capacityKg || '');
+                      }}
                       placeholder="Select license plate number"
+                      isLoading={loadingVehicles}
+                      isDisabled={loadingVehicles}
+                      noOptionsMessage={() => (vehicleError ? 'Failed to load vehicles' : 'No vehicles found')}
                       isClearable
                     />
-                    <Form.Text>Sample vehicle data for preview.</Form.Text>
+                    {vehicleError ? (
+                      <Form.Text className="text-danger">
+                        {vehicleError}{' '}
+                        <Button variant="link" size="sm" className="p-0 align-baseline" onClick={fetchVehicles} disabled={loadingVehicles}>
+                          Retry
+                        </Button>
+                      </Form.Text>
+                    ) : (
+                      <Form.Text>{loadingVehicles ? 'Loading vehicle data...' : 'Vehicle data from Expedition.'}</Form.Text>
+                    )}
                   </Col>
                   <Col md={4}>
                     <Form.Label htmlFor="picklist-driver">Driver</Form.Label>
@@ -224,8 +470,19 @@ export default function CreatePicklistModal({ onClose, order }) {
                       value={driver}
                       onChange={setDriver}
                       placeholder="Select driver"
+                      isLoading={loadingDrivers}
+                      isDisabled={loadingDrivers}
+                      noOptionsMessage={() => (driverError ? 'Failed to load drivers' : 'No drivers found')}
                       isClearable
                     />
+                    {driverError ? (
+                      <Form.Text className="text-danger">
+                        {driverError}{' '}
+                        <Button variant="link" size="sm" className="p-0 align-baseline" onClick={fetchDrivers} disabled={loadingDrivers}>
+                          Retry
+                        </Button>
+                      </Form.Text>
+                    ) : null}
                   </Col>
                   <Col md={4}>
                     <Form.Label htmlFor="picklist-checker">Checker</Form.Label>
@@ -236,8 +493,19 @@ export default function CreatePicklistModal({ onClose, order }) {
                       value={checker}
                       onChange={setChecker}
                       placeholder="Select checker"
+                      isLoading={loadingCheckers}
+                      isDisabled={loadingCheckers}
+                      noOptionsMessage={() => (checkerError ? 'Failed to load checkers' : 'No checkers found')}
                       isClearable
                     />
+                    {checkerError ? (
+                      <Form.Text className="text-danger">
+                        {checkerError}{' '}
+                        <Button variant="link" size="sm" className="p-0 align-baseline" onClick={fetchCheckers} disabled={loadingCheckers}>
+                          Retry
+                        </Button>
+                      </Form.Text>
+                    ) : null}
                   </Col>
                 </Row>
               </Col>
@@ -251,40 +519,25 @@ export default function CreatePicklistModal({ onClose, order }) {
             )}
           </Row>
           <Row className="g-3 mb-4">
-            <Col md={3}>
+            <Col md={4}>
               <Form.Label>Posting Date *</Form.Label>
               <Form.Control
                 type="date"
                 value={form.postingDate}
-                max={form.dueDate || undefined}
                 onChange={(event) => setForm({ ...form, postingDate: event.target.value })}
               />
             </Col>
-            <Col md={3}>
-              <Form.Label>Due Date *</Form.Label>
-              <Form.Control
-                type="date"
-                min={form.postingDate}
-                value={form.dueDate}
-                onChange={(event) => setForm({ ...form, dueDate: event.target.value })}
-              />
-            </Col>
-            <Col md={3}>
-              <Form.Label>Delivery Order</Form.Label>
-              <Form.Control readOnly value={order?.id || 'Not selected'} />
-            </Col>
-            <Col md={3}>
-              <Form.Label>Total Weight Limit (kg)</Form.Label>
-              <Form.Control
-                type="number"
-                min="0.001"
-                step="any"
-                value={capacity}
-                readOnly={Boolean(order)}
-                placeholder="Enter weight limit"
-                onChange={(event) => setCapacity(event.target.value)}
-              />
-            </Col>
+            {shippingType === 'internal' && (
+              <Col md={4}>
+                <Form.Label>Vehicle Capacity (kg)</Form.Label>
+                <Form.Control
+                  type="number"
+                  value={capacity}
+                  readOnly
+                  placeholder="Select a license plate"
+                />
+              </Col>
+            )}
             <Col xs={12}>
               <Form.Label>Comments</Form.Label>
               <Form.Control
@@ -531,9 +784,12 @@ export default function CreatePicklistModal({ onClose, order }) {
                       <td>{orderDate(item.doc_due_date, item.loading_date, item.loadingDate)}</td>
                       <td>{orderDate(item.eta_date, item.etaDate)}</td>
                       <td>
-                        <Badge className="picklist-approved-badge">
-                          Order Approved
-                        </Badge>
+                        <Stack gap={1} className="align-items-start">
+                          <Badge className="picklist-approved-badge">Order Approved</Badge>
+                          <Badge className={logisticStatusClass(item.logistic_status)}>
+                            Logistic: {formatStatus(item.logistic_status)}
+                          </Badge>
+                        </Stack>
                       </td>
                     </tr>
                   );

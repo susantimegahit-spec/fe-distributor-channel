@@ -13,6 +13,18 @@ class ExpeditionServices {
     return DataService.get('ekspedisi/expeditions', payload);
   }
 
+  getVehicle() {
+    return DataService.get('ekspedisi/kendaraan');
+  }
+
+  getDriver() {
+    return DataService.get('ekspedisi/sopir');
+  }
+
+  getChecker() {
+    return DataService.get('ekspedisi/nama-checker');
+  }
+
   getDetailExpedition(id) {
     return DataService.get(`ekspedisi/expeditions/${id}`);
   }

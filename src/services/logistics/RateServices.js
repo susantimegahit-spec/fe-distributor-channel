@@ -9,7 +9,7 @@ class RateServices {
     return DataService.get('ekspedisi/rates/rank', {
       origin,
       destination,
-      ...(Number(weight) > 0 ? { weight } : {}),
+      ...(weight === '' ? { weight: '' } : Number(weight) > 0 ? { weight } : {}),
       service_type: serviceType,
       transport_mode: transportMode
     });

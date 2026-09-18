@@ -75,6 +75,7 @@ export default function OrderPost({ cmoMode = false }) {
   // VAT disabled: const [listVats, setListVats] = useState([]);
   const [listSeries, setListSeries] = useState([]);
   const [listDistributor, setListDistributor] = useState([]);
+  const [hasMasterCustomerContact, setHasMasterCustomerContact] = useState(false);
   const [orderDetail, setOrderDetail] = useState(null);
   const [statusType, setStatusType] = useState('');
   const [confirmSubmit, setConfirmSubmit] = useState(false);
@@ -737,6 +738,8 @@ export default function OrderPost({ cmoMode = false }) {
     const orderEtaDate = formatDateInput(getValue(order, ['eta_date', 'etaDate', 'ETA', 'u_eta', 'U_ETA'])) || addDaysToDate(minEtaDate, 7);
     const etaDate = orderEtaDate < minEtaDate ? minEtaDate : orderEtaDate;
 
+    const customerContact = getValue(order, ['cntct', 'cnctCode', 'contact_name', 'customer_name', 'CardName']);
+    setHasMasterCustomerContact(Boolean(String(customerContact || '').trim()));
     setOrderInput({
       cardCode,
       poNumber: getValue(order, ['po_number', 'num_at_card', 'numAtCard', 'NumAtCard']),
@@ -747,7 +750,7 @@ export default function OrderPost({ cmoMode = false }) {
       series: getValue(order, ['series', 'Series', 'series_code', 'seriesCode']),
       seriesName: getValue(order, orderSeriesNameKeys, ''),
       slpCode: getValue(order, ['slp_code', 'slpCode', 'SlpCode']),
-      cnctCode: getValue(order, ['cntct', 'cnctCode', 'contact_name', 'customer_name', 'CardName']),
+      cnctCode: customerContact,
       address: findOption(listAddressB, billToCode, billToAddress),
       address2: findOption(listAddressS, shipToCode, shipToAddress),
       comments: getValue(order, ['comments', 'Comments']),
@@ -1201,6 +1204,7 @@ export default function OrderPost({ cmoMode = false }) {
     setListItem([]);
     setRewardDiscountPreview([]);
     setRewardResultCount(0);
+    setHasMasterCustomerContact(Boolean(String(e?.name || '').trim()));
     setOrderInput({
       ...orderInput,
       cardCode: e?.value || '',
@@ -2063,6 +2067,7 @@ export default function OrderPost({ cmoMode = false }) {
   };
 
   const handleClearCmoForm = () => {
+    setHasMasterCustomerContact(false);
     setOrderInput({
       cardCode: assignedCustomerCode,
       poNumber: '',
@@ -2476,6 +2481,7 @@ export default function OrderPost({ cmoMode = false }) {
                             <Form.Control
                               onChange={(e) => handleSetInput(e, 'cnctCode')}
                               value={orderInput.cnctCode}
+                              readOnly={cmoMode && hasMasterCustomerContact}
                               type="text"
                               placeholder="Customer Contact"
                               size="sm"
