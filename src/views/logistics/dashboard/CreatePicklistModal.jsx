@@ -4,8 +4,10 @@ import { Alert, Badge, Button, Col, Form, Modal, Row, Stack, Table } from 'react
 import PicklistRecommendations from './PicklistRecommendations';
 import SalesOrderDetailModal from './SalesOrderDetailModal';
 import OrderServices from '../../../services/customer-portal/OrderServices';
+import WarehouseServices from '../../../services/customer-portal/WarehouseServices';
 import LogisticsServices from '../../../services/logistics/LogisticsServices';
 import ExpeditionServices from '../../../services/logistics/ExpeditionServices';
+import ProductionWarehouseServices from '../../../services/production/WarehouseServices';
 
 const approved = (order) =>
   String(order.status || '')
@@ -194,6 +196,47 @@ const getUnitWeight = (line) => {
   if (!match) return '';
   return Number(match[1].replace(',', '.')) / (/^(g|gr|gram)$/i.test(match[2]) ? 1000 : 1);
 };
+const getResponseRows = (response, keys = []) => {
+  const payload = response?.data?.data ?? response?.data ?? [];
+  if (Array.isArray(payload)) return payload;
+  for (const key of [...keys, 'data', 'items', 'rows', 'value', 'results']) {
+    if (Array.isArray(payload?.[key])) return payload[key];
+  }
+  return [];
+};
+const normalizeWarehouseOption = (item) => {
+  const value = String(item?.whs_code ?? item?.whsCode ?? item?.WhsCode ?? item?.warehouse_code ?? item?.code ?? '').trim();
+  const name = String(item?.whs_name ?? item?.whsName ?? item?.WhsName ?? item?.warehouse_name ?? item?.name ?? '').trim();
+  return value ? { value, label: name && name !== value ? `${value} — ${name}` : value } : null;
+};
+const normalizeBinOption = (item, index) => {
+  const value = String(item?.abs_entry ?? item?.absEntry ?? item?.AbsEntry ?? item?.id ?? item?.bin_code ?? item?.BinCode ?? '').trim();
+  const code = String(item?.bin_code ?? item?.binCode ?? item?.BinCode ?? item?.code ?? item?.BinLoc ?? value).trim();
+  const name = String(item?.description ?? item?.Description ?? item?.Descr ?? item?.descr ?? item?.bin_name ?? item?.name ?? '').trim();
+  const stockValue =
+    item?.available_qty ??
+    item?.availableQty ??
+    item?.SisaQty ??
+    item?.sisa_qty ??
+    item?.on_hand_qty ??
+    item?.onHandQty ??
+    item?.OnHandQty ??
+    item?.OnHand ??
+    item?.quantity ??
+    item?.Quantity ??
+    item?.qty ??
+    item?.Qty;
+  const stock = stockValue === undefined || stockValue === null || stockValue === '' ? null : Number(stockValue);
+  return value
+    ? {
+        value,
+        code: code || `Bin ${index + 1}`,
+        name,
+        label: name && name !== code ? `${code} — ${name}` : code || `Bin ${index + 1}`,
+        stock: Number.isFinite(stock) ? stock : null
+      }
+    : null;
+};
 
 export default function CreatePicklistModal({ onClose, order }) {
   const [form, setForm] = useState({ postingDate: today(), comments: '' });
@@ -222,6 +265,11 @@ export default function CreatePicklistModal({ onClose, order }) {
   const [confirmClose, setConfirmClose] = useState(false);
   const [detailOrder, setDetailOrder] = useState(null);
   const [capacity, setCapacity] = useState('');
+  const [warehouseOptions, setWarehouseOptions] = useState([]);
+  const [loadingWarehouses, setLoadingWarehouses] = useState(false);
+  const [warehouseError, setWarehouseError] = useState('');
+  const [binPickerLineId, setBinPickerLineId] = useState(null);
+  const [binAllocationDraft, setBinAllocationDraft] = useState({});
   const totalWeight = lines.reduce((total, line) => total + (Number(line.quantity) || 0) * (Number(line.unitWeight) || 0), 0);
   const orderCount = new Set(lines.map((line) => line.orderId)).size;
   const allowsMultipleOrders = shippingType === 'internal';
@@ -229,9 +277,105 @@ export default function CreatePicklistModal({ onClose, order }) {
   const filteredOrders = orders.filter((item) =>
     `${orderNumber(item)} ${item.customer_name || ''} ${item.card_code || ''}`.toLowerCase().includes(query.toLowerCase())
   );
+  const binPickerLine = lines.find((line) => line.id === binPickerLineId) || null;
+  const allocatedBinQuantity = Object.values(binAllocationDraft).reduce((total, quantity) => total + (Number(quantity) || 0), 0);
+  const openBinPicker = (line) => {
+    setBinAllocationDraft(
+      Object.fromEntries((line.binAllocations || []).map((allocation) => [String(allocation.value), String(allocation.quantity)]))
+    );
+    setBinPickerLineId(line.id);
+  };
+  const closeBinPicker = () => {
+    setBinPickerLineId(null);
+    setBinAllocationDraft({});
+  };
+  const saveBinAllocations = () => {
+    if (!binPickerLine) return;
+    const binAllocations = (binPickerLine.binOptions || [])
+      .map((bin) => ({ ...bin, quantity: Number(binAllocationDraft[bin.value]) || 0 }))
+      .filter((bin) => bin.quantity > 0);
+    changeLine(binPickerLine.id, 'binAllocations', binAllocations);
+    closeBinPicker();
+  };
   const changeLine = (id, field, value) =>
     setLines((current) => current.map((line) => (line.id === id ? { ...line, [field]: value } : line)));
   const requestClose = () => (lines.length || form.comments ? setConfirmClose(true) : onClose());
+
+  const fetchWarehouses = async () => {
+    setLoadingWarehouses(true);
+    setWarehouseError('');
+    try {
+      const response = await WarehouseServices.getAllWarehouse('');
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to load warehouses.');
+      setWarehouseOptions(getResponseRows(response, ['warehouses']).map(normalizeWarehouseOption).filter(Boolean));
+    } catch (err) {
+      setWarehouseOptions([]);
+      setWarehouseError(err?.response?.data?.message || err.message || 'Failed to load warehouses.');
+    } finally {
+      setLoadingWarehouses(false);
+    }
+  };
+
+  const fetchLineBins = async (lineId, itemCode, warehouse) => {
+    if (!itemCode || !warehouse) {
+      setLines((current) =>
+        current.map((line) =>
+          line.id === lineId
+            ? { ...line, bin: null, binAllocations: [], binOptions: [], directBinQuantity: '', loadingBins: false, binsLoaded: false }
+            : line
+        )
+      );
+      return;
+    }
+    setLines((current) =>
+      current.map((line) =>
+        line.id === lineId
+          ? {
+              ...line,
+              bin: null,
+              binAllocations: [],
+              binOptions: [],
+              directBinQuantity: '',
+              loadingBins: true,
+              binsLoaded: false,
+              binError: ''
+            }
+          : line
+      )
+    );
+    try {
+      const response = await ProductionWarehouseServices.getBinDetails(itemCode, warehouse);
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to load bins.');
+      const binOptions = getResponseRows(response, ['bins', 'bin_locations']).map(normalizeBinOption).filter(Boolean);
+      setLines((current) =>
+        current.map((line) =>
+          line.id === lineId && line.warehouse === warehouse
+            ? { ...line, binOptions, loadingBins: false, binsLoaded: true, binError: '' }
+            : line
+        )
+      );
+    } catch (err) {
+      setLines((current) =>
+        current.map((line) =>
+          line.id === lineId && line.warehouse === warehouse
+            ? {
+                ...line,
+                binOptions: [],
+                loadingBins: false,
+                binsLoaded: false,
+                binError: err?.response?.data?.message || err.message || 'Failed to load bins.'
+              }
+            : line
+        )
+      );
+    }
+  };
+
+  useEffect(() => {
+    fetchWarehouses();
+    // Warehouse master data is loaded once when the picklist modal opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchVehicles = async () => {
     setLoadingVehicles(true);
@@ -374,6 +518,12 @@ export default function CreatePicklistModal({ onClose, order }) {
             itemCode: item.item_code,
             itemName: item.item_name,
             warehouse: item.whs_code,
+            bin: null,
+            binAllocations: [],
+            directBinQuantity: '',
+            binOptions: [],
+            loadingBins: Boolean(item.whs_code),
+            binsLoaded: false,
             unit: item.unit_msr,
             orderedQuantity: Number(item.quantity) || 0,
             quantity: Number(item.quantity) || 0,
@@ -385,6 +535,10 @@ export default function CreatePicklistModal({ onClose, order }) {
         const existing = new Set(current.map((line) => line.id));
         return [...current, ...details.flat().filter((line) => !existing.has(line.id))];
       });
+      details
+        .flat()
+        .filter((line) => line.warehouse)
+        .forEach((line) => fetchLineBins(line.id, line.itemCode, line.warehouse));
       setSelecting(false);
     } catch (err) {
       setError(err?.response?.data?.message || err.message || 'Failed to add Sales Orders.');
@@ -395,7 +549,7 @@ export default function CreatePicklistModal({ onClose, order }) {
 
   return (
     <>
-      <Modal show={!selecting && !resetting && !confirmClose && !detailOrder} onHide={requestClose} fullscreen scrollable>
+      <Modal show={!selecting && !resetting && !confirmClose && !detailOrder && !binPickerLineId} onHide={requestClose} fullscreen scrollable>
         <Modal.Header closeButton>
           <Modal.Title>
             Create Picklist{' '}
@@ -415,12 +569,11 @@ export default function CreatePicklistModal({ onClose, order }) {
                 value={shippingTypeOptions.find((option) => option.value === shippingType) || null}
                 onChange={(option) => {
                   const nextShippingType = option?.value || '';
-                  if (nextShippingType !== 'internal' && orderCount > 1) {
-                    setError('Remove extra Sales Orders before changing shipping type. External and Pickup allow only one Sales Order.');
-                    return;
-                  }
                   setError('');
                   setShippingType(nextShippingType);
+                  setLines([]);
+                  setSelectedIds([]);
+                  closeBinPicker();
                   setLicensePlate('');
                   setCapacity('');
                   setDriver(null);
@@ -550,6 +703,14 @@ export default function CreatePicklistModal({ onClose, order }) {
             </Col>
           </Row>
           {error && <Alert variant="danger">{error}</Alert>}
+          {warehouseError && (
+            <Alert variant="warning">
+              {warehouseError}{' '}
+              <Button variant="link" className="p-0 align-baseline" onClick={fetchWarehouses} disabled={loadingWarehouses}>
+                Retry
+              </Button>
+            </Alert>
+          )}
           {!shippingType && <Alert variant="light">Select a shipping type to add Sales Orders.</Alert>}
           {shippingType && !allowsMultipleOrders && (
             <Alert variant="info">
@@ -588,12 +749,11 @@ export default function CreatePicklistModal({ onClose, order }) {
                 <thead>
                   <tr>
                     <th>Item / Sales Order</th>
-                    <th>Customer</th>
-                    <th>Address</th>
-                    <th>Warehouse</th>
+                    <th>Customer / Address</th>
                     <th>Ordered Qty</th>
                     <th>Pick Qty</th>
-                    <th className="text-end">Total Weight (kg)</th>
+                    <th>Warehouse</th>
+                    <th>Bin Location</th>
                     <th className="text-center">Action</th>
                   </tr>
                 </thead>
@@ -621,11 +781,11 @@ export default function CreatePicklistModal({ onClose, order }) {
                       <td style={{ minWidth: 180 }}>
                         <div className="fw-semibold">{line.customer || '-'}</div>
                         <small className="text-muted d-block">{line.depo || '-'}</small>
+                        <small className="text-muted d-block mt-1 text-break" style={{ whiteSpace: 'pre-line' }}>
+                          <i className="ti ti-map-pin me-1" aria-hidden="true" />
+                          {line.address || '-'}
+                        </small>
                       </td>
-                      <td className="text-break" style={{ minWidth: 220, whiteSpace: 'pre-line' }}>
-                        {line.address || '-'}
-                      </td>
-                      <td>{line.warehouse || '-'}</td>
                       <td>
                         {formatNumber(line.orderedQuantity)} {line.unit}
                       </td>
@@ -643,14 +803,90 @@ export default function CreatePicklistModal({ onClose, order }) {
                           }
                           onChange={(event) => {
                             const value = event.target.value.replace(',', '.');
-                            if (/^\d*\.?\d*$/.test(value)) changeLine(line.id, 'quantity', value);
+                            if (/^\d*\.?\d*$/.test(value)) {
+                              setLines((current) =>
+                                current.map((item) =>
+                                  item.id === line.id
+                                    ? { ...item, quantity: value, binAllocations: [], directBinQuantity: '' }
+                                    : item
+                                )
+                              );
+                            }
                           }}
                         />
                         <Form.Control.Feedback type="invalid">
                           Enter a positive quantity up to {line.orderedQuantity}.
                         </Form.Control.Feedback>
                       </td>
-                      <td className="text-end fw-semibold">{formatNumber(Number(line.quantity) * Number(line.unitWeight))}</td>
+                      <td style={{ minWidth: 230 }}>
+                        <Select
+                          inputId={`picklist-warehouse-${line.id}`}
+                          aria-label={`Warehouse ${line.itemCode}`}
+                          classNamePrefix="react-select"
+                          options={warehouseOptions}
+                          value={warehouseOptions.find((option) => option.value === line.warehouse) || (line.warehouse ? { value: line.warehouse, label: line.warehouse } : null)}
+                          onChange={(option) => {
+                            const warehouse = option?.value || '';
+                            changeLine(line.id, 'warehouse', warehouse);
+                            fetchLineBins(line.id, line.itemCode, warehouse);
+                          }}
+                          placeholder="Select warehouse"
+                          isLoading={loadingWarehouses}
+                          isDisabled={loadingWarehouses}
+                          isClearable
+                          menuPortalTarget={document.body}
+                          styles={{ menuPortal: (base) => ({ ...base, zIndex: 1060 }) }}
+                        />
+                        {!line.loadingBins && line.binError && <small className="text-danger d-block mt-1">{line.binError}</small>}
+                      </td>
+                      <td style={{ minWidth: 230 }}>
+                        {line.warehouse && (
+                          line.loadingBins || line.binOptions?.length ? (
+                            <Button
+                              type="button"
+                              variant="outline-secondary"
+                              size="sm"
+                              className="w-100 text-start d-flex align-items-center justify-content-between"
+                              disabled={line.loadingBins}
+                              onClick={() => openBinPicker(line)}
+                            >
+                              <span>
+                                {line.loadingBins
+                                  ? 'Loading bins...'
+                                  : line.binAllocations?.length
+                                    ? `${line.binAllocations.length} bin · Allocated ${formatNumber(
+                                        line.binAllocations.reduce((total, bin) => total + Number(bin.quantity || 0), 0)
+                                      )}`
+                                    : 'Set bin allocation'}
+                              </span>
+                              <i className={`ti ${line.loadingBins ? 'ti-loader-2' : 'ti-list-search'} ms-2`} aria-hidden="true" />
+                            </Button>
+                          ) : line.binsLoaded ? (
+                            <Form.Control
+                              aria-label={`Bin quantity ${line.itemCode}`}
+                              size="sm"
+                              type="text"
+                              inputMode="decimal"
+                              placeholder="Bin Qty"
+                              value={line.directBinQuantity || ''}
+                              isInvalid={
+                                line.directBinQuantity !== '' && Number(line.directBinQuantity) !== Number(line.quantity)
+                              }
+                              onChange={(event) => {
+                                const value = event.target.value.replace(',', '.');
+                                if (/^\d*\.?\d*$/.test(value)) changeLine(line.id, 'directBinQuantity', value);
+                              }}
+                            />
+                          ) : null
+                        )}
+                        {line.warehouse &&
+                          line.binsLoaded &&
+                          !line.binOptions?.length &&
+                          line.directBinQuantity !== '' &&
+                          Number(line.directBinQuantity) !== Number(line.quantity) && (
+                            <small className="text-danger d-block mt-1">Bin Qty must match Pick Qty.</small>
+                          )}
+                      </td>
                       <td className="text-center">
                         <Button
                           data-permission-action="utility"
@@ -667,7 +903,7 @@ export default function CreatePicklistModal({ onClose, order }) {
                   ))}
                   {!lines.length && (
                     <tr>
-                      <td colSpan={8} className="text-center text-muted py-5">
+                      <td colSpan={7} className="text-center text-muted py-5">
                         <i className="ti ti-package d-block fs-1 mb-2" />
                         No items added. Click Add SO to select approved Sales Orders.
                       </td>
@@ -812,6 +1048,97 @@ export default function CreatePicklistModal({ onClose, order }) {
           </Button>
           <Button data-permission-action="utility" disabled={loading || adding || !selectedIds.length} onClick={addOrders}>
             {adding ? 'Adding...' : 'Add Selected SO'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+      <Modal show={Boolean(binPickerLine)} onHide={closeBinPicker} centered scrollable size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>From Bin Locations</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {binPickerLine && (
+            <>
+              <Row className="g-3 mb-4">
+                <Col md={4}>
+                  <small className="text-muted d-block">Item</small>
+                  <span className="fw-semibold">{binPickerLine.itemCode} - {binPickerLine.itemName || '-'}</span>
+                </Col>
+                <Col md={3}>
+                  <small className="text-muted d-block">From Warehouse</small>
+                  <span className="fw-semibold">{binPickerLine.warehouse}</span>
+                </Col>
+                <Col md={3}>
+                  <small className="text-muted d-block">Required Qty</small>
+                  <span className="fw-semibold">{formatNumber(binPickerLine.quantity)} {binPickerLine.unit}</span>
+                </Col>
+                <Col md={2}>
+                  <small className="text-muted d-block">Allocated Qty</small>
+                  <Badge bg={allocatedBinQuantity === Number(binPickerLine.quantity) ? 'success' : 'warning'}>
+                    {formatNumber(allocatedBinQuantity)}
+                  </Badge>
+                </Col>
+              </Row>
+              <Table responsive bordered hover className="align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th style={{ width: 56 }}>#</th>
+                    <th>Bin</th>
+                    <th className="text-end">Available Qty</th>
+                    <th style={{ minWidth: 210 }}>Pick Qty</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(binPickerLine.binOptions || []).map((bin, index) => (
+                    <tr key={bin.value}>
+                      <td>{index + 1}</td>
+                      <td>
+                        <div className="fw-semibold">{bin.code}</div>
+                        <small className="text-muted">{bin.name || '-'}</small>
+                      </td>
+                      <td className="text-end fw-semibold">
+                        {bin.stock === null ? '-' : `${formatNumber(bin.stock)} ${binPickerLine.unit || ''}`}
+                      </td>
+                      <td>
+                        <Form.Control
+                          type="text"
+                          inputMode="decimal"
+                          value={binAllocationDraft[bin.value] ?? ''}
+                          placeholder="0"
+                          isInvalid={
+                            Number(binAllocationDraft[bin.value] || 0) < 0 ||
+                            (bin.stock !== null && Number(binAllocationDraft[bin.value] || 0) > bin.stock)
+                          }
+                          onChange={(event) => {
+                            const value = event.target.value.replace(',', '.');
+                            if (/^\d*\.?\d*$/.test(value)) {
+                              setBinAllocationDraft((current) => ({ ...current, [bin.value]: value }));
+                            }
+                          }}
+                        />
+                        <Form.Control.Feedback type="invalid">Quantity exceeds available stock.</Form.Control.Feedback>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" onClick={closeBinPicker}>
+            Cancel
+          </Button>
+          <Button
+            onClick={saveBinAllocations}
+            disabled={
+              !binPickerLine ||
+              allocatedBinQuantity !== Number(binPickerLine.quantity) ||
+              (binPickerLine.binOptions || []).some(
+                (bin) => bin.stock !== null && Number(binAllocationDraft[bin.value] || 0) > bin.stock
+              )
+            }
+          >
+            Save Bin Allocation
           </Button>
         </Modal.Footer>
       </Modal>
