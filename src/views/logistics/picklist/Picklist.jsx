@@ -215,10 +215,10 @@ export default function Picklist() {
                         {shippingType || '-'}
                       </Badge>
                     </td>
-                    <td>{String(shippingType).toLowerCase() === 'internal' ? '' : getExpeditionName(item)}</td>
+                    <td>{String(shippingType).toLowerCase() === 'internal' ? '-' : getExpeditionName(item)}</td>
                     <td>{formatDate(valueOf(item, ['posting_date'], ''))}</td>
                     <td>
-                      <Badge bg="info" text="dark" className="fs-6 px-2 py-1 mb-1">
+                      <Badge className="vehicle-license-badge fs-6 px-2 py-1 mb-1">
                         {valueOf(item, ['license_plate'])}
                       </Badge>
                       <small className="text-muted d-block">{valueOf(item, ['driver_name'])}</small>
@@ -339,7 +339,9 @@ export default function Picklist() {
                   </div>
                   <div className="col-md-3">
                     <small className="text-muted d-block">Shipping Type</small>
-                    <strong className="text-capitalize">{valueOf(detail, ['shipping_type'])}</strong>
+                    <Badge bg={shippingTypeVariant(valueOf(detail, ['shipping_type'], ''))} className="text-capitalize">
+                      {valueOf(detail, ['shipping_type'])}
+                    </Badge>
                   </div>
                   <div className="col-md-3">
                     <small className="text-muted d-block">Posting Date</small>
@@ -353,7 +355,7 @@ export default function Picklist() {
                   </div>
                   <div className="col-md-4">
                     <small className="text-muted d-block">Vehicle</small>
-                    <strong>{valueOf(detail, ['license_plate'])}</strong>
+                    <Badge className="vehicle-license-badge fs-6 px-2 py-1">{valueOf(detail, ['license_plate'])}</Badge>
                   </div>
                   <div className="col-md-4">
                     <small className="text-muted d-block">Driver</small>

@@ -3,6 +3,12 @@
   max-width: 1680px;
 }
 
+.badge.vehicle-license-badge {
+  color: #fff !important;
+  background: #5b21b6 !important;
+  box-shadow: 0 2px 5px rgb(91 33 182 / 35%);
+}
+
 @media (max-width: 575.98px) {
   .picklist-detail-modal {
     width: calc(100vw - 24px);
