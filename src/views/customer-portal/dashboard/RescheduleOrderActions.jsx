@@ -11,8 +11,11 @@ export default function RescheduleOrderActions({ order, onSuccess, expanded = fa
   const [form, setForm] = useState({ loading: '', eta: '', notes: '' });
   const id = order.requested_order_id ?? order.id ?? order.sales_order_id;
   const number = order.sap_doc_num || order.doc_num || order.order_no || id;
-  const isRescheduleApproved = String(order.logistic_status ?? order.logisticStatus ?? '')
-    .trim().toUpperCase().replace(/\s+/g, '_') === 'RESCHEDULE_APPROVED';
+  const logisticStatus = String(order.logistic_status ?? order.logisticStatus ?? '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '_');
+  const actionsCompleted = ['APPROVED', 'RESCHEDULE_APPROVED'].includes(logisticStatus);
   const openReschedule = () => {
     setForm({ loading: String(order.doc_due_date || '').slice(0, 10), eta: String(order.eta_date || '').slice(0, 10), notes: '' });
     setAction('reschedule');
@@ -42,7 +45,7 @@ export default function RescheduleOrderActions({ order, onSuccess, expanded = fa
       setSaving(false);
     }
   };
-  if (isRescheduleApproved) return null;
+  if (actionsCompleted) return null;
 
   return (
     <>

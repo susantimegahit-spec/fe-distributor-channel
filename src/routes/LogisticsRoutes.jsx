@@ -8,6 +8,7 @@ import DashboardLayout from 'layout/Dashboard';
 import { RouteErrorBoundary } from 'views/ErrorBoundary';
 
 const LogisticsDashboard = Loadable(lazy(() => import('views/logistics/dashboard/LogisticsDashboard')));
+const Picklist = Loadable(lazy(() => import('views/logistics/picklist/Picklist')));
 const MasterOrigin = Loadable(lazy(() => import('views/logistics/master/MasterOrigin')));
 const MasterDestination = Loadable(lazy(() => import('views/logistics/master/MasterDestination')));
 const MasterExpedition = Loadable(lazy(() => import('views/logistics/master/MasterExpedition')));
@@ -27,6 +28,10 @@ const LogisticsRoutes = {
     {
       path: 'logistics/dashboard',
       element: <LogisticsDashboard />
+    },
+    {
+      path: 'logistics/picklists',
+      element: <Picklist />
     },
     {
       path: 'logistics/master/origin',

@@ -18,6 +18,16 @@ const logisticsMenu = [
         selected: true,
         icon: 'ti ti-truck-delivery',
         url: withBasePath('/dashboard')
+      },
+      {
+        id: 'logistics-picklists',
+        title: 'Picklist',
+        type: 'item',
+        value: 'logistics-picklists',
+        label: 'Picklist',
+        selected: true,
+        icon: 'ti ti-clipboard-list',
+        url: withBasePath('/picklists')
       }
     ]
   },

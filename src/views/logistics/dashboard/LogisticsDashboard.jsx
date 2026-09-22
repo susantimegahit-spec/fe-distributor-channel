@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Select from 'react-select';
-import CreatePicklistModal from './CreatePicklistModal';
 import RescheduleLogModal from '../../customer-portal/dashboard/RescheduleLogModal';
 import AsyncSelect from 'react-select/async';
 
@@ -223,7 +222,6 @@ export default function LogisticsDashboard() {
   const [reschedulingOrderId, setReschedulingOrderId] = useState(null);
   const [rescheduleLeadTimeDays, setRescheduleLeadTimeDays] = useState(null);
   const [loadingRescheduleLeadTime, setLoadingRescheduleLeadTime] = useState(false);
-  const [createPicklist, setCreatePicklist] = useState(null);
   const [originOptions, setOriginOptions] = useState([]);
   const [destinationOptions, setDestinationOptions] = useState([]);
   const [loadingOrigins, setLoadingOrigins] = useState(false);
@@ -739,9 +737,6 @@ export default function LogisticsDashboard() {
     <Stack gap={3}>
       <Stack direction="horizontal" gap={3} className="justify-content-between flex-wrap">
         <h4 className="mb-0">Dashboard</h4>
-        <Button data-permission-action="utility" className="ms-auto flex-shrink-0" onClick={() => setCreatePicklist({})}>
-          <i className="ti ti-plus me-1" /> Create Picklist
-        </Button>
       </Stack>
       <MainCard>
         <Stack direction="horizontal" gap={2} className="flex-wrap">
@@ -1339,7 +1334,6 @@ export default function LogisticsDashboard() {
           onSuccess={fetchDeliveryOrders}
         />
       )}
-      {createPicklist && <CreatePicklistModal order={createPicklist.order} onClose={() => setCreatePicklist(null)} />}
     </Stack>
   );
 }

@@ -210,6 +210,15 @@
     {
       "menu_key": 32,
       "system_key": "logistics",
+      "menu_id": "logistics-picklists",
+      "route": "/logistics/picklists",
+      "source": "src/views/logistics/picklist/Picklist.jsx",
+      "actions": ["view", "add", "edit"],
+      "buttons": { "view": ["View"], "add": ["Create Picklist"], "edit": ["Load"] }
+    },
+    {
+      "menu_key": 33,
+      "system_key": "logistics",
       "menu_id": "logistics-origin",
       "route": "/logistics/master/origin",
       "source": "src/views/logistics/master/MasterOrigin.jsx",
@@ -217,7 +226,7 @@
       "buttons": { "add": ["Add Origin"], "edit": ["Edit Origin"], "delete": ["Delete Origin"] }
     },
     {
-      "menu_key": 33,
+      "menu_key": 34,
       "system_key": "logistics",
       "menu_id": "logistics-destination",
       "route": "/logistics/master/destination",
@@ -226,7 +235,7 @@
       "buttons": { "view": ["View Destination"], "download": ["Download Template"], "upload": ["Upload Excel"] }
     },
     {
-      "menu_key": 34,
+      "menu_key": 35,
       "system_key": "logistics",
       "menu_id": "logistics-master",
       "route": "/logistics/master/expedition",
@@ -235,7 +244,7 @@
       "buttons": { "view": ["Detail"], "add": ["Add Expedition"], "edit": ["Edit"], "upload": ["Upload Excel"] }
     },
     {
-      "menu_key": 35,
+      "menu_key": 36,
       "system_key": "logistics",
       "menu_id": "logistics-rates",
       "route": "/logistics/master/rates",
@@ -253,7 +262,7 @@
     },
 
     {
-      "menu_key": 36,
+      "menu_key": 37,
       "system_key": "logistics",
       "menu_id": "logistics-lead-time",
       "route": "/logistics/master/lead-time",
@@ -263,7 +272,7 @@
     },
 
     {
-      "menu_key": 38,
+      "menu_key": 39,
       "system_key": "picking-list",
       "menu_id": "picking-list-overview",
       "route": "/picking-list/dashboard",
@@ -272,7 +281,7 @@
       "buttons": { "view": ["View Picking"] }
     },
     {
-      "menu_key": 40,
+      "menu_key": 41,
       "system_key": "picking-list",
       "menu_id": "picking-list-master",
       "route": "/picking-list/master/picking-list",
@@ -282,7 +291,7 @@
     },
 
     {
-      "menu_key": 43,
+      "menu_key": 44,
       "system_key": "production",
       "menu_id": "production-overview",
       "route": "/production/dashboard",
@@ -291,7 +300,7 @@
       "buttons": { "view": ["View Production"] }
     },
     {
-      "menu_key": 45,
+      "menu_key": 46,
       "system_key": "production",
       "menu_id": "production-material",
       "route": "/production/master/material",
@@ -300,7 +309,7 @@
       "buttons": {}
     },
     {
-      "menu_key": 46,
+      "menu_key": 47,
       "system_key": "production",
       "menu_id": "production-resource",
       "route": "/production/master/resource",
@@ -309,7 +318,7 @@
       "buttons": {}
     },
     {
-      "menu_key": 47,
+      "menu_key": 48,
       "system_key": "production",
       "menu_id": "production-warehouse",
       "route": "/production/master/warehouse",
@@ -318,7 +327,7 @@
       "buttons": { "view": ["View Warehouse"], "edit": ["Edit Warehouse"], "sync": ["Synchronize"] }
     },
     {
-      "menu_key": 49,
+      "menu_key": 50,
       "system_key": "production",
       "menu_id": "production-bill-of-material",
       "route": "/production/bill-of-material",
@@ -333,7 +342,7 @@
       }
     },
     {
-      "menu_key": 50,
+      "menu_key": 51,
       "system_key": "production",
       "menu_id": "production-order",
       "route": "/production/order",
@@ -347,7 +356,7 @@
       }
     },
     {
-      "menu_key": 51,
+      "menu_key": 52,
       "system_key": "production",
       "menu_id": "production-receipt",
       "route": "/production/receipt",
@@ -356,7 +365,7 @@
       "buttons": { "view": ["Detail"], "add": ["Create Receipt"] }
     },
     {
-      "menu_key": 52,
+      "menu_key": 53,
       "system_key": "production",
       "menu_id": "production-issue",
       "route": "/production/issue",
@@ -365,7 +374,7 @@
       "buttons": { "view": ["Detail"], "add": ["Create Issue"], "edit": ["Edit Comment"] }
     },
     {
-      "menu_key": 53,
+      "menu_key": 54,
       "system_key": "production",
       "menu_id": "production-inventory-transfer",
       "route": "/production/inventory-transfer",
@@ -374,7 +383,7 @@
       "buttons": { "view": ["Detail"], "add": ["Create Inventory Transfer"] }
     },
     {
-      "menu_key": 54,
+      "menu_key": 55,
       "system_key": "production",
       "menu_id": "production-change-product",
       "route": "/production/change-product",
@@ -383,7 +392,7 @@
       "buttons": { "add": ["Create Change Product"] }
     },
     {
-      "menu_key": 57,
+      "menu_key": 58,
       "system_key": "vendor-management",
       "menu_id": "vendor-management-dashboard",
       "route": "/vendor-management/dashboard",
@@ -395,7 +404,7 @@
       }
     },
     {
-      "menu_key": 58,
+      "menu_key": 59,
       "system_key": "vendor-management",
       "menu_id": "vendor-list",
       "route": "/vendor-management/vendor",

@@ -21,6 +21,22 @@ class LogisticsServices {
   postRescheduleOrder(id, payload) {
     return DataService.post(`logistic/orders/${id}/reschedule`, payload);
   }
+
+  postPicklist(payload) {
+    return DataService.post('logistic/picklists', payload);
+  }
+
+  getPicklist({ search = '', per_page = 10, page = 1 } = {}) {
+    return DataService.get('logistic/picklists', {
+      search,
+      per_page,
+      page
+    });
+  }
+
+  getDetailPicklist(id) {
+    return DataService.get(`logistic/picklists/${encodeURIComponent(id)}`);
+  }
 }
 
 export default new LogisticsServices();

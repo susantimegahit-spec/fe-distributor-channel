@@ -1,0 +1,12 @@
+.picklist-detail-modal {
+  width: 90vw;
+  max-width: 1680px;
+}
+
+@media (max-width: 575.98px) {
+  .picklist-detail-modal {
+    width: calc(100vw - 24px);
+    margin-right: auto;
+    margin-left: auto;
+  }
+}

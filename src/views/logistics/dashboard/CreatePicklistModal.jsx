@@ -8,6 +8,7 @@ import WarehouseServices from '../../../services/customer-portal/WarehouseServic
 import LogisticsServices from '../../../services/logistics/LogisticsServices';
 import ExpeditionServices from '../../../services/logistics/ExpeditionServices';
 import ProductionWarehouseServices from '../../../services/production/WarehouseServices';
+import { useAlert } from '../../../utils/alertContext';
 
 const approved = (order) =>
   String(order.status || '')
@@ -238,7 +239,8 @@ const normalizeBinOption = (item, index) => {
     : null;
 };
 
-export default function CreatePicklistModal({ onClose, order }) {
+export default function CreatePicklistModal({ onClose, onSuccess }) {
+  const { showAlert } = useAlert();
   const [form, setForm] = useState({ postingDate: today(), comments: '' });
   const [lines, setLines] = useState([]);
   const [shippingType, setShippingType] = useState('');
@@ -270,6 +272,7 @@ export default function CreatePicklistModal({ onClose, order }) {
   const [warehouseError, setWarehouseError] = useState('');
   const [binPickerLineId, setBinPickerLineId] = useState(null);
   const [binAllocationDraft, setBinAllocationDraft] = useState({});
+  const [saving, setSaving] = useState(false);
   const totalWeight = lines.reduce((total, line) => total + (Number(line.quantity) || 0) * (Number(line.unitWeight) || 0), 0);
   const orderCount = new Set(lines.map((line) => line.orderId)).size;
   const allowsMultipleOrders = shippingType === 'internal';
@@ -299,7 +302,89 @@ export default function CreatePicklistModal({ onClose, order }) {
   };
   const changeLine = (id, field, value) =>
     setLines((current) => current.map((line) => (line.id === id ? { ...line, [field]: value } : line)));
-  const requestClose = () => (lines.length || form.comments ? setConfirmClose(true) : onClose());
+  const requestClose = () => {
+    if (saving) return;
+    if (lines.length || form.comments) setConfirmClose(true);
+    else onClose();
+  };
+  const invalidLines = lines.some((line) => {
+    const quantity = Number(line.quantity);
+    if (!line.warehouse || !Number.isFinite(quantity) || quantity <= 0 || quantity > line.orderedQuantity) return true;
+    if (line.stockEmpty) return true;
+    if (line.loadingBins || !line.binsLoaded) return true;
+    if (line.binOptions?.length) {
+      const allocated = (line.binAllocations || []).reduce((total, bin) => total + Number(bin.quantity || 0), 0);
+      return allocated !== quantity;
+    }
+    return line.binsLoaded && Number(line.directBinQuantity) !== quantity;
+  });
+  const saveDisabled =
+    saving ||
+    !shippingType ||
+    !form.postingDate ||
+    !lines.length ||
+    invalidLines ||
+    (shippingType === 'internal' && !licensePlate);
+
+  const savePicklist = async () => {
+    if (saveDisabled) return;
+    setSaving(true);
+    setError('');
+    const driverName = String(
+      getVehicleValue(driver?.driver, ['driver_name', 'driverName', 'DriverName', 'nama_sopir', 'NamaSopir', 'name', 'Name']) ||
+        driver?.label ||
+        ''
+    );
+    const checkerName = String(
+      getVehicleValue(checker?.checker, ['checker_name', 'checkerName', 'CheckerName', 'nama_checker', 'NamaChecker', 'name', 'Name']) ||
+        checker?.label ||
+        ''
+    );
+    const payload = {
+      shipping_type: shippingType,
+      license_plate: licensePlate,
+      driver_name: driverName,
+      checker_name: checkerName,
+      posting_date: form.postingDate,
+      due_date: form.postingDate,
+      total_weight_limit: Number(capacity) || 0,
+      comments: form.comments.trim(),
+      to_whs_code: '',
+      items: lines.map((line) => ({
+        sales_order_id: Number(line.orderId) || line.orderId,
+        sales_order_detail_id: Number(line.orderDetailId) || line.orderDetailId,
+        item_code: line.itemCode,
+        whs_code: line.warehouse,
+        ordered_qty: Number(line.orderedQuantity),
+        pick_qty: Number(line.quantity),
+        ...((line.binAllocations || []).length
+          ? {
+              bin_allocations: line.binAllocations.map((bin) => ({
+                AbsEntry: Number(bin.value) || bin.value,
+                Quantity: Number(bin.quantity),
+                code: bin.code,
+                name: bin.name
+              }))
+            }
+          : {})
+      }))
+    };
+    try {
+      const response = await LogisticsServices.postPicklist(payload);
+      if (!(response?.status >= 200 && response.status < 300) || response?.data?.success === false) {
+        throw new Error(response?.data?.message || 'Failed to create picklist.');
+      }
+      showAlert(response?.data?.message || 'Picklist created successfully.', 'success');
+      onSuccess?.();
+      onClose();
+    } catch (err) {
+      const message = err?.response?.data?.message || err.message || 'Failed to create picklist.';
+      setError(message);
+      showAlert(message, 'danger');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const fetchWarehouses = async () => {
     setLoadingWarehouses(true);
@@ -321,7 +406,16 @@ export default function CreatePicklistModal({ onClose, order }) {
       setLines((current) =>
         current.map((line) =>
           line.id === lineId
-            ? { ...line, bin: null, binAllocations: [], binOptions: [], directBinQuantity: '', loadingBins: false, binsLoaded: false }
+            ? {
+                ...line,
+                bin: null,
+                binAllocations: [],
+                binOptions: [],
+                directBinQuantity: '',
+                loadingBins: false,
+                binsLoaded: false,
+                stockEmpty: false
+              }
             : line
         )
       );
@@ -338,6 +432,7 @@ export default function CreatePicklistModal({ onClose, order }) {
               directBinQuantity: '',
               loadingBins: true,
               binsLoaded: false,
+              stockEmpty: false,
               binError: ''
             }
           : line
@@ -347,14 +442,19 @@ export default function CreatePicklistModal({ onClose, order }) {
       const response = await ProductionWarehouseServices.getBinDetails(itemCode, warehouse);
       if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to load bins.');
       const binOptions = getResponseRows(response, ['bins', 'bin_locations']).map(normalizeBinOption).filter(Boolean);
+      if (!binOptions.length && /not[\s_-]*found/i.test(String(response?.data?.message || ''))) {
+        throw new Error(response.data.message);
+      }
       setLines((current) =>
         current.map((line) =>
           line.id === lineId && line.warehouse === warehouse
-            ? { ...line, binOptions, loadingBins: false, binsLoaded: true, binError: '' }
+            ? { ...line, binOptions, loadingBins: false, binsLoaded: true, stockEmpty: false, binError: '' }
             : line
         )
       );
     } catch (err) {
+      const binError = err?.response?.data?.message || err.message || 'Failed to load bins.';
+      const stockEmpty = err?.response?.status === 404 || /not[\s_-]*found/i.test(String(binError));
       setLines((current) =>
         current.map((line) =>
           line.id === lineId && line.warehouse === warehouse
@@ -363,7 +463,8 @@ export default function CreatePicklistModal({ onClose, order }) {
                 binOptions: [],
                 loadingBins: false,
                 binsLoaded: false,
-                binError: err?.response?.data?.message || err.message || 'Failed to load bins.'
+                stockEmpty,
+                binError: stockEmpty ? 'Stock Empty: no stock was found for this item and warehouse.' : binError
               }
             : line
         )
@@ -510,6 +611,7 @@ export default function CreatePicklistModal({ onClose, order }) {
           return detail.details.map((item, index) => ({
             id: `${id}-${item.id ?? index}`,
             orderId: String(id),
+            orderDetailId: item.id ?? item.sales_order_detail_id ?? item.salesOrderDetailId ?? index,
             orderNumber: orderNumber(detail),
             customer: detail.customer_name,
             depo: detail.depo,
@@ -524,6 +626,7 @@ export default function CreatePicklistModal({ onClose, order }) {
             binOptions: [],
             loadingBins: Boolean(item.whs_code),
             binsLoaded: false,
+            stockEmpty: false,
             unit: item.unit_msr,
             orderedQuantity: Number(item.quantity) || 0,
             quantity: Number(item.quantity) || 0,
@@ -552,10 +655,7 @@ export default function CreatePicklistModal({ onClose, order }) {
       <Modal show={!selecting && !resetting && !confirmClose && !detailOrder && !binPickerLineId} onHide={requestClose} fullscreen scrollable>
         <Modal.Header closeButton>
           <Modal.Title>
-            Create Picklist{' '}
-            <Badge bg="light" text="secondary" className="ms-2 fs-6">
-              Mockup
-            </Badge>
+            Create Picklist
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
@@ -837,7 +937,9 @@ export default function CreatePicklistModal({ onClose, order }) {
                           menuPortalTarget={document.body}
                           styles={{ menuPortal: (base) => ({ ...base, zIndex: 1060 }) }}
                         />
-                        {!line.loadingBins && line.binError && <small className="text-danger d-block mt-1">{line.binError}</small>}
+                        {!line.loadingBins && line.binError && !line.stockEmpty && (
+                          <small className="text-danger d-block mt-1">{line.binError}</small>
+                        )}
                       </td>
                       <td style={{ minWidth: 230 }}>
                         {line.warehouse && (
@@ -886,6 +988,12 @@ export default function CreatePicklistModal({ onClose, order }) {
                           Number(line.directBinQuantity) !== Number(line.quantity) && (
                             <small className="text-danger d-block mt-1">Bin Qty must match Pick Qty.</small>
                           )}
+                        {line.stockEmpty && (
+                          <div className="text-warning-emphasis bg-warning-subtle border border-warning-subtle rounded px-2 py-1 mt-1 small">
+                            <i className="ti ti-alert-triangle me-1" aria-hidden="true" />
+                            Stock Empty — Please select another warehouse
+                          </div>
+                        )}
                       </td>
                       <td className="text-center">
                         <Button
@@ -928,14 +1036,14 @@ export default function CreatePicklistModal({ onClose, order }) {
               {shippingType === 'external' && <PicklistRecommendations lines={lines} />}
             </>
           )}
-          <p className="text-muted small mt-3">This mockup does not save or assign orders.</p>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="light-secondary" onClick={requestClose}>
+          <Button variant="light-secondary" onClick={requestClose} disabled={saving}>
             Cancel
           </Button>
-          <Button data-permission-action="utility" disabled title="Saving is not available in this mockup">
-            <i className="ti ti-device-floppy me-1" /> Save Picklist
+          <Button data-permission-action="utility" disabled={saveDisabled} onClick={savePicklist}>
+            <i className={`ti ${saving ? 'ti-loader-2' : 'ti-device-floppy'} me-1`} />
+            {saving ? 'Saving...' : 'Save Picklist'}
           </Button>
         </Modal.Footer>
       </Modal>
