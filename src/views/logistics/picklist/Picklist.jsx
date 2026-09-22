@@ -44,7 +44,32 @@ const statusVariant = (value) => {
   return 'secondary';
 };
 
-const formatDate = (value) => (value ? String(value).slice(0, 10) : '-');
+const shippingTypeVariant = (value) => {
+  const type = String(value || '').toLowerCase();
+  if (type === 'internal') return 'primary';
+  if (type === 'external') return 'success';
+  if (type === 'pickup') return 'warning';
+  return 'secondary';
+};
+
+const getExpeditionName = (item) => {
+  const expedition = item?.expedition_data ?? item?.expedition;
+  if (expedition && typeof expedition === 'object') {
+    return valueOf(expedition, ['name', 'expedition_name', 'code', 'expedition_code']);
+  }
+  return valueOf(item, ['expedition_name', 'expedition_code'], expedition || '-');
+};
+
+const formatDate = (value) => {
+  if (!value) return '-';
+  const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return '-';
+  const [, year, month, day] = match;
+  const monthName = new Intl.DateTimeFormat('en-GB', { month: 'short', timeZone: 'UTC' }).format(
+    new Date(Date.UTC(Number(year), Number(month) - 1, 1))
+  );
+  return `${day} ${monthName} ${year}`;
+};
 
 const formatWholeNumber = (value) => {
   const number = Number(value);
@@ -159,11 +184,11 @@ export default function Picklist() {
         <Table responsive hover bordered className="align-middle mb-0">
           <thead>
             <tr>
-              <th>Picklist</th>
-              <th>Shipping Type</th>
-              <th>Posting / Due Date</th>
-              <th>Vehicle</th>
-              <th>Driver / Checker</th>
+              <th>Picklist / Shipping Type</th>
+              <th>Expedition</th>
+              <th>Posting Date</th>
+              <th>Vehicle / Driver</th>
+              <th>Checker</th>
               <th className="text-end">Items</th>
               <th>Status</th>
               <th className="text-center">Action</th>
@@ -178,20 +203,27 @@ export default function Picklist() {
               picklists.map((item, index) => {
                 const id = valueOf(item, ['id', 'picklist_id', 'doc_entry'], index);
                 const status = valueOf(item, ['status', 'picklist_status'], '-');
+                const shippingType = valueOf(item, ['shipping_type'], '');
                 const items = Array.isArray(item.items) ? item.items.length : Number(item.total_items ?? item.item_count ?? 0);
                 return (
                   <tr key={id}>
-                    <td className="fw-semibold">{valueOf(item, ['picklist_number', 'picklist_no', 'document_number', 'doc_num', 'code', 'id'])}</td>
-                    <td className="text-capitalize">{valueOf(item, ['shipping_type'])}</td>
                     <td>
-                      <div>{formatDate(valueOf(item, ['posting_date'], ''))}</div>
-                      <small className="text-muted">Due: {formatDate(valueOf(item, ['due_date'], ''))}</small>
+                      <div className="fw-semibold mb-1">
+                        {valueOf(item, ['picklist_number', 'picklist_no', 'document_number', 'doc_num', 'code', 'id'])}
+                      </div>
+                      <Badge bg={shippingTypeVariant(shippingType)} className="text-capitalize">
+                        {shippingType || '-'}
+                      </Badge>
                     </td>
-                    <td>{valueOf(item, ['license_plate'])}</td>
+                    <td>{String(shippingType).toLowerCase() === 'internal' ? '' : getExpeditionName(item)}</td>
+                    <td>{formatDate(valueOf(item, ['posting_date'], ''))}</td>
                     <td>
-                      <div>{valueOf(item, ['driver_name'])}</div>
-                      <small className="text-muted">Checker: {valueOf(item, ['checker_name'])}</small>
+                      <Badge bg="info" text="dark" className="fs-6 px-2 py-1 mb-1">
+                        {valueOf(item, ['license_plate'])}
+                      </Badge>
+                      <small className="text-muted d-block">{valueOf(item, ['driver_name'])}</small>
                     </td>
+                    <td>{valueOf(item, ['checker_name'])}</td>
                     <td className="text-end fw-semibold">{items}</td>
                     <td><Badge bg={statusVariant(status)}>{formatStatus(status)}</Badge></td>
                     <td className="text-center">
@@ -330,6 +362,10 @@ export default function Picklist() {
                   <div className="col-md-4">
                     <small className="text-muted d-block">Checker</small>
                     <strong>{valueOf(detail, ['checker_name'])}</strong>
+                  </div>
+                  <div className="col-12">
+                    <small className="text-muted d-block">Comments</small>
+                    <div className="text-break">{valueOf(detail, ['comments', 'Comments', 'comment', 'remarks', 'Remarks'])}</div>
                   </div>
                 </div>
               </div>
