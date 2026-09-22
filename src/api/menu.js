@@ -39,6 +39,6 @@ export function handlerDrawerOpen(isDashboardDrawerOpened) {
     (currentMenuMaster) => {
       return { ...currentMenuMaster, isDashboardDrawerOpened };
     },
-    false
+    false 
   );
 }
