@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 // react-bootstrap
 import Badge from 'react-bootstrap/Badge';
+import Button from 'react-bootstrap/Button';
 import Card from 'react-bootstrap/Card';
 import Col from 'react-bootstrap/Col';
+import Form from 'react-bootstrap/Form';
 import ProgressBar from 'react-bootstrap/ProgressBar';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
@@ -12,6 +14,9 @@ import Table from 'react-bootstrap/Table';
 // project-imports
 import LoaderData from 'components/LoaderData';
 import MainCard from 'components/MainCard';
+import TablePagination from 'components/TablePagination';
+import SalesOrderDetailModal from '../../logistics/dashboard/SalesOrderDetailModal';
+import LogisticsServices from '../../../services/logistics/LogisticsServices';
 import MaterialServices from '../../../services/production/MaterialServices';
 import ProductionServices from '../../../services/production/ProductionServices';
 import { useAlert } from '../../../utils/alertContext';
@@ -102,6 +107,52 @@ const formatDate = (value) => {
 
 const getProgress = (completedQty, plannedQty) => (plannedQty > 0 ? Math.min(Math.round((completedQty / plannedQty) * 100), 100) : 0);
 
+const readyOrderPageSize = 10;
+const getOrderLines = (order) => order.details || order.lines || order.document_lines || [];
+const getOrderWeight = (order) =>
+  getOrderLines(order).reduce((total, line) => {
+    const productName = line.item_name || line.item?.item_name || line.description || '';
+    const match = [...String(productName).matchAll(/(\d+(?:[.,]\d+)?)\s*(kg|kilogram|g|gr|gram)\b/gi)].at(-1);
+    const unitWeight = match ? Number(match[1].replace(',', '.')) / (/^(g|gr|gram)$/i.test(match[2]) ? 1000 : 1) : 0;
+    return total + unitWeight * (Number(line.quantity ?? line.qty ?? 0) || 0);
+  }, 0);
+const getReadyOrderPage = (response, requestedPage) => {
+  const root = response?.data ?? {};
+  const payload = root?.data && !Array.isArray(root.data) ? root.data : root;
+  const page = payload?.orders || payload?.data || payload;
+  const rows = Array.isArray(page) ? page : page?.data || page?.items || [];
+  const meta = payload?.pagination || payload?.meta || page?.pagination || page?.meta || page;
+  const total = Number(meta?.total ?? payload?.total ?? rows.length) || 0;
+  const currentPage = Number(meta?.current_page ?? meta?.page ?? payload?.current_page ?? requestedPage) || requestedPage;
+  const lastPage = Number(meta?.last_page ?? meta?.lastPage ?? payload?.last_page ?? 0) || 0;
+  return {
+    rows: Array.isArray(rows) ? rows : [],
+    total,
+    currentPage,
+    pageCount: lastPage || Math.max(Math.ceil(total / (Number(meta?.per_page) || readyOrderPageSize)), 1)
+  };
+};
+const normalizeReadyOrder = (order) => {
+  const salesOrder = { ...order, ...(order.sales_order || order.order || {}) };
+  const firstLine = getOrderLines(salesOrder)[0] || {};
+  return {
+    ...salesOrder,
+    id: salesOrder.id,
+    orderNumber: salesOrder.sap_doc_num || salesOrder.order_no || salesOrder.id || '-',
+    customer: salesOrder.customer_name || salesOrder.distributor?.name || '-',
+    depo: salesOrder.depo || '-',
+    originCode: salesOrder.origin_code || firstLine.whs_code || '-',
+    origin: salesOrder.origin_name || firstLine.whs_name || firstLine.warehouse?.whs_name || firstLine.whs_code || '-',
+    weight: Number(salesOrder.total_weight_kg ?? salesOrder.total_kg ?? salesOrder.weight ?? getOrderWeight(salesOrder)) || 0,
+    loadingDate: formatDate(salesOrder.doc_due_date),
+    etaDate: formatDate(salesOrder.eta_date),
+    proposedEtaDate: formatDate(salesOrder.proposed_eta_date ?? salesOrder.proposedEtaDate),
+    status: String(salesOrder.status || '')
+      .trim()
+      .toUpperCase()
+  };
+};
+
 export default function ProductionDashboard() {
   const { showAlert } = useAlert();
   const [productionOrders, setProductionOrders] = useState([]);
@@ -109,6 +160,46 @@ export default function ProductionDashboard() {
   const [receipts, setReceipts] = useState([]);
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [readyOrders, setReadyOrders] = useState([]);
+  const [readyOrderSearch, setReadyOrderSearch] = useState('');
+  const [debouncedReadyOrderSearch, setDebouncedReadyOrderSearch] = useState('');
+  const [readyOrderPage, setReadyOrderPage] = useState(1);
+  const [readyOrderPageCount, setReadyOrderPageCount] = useState(1);
+  const [readyOrderTotal, setReadyOrderTotal] = useState(0);
+  const [loadingReadyOrders, setLoadingReadyOrders] = useState(true);
+  const [readyOrdersError, setReadyOrdersError] = useState('');
+  const [selectedSalesOrder, setSelectedSalesOrder] = useState(null);
+  const readyOrdersRequestIdRef = useRef(0);
+
+  const fetchReadyOrders = useCallback(async () => {
+    const requestId = ++readyOrdersRequestIdRef.current;
+    setLoadingReadyOrders(true);
+    setReadyOrdersError('');
+    try {
+      const response = await LogisticsServices.getLogisticOrders({
+        search: debouncedReadyOrderSearch,
+        per_page: readyOrderPageSize,
+        page: readyOrderPage
+      });
+      if (!(response?.status >= 200 && response.status < 300) || response?.data?.success === false) {
+        throw new Error(response?.data?.message || 'Failed to load orders ready for packing');
+      }
+      if (requestId !== readyOrdersRequestIdRef.current) return;
+      const result = getReadyOrderPage(response, readyOrderPage);
+      setReadyOrders(result.rows.map(normalizeReadyOrder));
+      setReadyOrderTotal(result.total);
+      setReadyOrderPageCount(result.pageCount);
+      if (result.currentPage !== readyOrderPage) setReadyOrderPage(result.currentPage);
+    } catch (error) {
+      if (requestId !== readyOrdersRequestIdRef.current) return;
+      setReadyOrders([]);
+      setReadyOrderTotal(0);
+      setReadyOrderPageCount(1);
+      setReadyOrdersError(error?.response?.data?.message || error?.message || 'Failed to load orders ready for packing');
+    } finally {
+      if (requestId === readyOrdersRequestIdRef.current) setLoadingReadyOrders(false);
+    }
+  }, [debouncedReadyOrderSearch, readyOrderPage]);
 
   const fetchDashboard = useCallback(async () => {
     const filters = getCurrentWeek();
@@ -136,6 +227,15 @@ export default function ProductionDashboard() {
   useEffect(() => {
     fetchDashboard();
   }, [fetchDashboard]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedReadyOrderSearch(readyOrderSearch.trim()), 350);
+    return () => window.clearTimeout(timeout);
+  }, [readyOrderSearch]);
+
+  useEffect(() => {
+    fetchReadyOrders();
+  }, [fetchReadyOrders]);
 
   const summaryCards = useMemo(() => {
     const isCompleted = (status) => ['completed', 'complete', 'closed', 'close'].includes(String(status).trim().toLowerCase());
@@ -205,6 +305,111 @@ export default function ProductionDashboard() {
             </Col>
           ))}
         </Row>
+      </MainCard>
+
+      <MainCard>
+        <Stack direction="horizontal" className="justify-content-between mb-4 flex-wrap" gap={3}>
+          <div>
+            <h5 className="mb-1">Orders Ready for Packing</h5>
+            <span className="text-muted f-12">Orders awaiting packing by the Logistics team.</span>
+          </div>
+          <Stack direction="horizontal" gap={2} className="flex-wrap">
+            <Form.Control
+              type="search"
+              aria-label="Search packing orders"
+              placeholder="Search orders..."
+              value={readyOrderSearch}
+              onChange={(event) => {
+                setReadyOrderSearch(event.target.value);
+                setReadyOrderPage(1);
+              }}
+              style={{ width: 220 }}
+            />
+            <Button size="sm" variant="light-primary" onClick={fetchReadyOrders} disabled={loadingReadyOrders}>
+              <i className={`ti ${loadingReadyOrders ? 'ti-loader-2' : 'ti-refresh'} me-1`} /> Refresh
+            </Button>
+          </Stack>
+        </Stack>
+        <Table responsive hover className="mb-0 align-middle">
+          <thead>
+            <tr>
+              <th>Order</th>
+              <th>Customer / Depo</th>
+              <th>Origin</th>
+              <th className="text-end">Weight</th>
+              <th>Loading Date</th>
+              <th>ETA Date</th>
+              <th>Proposed ETA</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loadingReadyOrders ? (
+              <tr>
+                <td colSpan={8} className="text-center py-4">
+                  Loading Sales Orders...
+                </td>
+              </tr>
+            ) : readyOrdersError ? (
+              <tr>
+                <td colSpan={8} className="text-center text-danger py-4">
+                  {readyOrdersError}
+                </td>
+              </tr>
+            ) : readyOrders.length ? (
+              readyOrders.map((order) => (
+                <tr key={order.id}>
+                  <td>
+                    <button
+                      type="button"
+                      className="border-0 bg-transparent p-0 fw-semibold text-start"
+                      style={{ color: '#315fb4' }}
+                      disabled={!order.id}
+                      aria-label={`View Sales Order ${order.orderNumber} detail`}
+                      onClick={() => setSelectedSalesOrder({ id: order.id, number: order.orderNumber })}
+                    >
+                      {order.orderNumber}
+                    </button>
+                  </td>
+                  <td>
+                    <div className="fw-semibold">{order.customer}</div>
+                    <small className="text-muted d-block">{order.depo}</small>
+                  </td>
+                  <td>
+                    <div>{order.origin}</div>
+                    <small className="text-muted">{order.originCode}</small>
+                  </td>
+                  <td className="text-end fw-semibold">{order.weight.toLocaleString('id-ID')} kg</td>
+                  <td>{order.loadingDate}</td>
+                  <td>{order.etaDate}</td>
+                  <td>{order.proposedEtaDate}</td>
+                  <td>
+                    <Badge
+                      bg={order.status === 'ORDER_APPROVED' ? 'success' : 'warning'}
+                      text={order.status === 'ORDER_APPROVED' ? 'light' : 'dark'}
+                    >
+                      {order.status ? order.status.replaceAll('_', ' ') : '-'}
+                    </Badge>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={8} className="text-center text-muted py-4">
+                  No logistics orders found.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </Table>
+        <TablePagination
+          currentPage={readyOrderPage}
+          onPageChange={setReadyOrderPage}
+          pageCount={readyOrderPageCount}
+          pageSize={readyOrderPageSize}
+          total={readyOrderTotal}
+          itemLabel="orders"
+        />
       </MainCard>
 
       <Row className="g-3">
@@ -298,6 +503,7 @@ export default function ProductionDashboard() {
           </MainCard>
         </Col>
       </Row>
+      {selectedSalesOrder && <SalesOrderDetailModal order={selectedSalesOrder} onClose={() => setSelectedSalesOrder(null)} />}
     </Stack>
   );
 }
