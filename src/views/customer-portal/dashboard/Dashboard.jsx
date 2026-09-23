@@ -1563,6 +1563,7 @@ export default function Dashboard() {
                 <th>Depo</th>
                 <th>Order Date</th>
                 <th>ETA</th>
+                <th>Proposed ETA</th>
                 <th>Status</th>
                 <th className="text-end">Action</th>
               </tr>
@@ -1570,13 +1571,13 @@ export default function Dashboard() {
             <tbody>
               {loadingReschedules ? (
                 <tr>
-                  <td colSpan={7} className="text-center text-muted py-4">
+                  <td colSpan={8} className="text-center text-muted py-4">
                     Loading reschedule orders...
                   </td>
                 </tr>
               ) : rescheduleError ? (
                 <tr>
-                  <td colSpan={7} className="text-center text-danger py-4">{rescheduleError}</td>
+                  <td colSpan={8} className="text-center text-danger py-4">{rescheduleError}</td>
                 </tr>
               ) : rescheduleOrders.length ? (
                 rescheduleOrders.map((order, index) => {
@@ -1597,6 +1598,7 @@ export default function Dashboard() {
                       <td>{getOrderValue(order, ['depo', 'depot', 'warehouse_name', 'warehouseName'])}</td>
                       <td>{formatOrderDate(getOrderValue(order, ['doc_date', 'docDate', 'created_at', 'createdAt'], ''))}</td>
                       <td>{formatOrderDate(getOrderValue(order, ['eta_date', 'etaDate', 'doc_due_date', 'docDueDate'], ''))}</td>
+                      <td>{formatOrderDate(getOrderValue(order, ['proposed_eta_date', 'proposedEtaDate'], ''))}</td>
                       <td>
                         <Badge bg={statusMeta.color}>{statusMeta.label}</Badge>
                       </td>
@@ -1611,7 +1613,7 @@ export default function Dashboard() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={7} className="text-center text-muted py-4">
+                  <td colSpan={8} className="text-center text-muted py-4">
                     No reschedule orders available.
                   </td>
                 </tr>

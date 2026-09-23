@@ -116,7 +116,8 @@ const normalizeDeliveryOrder = (order) => {
     destinationCity: salesOrder.destination_city || salesOrder.ship_to_city || '',
     weight: Number(salesOrder.total_weight_kg ?? salesOrder.total_kg ?? salesOrder.weight ?? getOrderWeight(salesOrder)) || 0,
     loadingDate: formatOrderDate(salesOrder.doc_due_date),
-    etaDate: formatOrderDate(salesOrder.eta_date)
+    etaDate: formatOrderDate(salesOrder.eta_date),
+    proposedEtaDate: formatOrderDate(salesOrder.proposed_eta_date ?? salesOrder.proposedEtaDate)
   };
 };
 
@@ -786,6 +787,7 @@ export default function LogisticsDashboard() {
                   <th className="text-end">Weight</th>
                   <th>Loading Date</th>
                   <th>ETA Date</th>
+                  <th>Proposed ETA</th>
                   <th>Status</th>
                   <th>Logistic Status</th>
                   <th className="text-end">Action</th>
@@ -794,11 +796,11 @@ export default function LogisticsDashboard() {
               <tbody>
                 {loadingDeliveryOrders ? (
                   <tr>
-                    <td colSpan={9} className="text-center py-4">Loading Sales Orders...</td>
+                    <td colSpan={10} className="text-center py-4">Loading Sales Orders...</td>
                   </tr>
                 ) : deliveryOrdersError ? (
                   <tr>
-                    <td colSpan={9} className="text-center text-danger py-4">{deliveryOrdersError}</td>
+                    <td colSpan={10} className="text-center text-danger py-4">{deliveryOrdersError}</td>
                   </tr>
                 ) : deliveryOrders.length ? deliveryOrders.map((order) => (
                   <tr key={order.id}>
@@ -827,6 +829,7 @@ export default function LogisticsDashboard() {
                     <td className="text-end fw-semibold">{order.weight.toLocaleString('id-ID')} kg</td>
                     <td>{order.loadingDate}</td>
                     <td>{order.etaDate}</td>
+                    <td>{order.proposedEtaDate}</td>
                     <td>
                       <Badge
                         bg={order.status === 'ORDER_APPROVED' ? 'success' : 'warning'}
@@ -880,7 +883,7 @@ export default function LogisticsDashboard() {
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan={9} className="text-center text-muted py-4">
+                    <td colSpan={10} className="text-center text-muted py-4">
                       No logistics orders found.
                     </td>
                   </tr>
