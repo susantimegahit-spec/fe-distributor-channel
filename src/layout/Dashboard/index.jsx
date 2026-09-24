@@ -2,9 +2,9 @@ import { useEffect } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 
 // project-imports
-import Drawer from './Drawer';
 import Footer from './Footer';
 import Header from './Header';
+import TopNavigation from './TopNavigation';
 import Breadcrumbs from 'components/Breadcrumbs';
 import NavigationScroll from 'components/NavigationScroll';
 import Workspace from './Workspace';
@@ -32,6 +32,7 @@ export default function MainLayout() {
   const isAdministrator = isAdministratorRole(roleId);
   const allowedSystemKeys = new Set(normalizeAccessibleSystems(getCookies('system')));
   const isSystemSelectorPath = pathname === '/systems';
+  const isGlobalDashboardPath = pathname === '/dashboard';
   const isAccessDeniedPath = pathname === '/access-denied';
   const isSharedUtilityPath =
     isSystemSelectorPath ||
@@ -42,7 +43,7 @@ export default function MainLayout() {
     pathname.startsWith('/setting/') ||
     pathname.startsWith('/customer-portal/setting') ||
     pathname === '/customer-portal/master/signature';
-  const showSidebar = !isSharedUtilityPath;
+  const showWorkspaceNavigation = !isSharedUtilityPath;
   const requestedMenu = activeSystem && !isSharedUtilityPath ? getMenuItemByPathname(activeSystem, pathname) : null;
   const firstAccessibleMenuPath = activeSystem ? getFirstAccessibleMenuPath(activeSystem, permissionMenu, roleId) : null;
   const requestedUrlAction = getUrlAction(pathname);
@@ -142,18 +143,22 @@ export default function MainLayout() {
   return (
     <>
       <ActionPermissionGuard />
-      {showSidebar && <Drawer />}
-      <Header showSidebar={showSidebar} />
-      <div className={`pc-container ${!showSidebar ? 'pc-container-no-sidebar' : 'pc-container-workspace'}`}>
+      <Header showSidebar={false} />
+      {showWorkspaceNavigation && <TopNavigation />}
+      <div
+        className={`pc-container pc-container-no-sidebar ${
+          showWorkspaceNavigation ? 'pc-container-workspace pc-container-top-navigation' : ''
+        }`}
+      >
         <div className="pc-content">
           {/* <Breadcrumbs /> */}
           <NavigationScroll>
-            {showSidebar ? (
+            {showWorkspaceNavigation ? (
               <Workspace
                 activePath={pathname}
-                menuTitle={requestedMenu?.title || activeSystem?.title || 'Workspace'}
-                systemTitle={activeSystem?.title || 'Distributor Channel'}
-                systemKey={activeSystem?.key || 'customer-portal'}
+                menuTitle={isGlobalDashboardPath ? 'Dashboard' : requestedMenu?.title || activeSystem?.title || 'Workspace'}
+                systemTitle={isGlobalDashboardPath ? 'SMESTA' : activeSystem?.title || 'Distributor Channel'}
+                systemKey={isGlobalDashboardPath ? 'global' : activeSystem?.key || 'customer-portal'}
               />
             ) : (
               <Outlet />
@@ -161,7 +166,7 @@ export default function MainLayout() {
           </NavigationScroll>
         </div>
       </div>
-      {!showSidebar && <Footer showSidebar={showSidebar} />}
+      {!showWorkspaceNavigation && <Footer showSidebar={false} />}
     </>
   );
 }

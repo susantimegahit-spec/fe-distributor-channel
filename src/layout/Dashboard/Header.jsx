@@ -8,11 +8,13 @@ import { useDispatch } from 'react-redux';
 import Button from 'react-bootstrap/Button';
 import Dropdown from 'react-bootstrap/Dropdown';
 import Form from 'react-bootstrap/Form';
+import Image from 'react-bootstrap/Image';
 import Nav from 'react-bootstrap/Nav';
 import Stack from 'react-bootstrap/Stack';
 
 // project-imports
 import SimpleBarScroll from 'components/third-party/SimpleBar';
+import SmestaLogo from 'assets/images/smesta_logo_line_small_transparent.png';
 import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
 
 import { getAssignedCustomerCodes, getCookies } from '../../utils/cookies';
@@ -426,6 +428,11 @@ export default function Header({ showSidebar = true }) {
     <header className={`pc-header ${!showSidebar ? 'pc-header-no-sidebar' : ''}`}>
       <div className="header-wrapper">
         <div className="me-auto pc-mob-drp">
+          {!showSidebar && (
+            <Link className="sm-header-brand" to="/systems" aria-label="SMESTA home">
+              <Image src={SmestaLogo} alt="SMESTA" />
+            </Link>
+          )}
           <Nav className="list-unstyled">
             {showSidebar && (
               <>

@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 const WORKSPACE_STORAGE_KEY = 'dc-browser-workspace-v1';
 
 const getSystemKeyFromPath = (path = '') => {
+  if (path === '/dashboard') return 'global';
   if (normalizeLogisticsPath(path).startsWith('/logistics')) return 'logistics';
   if (path.startsWith('/vendor-management')) return 'vendor-management';
   if (path.startsWith('/picking-list')) return 'picking-list';
@@ -86,8 +87,8 @@ export default function Workspace({ activePath, menuTitle, systemTitle, systemKe
 
   useEffect(() => {
     const handleOpenTab = (event) => {
-      const { path, title } = event.detail || {};
-      openTab(path, title, systemTitle, systemKey);
+      const { path, title, systemTitle: eventSystemTitle, systemKey: eventSystemKey } = event.detail || {};
+      openTab(path, title, eventSystemTitle || systemTitle, eventSystemKey || systemKey);
     };
     window.addEventListener('dc:open-workspace-tab', handleOpenTab);
     return () => window.removeEventListener('dc:open-workspace-tab', handleOpenTab);
@@ -284,7 +285,7 @@ export default function Workspace({ activePath, menuTitle, systemTitle, systemKe
               <i className="ti ti-browser" />
             </span>
             <h3>No tabs open</h3>
-            <p>Select a menu from the sidebar to open a new tab.</p>
+            <p>Select a menu from the navigation above to open a new tab.</p>
           </div>
         )}
       </div>
