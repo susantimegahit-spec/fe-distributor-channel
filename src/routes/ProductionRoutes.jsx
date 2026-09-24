@@ -38,27 +38,27 @@ const ProductionRoutes = {
       element: <Warehouse />
     },
     {
-      path: 'production/bill-of-material',
+      path: 'corporate/production/bill-of-material',
       element: <BillOfMaterial />
     },
     {
-      path: 'production/order',
+      path: 'corporate/production/order',
       element: <ProductionOrder />
     },
     {
-      path: 'production/receipt',
+      path: 'corporate/production/receipt',
       element: <ReceiptProduction />
     },
     {
-      path: 'production/issue',
+      path: 'corporate/production/issue',
       element: <IssueProduction />
     },
     {
-      path: 'production/inventory-transfer',
+      path: 'corporate/production/inventory-transfer',
       element: <InventoryTransfer />
     },
     {
-      path: 'production/change-product',
+      path: 'corporate/production/change-product',
       element: <ChangeProduct />
     }
   ]

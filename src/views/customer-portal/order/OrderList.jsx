@@ -870,7 +870,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
     return (
       <button
         type="button"
-        className="btn btn-link link-dark text-decoration-none fw-semibold p-0 text-nowrap"
+        className={`btn btn-link link-dark text-decoration-none fw-semibold p-0 text-nowrap sm-table-sort-button ${isActive ? 'is-active' : ''}`}
         onClick={() => handleOrderSort(key)}
         aria-label={`Sort ${label} ${isActive && orderSort.direction === 'asc' ? 'descending' : 'ascending'}`}
       >
@@ -897,7 +897,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
     return (
       <button
         type="button"
-        className="btn btn-link link-dark text-decoration-none fw-semibold p-0 text-nowrap"
+        className={`btn btn-link link-dark text-decoration-none fw-semibold p-0 text-nowrap sm-table-sort-button ${isActive ? 'is-active' : ''}`}
         onClick={() => handleCommitmentSort(key)}
         aria-label={`Sort ${label} ${isActive && commitmentSort.direction === 'asc' ? 'descending' : 'ascending'}`}
       >
@@ -1951,9 +1951,9 @@ export default function OrderList({ showOnlyCommitment = false }) {
                                 </td>
                               </tr>
                               {isExpanded ? (
-                                <tr key={`${order.id}-products`} className="bg-light">
+                                <tr key={`${order.id}-products`} className="bg-light sm-order-products-row">
                                   <td colSpan={9} className="p-3">
-                                    <div className="border rounded bg-white overflow-hidden">
+                                    <div className="border rounded bg-white overflow-hidden sm-order-products-panel">
                                       <Table className="mb-0 align-middle" responsive size="sm">
                                         <thead>
                                           <tr>
@@ -2018,8 +2018,8 @@ export default function OrderList({ showOnlyCommitment = false }) {
                 />
               </>
             ) : (
-              <div className="border rounded overflow-hidden">
-                <Stack direction="horizontal" gap={2} className="justify-content-between border-bottom p-3 flex-wrap">
+              <div className="border rounded overflow-hidden sm-order-calendar">
+                <Stack direction="horizontal" gap={2} className="justify-content-between border-bottom p-3 flex-wrap sm-order-calendar-toolbar">
                   <Button
                     size="sm"
                     variant="light-primary"
@@ -2049,7 +2049,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                   <div className="overflow-auto">
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(135px, 1fr))', minWidth: 945 }}>
                       {moment.weekdaysShort().map((dayName) => (
-                        <div key={dayName} className="border-bottom border-end bg-light text-center text-muted fw-semibold p-2">
+                        <div key={dayName} className="border-bottom border-end bg-light text-center text-muted fw-semibold p-2 sm-order-calendar-weekday">
                           {dayName}
                         </div>
                       ))}
@@ -2069,7 +2069,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                         return (
                           <div
                             key={calendarDate.format('YYYY-MM-DD')}
-                            className={`border-end border-bottom p-2 ${isCurrentMonth ? 'bg-white' : 'bg-light'} ${
+                            className={`border-end border-bottom p-2 sm-order-calendar-day ${isCurrentMonth ? 'bg-white is-current-month' : 'bg-light is-outside-month'} ${
                               isEmptyCreateDate ? 'cursor-pointer' : ''
                             } ${cmoDropDate === calendarDate.format('YYYY-MM-DD') ? 'bg-light-primary border-primary' : ''}`}
                             style={{ minHeight: 130, cursor: isEmptyCreateDate ? 'pointer' : 'default' }}
@@ -2119,7 +2119,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                                     placement="top"
                                     delay={{ show: 250, hide: 100 }}
                                     overlay={
-                                      <Popover className="border shadow-sm">
+                                      <Popover className="border shadow-sm sm-order-calendar-popover">
                                         <Popover.Body className="bg-white rounded p-2" style={{ minWidth: 190 }}>
                                           <div className="fw-semibold mb-1">{order.depo || '-'}</div>
                                           <div className="text-muted small mb-2">{order.customer_name || order.customer_code || '-'}</div>
@@ -2135,7 +2135,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                                   >
                                     <button
                                       type="button"
-                                      className={`btn ${getCmoCalendarButtonClass(order.status)} text-start w-100 px-1 py-1`}
+                                      className={`btn ${getCmoCalendarButtonClass(order.status)} text-start w-100 px-1 py-1 sm-order-calendar-event`}
                                       style={{ fontSize: 10, lineHeight: 1.15, cursor: movingCmoId === order.id ? 'wait' : 'grab' }}
                                       draggable={movingCmoId === null}
                                       disabled={String(movingCmoId) === String(order.id)}
@@ -2184,7 +2184,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                               {canCreateCmoOnDate ? (
                                 <button
                                   type="button"
-                                  className="btn btn-link d-flex align-items-center justify-content-center gap-1 w-100 p-1 text-decoration-none"
+                                  className="btn btn-link d-flex align-items-center justify-content-center gap-1 w-100 p-1 text-decoration-none sm-order-calendar-add"
                                   style={{ fontSize: 10 }}
                                   onClick={(event) => {
                                     event.stopPropagation();
@@ -2324,9 +2324,9 @@ export default function OrderList({ showOnlyCommitment = false }) {
                               <td className="text-center">{getAccessAction(order)}</td>
                             </tr>
                             {isExpanded ? (
-                              <tr className="bg-light">
+                              <tr className="bg-light sm-order-products-row">
                                 <td colSpan={9} className="p-3">
-                                  <div className="border rounded bg-white overflow-hidden">
+                                  <div className="border rounded bg-white overflow-hidden sm-order-products-panel">
                                     <Table className="mb-0 align-middle" responsive size="sm">
                                       <thead>
                                         <tr>
@@ -2409,8 +2409,8 @@ export default function OrderList({ showOnlyCommitment = false }) {
                   />
                 </>
               ) : (
-                <div className="border rounded overflow-hidden">
-                  <Stack direction="horizontal" gap={2} className="justify-content-between border-bottom p-3 flex-wrap">
+                <div className="border rounded overflow-hidden sm-order-calendar">
+                  <Stack direction="horizontal" gap={2} className="justify-content-between border-bottom p-3 flex-wrap sm-order-calendar-toolbar">
                     <Button
                       size="sm"
                       variant="light-primary"
@@ -2440,7 +2440,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                     <div className="overflow-auto">
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(135px, 1fr))', minWidth: 945 }}>
                         {moment.weekdaysShort().map((dayName) => (
-                          <div key={dayName} className="border-bottom border-end bg-light text-center text-muted fw-semibold p-2">
+                          <div key={dayName} className="border-bottom border-end bg-light text-center text-muted fw-semibold p-2 sm-order-calendar-weekday">
                             {dayName}
                           </div>
                         ))}
@@ -2457,7 +2457,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                           return (
                             <div
                               key={calendarDate.format('YYYY-MM-DD')}
-                              className={`border-end border-bottom p-2 ${isCurrentMonth ? 'bg-white' : 'bg-light'}`}
+                              className={`border-end border-bottom p-2 sm-order-calendar-day ${isCurrentMonth ? 'bg-white is-current-month' : 'bg-light is-outside-month'}`}
                               style={{ minHeight: 130 }}
                             >
                               <span
@@ -2473,7 +2473,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                                   <button
                                     key={order.id}
                                     type="button"
-                                    className="btn btn-light-primary text-start w-100 px-1 py-1"
+                                    className="btn btn-light-primary text-start w-100 px-1 py-1 sm-order-calendar-event"
                                     style={{ fontSize: 10, lineHeight: 1.15 }}
                                     title={`${order.depo || '-'} - ${order.customer_name || '-'}`}
                                     onClick={(event) =>
@@ -2492,7 +2492,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                                 {canCreateOrderOnDate ? (
                                   <button
                                     type="button"
-                                    className="btn btn-link d-flex align-items-center justify-content-center gap-1 w-100 p-1 text-decoration-none"
+                                    className="btn btn-link d-flex align-items-center justify-content-center gap-1 w-100 p-1 text-decoration-none sm-order-calendar-add"
                                     style={{ fontSize: 10 }}
                                     onClick={createOrderForDate}
                                   >

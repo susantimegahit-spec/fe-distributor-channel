@@ -2,9 +2,9 @@ import { useEffect } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 
 // project-imports
+import Drawer from './Drawer';
 import Footer from './Footer';
 import Header from './Header';
-import TopNavigation from './TopNavigation';
 import Breadcrumbs from 'components/Breadcrumbs';
 import NavigationScroll from 'components/NavigationScroll';
 import Workspace from './Workspace';
@@ -34,16 +34,18 @@ export default function MainLayout() {
   const isSystemSelectorPath = pathname === '/systems';
   const isGlobalDashboardPath = pathname === '/dashboard';
   const isAccessDeniedPath = pathname === '/access-denied';
+  const isSystemSettingPath = pathname === '/system-setting' || pathname.startsWith('/system-setting/');
   const isSharedUtilityPath =
     isSystemSelectorPath ||
     isAccessDeniedPath ||
     pathname === '/notifications' ||
     pathname === '/vendor-portal-monitoring' ||
+    isSystemSettingPath ||
     pathname === '/setting' ||
     pathname.startsWith('/setting/') ||
     pathname.startsWith('/customer-portal/setting') ||
     pathname === '/customer-portal/master/signature';
-  const showWorkspaceNavigation = !isSharedUtilityPath;
+  const showSidebar = !isSharedUtilityPath;
   const requestedMenu = activeSystem && !isSharedUtilityPath ? getMenuItemByPathname(activeSystem, pathname) : null;
   const firstAccessibleMenuPath = activeSystem ? getFirstAccessibleMenuPath(activeSystem, permissionMenu, roleId) : null;
   const requestedUrlAction = getUrlAction(pathname);
@@ -86,6 +88,10 @@ export default function MainLayout() {
     document.addEventListener('pointerdown', notifyParentOfPointerDown, true);
     return () => document.removeEventListener('pointerdown', notifyParentOfPointerDown, true);
   }, [isWorkspaceWindow]);
+
+  if (isSystemSettingPath && !isAdministrator) {
+    return <Navigate to="/access-denied" replace state={{ requestedPath: pathname, requestedMenu: 'System Setting' }} />;
+  }
 
   if (activeSystem && !isAdministrator && !allowedSystemKeys.has(activeSystem.key)) {
     return <Navigate to="/access-denied" replace state={{ requestedPath: pathname, requestedSystem: activeSystem.title }} />;
@@ -143,17 +149,13 @@ export default function MainLayout() {
   return (
     <>
       <ActionPermissionGuard />
-      <Header showSidebar={false} />
-      {showWorkspaceNavigation && <TopNavigation />}
-      <div
-        className={`pc-container pc-container-no-sidebar ${
-          showWorkspaceNavigation ? 'pc-container-workspace pc-container-top-navigation' : ''
-        }`}
-      >
+      {showSidebar && <Drawer />}
+      <Header showSidebar={showSidebar} />
+      <div className={`pc-container ${!showSidebar ? 'pc-container-no-sidebar' : 'pc-container-workspace'}`}>
         <div className="pc-content">
           {/* <Breadcrumbs /> */}
           <NavigationScroll>
-            {showWorkspaceNavigation ? (
+            {showSidebar ? (
               <Workspace
                 activePath={pathname}
                 menuTitle={isGlobalDashboardPath ? 'Dashboard' : requestedMenu?.title || activeSystem?.title || 'Workspace'}
@@ -166,7 +168,7 @@ export default function MainLayout() {
           </NavigationScroll>
         </div>
       </div>
-      {!showWorkspaceNavigation && <Footer showSidebar={false} />}
+      {!showSidebar && <Footer showSidebar={showSidebar} />}
     </>
   );
 }

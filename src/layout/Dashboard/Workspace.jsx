@@ -9,7 +9,6 @@ const getSystemKeyFromPath = (path = '') => {
   if (path === '/dashboard') return 'global';
   if (normalizeLogisticsPath(path).startsWith('/logistics')) return 'logistics';
   if (path.startsWith('/vendor-management')) return 'vendor-management';
-  if (path.startsWith('/picking-list')) return 'picking-list';
   if (path.startsWith('/production')) return 'production';
   if (path.startsWith('/purchasing')) return 'purchasing';
   if (path.startsWith('/support')) return 'support';
@@ -49,7 +48,51 @@ export default function Workspace({ activePath, menuTitle, systemTitle, systemKe
   const [selectedPath, setSelectedPath] = useState(initialWorkspace.activePath);
   const [draggedPath, setDraggedPath] = useState('');
   const [dragOverPath, setDragOverPath] = useState('');
+  const [toolbarHidden, setToolbarHidden] = useState(false);
+  const [loadedPaths, setLoadedPaths] = useState(() => new Set());
   const tabRefs = useRef(new Map());
+  const frameScrollRefs = useRef(new Map());
+  const selectedPathRef = useRef(selectedPath);
+
+  useEffect(() => {
+    selectedPathRef.current = selectedPath;
+    setToolbarHidden(false);
+  }, [selectedPath]);
+
+  useEffect(
+    () => () => {
+      frameScrollRefs.current.forEach(({ scrollWindow, handler }) => scrollWindow.removeEventListener('scroll', handler));
+      frameScrollRefs.current.clear();
+    },
+    []
+  );
+
+  const attachFrameAutoHide = useCallback((path, frame) => {
+    const previous = frameScrollRefs.current.get(path);
+    if (previous) previous.scrollWindow.removeEventListener('scroll', previous.handler);
+
+    const scrollWindow = frame?.contentWindow;
+    if (!scrollWindow) return;
+
+    let lastScrollY = Math.max(0, scrollWindow.scrollY || 0);
+    const handler = () => {
+      const currentScrollY = Math.max(0, scrollWindow.scrollY || 0);
+      const delta = currentScrollY - lastScrollY;
+
+      if (path === selectedPathRef.current) {
+        if (currentScrollY < 24 || delta < -8) {
+          setToolbarHidden(false);
+        } else if (currentScrollY > 80 && delta > 8) {
+          setToolbarHidden(true);
+        }
+      }
+
+      lastScrollY = currentScrollY;
+    };
+
+    scrollWindow.addEventListener('scroll', handler, { passive: true });
+    frameScrollRefs.current.set(path, { scrollWindow, handler });
+  }, []);
 
   const openTab = useCallback((path, title, currentSystemTitle, currentSystemKey) => {
     if (!path) return;
@@ -130,6 +173,11 @@ export default function Workspace({ activePath, menuTitle, systemTitle, systemKe
     const closingIndex = tabs.findIndex((tab) => tab.path === path);
     const nextTabs = tabs.filter((tab) => tab.path !== path);
     setTabs(nextTabs);
+    setLoadedPaths((current) => {
+      const next = new Set(current);
+      next.delete(path);
+      return next;
+    });
     if (!nextTabs.length) {
       window.dispatchEvent(new CustomEvent('dc:workspace-tabs-cleared'));
     }
@@ -160,7 +208,14 @@ export default function Workspace({ activePath, menuTitle, systemTitle, systemKe
   };
 
   return (
-    <section className="sm-browser-workspace">
+    <section
+      className={`sm-browser-workspace ${toolbarHidden ? 'is-toolbar-hidden' : ''}`}
+      onMouseMove={(event) => {
+        if (!toolbarHidden) return;
+        const bounds = event.currentTarget.getBoundingClientRect();
+        if (event.clientY - bounds.top <= 14) setToolbarHidden(false);
+      }}
+    >
       <header className="sm-browser-toolbar">
         <div className="sm-browser-tabs" role="tablist" aria-label="Open menu tabs">
           {tabs.map((tab) => {
@@ -260,6 +315,7 @@ export default function Workspace({ activePath, menuTitle, systemTitle, systemKe
             onClick={() => {
               setTabs([]);
               setSelectedPath('');
+              setLoadedPaths(new Set());
               window.dispatchEvent(new CustomEvent('dc:workspace-tabs-cleared'));
             }}
           >
@@ -268,6 +324,15 @@ export default function Workspace({ activePath, menuTitle, systemTitle, systemKe
           </button>
         </div>
       </header>
+      <button
+        type="button"
+        className="sm-browser-toolbar-reveal"
+        aria-label="Show workspace tabs"
+        tabIndex={toolbarHidden ? 0 : -1}
+        onMouseEnter={() => setToolbarHidden(false)}
+        onFocus={() => setToolbarHidden(false)}
+        onClick={() => setToolbarHidden(false)}
+      />
 
       <div className="sm-browser-content">
         {tabs.map((tab) => (
@@ -276,8 +341,23 @@ export default function Workspace({ activePath, menuTitle, systemTitle, systemKe
             key={tab.path}
             src={getEmbeddedUrl(tab.path)}
             title={`${tab.title} tab`}
+            onLoad={(event) => {
+              attachFrameAutoHide(tab.path, event.currentTarget);
+              window.requestAnimationFrame(() => {
+                window.requestAnimationFrame(() => {
+                  setLoadedPaths((current) => new Set(current).add(tab.path));
+                });
+              });
+            }}
           />
         ))}
+
+        {selectedPath && !loadedPaths.has(selectedPath) ? (
+          <div className="sm-browser-frame-loader" role="status" aria-live="polite">
+            <span><i className="ti ti-loader-2" /></span>
+            <strong>Loading menu...</strong>
+          </div>
+        ) : null}
 
         {tabs.length === 0 && (
           <div className="sm-workspace-empty">
@@ -285,7 +365,7 @@ export default function Workspace({ activePath, menuTitle, systemTitle, systemKe
               <i className="ti ti-browser" />
             </span>
             <h3>No tabs open</h3>
-            <p>Select a menu from the navigation above to open a new tab.</p>
+            <p>Select a menu from the sidebar to open a new tab.</p>
           </div>
         )}
       </div>

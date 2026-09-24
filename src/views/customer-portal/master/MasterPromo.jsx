@@ -17,6 +17,7 @@ import Table from 'react-bootstrap/Table';
 import MainCard from 'components/MainCard';
 import ConfirmDialog from 'components/ConfirmDialog';
 import TablePagination from 'components/TablePagination';
+import ThemedDatePicker from 'components/ThemedDatePicker';
 import LoaderData from '../../../components/LoaderData';
 import DistributorServices from '../../../services/customer-portal/DistributorServices';
 import ProductServices from '../../../services/customer-portal/ProductServices';
@@ -972,18 +973,17 @@ export default function MasterPromo() {
                   </Col>
                   <Col md={3}>
                     <Form.Label className="f-12 text-muted">Start Date</Form.Label>
-                    <Form.Control
-                      type="date"
+                    <ThemedDatePicker
                       value={promoInput.start_date}
-                      onChange={(event) => handleChangePromoInput('start_date', event.target.value)}
+                      onChange={(value) => handleChangePromoInput('start_date', value)}
                     />
                   </Col>
                   <Col md={3}>
                     <Form.Label className="f-12 text-muted">End Date</Form.Label>
-                    <Form.Control
-                      type="date"
+                    <ThemedDatePicker
                       value={promoInput.end_date}
-                      onChange={(event) => handleChangePromoInput('end_date', event.target.value)}
+                      min={promoInput.start_date || undefined}
+                      onChange={(value) => handleChangePromoInput('end_date', value)}
                     />
                   </Col>
                   <Col md={6}>

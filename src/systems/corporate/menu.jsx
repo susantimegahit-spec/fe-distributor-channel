@@ -11,27 +11,6 @@ const enterpriseMenu = [
     collapsible: false,
     children: [
       {
-        id: 'enterprise-master-data',
-        title: 'Master Data',
-        type: 'collapse',
-        value: 'enterprise-master-data',
-        label: 'Master Data',
-        selected: true,
-        icon: 'ti ti-database',
-        children: [
-          {
-            id: 'enterprise-master-data-department',
-            title: 'Department',
-            type: 'item',
-            value: 'enterprise-master-data-department',
-            label: 'Department',
-            selected: true,
-            icon: 'ti ti-building-community',
-            url: withBasePath('/master-data/department')
-          }
-        ]
-      },
-      {
         id: 'enterprise-purchasing',
         title: 'Purchasing',
         type: 'collapse',
@@ -90,6 +69,77 @@ const enterpriseMenu = [
             selected: true,
             icon: 'ti ti-list-check',
             url: withBasePath('/hrd/task-management')
+          }
+        ]
+      },
+      {
+        id: 'production-transaction',
+        title: 'Production',
+        type: 'collapse',
+        value: 'production-transaction',
+        label: 'Production',
+        selected: true,
+        icon: 'ti ti-building-factory-2',
+        children: [
+          {
+            id: 'production-bill-of-material',
+            title: 'Bill of Material',
+            type: 'item',
+            value: 'production-bill-of-material',
+            label: 'Bill of Material',
+            selected: true,
+            icon: 'ti ti-list-tree',
+            url: withBasePath('/production/bill-of-material')
+          },
+          {
+            id: 'production-order',
+            title: 'Production Order',
+            type: 'item',
+            value: 'production-order',
+            label: 'Production Order',
+            selected: true,
+            icon: 'ti ti-clipboard-text',
+            url: withBasePath('/production/order')
+          },
+          {
+            id: 'production-issue',
+            title: 'Issue Production',
+            type: 'item',
+            value: 'production-issue',
+            label: 'Issue Production',
+            selected: true,
+            icon: 'ti ti-package-export',
+            url: withBasePath('/production/issue')
+          },
+          {
+            id: 'production-receipt',
+            title: 'Receipt Production',
+            type: 'item',
+            value: 'production-receipt',
+            label: 'Receipt Production',
+            selected: true,
+            icon: 'ti ti-package-import',
+            url: withBasePath('/production/receipt')
+          },
+          {
+            id: 'production-inventory-transfer',
+            title: 'Inventory Transfer',
+            type: 'item',
+            value: 'production-inventory-transfer',
+            label: 'Inventory Transfer',
+            selected: true,
+            icon: 'ti ti-transfer',
+            url: withBasePath('/production/inventory-transfer')
+          },
+          {
+            id: 'production-change-product',
+            title: 'Change Product',
+            type: 'item',
+            value: 'production-change-product',
+            label: 'Change Product',
+            selected: true,
+            icon: 'ti ti-replace',
+            url: withBasePath('/production/change-product')
           }
         ]
       },

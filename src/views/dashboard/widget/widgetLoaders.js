@@ -28,11 +28,6 @@ export const logisticsTotal = async () => {
   const response = await LogisticsServices.getLogisticOrders({ per_page: 100, page: 1 });
   return getTotal(response, getRows(response, ['orders']));
 };
-export const picking = async () => getRows(await LogisticsServices.getPicklist({ per_page: 100, page: 1 }), ['picklists']);
-export const pickingTotal = async () => {
-  const response = await LogisticsServices.getPicklist({ per_page: 100, page: 1 });
-  return getTotal(response, getRows(response, ['picklists']));
-};
 export const production = async () => getRows(await ProductionServices.getListOrderSap(range()), ['orders', 'production_orders']);
 export const productionResource = async (kind) =>
   kind === 'materials'

@@ -32,7 +32,6 @@ const accessibleSystemOptions = [
   { value: SYSTEM_KEYS.ENTERPRISE, label: 'Corporate' },
   { value: SYSTEM_KEYS.LOGISTICS, label: 'Logistics' },
   { value: SYSTEM_KEYS.VENDOR_MANAGEMENT, label: 'Vendor Management' },
-  { value: SYSTEM_KEYS.PICKING_LIST, label: 'Picking List' },
   { value: SYSTEM_KEYS.PRODUCTION, label: 'Production' }
 ];
 

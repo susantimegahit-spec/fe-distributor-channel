@@ -10,7 +10,6 @@ import FinanceRoutes from './FinanceRoutes';
 import LogisticsRoutes, { LegacyExpeditionRedirect } from './LogisticsRoutes';
 import VendorManagementRoutes from './VendorManagementRoutes';
 import EnterpriseRoutes from './EnterpriseRoutes';
-import PickingListRoutes from './PickingListRoutes';
 import ProductionRoutes from './ProductionRoutes';
 import HelpDeskRoutes from './HelpDeskRoutes';
 import { NotFoundPage } from '../views/ErrorBoundary';
@@ -37,7 +36,6 @@ const router = createBrowserRouter(
     VendorManagementRoutes,
     { path: '/logistics', element: <Navigate to="/logistics/dashboard" replace /> },
     { path: '/expedition/*', element: <LegacyExpeditionRedirect /> },
-    PickingListRoutes,
     ProductionRoutes,
     HelpDeskRoutes,
     OtherRoutes,

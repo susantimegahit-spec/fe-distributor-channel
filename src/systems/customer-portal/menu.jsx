@@ -30,26 +30,6 @@ const customerPortalMenu = [
     selected: true,
     children: [
       {
-        id: 'master-distributor',
-        title: 'Distributors',
-        type: 'item',
-        value: 'master-distributor',
-        label: 'Distributors',
-        selected: true,
-        icon: 'ti ti-automatic-gearbox',
-        url: withBasePath('/master/distributor')
-      },
-      {
-        id: 'master-product',
-        title: 'Products',
-        type: 'item',
-        value: 'master-product',
-        label: 'Products',
-        selected: true,
-        icon: 'ti ti-clipboard-list',
-        url: withBasePath('/master/product')
-      },
-      {
         id: 'master-price',
         title: 'Price List',
         type: 'item',

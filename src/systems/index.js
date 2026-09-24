@@ -2,7 +2,6 @@ import { normalizeLogisticsPermission } from '../utils/logisticsMigration';
 import customerPortalMenu from './customer-portal/menu';
 import enterpriseMenu from './corporate/menu';
 import logisticsMenu from './logistics/menu';
-import pickingListMenu from './picking-list/menu';
 import productionMenu from './production/menu';
 import vendorManagementMenu from './vendor-management/menu';
 import { matchPath } from 'react-router-dom';
@@ -12,7 +11,6 @@ export const SYSTEM_KEYS = {
   ENTERPRISE: 'enterprise',
   LOGISTICS: 'logistics',
   VENDOR_MANAGEMENT: 'vendor-management',
-  PICKING_LIST: 'picking-list',
   PRODUCTION: 'production'
 };
 
@@ -45,18 +43,9 @@ export const systems = [
     menu: logisticsMenu
   },
   {
-    key: SYSTEM_KEYS.PICKING_LIST,
-    title: 'Picking List',
-    description: 'Warehouse picking tasks, rules, and fulfillment monitoring.',
-    icon: 'ti ti-clipboard-list',
-    basePath: '/picking-list',
-    defaultPath: '/picking-list/dashboard',
-    menu: pickingListMenu
-  },
-  {
     key: SYSTEM_KEYS.PRODUCTION,
     title: 'Production',
-    description: 'Production planning, work orders, and output monitoring.',
+    description: 'Production master data and monitoring.',
     icon: 'ti ti-building-factory-2',
     basePath: '/production',
     defaultPath: '/production/dashboard',
@@ -124,10 +113,6 @@ const systemAccessAliases = {
   'vendor-management': SYSTEM_KEYS.VENDOR_MANAGEMENT,
   vendor_management: SYSTEM_KEYS.VENDOR_MANAGEMENT,
   'vendor management': SYSTEM_KEYS.VENDOR_MANAGEMENT,
-  pickinglist: SYSTEM_KEYS.PICKING_LIST,
-  picking_list: SYSTEM_KEYS.PICKING_LIST,
-  'picking-list': SYSTEM_KEYS.PICKING_LIST,
-  'picking list': SYSTEM_KEYS.PICKING_LIST,
   production: SYSTEM_KEYS.PRODUCTION,
   produksi: SYSTEM_KEYS.PRODUCTION,
   manufacturing: SYSTEM_KEYS.PRODUCTION,

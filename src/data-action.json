@@ -272,25 +272,6 @@
     },
 
     {
-      "menu_key": 39,
-      "system_key": "picking-list",
-      "menu_id": "picking-list-overview",
-      "route": "/picking-list/dashboard",
-      "source": "src/views/picking-list/dashboard/PickingListDashboard.jsx",
-      "actions": ["view"],
-      "buttons": { "view": ["View Picking"] }
-    },
-    {
-      "menu_key": 41,
-      "system_key": "picking-list",
-      "menu_id": "picking-list-master",
-      "route": "/picking-list/master/picking-list",
-      "source": "src/views/picking-list/master/MasterPickingList.jsx",
-      "actions": ["view", "add"],
-      "buttons": { "view": ["View Rule"], "add": ["Add Rule"] }
-    },
-
-    {
       "menu_key": 44,
       "system_key": "production",
       "menu_id": "production-overview",
@@ -328,9 +309,9 @@
     },
     {
       "menu_key": 50,
-      "system_key": "production",
+      "system_key": "enterprise",
       "menu_id": "production-bill-of-material",
-      "route": "/production/bill-of-material",
+      "route": "/corporate/production/bill-of-material",
       "source": "src/views/production/production/BillOfMaterial/BillOfMaterial.jsx",
       "actions": ["view", "add", "edit", "delete", "upload"],
       "buttons": {
@@ -343,9 +324,9 @@
     },
     {
       "menu_key": 51,
-      "system_key": "production",
+      "system_key": "enterprise",
       "menu_id": "production-order",
-      "route": "/production/order",
+      "route": "/corporate/production/order",
       "source": "src/views/production/production/ProductionOrder/ProductionOrder.jsx",
       "actions": ["view", "add", "edit", "delete"],
       "buttons": {
@@ -357,36 +338,36 @@
     },
     {
       "menu_key": 52,
-      "system_key": "production",
+      "system_key": "enterprise",
       "menu_id": "production-receipt",
-      "route": "/production/receipt",
+      "route": "/corporate/production/receipt",
       "source": "src/views/production/production/ReceiptProduction/ReceiptProduction.jsx",
       "actions": ["view", "add"],
       "buttons": { "view": ["Detail"], "add": ["Create Receipt"] }
     },
     {
       "menu_key": 53,
-      "system_key": "production",
+      "system_key": "enterprise",
       "menu_id": "production-issue",
-      "route": "/production/issue",
+      "route": "/corporate/production/issue",
       "source": "src/views/production/production/IssueProduction/IssueProduction.jsx",
       "actions": ["view", "add", "edit"],
       "buttons": { "view": ["Detail"], "add": ["Create Issue"], "edit": ["Edit Comment"] }
     },
     {
       "menu_key": 54,
-      "system_key": "production",
+      "system_key": "enterprise",
       "menu_id": "production-inventory-transfer",
-      "route": "/production/inventory-transfer",
+      "route": "/corporate/production/inventory-transfer",
       "source": "src/views/production/production/InventoryTransfer/InventoryTransfer.jsx",
       "actions": ["view", "add"],
       "buttons": { "view": ["Detail"], "add": ["Create Inventory Transfer"] }
     },
     {
       "menu_key": 55,
-      "system_key": "production",
+      "system_key": "enterprise",
       "menu_id": "production-change-product",
-      "route": "/production/change-product",
+      "route": "/corporate/production/change-product",
       "source": "src/views/production/production/ChangeProduct/ChangeProduct.jsx",
       "actions": ["add"],
       "buttons": { "add": ["Create Change Product"] }

@@ -50,7 +50,7 @@ export default function ProductionWidget() {
       icon="ti ti-building-factory-2"
       color="primary"
       {...state}
-      onOpen={() => navigate('/production/order')}
+      onOpen={() => navigate('/corporate/production/order')}
     />
   );
 }

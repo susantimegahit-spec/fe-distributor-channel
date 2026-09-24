@@ -7,10 +7,6 @@ import CustomerRevenueWidget from './CustomerRevenueWidget';
 import LogisticsApprovedWidget from './LogisticsApprovedWidget';
 import LogisticsOrdersWidget from './LogisticsOrdersWidget';
 import LogisticsPendingWidget from './LogisticsPendingWidget';
-import PickingPackedWidget from './PickingPackedWidget';
-import PickingProgressWidget from './PickingProgressWidget';
-import PickingReadyWidget from './PickingReadyWidget';
-import PickingTotalWidget from './PickingTotalWidget';
 import ProductionCompletedWidget from './ProductionCompletedWidget';
 import ProductionIssuesWidget from './ProductionIssuesWidget';
 import ProductionMaterialsWidget from './ProductionMaterialsWidget';
@@ -31,10 +27,6 @@ export const widgetRegistry = [
   item('logistics-orders', 'Orders Ready', 'Logistics', LogisticsOrdersWidget, 'ti ti-truck-delivery'),
   item('logistics-approved', 'Approved Orders', 'Logistics', LogisticsApprovedWidget, 'ti ti-circle-check'),
   item('logistics-pending', 'Non Approved', 'Logistics', LogisticsPendingWidget, 'ti ti-clock'),
-  item('picking-total', 'Total Tasks', 'Picking List', PickingTotalWidget, 'ti ti-clipboard-list'),
-  item('picking-ready', 'Ready', 'Picking List', PickingReadyWidget, 'ti ti-list-check'),
-  item('picking-progress', 'Picking', 'Picking List', PickingProgressWidget, 'ti ti-package'),
-  item('picking-packed', 'Packed', 'Picking List', PickingPackedWidget, 'ti ti-package-export'),
   item('production-orders', 'Production Orders', 'Production', ProductionOrdersWidget, 'ti ti-clipboard-text'),
   item('production-progress', 'In Progress', 'Production', ProductionProgressWidget, 'ti ti-settings-automation'),
   item('production-completed', 'Completed', 'Production', ProductionCompletedWidget, 'ti ti-circle-check'),

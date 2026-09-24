@@ -14,7 +14,7 @@ import Stack from 'react-bootstrap/Stack';
 
 // project-imports
 import SimpleBarScroll from 'components/third-party/SimpleBar';
-import SmestaLogo from 'assets/images/smesta_logo_line_small_transparent.png';
+import SmestaLogo from 'assets/images/smesta_text_transparent.png';
 import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
 
 import { getAssignedCustomerCodes, getCookies } from '../../utils/cookies';
@@ -33,6 +33,7 @@ import {
 } from '../../utils/notification';
 import { DataService } from '../../config/dataService';
 import { destroyAuthState } from '../../redux/authReducer';
+import { getThemePreference, saveThemePreference, THEME_CHANGED_EVENT } from '../../utils/themePreference';
 // =============================|| MAIN LAYOUT - HEADER ||============================== //
 
 export default function Header({ showSidebar = true }) {
@@ -65,7 +66,10 @@ export default function Header({ showSidebar = true }) {
   const [loadingNotifications, setLoadingNotifications] = useState(false);
   const [notificationError, setNotificationError] = useState('');
   const [sendingTestNotification, setSendingTestNotification] = useState(false);
+  const [theme, setTheme] = useState(getThemePreference);
+  const [switchingTheme, setSwitchingTheme] = useState('');
   const notificationAudioContextRef = useRef(null);
+  const themeTimerRef = useRef(null);
   const accountMenuRef = useRef(null);
   const knownNotificationIdsRef = useRef(new Set());
   const hasLoadedNotificationsRef = useRef(false);
@@ -74,8 +78,15 @@ export default function Header({ showSidebar = true }) {
     pathname === '/notifications' ||
     pathname === '/setting' ||
     pathname.startsWith('/setting/') ||
+    pathname === '/system-setting' ||
+    pathname.startsWith('/system-setting/') ||
     pathname.startsWith('/customer-portal/setting');
-  const isSettingPage = pathname === '/setting' || pathname.startsWith('/setting/') || pathname.startsWith('/customer-portal/setting');
+  const isSettingPage =
+    pathname === '/setting' ||
+    pathname.startsWith('/setting/') ||
+    pathname === '/system-setting' ||
+    pathname.startsWith('/system-setting/') ||
+    pathname.startsWith('/customer-portal/setting');
 
   useEffect(() => {
     if (!showAccountMenu) return undefined;
@@ -88,6 +99,15 @@ export default function Header({ showSidebar = true }) {
     return () => document.removeEventListener('pointerdown', closeAccountMenu, true);
   }, [showAccountMenu]);
 
+  useEffect(() => {
+    const syncTheme = (event) => setTheme(event.detail?.theme || getThemePreference());
+    window.addEventListener(THEME_CHANGED_EVENT, syncTheme);
+    return () => {
+      window.removeEventListener(THEME_CHANGED_EVENT, syncTheme);
+      if (themeTimerRef.current) window.clearTimeout(themeTimerRef.current);
+    };
+  }, []);
+
   const handleHeaderBack = () => {
     if (isSettingPage) {
       navigate('/customer-portal/dashboard');
@@ -95,6 +115,16 @@ export default function Header({ showSidebar = true }) {
     }
 
     navigate(-1);
+  };
+
+  const handleThemeSwitch = () => {
+    if (switchingTheme) return;
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    setSwitchingTheme(nextTheme);
+    themeTimerRef.current = window.setTimeout(() => {
+      setTheme(saveThemePreference(nextTheme));
+      themeTimerRef.current = window.setTimeout(() => setSwitchingTheme(''), 450);
+    }, 300);
   };
 
   const playNotificationSound = useCallback(() => {
@@ -487,6 +517,18 @@ export default function Header({ showSidebar = true }) {
         </div>
         <div className="ms-auto">
           <Nav className="list-unstyled">
+            <Nav.Item className="pc-h-item">
+              <button
+                type="button"
+                className="pc-head-link sm-theme-toggle me-0"
+                aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+                title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+                disabled={Boolean(switchingTheme)}
+                onClick={handleThemeSwitch}
+              >
+                <i className={`ti ${switchingTheme ? 'ti-loader-2 is-loading' : theme === 'dark' ? 'ti-sun' : 'ti-moon'}`} />
+              </button>
+            </Nav.Item>
             <Dropdown className="pc-h-item" align="end" onToggle={handleNotificationDropdownToggle}>
               <Dropdown.Toggle className="pc-head-link sm-notification-toggle me-0 arrow-none" variant="link" id="notification-dropdown">
                 <i className="ph ph-bell" />
@@ -596,14 +638,14 @@ export default function Header({ showSidebar = true }) {
                 <div className="dropdown-body sm-account-body">
                   <div className="profile-notification-scroll position-relative">
                     {/* {roleId === 5 && ( */}
-                    <Dropdown.Item as={Link} to="/setting" className="sm-account-item">
+                    <Dropdown.Item as={Link} to="/system-setting" className="sm-account-item">
                       <span className="sm-account-item-icon">
                         <i className="ti ti-settings" />
                       </span>
 
                       <span>
-                        <strong>Setting</strong>
-                        <small>Users, access rights, and signatures</small>
+                        <strong>System Setting</strong>
+                        <small>Users, roles, master data, and personalization</small>
                       </span>
                     </Dropdown.Item>
                     {/* )} */}
@@ -636,6 +678,17 @@ export default function Header({ showSidebar = true }) {
           </Nav>
         </div>
       </div>
+      {switchingTheme ? (
+        <div className="sm-theme-switch-loader" role="status" aria-live="polite">
+          <div className="sm-theme-switch-loader-card">
+            <span><i className="ti ti-loader-2" /></span>
+            <div>
+              <strong>Initializing {switchingTheme === 'dark' ? 'Dark' : 'Light'} Mode</strong>
+              <small>Applying colors and interface preferences...</small>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <Modal
         show={showChangePass}
         centered

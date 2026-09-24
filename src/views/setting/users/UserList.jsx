@@ -68,7 +68,6 @@ const accessibleSystemOptions = [
   { value: SYSTEM_KEYS.ENTERPRISE, label: 'Corporate', color: '#c0265e' },
   { value: SYSTEM_KEYS.LOGISTICS, label: 'Logistics', color: '#e8590c' },
   { value: SYSTEM_KEYS.VENDOR_MANAGEMENT, label: 'Vendor Management', color: '#475569' },
-  { value: SYSTEM_KEYS.PICKING_LIST, label: 'Picking List', color: '#7048e8' },
   { value: SYSTEM_KEYS.PRODUCTION, label: 'Production', color: '#198754' }
 ];
 const userActions = actionRegistry.action_definitions.map(({ value, label }) => ({ value, label }));
@@ -145,10 +144,6 @@ const accessibleSystemAliases = {
   vendors: SYSTEM_KEYS.VENDOR_MANAGEMENT,
   'vendor-management': SYSTEM_KEYS.VENDOR_MANAGEMENT,
   vendor_management: SYSTEM_KEYS.VENDOR_MANAGEMENT,
-  pickinglist: SYSTEM_KEYS.PICKING_LIST,
-  picking_list: SYSTEM_KEYS.PICKING_LIST,
-  'picking-list': SYSTEM_KEYS.PICKING_LIST,
-  'picking list': SYSTEM_KEYS.PICKING_LIST,
   production: SYSTEM_KEYS.PRODUCTION,
   produksi: SYSTEM_KEYS.PRODUCTION,
   manufacturing: SYSTEM_KEYS.PRODUCTION,

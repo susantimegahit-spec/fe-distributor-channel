@@ -6,7 +6,7 @@ import Collapse from 'react-bootstrap/Collapse';
 import NavItem from './NavItem';
 import NavCollapse from './NavCollapse';
 import { getCookies } from '../../../../utils/cookies';
-import { normalizePermissionMenu } from '../../../../systems';
+import { isAdministratorRole, normalizePermissionMenu } from '../../../../systems';
 
 const hasActivePath = (menuItem, pathname) => {
   if (menuItem.children?.length) return menuItem.children.some((child) => hasActivePath(child, pathname));
@@ -18,8 +18,20 @@ const hasActivePath = (menuItem, pathname) => {
 // ==============================|| NAVIGATION - GROUP ||============================== //
 
 export default function NavGroup(props) {
-  const { item, lastItem, remItems, lastItemId, setSelectedID, setSelectedItems, selectedItems, setSelectedLevel, selectedLevel } = props;
+  const {
+    item,
+    lastItem,
+    remItems,
+    lastItemId,
+    setSelectedID,
+    setSelectedItems,
+    selectedItems,
+    setSelectedLevel,
+    selectedLevel,
+    expandChildren = false
+  } = props;
   const masterMenu = normalizePermissionMenu(getCookies('menu') || []);
+  const isAdministrator = isAdministratorRole(getCookies('role'));
   const { pathname } = useLocation();
   const [currentItem, setCurrentItem] = useState(item);
   const [groupOpen, setGroupOpen] = useState(() => hasActivePath(item, pathname));
@@ -70,7 +82,7 @@ export default function NavGroup(props) {
 
     return currentItem.children.map((menuItem, index) => {
       const key = menuItem.id || `${menuItem.type}-${index}`;
-      const findMenu = masterMenu.includes(menuItem.id);
+      const findMenu = isAdministrator || masterMenu.includes(menuItem.id);
 
       switch (menuItem.type) {
         case 'collapse':
@@ -84,6 +96,7 @@ export default function NavGroup(props) {
               selectedItems={selectedItems}
               level={1}
               parentId={currentItem.id}
+              forceOpen={expandChildren}
             />
           );
         case 'item':
@@ -100,10 +113,10 @@ export default function NavGroup(props) {
           );
       }
     });
-  }, [currentItem, masterMenu, selectedItems, selectedLevel, setSelectedItems, setSelectedLevel]);
+  }, [currentItem, expandChildren, isAdministrator, masterMenu, selectedItems, selectedLevel, setSelectedItems, setSelectedLevel]);
 
   const hasAllowedChild = (item) => {
-    if (!item.children?.length) return masterMenu.includes(item.id);
+    if (!item.children?.length) return isAdministrator || masterMenu.includes(item.id);
 
     return item.children.some((child) => hasAllowedChild(child));
   };

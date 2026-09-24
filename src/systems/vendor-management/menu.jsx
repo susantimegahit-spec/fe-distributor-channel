@@ -18,16 +18,6 @@ const vendorManagementMenu = [
         selected: true,
         icon: 'ti ti-layout-dashboard',
         url: withBasePath('/dashboard')
-      },
-      {
-        id: 'vendor-list',
-        title: 'Vendor',
-        type: 'item',
-        value: 'vendor-list',
-        label: 'Vendor',
-        selected: true,
-        icon: 'ti ti-building-store',
-        url: withBasePath('/vendor')
       }
     ]
   }

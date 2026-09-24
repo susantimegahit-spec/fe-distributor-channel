@@ -12,6 +12,7 @@ import ErrorBoundary from './views/ErrorBoundary';
 import { AUTH_STATE_CHANGED_EVENT } from './utils/authEvents';
 import NetworkStatusGuard from './components/NetworkStatusGuard';
 import VendorPortalRoutes from './routes/VendorPortalRoutes';
+import { applyThemePreference, getThemePreference, THEME_CHANGED_EVENT, THEME_STORAGE_KEY } from './utils/themePreference';
 
 // ==============================|| APP - THEME, ROUTER, LOCAL ||============================== //
 
@@ -40,6 +41,20 @@ const ProviderConfig = () => {
 };
 
 function App() {
+  useEffect(() => {
+    const syncTheme = (event) => {
+      if (event.type === 'storage' && event.key && event.key !== THEME_STORAGE_KEY) return;
+      applyThemePreference(event.detail?.theme || getThemePreference());
+    };
+
+    window.addEventListener('storage', syncTheme);
+    window.addEventListener(THEME_CHANGED_EVENT, syncTheme);
+    return () => {
+      window.removeEventListener('storage', syncTheme);
+      window.removeEventListener(THEME_CHANGED_EVENT, syncTheme);
+    };
+  }, []);
+
   return (
     <ErrorBoundary>
       <AlertProvider>

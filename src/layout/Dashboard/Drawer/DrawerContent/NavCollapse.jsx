@@ -13,7 +13,7 @@ import { useGetMenuMaster } from 'api/menu';
 
 // ==============================|| NAVIGATION - COLLAPSE ||============================== //
 
-export default function NavCollapse({ menu, level, parentId, setSelectedItems, selectedItems, setSelectedLevel, selectedLevel }) {
+export default function NavCollapse({ menu, level, parentId, setSelectedItems, selectedItems, setSelectedLevel, selectedLevel, forceOpen = false }) {
   const { menuMaster } = useGetMenuMaster();
   const navigation = useNavigate();
   const drawerOpen = menuMaster?.isDashboardDrawerOpened;
@@ -95,7 +95,7 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
         break;
       }
     }
-  }, [pathname, menu.id, menu.children, checkOpenForParent]);
+  }, [pathname, menu.id, checkOpenForParent]);
 
   useEffect(() => {
     if (menu.url === pathname) {
@@ -118,6 +118,7 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
                 menu={item}
                 level={level + 1}
                 parentId={parentId}
+                forceOpen={forceOpen}
               />
             );
           case 'item':
@@ -130,7 +131,7 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
             );
         }
       }) ?? [],
-    [menu.children, setSelectedItems, setSelectedLevel, selectedLevel, selectedItems, level, parentId]
+    [menu.children, setSelectedItems, setSelectedLevel, selectedLevel, selectedItems, level, parentId, forceOpen]
   );
 
   return (
@@ -151,7 +152,7 @@ export default function NavCollapse({ menu, level, parentId, setSelectedItems, s
         </span>
         {menu.badge && <Badge className="pc-badge">{menu.badge}</Badge>}
       </Link>
-      <Collapse in={open} mountOnEnter unmountOnExit>
+      <Collapse in={open || forceOpen} mountOnEnter unmountOnExit>
         <div>
           <ul className="pc-submenu">{navCollapse}</ul>
         </div>
@@ -167,5 +168,6 @@ NavCollapse.propTypes = {
   setSelectedItems: PropTypes.oneOfType([PropTypes.func, PropTypes.any]),
   selectedItems: PropTypes.any,
   setSelectedLevel: PropTypes.func,
-  selectedLevel: PropTypes.number
+  selectedLevel: PropTypes.number,
+  forceOpen: PropTypes.bool
 };

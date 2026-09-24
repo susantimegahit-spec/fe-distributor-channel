@@ -4,6 +4,7 @@ import { useLocation, matchPath, Link } from 'react-router-dom';
 
 // project-imports
 import { handlerDrawerOpen } from 'api/menu';
+import { getSystemByPathname } from '../../../../systems';
 
 // ==============================|| NAVIGATION - ITEM ||============================== //
 
@@ -31,11 +32,14 @@ export default function NavItem({ item }) {
     setWorkspaceCleared(false);
 
     if (itemTarget === '_self' && itemPath && itemPath !== '#') {
+      const targetSystem = getSystemByPathname(itemPath);
       window.dispatchEvent(
         new CustomEvent('dc:open-workspace-tab', {
           detail: {
             path: itemPath,
-            title: item.title
+            title: item.title,
+            systemKey: targetSystem?.key || (itemPath === '/dashboard' ? 'global' : undefined),
+            systemTitle: targetSystem?.title || (itemPath === '/dashboard' ? 'SMESTA' : undefined)
           }
         })
       );
@@ -58,7 +62,13 @@ export default function NavItem({ item }) {
       data-menu-key={item?.menu_key}
       className={`pc-item ${isSelected ? 'active' : ''}`}
     >
-      <Link className="pc-link" to={item?.url || '#'} target={itemTarget} onClick={handleClick}>
+      <Link
+        className="pc-link"
+        to={item?.url || '#'}
+        target={itemTarget}
+        rel={itemTarget === '_blank' ? 'noopener noreferrer' : undefined}
+        onClick={handleClick}
+      >
         {renderIcon()}
         {item.title}
       </Link>

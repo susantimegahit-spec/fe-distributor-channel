@@ -6,6 +6,7 @@ import Loadable from 'components/Loadable';
 import DashboardLayout from 'layout/Dashboard';
 
 const SettingPage = Loadable(lazy(() => import('views/setting/SettingPage')));
+const SystemSettingPage = Loadable(lazy(() => import('views/setting/SystemSettingPage')));
 
 function LegacySettingRedirect() {
   const { activeTab } = useParams();
@@ -20,6 +21,22 @@ const SettingRoutes = {
     {
       path: 'setting',
       element: <SettingPage />
+    },
+    {
+      path: 'system-setting',
+      element: <SystemSettingPage />
+    },
+    {
+      path: 'system-setting/:activeMenu',
+      element: <SystemSettingPage />
+    },
+    {
+      path: 'system-setting/:activeMenu/:moduleKey',
+      element: <SystemSettingPage />
+    },
+    {
+      path: 'system-setting/:activeMenu/:moduleKey/:masterItem',
+      element: <SystemSettingPage />
     },
     {
       path: 'setting/:activeTab',

@@ -9,6 +9,9 @@ import App from './App';
 import store from './redux/store';
 
 import '@fontsource/montserrat/500.css';
+import { applyThemePreference, getThemePreference } from './utils/themePreference';
+
+applyThemePreference(getThemePreference());
 
 const container = document.getElementById('root');
 const root = createRoot(container);
