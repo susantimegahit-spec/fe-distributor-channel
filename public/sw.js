@@ -1,10 +1,5 @@
-const CACHE_NAME = 'distributor-channel-v10';
-const APP_SHELL = [
-  './',
-  './manifest.webmanifest',
-  './customer-portal-favicon.png',
-  './customer-portal-logo.png'
-];
+const CACHE_NAME = 'distributor-channel-v41';
+const APP_SHELL = ['./', './manifest.webmanifest', './customer-portal-favicon.png', './customer-portal-logo.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -19,7 +14,9 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((cacheNames) => Promise.all(cacheNames.filter((cacheName) => cacheName !== CACHE_NAME).map((cacheName) => caches.delete(cacheName))))
+      .then((cacheNames) =>
+        Promise.all(cacheNames.filter((cacheName) => cacheName !== CACHE_NAME).map((cacheName) => caches.delete(cacheName)))
+      )
       .then(() => self.clients.claim())
   );
 });

@@ -28,6 +28,7 @@ const customerPortalMenu = [
     value: 'masterData',
     label: 'Master Data',
     selected: true,
+    collapsible: false,
     children: [
       {
         id: 'master-price',

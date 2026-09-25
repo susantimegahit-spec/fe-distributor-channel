@@ -14,12 +14,14 @@ import ProductionRoutes from './ProductionRoutes';
 import HelpDeskRoutes from './HelpDeskRoutes';
 import { NotFoundPage } from '../views/ErrorBoundary';
 import ErrorPage from '../views/errors/ErrorPage';
+import DashboardBuilderPage from '../views/dashboard/DashboardBuilderPage';
 
 const ERROR_STATUSES = [400, 401, 403, 404, 408, 429, 500, 502, 503, 504];
 
 // ==============================|| ROUTING RENDER ||============================== //
 const router = createBrowserRouter(
   [
+    { path: '/dashboard-builder', element: <DashboardBuilderPage /> },
     NavigationRoutes,
     // ComponentsRoutes,
     // FormsRoutes,

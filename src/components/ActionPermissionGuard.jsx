@@ -19,7 +19,11 @@ export default function ActionPermissionGuard() {
     const actionsCookie = getCookies('actions');
     const isAdministratorSetting =
       isAdministratorRole(roleId) &&
-      (pathname === '/setting' || pathname.startsWith('/setting/') || pathname.startsWith('/customer-portal/setting'));
+      (pathname === '/setting' ||
+        pathname.startsWith('/setting/') ||
+        pathname === '/system-setting' ||
+        pathname.startsWith('/system-setting/') ||
+        pathname.startsWith('/customer-portal/setting'));
 
     const applyPermissions = (root = document) => {
       const elements = [];
@@ -53,9 +57,20 @@ export default function ActionPermissionGuard() {
 
     applyPermissions();
     const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => mutation.addedNodes.forEach((node) => node instanceof Element && applyPermissions(node)));
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'attributes' && mutation.target instanceof Element) {
+          applyPermissions(mutation.target);
+          return;
+        }
+        mutation.addedNodes.forEach((node) => node instanceof Element && applyPermissions(node));
+      });
     });
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['data-permission-action', 'data-permission-menu-key']
+    });
 
     return () => {
       observer.disconnect();

@@ -27,13 +27,44 @@ const documentLabels = {
 };
 
 const getRegistrations = (response) => {
-  const data = response?.data?.data ?? response?.data ?? {};
-  if (Array.isArray(data)) return { rows: data, total: data.length };
+  const payload = response?.data?.data ?? response?.data ?? response ?? {};
+  const queue = [payload];
+  const visited = new Set();
+  const collectionKeys = ['data', 'items', 'rows', 'registrations', 'vendor_registrations', 'vendorRegistrations', 'vendors', 'results'];
+  let rows = [];
 
-  const rows = data?.data ?? data?.items ?? data?.registrations ?? [];
+  while (queue.length && !rows.length) {
+    const candidate = queue.shift();
+    if (!candidate || typeof candidate !== 'object' || visited.has(candidate)) continue;
+    visited.add(candidate);
+
+    if (Array.isArray(candidate)) {
+      rows = candidate;
+      break;
+    }
+
+    collectionKeys.forEach((key) => {
+      const value = candidate[key];
+      if (Array.isArray(value) && !rows.length) rows = value;
+      else if (value && typeof value === 'object') queue.push(value);
+    });
+  }
+
+  const totalCandidates = [
+    payload?.total,
+    payload?.meta?.total,
+    payload?.pagination?.total,
+    payload?.data?.total,
+    payload?.registrations?.total,
+    payload?.vendor_registrations?.total,
+    payload?.vendorRegistrations?.total,
+    rows.length
+  ];
+  const total = totalCandidates.find((value) => value !== undefined && value !== null && Number.isFinite(Number(value)));
+
   return {
-    rows: Array.isArray(rows) ? rows : [],
-    total: Number(data?.total ?? rows?.length ?? 0)
+    rows,
+    total: Number(total ?? rows.length)
   };
 };
 
@@ -132,13 +163,16 @@ const getDocumentStatus = (document) => document?.status ?? document?.verificati
 
 export default function VendorRegistrations({
   approvedOnly = false,
+  allowManagementActions = false,
+  includeAllStatuses = false,
+  showStatusFilter = false,
   title = 'Vendor Registrations',
   subheader = 'Review companies that have registered through the Vendor Portal.'
 }) {
   const { showAlert } = useAlert();
   const [registrations, setRegistrations] = useState([]);
-  const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -190,21 +224,20 @@ export default function VendorRegistrations({
           const status = String(getValue(vendor, ['status', 'registration_status'], ''))
             .trim()
             .toLowerCase();
-          return approvedOnly ? status === 'approved' : status !== 'approved';
+          if (approvedOnly) return status === 'approved';
+          return includeAllStatuses || status !== 'approved';
         });
         setRegistrations(filteredRows);
-        setTotal(filteredRows.length);
         setPage((current) => Math.min(current, Math.max(1, Math.ceil(filteredRows.length / pageSize))));
       } catch (error) {
         if (!isCurrent()) return;
         setRegistrations([]);
-        setTotal(0);
         showAlert(error.response?.data?.message || error.message || 'Unable to load vendor registrations.', 'danger');
       } finally {
         if (isCurrent()) setLoading(false);
       }
     },
-    [approvedOnly, debouncedSearch, showAlert]
+    [approvedOnly, debouncedSearch, includeAllStatuses, showAlert]
   );
 
   useEffect(() => {
@@ -373,18 +406,46 @@ export default function VendorRegistrations({
     }
   };
 
-  const pageCount = Math.max(1, Math.ceil(total / pageSize));
-  const hasRows = registrations.length > 0;
+  const statusOptions = useMemo(
+    () =>
+      [
+        ...new Set(registrations.map((vendor) => String(getValue(vendor, ['status', 'registration_status'], '')).trim()).filter(Boolean))
+      ].sort((first, second) => formatStatus(first).localeCompare(formatStatus(second))),
+    [registrations]
+  );
+  const filteredRegistrations = useMemo(
+    () =>
+      statusFilter
+        ? registrations.filter(
+            (vendor) =>
+              String(getValue(vendor, ['status', 'registration_status'], ''))
+                .trim()
+                .toLowerCase() === statusFilter.toLowerCase()
+          )
+        : registrations,
+    [registrations, statusFilter]
+  );
+  const filteredTotal = filteredRegistrations.length;
+  const filteredPageCount = Math.max(1, Math.ceil(filteredTotal / pageSize));
+  const hasRows = filteredRegistrations.length > 0;
   const detailDocuments = getDocuments(vendorDetail);
   const summary = useMemo(
     () => ({
-      pending: registrations.filter((item) =>
+      pending: filteredRegistrations.filter((item) =>
         ['pending', 'submitted', 'review'].includes(String(getValue(item, ['status'], '')).toLowerCase())
       ).length,
-      total
+      total: filteredTotal
     }),
-    [registrations, total]
+    [filteredRegistrations, filteredTotal]
   );
+
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter]);
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, filteredPageCount));
+  }, [filteredPageCount]);
 
   return (
     <MainCard
@@ -405,12 +466,29 @@ export default function VendorRegistrations({
             {summary.total} total registrations
           </Badge>
         </div>
-        <InputGroup style={{ maxWidth: 320 }}>
-          <InputGroup.Text>
-            <i className="ti ti-search" />
-          </InputGroup.Text>
-          <Form.Control value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search company, email, or PIC" />
-        </InputGroup>
+        <div className="d-flex flex-wrap justify-content-end gap-2 flex-grow-1">
+          {showStatusFilter ? (
+            <Form.Select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+              aria-label="Filter vendor registration status"
+              style={{ maxWidth: 220 }}
+            >
+              <option value="">All statuses</option>
+              {statusOptions.map((status) => (
+                <option key={status} value={status}>
+                  {formatStatus(status)}
+                </option>
+              ))}
+            </Form.Select>
+          ) : null}
+          <InputGroup style={{ maxWidth: 320 }}>
+            <InputGroup.Text>
+              <i className="ti ti-search" />
+            </InputGroup.Text>
+            <Form.Control value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search company, email, or PIC" />
+          </InputGroup>
+        </div>
       </div>
 
       <Table responsive hover className="mb-0 align-middle">
@@ -433,7 +511,7 @@ export default function VendorRegistrations({
             </tr>
           ) : null}
           {!loading && hasRows
-            ? registrations.slice((page - 1) * pageSize, page * pageSize).map((vendor, index) => {
+            ? filteredRegistrations.slice((page - 1) * pageSize, page * pageSize).map((vendor, index) => {
                 const status = getValue(vendor, ['status', 'registration_status'], 'Pending');
                 const vendorId = vendor?.id ?? vendor?.uuid ?? vendor?.vendor_id;
                 return (
@@ -488,13 +566,13 @@ export default function VendorRegistrations({
           ) : null}
         </tbody>
       </Table>
-      {!loading && total > 0 ? (
+      {!loading && filteredTotal > 0 ? (
         <TablePagination
           currentPage={page}
           onPageChange={setPage}
-          pageCount={pageCount}
+          pageCount={filteredPageCount}
           pageSize={pageSize}
-          total={total}
+          total={filteredTotal}
           itemLabel="registrations"
         />
       ) : null}
@@ -669,7 +747,7 @@ export default function VendorRegistrations({
           </Button>
           <Button
             variant="outline-danger"
-            data-permission-action="approve"
+            data-permission-action={allowManagementActions ? 'none' : 'approve'}
             data-permission-menu-key={vendorActionMenuKeys}
             onClick={() => openRegistrationAction('reject')}
           >
@@ -677,7 +755,7 @@ export default function VendorRegistrations({
           </Button>
           <Button
             variant="success"
-            data-permission-action="approve"
+            data-permission-action={allowManagementActions ? 'none' : 'approve'}
             data-permission-menu-key={vendorActionMenuKeys}
             onClick={() => openRegistrationAction('approve')}
           >
@@ -718,7 +796,7 @@ export default function VendorRegistrations({
                 <button
                   type="button"
                   className="dropdown-item"
-                  data-permission-action="approve"
+                  data-permission-action={allowManagementActions ? 'none' : 'approve'}
                   data-permission-menu-key={vendorActionMenuKeys}
                   disabled={!documentId || Boolean(submittingDocumentAction)}
                   onClick={() => updateDocumentStatus(documentId, 'VALID')}
@@ -728,7 +806,7 @@ export default function VendorRegistrations({
                 <button
                   type="button"
                   className="dropdown-item"
-                  data-permission-action="approve"
+                  data-permission-action={allowManagementActions ? 'none' : 'approve'}
                   data-permission-menu-key={vendorActionMenuKeys}
                   disabled={!documentId || Boolean(submittingDocumentAction)}
                   onClick={() => openDocumentRevision(selectedDocument, 'NEEDS_REVISION')}
@@ -738,7 +816,7 @@ export default function VendorRegistrations({
                 <button
                   type="button"
                   className="dropdown-item"
-                  data-permission-action="approve"
+                  data-permission-action={allowManagementActions ? 'none' : 'approve'}
                   data-permission-menu-key={vendorActionMenuKeys}
                   disabled={!documentId || Boolean(submittingDocumentAction)}
                   onClick={() => openDocumentRevision(selectedDocument, 'INVALID')}
@@ -790,7 +868,7 @@ export default function VendorRegistrations({
             <Button
               type="submit"
               variant={revisionDocument?.status === 'INVALID' ? 'danger' : 'warning'}
-              data-permission-action="approve"
+              data-permission-action={allowManagementActions ? 'none' : 'approve'}
               data-permission-menu-key={vendorActionMenuKeys}
               disabled={Boolean(submittingDocumentAction) || !revisionReason.trim()}
             >
@@ -858,7 +936,7 @@ export default function VendorRegistrations({
             <Button
               type="submit"
               variant={registrationAction?.type === 'approve' ? 'success' : 'danger'}
-              data-permission-action="approve"
+              data-permission-action={allowManagementActions ? 'none' : 'approve'}
               data-permission-menu-key={vendorActionMenuKeys}
               disabled={submittingRegistrationAction || (registrationAction?.type === 'reject' && !rejectionReason.trim())}
             >

@@ -1,16 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import Col from 'react-bootstrap/Col';
-import Row from 'react-bootstrap/Row';
 import MainCard from 'components/MainCard';
 import { isAdministratorRole } from '../../systems';
 import { getCookies } from '../../utils/cookies';
-import DashboardBuilder, { readLayout } from './DashboardBuilder';
+import { layoutKey, readLayout } from './DashboardBuilder';
 import { widgetRegistry } from './widget';
 export default function Dashboard() {
   const roleId = String(getCookies('role') || '');
   const isAdministrator = isAdministratorRole(roleId);
   const [layout, setLayout] = useState(() => readLayout(roleId));
-  const [showBuilder, setShowBuilder] = useState(false);
   useEffect(() => {
     const update = (e) => {
       if (String(e.detail?.roleId) === roleId) setLayout(readLayout(roleId));
@@ -18,20 +15,43 @@ export default function Dashboard() {
     window.addEventListener('dashboard-layout-updated', update);
     return () => window.removeEventListener('dashboard-layout-updated', update);
   }, [roleId]);
-  const widgets = useMemo(() => layout.map((id) => widgetRegistry.find((w) => w.id === id)).filter(Boolean), [layout]);
+  useEffect(() => {
+    const syncLayoutFromBuilderTab = (event) => {
+      if (event.key === layoutKey(roleId)) setLayout(readLayout(roleId));
+    };
+    window.addEventListener('storage', syncLayoutFromBuilderTab);
+    return () => window.removeEventListener('storage', syncLayoutFromBuilderTab);
+  }, [roleId]);
+  const widgets = useMemo(
+    () =>
+      layout.widgets
+        .map((item) => ({ ...item, definition: widgetRegistry.find((widget) => widget.id === item.id) }))
+        .filter((item) => item.definition),
+    [layout]
+  );
   return (
     <div className="sm-global-dashboard">
       {widgets.length ? (
-        <Row className="g-3">
-          {widgets.map((w) => {
-            const Widget = w.component;
-            return (
-              <Col xs={12} md={6} xl={4} key={w.id}>
-                <Widget />
-              </Col>
-            );
-          })}
-        </Row>
+        <div className="sm-global-dashboard-rows">
+          {layout.rows.map((row, rowIndex) => (
+            <div
+              className="sm-global-dashboard-grid"
+              style={{ gridTemplateColumns: `repeat(${row.columns}, minmax(0, 1fr))` }}
+              key={rowIndex}
+            >
+              {widgets
+                .filter((item) => item.row === rowIndex + 1)
+                .map((item) => {
+                  const Widget = item.definition.component;
+                  return (
+                    <div style={{ gridColumn: `${item.column} / span ${item.span}` }} key={item.id}>
+                      <Widget />
+                    </div>
+                  );
+                })}
+            </div>
+          ))}
+        </div>
       ) : (
         <MainCard>
           <div className="sm-global-dashboard-empty">
@@ -48,20 +68,18 @@ export default function Dashboard() {
         </MainCard>
       )}
       {isAdministrator && (
-        <button type="button" className="sm-dashboard-builder-fab" onClick={() => setShowBuilder(true)}>
-          <i className="ti ti-adjustments-horizontal" />
-          <span>Setting Dashboard</span>
-        </button>
-      )}
-      {isAdministrator && (
-        <DashboardBuilder
-          show={showBuilder}
-          onClose={() => setShowBuilder(false)}
-          roleId={roleId}
-          onSaved={(target) => {
-            if (String(target) === roleId) setLayout(readLayout(roleId));
+        <button
+          type="button"
+          className="sm-dashboard-builder-fab"
+          title="Setting Dashboard"
+          aria-label="Buka Setting Dashboard"
+          onClick={() => {
+            const baseName = (import.meta.env.VITE_APP_BASE_NAME || '').replace(/\/$/, '');
+            window.open(`${baseName}/dashboard-builder`, '_blank', 'noopener,noreferrer');
           }}
-        />
+        >
+          <i className="ti ti-adjustments-horizontal" />
+        </button>
       )}
     </div>
   );

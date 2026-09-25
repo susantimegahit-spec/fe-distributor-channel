@@ -359,17 +359,21 @@ export default function ProductionDashboard() {
             ) : readyOrders.length ? (
               readyOrders.map((order) => (
                 <tr key={order.id}>
-                  <td>
-                    <button
-                      type="button"
-                      className="border-0 bg-transparent p-0 fw-semibold text-start"
-                      style={{ color: '#315fb4' }}
-                      disabled={!order.id}
-                      aria-label={`View Sales Order ${order.orderNumber} detail`}
-                      onClick={() => setSelectedSalesOrder({ id: order.id, number: order.orderNumber })}
-                    >
-                      {order.orderNumber}
-                    </button>
+                  <td className="sm-order-ready-order-cell">
+                    {order.id !== undefined && order.id !== null ? (
+                      <button
+                        type="button"
+                        className="sm-order-number-button border-0 bg-transparent p-0 fw-semibold text-start"
+                        data-permission-action="utility"
+                        aria-label={`View Sales Order ${order.orderNumber} detail`}
+                        onClick={() => setSelectedSalesOrder({ id: order.id, number: order.orderNumber })}
+                      >
+                        <span>{order.orderNumber || '-'}</span>
+                        <i className="ti ti-external-link" aria-hidden="true" />
+                      </button>
+                    ) : (
+                      <span className="sm-order-number-value fw-semibold">{order.orderNumber || '-'}</span>
+                    )}
                   </td>
                   <td>
                     <div className="fw-semibold">{order.customer}</div>

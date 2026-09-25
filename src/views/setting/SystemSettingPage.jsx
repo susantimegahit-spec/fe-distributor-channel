@@ -2,6 +2,7 @@ import { lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import Col from 'react-bootstrap/Col';
+import Button from 'react-bootstrap/Button';
 import Collapse from 'react-bootstrap/Collapse';
 import Nav from 'react-bootstrap/Nav';
 import Row from 'react-bootstrap/Row';
@@ -76,21 +77,43 @@ function PersonalizeSettings() {
   return (
     <MainCard title="Personalize" subheader="Choose the appearance used across the application.">
       <div className="system-setting-theme-options">
-        <button type="button" disabled={Boolean(switchingTheme)} className={theme === 'light' ? 'active' : ''} onClick={() => selectTheme('light')}>
-          <span className="system-setting-theme-preview is-light"><i className="ti ti-sun" /></span>
-          <span><strong>Light Mode</strong><small>Bright and clean appearance</small></span>
+        <button
+          type="button"
+          disabled={Boolean(switchingTheme)}
+          className={theme === 'light' ? 'active' : ''}
+          onClick={() => selectTheme('light')}
+        >
+          <span className="system-setting-theme-preview is-light">
+            <i className="ti ti-sun" />
+          </span>
+          <span>
+            <strong>Light Mode</strong>
+            <small>Bright and clean appearance</small>
+          </span>
           <i className={`ti ${theme === 'light' ? 'ti-circle-check-filled' : 'ti-circle'}`} />
         </button>
-        <button type="button" disabled={Boolean(switchingTheme)} className={theme === 'dark' ? 'active' : ''} onClick={() => selectTheme('dark')}>
-          <span className="system-setting-theme-preview is-dark"><i className="ti ti-moon" /></span>
-          <span><strong>Dark Mode</strong><small>Comfortable appearance in low light</small></span>
+        <button
+          type="button"
+          disabled={Boolean(switchingTheme)}
+          className={theme === 'dark' ? 'active' : ''}
+          onClick={() => selectTheme('dark')}
+        >
+          <span className="system-setting-theme-preview is-dark">
+            <i className="ti ti-moon" />
+          </span>
+          <span>
+            <strong>Dark Mode</strong>
+            <small>Comfortable appearance in low light</small>
+          </span>
           <i className={`ti ${theme === 'dark' ? 'ti-circle-check-filled' : 'ti-circle'}`} />
         </button>
       </div>
       {switchingTheme ? (
         <div className="system-setting-theme-loader" role="status" aria-live="polite">
           <div className="system-setting-theme-loader-card">
-            <span className="system-setting-theme-loader-icon"><i className="ti ti-loader-2" /></span>
+            <span className="system-setting-theme-loader-icon">
+              <i className="ti ti-loader-2" />
+            </span>
             <div>
               <strong>Initializing {switchingTheme === 'dark' ? 'Dark' : 'Light'} Mode</strong>
               <small>Applying colors and interface preferences...</small>
@@ -117,7 +140,9 @@ function MasterDataContent({ moduleKey, masterItem }) {
               key={module.key}
               onClick={() => navigate(`/system-setting/master-data/${module.key}`)}
             >
-              <span><i className={module.icon} /></span>
+              <span>
+                <i className={module.icon} />
+              </span>
               <strong>{module.title}</strong>
               <i className="ti ti-chevron-right" />
             </button>
@@ -144,12 +169,10 @@ function MasterDataContent({ moduleKey, masterItem }) {
       <div className="system-setting-master-list">
         {masterItems.length ? (
           masterItems.map((item) => (
-            <button
-              type="button"
-              key={item.id}
-              onClick={() => navigate(`/system-setting/master-data/${selectedModule.key}/${item.id}`)}
-            >
-              <span><i className={item.icon || 'ti ti-database'} /></span>
+            <button type="button" key={item.id} onClick={() => navigate(`/system-setting/master-data/${selectedModule.key}/${item.id}`)}>
+              <span>
+                <i className={item.icon || 'ti ti-database'} />
+              </span>
               <strong>{item.title}</strong>
               <i className="ti ti-arrow-up-right" />
             </button>
@@ -199,7 +222,19 @@ export default function SystemSettingPage() {
       <MainCard className="system-setting-header-card" bodyClassName="system-setting-header">
         <div>
           <span className="system-setting-eyebrow">ADMINISTRATOR</span>
-          <h3 className="mb-1">System Setting</h3>
+          <div className="system-setting-title-row">
+            <Button
+              type="button"
+              className="system-setting-back-button"
+              data-permission-action="utility"
+              title="Back to Dashboard"
+              aria-label="Back to Dashboard"
+              onClick={() => navigate('/customer-portal/dashboard')}
+            >
+              <i className="ti ti-arrow-left" aria-hidden="true" />
+            </Button>
+            <h3 className="mb-1">System Setting</h3>
+          </div>
           <p className="text-muted mb-0">Manage users, access, master data, automation, and system notifications.</p>
         </div>
         <span className="system-setting-header-icon" aria-hidden="true">
@@ -228,7 +263,9 @@ export default function SystemSettingPage() {
                       }}
                       aria-expanded={masterOpen}
                     >
-                      <span className="system-setting-sidebar-icon"><i className={menu.icon} /></span>
+                      <span className="system-setting-sidebar-icon">
+                        <i className={menu.icon} />
+                      </span>
                       <span className="system-setting-sidebar-copy">{menu.title}</span>
                       <i className={`ti ti-chevron-${masterOpen ? 'down' : 'right'} system-setting-sidebar-arrow`} />
                     </button>
@@ -271,7 +308,9 @@ export default function SystemSettingPage() {
                   </div>
                 ) : (
                   <Nav.Link key={menu.key} eventKey={menu.key} className="system-setting-sidebar-link">
-                    <span className="system-setting-sidebar-icon"><i className={menu.icon} /></span>
+                    <span className="system-setting-sidebar-icon">
+                      <i className={menu.icon} />
+                    </span>
                     <span className="system-setting-sidebar-copy">{menu.title}</span>
                     <i className="ti ti-chevron-right system-setting-sidebar-arrow" aria-hidden="true" />
                   </Nav.Link>

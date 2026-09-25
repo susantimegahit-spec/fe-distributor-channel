@@ -78,8 +78,6 @@ export default function Header({ showSidebar = true }) {
     pathname === '/notifications' ||
     pathname === '/setting' ||
     pathname.startsWith('/setting/') ||
-    pathname === '/system-setting' ||
-    pathname.startsWith('/system-setting/') ||
     pathname.startsWith('/customer-portal/setting');
   const isSettingPage =
     pathname === '/setting' ||
@@ -681,7 +679,9 @@ export default function Header({ showSidebar = true }) {
       {switchingTheme ? (
         <div className="sm-theme-switch-loader" role="status" aria-live="polite">
           <div className="sm-theme-switch-loader-card">
-            <span><i className="ti ti-loader-2" /></span>
+            <span>
+              <i className="ti ti-loader-2" />
+            </span>
             <div>
               <strong>Initializing {switchingTheme === 'dark' ? 'Dark' : 'Light'} Mode</strong>
               <small>Applying colors and interface preferences...</small>

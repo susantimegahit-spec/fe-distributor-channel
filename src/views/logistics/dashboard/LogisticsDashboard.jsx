@@ -73,16 +73,19 @@ const getLogisticOrderPage = (response, requestedPageSize, requestedPage) => {
   };
 };
 const getOrderLines = (order) => order.details || order.lines || order.document_lines || [];
-const getOrderWeight = (order) => getOrderLines(order).reduce((total, line) => {
-  const productName = line.item_name || line.item?.item_name || line.description || '';
-  const match = [...String(productName).matchAll(/(\d+(?:[.,]\d+)?)\s*(kg|kilogram|g|gr|gram)\b/gi)].at(-1);
-  const unitWeight = match ? Number(match[1].replace(',', '.')) / (/^(g|gr|gram)$/i.test(match[2]) ? 1000 : 1) : 0;
-  return total + unitWeight * (Number(line.quantity ?? line.qty ?? 0) || 0);
-}, 0);
+const getOrderWeight = (order) =>
+  getOrderLines(order).reduce((total, line) => {
+    const productName = line.item_name || line.item?.item_name || line.description || '';
+    const match = [...String(productName).matchAll(/(\d+(?:[.,]\d+)?)\s*(kg|kilogram|g|gr|gram)\b/gi)].at(-1);
+    const unitWeight = match ? Number(match[1].replace(',', '.')) / (/^(g|gr|gram)$/i.test(match[2]) ? 1000 : 1) : 0;
+    return total + unitWeight * (Number(line.quantity ?? line.qty ?? 0) || 0);
+  }, 0);
 const formatOrderDate = (value) => {
   if (!value) return '-';
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '-' : new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
+  return Number.isNaN(date.getTime())
+    ? '-'
+    : new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
 };
 const normalizeLocationName = (value) =>
   String(value || '')
@@ -102,12 +105,17 @@ const subtractDays = (dateValue, days) => {
 const normalizeDeliveryOrder = (order) => {
   const salesOrder = { ...order, ...(order.sales_order || order.order || {}) };
   const firstLine = getOrderLines(salesOrder)[0] || {};
+  const orderId = salesOrder.id ?? salesOrder.sales_order_id ?? salesOrder.order_id ?? salesOrder.DocEntry ?? salesOrder.doc_entry;
   return {
     ...salesOrder,
-    id: salesOrder.id,
-    status: String(salesOrder.status || '').trim().toUpperCase(),
-    logisticStatus: String(salesOrder.logistic_status || '').trim().toUpperCase(),
-    orderNumber: salesOrder.sap_doc_num || salesOrder.order_no || salesOrder.id,
+    id: orderId,
+    status: String(salesOrder.status || '')
+      .trim()
+      .toUpperCase(),
+    logisticStatus: String(salesOrder.logistic_status || '')
+      .trim()
+      .toUpperCase(),
+    orderNumber: salesOrder.order_number,
     customer: salesOrder.customer_name || salesOrder.distributor?.name || '-',
     depo: salesOrder.depo || '-',
     originCode: salesOrder.origin_code || firstLine.whs_code || '-',
@@ -132,14 +140,20 @@ const getPayloadList = (response, keys = []) => {
   return [];
 };
 
-const getVendorRateValue = (item, keys) => keys.map((key) => item?.[key]).find((value) => value !== undefined && value !== null && String(value).trim() !== '') ?? '';
+const getVendorRateValue = (item, keys) =>
+  keys.map((key) => item?.[key]).find((value) => value !== undefined && value !== null && String(value).trim() !== '') ?? '';
 const getVendorRateBatchId = (header) => getVendorRateValue(header, ['batch_id', 'batchId', 'id', 'uuid', 'header_id', 'headerId']);
 const getVendorRateId = (rate) => getVendorRateValue(rate, ['id', 'rate_id', 'rateId']);
 const isPendingVendorRate = (rate) =>
-  String(getVendorRateValue(rate, ['approval_status', 'approvalStatus']) || 'PENDING').trim().toUpperCase() === 'PENDING';
+  String(getVendorRateValue(rate, ['approval_status', 'approvalStatus']) || 'PENDING')
+    .trim()
+    .toUpperCase() === 'PENDING';
 const getVendorRateName = (header) =>
   getVendorRateValue(header, ['vendor_name', 'company_name', 'expedition_name', 'vendorName', 'companyName']) ||
-  header?.vendor?.company_name || header?.vendor?.name || header?.expedition?.expedition_name || '-';
+  header?.vendor?.company_name ||
+  header?.vendor?.name ||
+  header?.expedition?.expedition_name ||
+  '-';
 
 const formatMasterOption = ({ label, code, customerCode }) => (
   <div>
@@ -476,7 +490,10 @@ export default function LogisticsDashboard() {
       }
       setPendingRateHeaders(
         getPayloadList(response, ['headers', 'rates']).filter(
-          (header) => String(getVendorRateValue(header, ['approval_status', 'approvalStatus'])).trim().toUpperCase() === 'PENDING'
+          (header) =>
+            String(getVendorRateValue(header, ['approval_status', 'approvalStatus']))
+              .trim()
+              .toUpperCase() === 'PENDING'
         )
       );
     } catch (error) {
@@ -796,92 +813,96 @@ export default function LogisticsDashboard() {
               <tbody>
                 {loadingDeliveryOrders ? (
                   <tr>
-                    <td colSpan={10} className="text-center py-4">Loading Sales Orders...</td>
+                    <td colSpan={10} className="text-center py-4">
+                      Loading Sales Orders...
+                    </td>
                   </tr>
                 ) : deliveryOrdersError ? (
                   <tr>
-                    <td colSpan={10} className="text-center text-danger py-4">{deliveryOrdersError}</td>
+                    <td colSpan={10} className="text-center text-danger py-4">
+                      {deliveryOrdersError}
+                    </td>
                   </tr>
-                ) : deliveryOrders.length ? deliveryOrders.map((order) => (
-                  <tr key={order.id}>
-                    <td>
-                      <button
-                        type="button"
-                        className="border-0 bg-transparent p-0 fw-semibold text-start"
-                        style={{ color: '#315fb4' }}
-                        disabled={!order.id}
-                        aria-label={`View reschedule history for order ${order.orderNumber}`}
-                        onClick={() => setOrderLogDetail(order)}
-                      >
-                        {order.orderNumber}
-                      </button>
-                    </td>
-                    <td>
-                      <div className="fw-semibold">{order.customer}</div>
-                      <small className="text-muted d-block">
-                        {order.depo}
-                      </small>
-                    </td>
-                    <td>
-                      <div>{order.origin}</div>
-                      <small className="text-muted">{order.originCode}</small>
-                    </td>
-                    <td className="text-end fw-semibold">{order.weight.toLocaleString('id-ID')} kg</td>
-                    <td>{order.loadingDate}</td>
-                    <td>{order.etaDate}</td>
-                    <td>{order.proposedEtaDate}</td>
-                    <td>
-                      <Badge
-                        bg={order.status === 'ORDER_APPROVED' ? 'success' : 'warning'}
-                        text={order.status === 'ORDER_APPROVED' ? 'light' : 'dark'}
-                      >
-                        {order.status.replaceAll('_', ' ')}
-                      </Badge>
-                    </td>
-                    <td>
-                      {order.logisticStatus ? (
-                        <Badge
-                          bg=""
-                          style={{ backgroundColor: logisticStatusColors[order.logisticStatus] || '#6b7280', color: '#ffffff' }}
+                ) : deliveryOrders.length ? (
+                  deliveryOrders.map((order) => (
+                    <tr key={order.id}>
+                      <td>
+                        <button
+                          type="button"
+                          className="sm-logistics-order-number"
+                          data-permission-action="utility"
+                          disabled={!order.id}
+                          aria-label={`View reschedule history for order ${order.orderNumber}`}
+                          onClick={() => setOrderLogDetail(order)}
                         >
-                          {order.logisticStatus.replaceAll('_', ' ')}
+                          {order.orderNumber}
+                        </button>
+                      </td>
+                      <td>
+                        <div className="fw-semibold">{order.customer}</div>
+                        <small className="text-muted d-block">{order.depo}</small>
+                      </td>
+                      <td>
+                        <div>{order.origin}</div>
+                        <small className="text-muted">{order.originCode}</small>
+                      </td>
+                      <td className="text-end fw-semibold">{order.weight.toLocaleString('id-ID')} kg</td>
+                      <td>{order.loadingDate}</td>
+                      <td>{order.etaDate}</td>
+                      <td>{order.proposedEtaDate}</td>
+                      <td>
+                        <Badge
+                          bg={order.status === 'ORDER_APPROVED' ? 'success' : 'warning'}
+                          text={order.status === 'ORDER_APPROVED' ? 'light' : 'dark'}
+                        >
+                          {order.status.replaceAll('_', ' ')}
                         </Badge>
-                      ) : (
-                        <span className="text-muted">-</span>
-                      )}
-                    </td>
-                    <td className="text-end">
-                      {order.status === 'ORDER_APPROVED' && !['APPROVED', 'RESCHEDULE_APPROVED'].includes(order.logisticStatus) && (
-                        <Stack direction="horizontal" gap={1} className="justify-content-end">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline-success"
-                            className="logistics-order-action logistics-order-action--confirm"
-                            aria-label={`Approve order ${order.orderNumber} for packing`}
-                            title="Approve for Packing"
-                            disabled={approvingOrderId !== null}
-                            onClick={() => setOrderToApprove(order)}
+                      </td>
+                      <td>
+                        {order.logisticStatus ? (
+                          <Badge
+                            bg=""
+                            style={{ backgroundColor: logisticStatusColors[order.logisticStatus] || '#6b7280', color: '#ffffff' }}
                           >
-                            <i className={`ti ${String(approvingOrderId) === String(order.id) ? 'ti-loader-2' : 'ti-check'}`} />
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline-danger"
-                            className="logistics-order-action"
-                            aria-label={`Reschedule order ${order.orderNumber}`}
-                            title="Reschedule Order"
-                            disabled={approvingOrderId !== null || reschedulingOrderId !== null}
-                            onClick={() => openCloseOrderModal(order)}
-                          >
-                            <i className="ti ti-x" />
-                          </Button>
-                        </Stack>
-                      )}
-                    </td>
-                  </tr>
-                )) : (
+                            {order.logisticStatus.replaceAll('_', ' ')}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted">-</span>
+                        )}
+                      </td>
+                      <td className="text-end">
+                        {order.status === 'ORDER_APPROVED' && !['APPROVED', 'RESCHEDULE_APPROVED'].includes(order.logisticStatus) && (
+                          <Stack direction="horizontal" gap={1} className="justify-content-end">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline-success"
+                              className="logistics-order-action logistics-order-action--confirm"
+                              aria-label={`Approve order ${order.orderNumber} for packing`}
+                              title="Approve for Packing"
+                              disabled={approvingOrderId !== null}
+                              onClick={() => setOrderToApprove(order)}
+                            >
+                              <i className={`ti ${String(approvingOrderId) === String(order.id) ? 'ti-loader-2' : 'ti-check'}`} />
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline-danger"
+                              className="logistics-order-action"
+                              aria-label={`Reschedule order ${order.orderNumber}`}
+                              title="Reschedule Order"
+                              disabled={approvingOrderId !== null || reschedulingOrderId !== null}
+                              onClick={() => openCloseOrderModal(order)}
+                            >
+                              <i className="ti ti-x" />
+                            </Button>
+                          </Stack>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
                   <tr>
                     <td colSpan={10} className="text-center text-muted py-4">
                       No logistics orders found.
@@ -1109,13 +1130,20 @@ export default function LogisticsDashboard() {
           <tbody>
             {loadingPendingRates ? (
               <tr>
-                <td colSpan={5} className="text-center py-4">Loading pending rates...</td>
+                <td colSpan={5} className="text-center py-4">
+                  Loading pending rates...
+                </td>
               </tr>
             ) : pendingRateHeaders.length ? (
               pendingRateHeaders.map((header) => (
                 <tr key={getVendorRateBatchId(header)}>
                   <td>
-                    <Button variant="link" className="p-0 fw-semibold" onClick={() => openPendingRateDetails(header)} disabled={!getVendorRateBatchId(header)}>
+                    <Button
+                      variant="link"
+                      className="p-0 fw-semibold"
+                      onClick={() => openPendingRateDetails(header)}
+                      disabled={!getVendorRateBatchId(header)}
+                    >
                       {getVendorRateName(header)}
                     </Button>
                   </td>
@@ -1123,13 +1151,17 @@ export default function LogisticsDashboard() {
                   <td>{getVendorRateBatchId(header) || '-'}</td>
                   <td>{header.total_routes ?? 0}</td>
                   <td>
-                    <Badge bg="warning" text="dark">{getVendorRateValue(header, ['approval_status', 'approvalStatus'])}</Badge>
+                    <Badge bg="warning" text="dark">
+                      {getVendorRateValue(header, ['approval_status', 'approvalStatus'])}
+                    </Badge>
                   </td>
                 </tr>
               ))
             ) : !pendingRatesError ? (
               <tr>
-                <td colSpan={5} className="text-center text-muted py-4">Tidak ada rates yang menunggu approval.</td>
+                <td colSpan={5} className="text-center text-muted py-4">
+                  Tidak ada rates yang menunggu approval.
+                </td>
               </tr>
             ) : null}
           </tbody>
@@ -1145,7 +1177,9 @@ export default function LogisticsDashboard() {
           <Modal.Title>Rates {selectedRateHeader ? getVendorRateName(selectedRateHeader) : ''}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <div className="text-muted mb-3">{selectedRateHeader?.period_label} · {selectedRateHeader ? getVendorRateBatchId(selectedRateHeader) : ''}</div>
+          <div className="text-muted mb-3">
+            {selectedRateHeader?.period_label} · {selectedRateHeader ? getVendorRateBatchId(selectedRateHeader) : ''}
+          </div>
           {rateDetailsError ? <div className="text-danger mb-3">{rateDetailsError}</div> : null}
           <Table responsive hover className="mb-0 align-middle">
             <thead>
@@ -1171,39 +1205,47 @@ export default function LogisticsDashboard() {
             <tbody>
               {loadingRateDetails ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-4">Loading rate details...</td>
+                  <td colSpan={7} className="text-center py-4">
+                    Loading rate details...
+                  </td>
                 </tr>
               ) : selectedRateDetails.length ? (
                 selectedRateDetails.map((rate, index) => {
                   const rateId = getVendorRateId(rate);
                   const canSelectRate = isPendingVendorRate(rate) && rateId !== '';
-                  return <tr key={rateId || index}>
-                    <td className="text-center">
-                      <Form.Check
-                        type="checkbox"
-                        className="m-0 d-inline-flex"
-                        checked={canSelectRate && selectedRateDetailIds.includes(String(rateId))}
-                        onChange={() => toggleVendorRate(rateId)}
-                        disabled={Boolean(processingRateApproval) || !canSelectRate}
-                        aria-label={`Select vendor rate ${rateId || index + 1}`}
-                      />
-                    </td>
-                    <td>{getVendorRateValue(rate, ['origin_name', 'originName', 'origin']) || '-'}</td>
-                    <td>{getVendorRateValue(rate, ['destination_name', 'destinationName', 'destination']) || '-'}</td>
-                    <td>{rate.service_type || '-'}</td>
-                    <td>{formatWeightRange(rate.min_weight_kg, rate.max_weight_kg)}</td>
-                    <td>
-                      {currency(rate.rate ?? rate.amount ?? 0)}
-                      {rate.service_type ? `/${rate.service_type}` : ''}
-                    </td>
-                    <td>
-                      <Badge bg="warning" text="dark">{getVendorRateValue(rate, ['approval_status', 'approvalStatus']) || 'PENDING'}</Badge>
-                    </td>
-                  </tr>;
+                  return (
+                    <tr key={rateId || index}>
+                      <td className="text-center">
+                        <Form.Check
+                          type="checkbox"
+                          className="m-0 d-inline-flex"
+                          checked={canSelectRate && selectedRateDetailIds.includes(String(rateId))}
+                          onChange={() => toggleVendorRate(rateId)}
+                          disabled={Boolean(processingRateApproval) || !canSelectRate}
+                          aria-label={`Select vendor rate ${rateId || index + 1}`}
+                        />
+                      </td>
+                      <td>{getVendorRateValue(rate, ['origin_name', 'originName', 'origin']) || '-'}</td>
+                      <td>{getVendorRateValue(rate, ['destination_name', 'destinationName', 'destination']) || '-'}</td>
+                      <td>{rate.service_type || '-'}</td>
+                      <td>{formatWeightRange(rate.min_weight_kg, rate.max_weight_kg)}</td>
+                      <td>
+                        {currency(rate.rate ?? rate.amount ?? 0)}
+                        {rate.service_type ? `/${rate.service_type}` : ''}
+                      </td>
+                      <td>
+                        <Badge bg="warning" text="dark">
+                          {getVendorRateValue(rate, ['approval_status', 'approvalStatus']) || 'PENDING'}
+                        </Badge>
+                      </td>
+                    </tr>
+                  );
                 })
               ) : !rateDetailsError ? (
                 <tr>
-                  <td colSpan={7} className="text-center text-muted py-4">Tidak ada detail rates.</td>
+                  <td colSpan={7} className="text-center text-muted py-4">
+                    Tidak ada detail rates.
+                  </td>
                 </tr>
               ) : null}
             </tbody>
@@ -1232,11 +1274,7 @@ export default function LogisticsDashboard() {
         </Modal.Footer>
       </Modal>
 
-      <Modal
-        show={Boolean(orderToApprove)}
-        onHide={() => approvingOrderId === null && setOrderToApprove(null)}
-        centered
-      >
+      <Modal show={Boolean(orderToApprove)} onHide={() => approvingOrderId === null && setOrderToApprove(null)} centered>
         <Modal.Header closeButton={approvingOrderId === null}>
           <Modal.Title>Approve Order for Packing</Modal.Title>
         </Modal.Header>
@@ -1250,28 +1288,22 @@ export default function LogisticsDashboard() {
           <Button variant="light-secondary" disabled={approvingOrderId !== null} onClick={() => setOrderToApprove(null)}>
             Cancel
           </Button>
-          <Button
-            variant="success"
-            disabled={approvingOrderId !== null}
-            onClick={() => approveOrderPacking(orderToApprove)}
-          >
+          <Button variant="success" disabled={approvingOrderId !== null} onClick={() => approveOrderPacking(orderToApprove)}>
             <i className={`ti ${approvingOrderId !== null ? 'ti-loader-2' : 'ti-check'} me-1`} />
             {approvingOrderId !== null ? 'Approving...' : 'Yes, Approve'}
           </Button>
         </Modal.Footer>
       </Modal>
 
-      <Modal
-        show={Boolean(orderToClose)}
-        onHide={() => reschedulingOrderId === null && setOrderToClose(null)}
-        centered
-      >
+      <Modal show={Boolean(orderToClose)} onHide={() => reschedulingOrderId === null && setOrderToClose(null)} centered>
         <Modal.Header closeButton={reschedulingOrderId === null}>
           <Modal.Title>Reschedule Order {orderToClose?.orderNumber}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Form.Group className="mb-3" controlId="reject-order-eta-date">
-            <Form.Label>Proposed ETA Date <span className="text-muted">(Optional)</span></Form.Label>
+            <Form.Label>
+              Proposed ETA Date <span className="text-muted">(Optional)</span>
+            </Form.Label>
             <Form.Control
               type="date"
               value={closeOrderForm.etaDate}
@@ -1286,7 +1318,9 @@ export default function LogisticsDashboard() {
             />
           </Form.Group>
           <Form.Group className="mb-3" controlId="reject-order-loading-date">
-            <Form.Label>Proposed Loading Date <span className="text-danger">*</span></Form.Label>
+            <Form.Label>
+              Proposed Loading Date <span className="text-danger">*</span>
+            </Form.Label>
             <Form.Control
               type="date"
               required
@@ -1303,7 +1337,9 @@ export default function LogisticsDashboard() {
             </Form.Text>
           </Form.Group>
           <Form.Group controlId="close-order-comment">
-            <Form.Label>Notes <span className="text-danger">*</span></Form.Label>
+            <Form.Label>
+              Notes <span className="text-danger">*</span>
+            </Form.Label>
             <Form.Control
               as="textarea"
               rows={4}
@@ -1331,11 +1367,7 @@ export default function LogisticsDashboard() {
       </Modal>
 
       {orderLogDetail && (
-        <RescheduleLogModal
-          order={orderLogDetail}
-          onClose={() => setOrderLogDetail(null)}
-          onSuccess={fetchDeliveryOrders}
-        />
+        <RescheduleLogModal order={orderLogDetail} onClose={() => setOrderLogDetail(null)} onSuccess={fetchDeliveryOrders} />
       )}
     </Stack>
   );
