@@ -2,26 +2,6 @@ const withBasePath = (path) => `/purchasing${path}`;
 
 const purchasingMenu = [
   {
-    id: 'purchasing-dashboard-group',
-    title: 'Dashboard',
-    type: 'group',
-    value: 'purchasing-dashboard-group',
-    label: 'Dashboard',
-    selected: true,
-    children: [
-      {
-        id: 'purchasing-dashboard',
-        title: 'Dashboard',
-        type: 'item',
-        value: 'purchasing-dashboard',
-        label: 'Dashboard',
-        selected: true,
-        icon: 'ti ti-shopping-cart',
-        url: withBasePath('/dashboard')
-      }
-    ]
-  },
-  {
     id: 'purchasing-transaction',
     title: 'Purchasing',
     type: 'group',

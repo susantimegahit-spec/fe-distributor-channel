@@ -2,23 +2,14 @@ const withBasePath = (path) => `/logistics${path}`;
 
 const logisticsMenu = [
   {
-    id: 'dashboard',
-    title: 'Dashboard',
+    id: 'logistics-navigation',
+    title: 'Logistics',
     type: 'group',
-    value: 'dashboard',
-    label: 'Dashboard',
+    value: 'logistics-navigation',
+    label: 'Logistics',
     selected: true,
+    collapsible: false,
     children: [
-      {
-        id: 'logistics-overview',
-        title: 'Dashboard',
-        type: 'item',
-        value: 'logistics-overview',
-        label: 'Dashboard',
-        selected: true,
-        icon: 'ti ti-truck-delivery',
-        url: withBasePath('/dashboard')
-      },
       {
         id: 'logistics-picklists',
         title: 'Picklist',

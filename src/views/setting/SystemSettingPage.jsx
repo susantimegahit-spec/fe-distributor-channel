@@ -29,6 +29,7 @@ const Material = Loadable(lazy(() => import('views/production/master/material/Ma
 const Resource = Loadable(lazy(() => import('views/production/master/resource/Resource')));
 const Warehouse = Loadable(lazy(() => import('views/production/master/warehouse/Warehouse')));
 const VendorRegistrations = Loadable(lazy(() => import('views/vendor-management/VendorRegistrations')));
+const settingMasterDataModules = masterDataModules.filter((module) => !['production', 'vendor-management'].includes(module.key));
 
 const masterDataComponents = {
   'master-distributor': MasterDistributor,
@@ -133,7 +134,7 @@ function MasterDataContent({ moduleKey, masterItem }) {
     return (
       <MainCard title="Master Data" subheader="Select a module from the sidebar to manage its master data.">
         <div className="system-setting-module-grid">
-          {masterDataModules.map((module) => (
+          {settingMasterDataModules.map((module) => (
             <button
               type="button"
               className="system-setting-module-card"
@@ -271,7 +272,7 @@ export default function SystemSettingPage() {
                     </button>
                     <Collapse in={masterOpen}>
                       <div className="system-setting-master-submenu">
-                        {masterDataModules.map((module) => {
+                        {settingMasterDataModules.map((module) => {
                           const isModuleOpen = moduleKey === module.key;
                           return (
                             <div className={`system-setting-master-module ${isModuleOpen ? 'is-open' : ''}`} key={module.key}>

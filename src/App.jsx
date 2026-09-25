@@ -42,11 +42,19 @@ const ProviderConfig = () => {
 
 function App() {
   useEffect(() => {
+    const baseName = (import.meta.env.VITE_APP_BASE_NAME || '').replace(/\/$/, '');
+    const pathname =
+      baseName && window.location.pathname.startsWith(baseName)
+        ? window.location.pathname.slice(baseName.length) || '/'
+        : window.location.pathname;
+    const isVendorPortal = pathname === '/vendor-portal' || pathname.startsWith('/vendor-portal/');
+
     const syncTheme = (event) => {
       if (event.type === 'storage' && event.key && event.key !== THEME_STORAGE_KEY) return;
-      applyThemePreference(event.detail?.theme || getThemePreference());
+      applyThemePreference(isVendorPortal ? 'light' : event.detail?.theme || getThemePreference());
     };
 
+    syncTheme({ type: 'initial' });
     window.addEventListener('storage', syncTheme);
     window.addEventListener(THEME_CHANGED_EVENT, syncTheme);
     return () => {

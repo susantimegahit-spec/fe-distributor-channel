@@ -2,26 +2,6 @@ const withBasePath = (path) => `/customer-portal${path}`;
 
 const customerPortalMenu = [
   {
-    id: 'dashboard',
-    title: 'Dashboard',
-    type: 'group',
-    value: 'dashboard',
-    label: 'Dashboard',
-    selected: true,
-    children: [
-      {
-        id: 'dashboard-overview',
-        title: 'Dashboard',
-        type: 'item',
-        value: 'dashboard-overview',
-        label: 'Dashboard',
-        selected: true,
-        icon: 'ti ti-building-store',
-        url: withBasePath('/dashboard')
-      }
-    ]
-  },
-  {
     id: 'master',
     title: 'Master Data',
     type: 'group',

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'distributor-channel-v41';
+const CACHE_NAME = 'distributor-channel-v43';
 const APP_SHELL = ['./', './manifest.webmanifest', './customer-portal-favicon.png', './customer-portal-logo.png'];
 
 self.addEventListener('install', (event) => {

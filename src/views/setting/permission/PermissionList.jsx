@@ -30,9 +30,7 @@ const pageSize = 10;
 const accessibleSystemOptions = [
   { value: SYSTEM_KEYS.CUSTOMER_PORTAL, label: 'Customer Portal' },
   { value: SYSTEM_KEYS.ENTERPRISE, label: 'Corporate' },
-  { value: SYSTEM_KEYS.LOGISTICS, label: 'Logistics' },
-  { value: SYSTEM_KEYS.VENDOR_MANAGEMENT, label: 'Vendor Management' },
-  { value: SYSTEM_KEYS.PRODUCTION, label: 'Production' }
+  { value: SYSTEM_KEYS.LOGISTICS, label: 'Logistics' }
 ];
 
 const getMasterApprovalId = (item) => item?.id || '';
