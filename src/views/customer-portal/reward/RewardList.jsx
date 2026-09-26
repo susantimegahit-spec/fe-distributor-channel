@@ -887,6 +887,7 @@ export default function RewardList() {
             canManageReward ? (
               <Button
                 variant="success"
+                disabled={!canCreateWithdrawal}
                 onClick={() => {
                   setActiveRewardTab('history');
                   setHistoryRefreshId((currentId) => currentId + 1);
@@ -1125,14 +1126,16 @@ export default function RewardList() {
                             </tr>
                             {isExpanded ? (
                               <tr key={`${claim.id}-summary`}>
-                                <td colSpan={8} className="bg-light py-3 px-4">
+                                <td colSpan={8} className="bg-light py-3 px-4 claim-summary-row">
                                   <Row className="g-2">
                                     {metrics.map((metric) => (
                                       <Col key={metric.label} xs={12} sm={6} lg>
-                                        <Card className="border mb-0 h-100">
+                                        <Card className="border mb-0 h-100 claim-summary-metric-card">
                                           <Card.Body className="p-3">
                                             <Stack direction="horizontal" gap={2} className="align-items-center">
-                                              <span className={`avtar avtar-xs bg-light-${metric.color} text-${metric.color}`}>
+                                              <span
+                                                className={`avtar avtar-xs bg-light-${metric.color} text-${metric.color} claim-summary-metric-icon`}
+                                              >
                                                 <i className={`ti ${metric.icon}`} />
                                               </span>
                                               <div>
@@ -1282,7 +1285,12 @@ export default function RewardList() {
               </MainCard>
             </Tab.Pane>
             <Tab.Pane eventKey="history">
-              <BalanceLedger embedded openWithdrawSignal={withdrawRequestId} refreshSignal={historyRefreshId} />
+              <BalanceLedger
+                embedded
+                openWithdrawSignal={withdrawRequestId}
+                refreshSignal={historyRefreshId}
+                withdrawCustomerCode={selectedDistributorCodes.length === 1 ? selectedDistributorCodes[0] : customerCode}
+              />
             </Tab.Pane>
           </Tab.Content>
         </Tab.Container>

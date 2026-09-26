@@ -1,6 +1,91 @@
 .picklist-detail-modal {
   width: 90vw;
   max-width: 1680px;
+
+  .modal-content {
+    color: var(--bs-body-color);
+    background: var(--bs-body-bg);
+    border-color: var(--bs-border-color);
+  }
+
+  .modal-header,
+  .modal-footer {
+    border-color: var(--bs-border-color);
+  }
+
+  .modal-body {
+    background: var(--bs-body-bg);
+  }
+
+  .picklist-detail-summary {
+    color: var(--bs-body-color);
+    background: var(--bs-tertiary-bg);
+    border-color: var(--bs-border-color) !important;
+
+    small {
+      margin-bottom: 4px;
+    }
+
+    strong,
+    .text-break {
+      color: var(--bs-emphasis-color);
+    }
+  }
+
+  .table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--bs-body-color);
+    --bs-table-border-color: var(--bs-border-color);
+
+    thead th {
+      color: var(--bs-emphasis-color);
+      background: var(--bs-tertiary-bg);
+    }
+  }
+}
+
+[data-pc-theme='dark'] .picklist-detail-modal,
+[data-bs-theme='dark'] .picklist-detail-modal {
+  .modal-content,
+  .modal-body {
+    background: #102d49;
+  }
+
+  .picklist-detail-summary {
+    background: #153a5d;
+    border-color: #315b7d !important;
+
+    small,
+    .text-muted {
+      color: #a9bdd2 !important;
+    }
+
+    strong,
+    .text-break {
+      color: #eef6ff;
+    }
+  }
+
+  .table {
+    --bs-table-bg: #102d49;
+    --bs-table-color: #dceafa;
+    --bs-table-border-color: #315b7d;
+    --bs-table-hover-bg: #183f63;
+    --bs-table-hover-color: #fff;
+
+    thead th {
+      color: #eaf4ff;
+      background: #174264;
+    }
+
+    .text-muted {
+      color: #9fb6cd !important;
+    }
+  }
+
+  .modal-footer {
+    background: #102d49;
+  }
 }
 
 .badge.vehicle-license-badge {

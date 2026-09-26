@@ -459,14 +459,15 @@ export default function MasterEmployee() {
     <>
       <Stack gap={3}>
         <MainCard
+          headerClassName="sales-data-header"
           title={
-            <Stack gap={1}>
+            <Stack gap={1} className="sales-data-header-copy">
               <h5 className="mb-0">Sales Data</h5>
               <span className="text-muted f-12">Manage sales lists and sync sales force data from the central system.</span>
             </Stack>
           }
           secondary={
-            <Stack direction="horizontal" gap={2}>
+            <Stack direction="horizontal" gap={2} className="sales-data-header-actions">
               <Button className="btn-add-sales" onClick={openAddModal} variant="light" disabled={loadingData}>
                 <i className="ti ti-plus me-1" />
                 Add Sales

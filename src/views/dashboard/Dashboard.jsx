@@ -1,13 +1,44 @@
 import { useEffect, useMemo, useState } from 'react';
 import MainCard from 'components/MainCard';
+import DashboardLayoutServices from 'services/setting/DashboardLayoutServices';
 import { isAdministratorRole } from '../../systems';
 import { getCookies } from '../../utils/cookies';
-import { layoutKey, readLayout } from './DashboardBuilder';
+import { layoutKey, normalizeLayout, readLayout } from './DashboardBuilder';
 import { widgetRegistry } from './widget';
 export default function Dashboard() {
   const roleId = String(getCookies('role') || '');
   const isAdministrator = isAdministratorRole(roleId);
   const [layout, setLayout] = useState(() => readLayout(roleId));
+  useEffect(() => {
+    let active = true;
+
+    const loadDashboardLayout = async () => {
+      try {
+        const response = await DashboardLayoutServices.getMyDashboardLayout();
+        if (response?.data?.success === false) {
+          throw new Error(response.data.message || 'Gagal mengambil layout dashboard.');
+        }
+
+        const responseLayout = response?.data?.data;
+        if (!responseLayout || typeof responseLayout !== 'object') {
+          throw new Error('Format layout dashboard tidak valid.');
+        }
+
+        const nextLayout = normalizeLayout(responseLayout);
+        localStorage.setItem(layoutKey(roleId), JSON.stringify(nextLayout));
+        if (active) setLayout(nextLayout);
+      } catch (error) {
+        console.error('[Dashboard] Failed to load dashboard-layouts/me, using cached layout:', error);
+        if (active) setLayout(readLayout(roleId));
+      }
+    };
+
+    loadDashboardLayout();
+    return () => {
+      active = false;
+    };
+  }, [roleId]);
+
   useEffect(() => {
     const update = (e) => {
       if (String(e.detail?.roleId) === roleId) setLayout(readLayout(roleId));

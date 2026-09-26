@@ -34,6 +34,7 @@ import {
 import { DataService } from '../../config/dataService';
 import { destroyAuthState } from '../../redux/authReducer';
 import { getThemePreference, saveThemePreference, THEME_CHANGED_EVENT } from '../../utils/themePreference';
+import { isAdministratorRole } from '../../systems';
 // =============================|| MAIN LAYOUT - HEADER ||============================== //
 
 export default function Header({ showSidebar = true }) {
@@ -46,6 +47,7 @@ export default function Header({ showSidebar = true }) {
   const userId = getCookies('id');
   const userName = getCookies('name');
   const userEmail = getCookies('email');
+  const isAdministrator = isAdministratorRole(getCookies('role'));
   const customerCodes = getAssignedCustomerCodes();
   const isMultiCustomer = customerCodes.length > 1;
   const userInitial = userName?.charAt(0)?.toUpperCase() || 'U';
@@ -635,18 +637,18 @@ export default function Header({ showSidebar = true }) {
 
                 <div className="dropdown-body sm-account-body">
                   <div className="profile-notification-scroll position-relative">
-                    {/* {roleId === 5 && ( */}
-                    <Dropdown.Item as={Link} to="/system-setting" className="sm-account-item">
-                      <span className="sm-account-item-icon">
-                        <i className="ti ti-settings" />
-                      </span>
+                    {isAdministrator ? (
+                      <Dropdown.Item as={Link} to="/system-setting" className="sm-account-item">
+                        <span className="sm-account-item-icon">
+                          <i className="ti ti-settings" />
+                        </span>
 
-                      <span>
-                        <strong>System Setting</strong>
-                        <small>Users, roles, master data, and personalization</small>
-                      </span>
-                    </Dropdown.Item>
-                    {/* )} */}
+                        <span>
+                          <strong>System Setting</strong>
+                          <small>Users, roles, master data, and personalization</small>
+                        </span>
+                      </Dropdown.Item>
+                    ) : null}
                     <Dropdown.Item
                       as="button"
                       className="sm-account-item"

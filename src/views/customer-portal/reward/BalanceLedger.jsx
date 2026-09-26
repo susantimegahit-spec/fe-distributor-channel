@@ -407,7 +407,7 @@ const getStatusVariant = (status) => {
   return 'warning';
 };
 
-export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0, refreshSignal = 0 }) {
+export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0, refreshSignal = 0, withdrawCustomerCode = '' }) {
   const { showAlert } = useAlert();
   const assignedCustomerCodes = useMemo(() => getAssignedCustomerCodes(), []);
   const customerCode = assignedCustomerCodes.join(',');
@@ -491,14 +491,23 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
 
     return ledgerBankAccount !== '-' ? ledgerBankAccount : formatBankAccount(selectedWithdrawCustomer);
   }, [selectedWithdraw, selectedWithdrawCustomer]);
+  const requestedWithdrawCustomerCode = String(withdrawCustomerCode || '');
   const effectiveCustomerCode = embedded
-    ? selectedCustomerCodes.join(',')
+    ? selectedCustomerCodes.join(',') || requestedWithdrawCustomerCode
     : selectedCustomerCodes.length
       ? selectedCustomerCodes.join(',')
       : customerCode;
-  const adjustmentCustomerCode = isDistributor ? customerCode : '';
+  const adjustmentCustomerCode = isDistributor
+    ? customerCode
+    : selectedCustomerCodes.length === 1
+      ? selectedCustomerCodes[0]
+      : requestedWithdrawCustomerCode;
+  const withdrawalCustomerCodes = adjustmentCustomerCode
+    .split(',')
+    .map((code) => code.trim())
+    .filter(Boolean);
   const canCreateAdjustment = canUseMenuAction(rewardPermissionMenuKeys, 'create') && isDistributor;
-  const canCreateWithdrawal = canUseMenuAction(rewardPermissionMenuKeys, 'create') && isDistributor;
+  const canCreateWithdrawal = canUseMenuAction(rewardPermissionMenuKeys, 'create') && Boolean(adjustmentCustomerCode);
 
   const fetchCustomerOptions = useCallback(async () => {
     if (!showCustomerFilter && !embedded) {
@@ -2031,18 +2040,18 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
         </Modal.Header>
         <Modal.Body>
           <Stack gap={3}>
-            <Card className="border mb-0">
+            <Card className="border mb-0 reward-withdrawal-summary-card">
               <Card.Body className="py-3">
                 <Stack direction="horizontal" gap={3} className="justify-content-between">
                   <div className="flex-grow-1" style={{ minWidth: 0 }}>
                     <div className="text-muted f-12">Customer Code</div>
-                    {assignedCustomerCodes.length ? (
+                    {withdrawalCustomerCodes.length ? (
                       <div
                         className="d-flex flex-wrap align-items-center gap-1 mt-1 mb-3 pe-2"
                         style={{ maxHeight: 72, overflowY: 'auto' }}
                       >
-                        {assignedCustomerCodes.map((code) => (
-                          <Badge bg="light" text="primary" key={code} className="fw-medium">
+                        {withdrawalCustomerCodes.map((code) => (
+                          <Badge bg="light" text="primary" key={code} className="fw-medium reward-withdrawal-customer-code">
                             {code}
                           </Badge>
                         ))}
@@ -2053,7 +2062,7 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
                     <div className="text-muted f-12">Total Available Balance</div>
                     <h5 className="mb-0 text-success">{formatCurrency(summary.balance)}</h5>
                   </div>
-                  <span className="avtar avtar-s bg-light-success text-success flex-shrink-0">
+                  <span className="avtar avtar-s bg-light-success text-success flex-shrink-0 reward-withdrawal-wallet">
                     <i className="ti ti-wallet" />
                   </span>
                 </Stack>
@@ -2269,5 +2278,6 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
 BalanceLedger.propTypes = {
   embedded: PropTypes.bool,
   openWithdrawSignal: PropTypes.number,
-  refreshSignal: PropTypes.number
+  refreshSignal: PropTypes.number,
+  withdrawCustomerCode: PropTypes.string
 };

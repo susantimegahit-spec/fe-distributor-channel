@@ -38,13 +38,17 @@ const normalizeWidgets = (widgets, rows) =>
     })
     .filter((widget) => widget.id && widgetRegistry.some((item) => item.id === widget.id));
 
+export const normalizeLayout = (value = {}) => {
+  const legacyColumns = clamp(Array.isArray(value) ? DEFAULT_GRID_COLUMNS : value?.columns, 1, 3);
+  const rows = normalizeRows(Array.isArray(value) ? null : value?.rows, legacyColumns);
+  const widgets = normalizeWidgets(Array.isArray(value) ? value : value?.widgets || [], rows);
+  return { version: Number(Array.isArray(value) ? 0 : value?.version) || 0, rows, widgets };
+};
+
 export const readLayout = (roleId) => {
   try {
     const value = JSON.parse(localStorage.getItem(layoutKey(roleId)) || '[]');
-    const legacyColumns = clamp(Array.isArray(value) ? DEFAULT_GRID_COLUMNS : value?.columns, 1, 3);
-    const rows = normalizeRows(Array.isArray(value) ? null : value?.rows, legacyColumns);
-    const widgets = normalizeWidgets(Array.isArray(value) ? value : value?.widgets || [], rows);
-    return { version: Number(Array.isArray(value) ? 0 : value?.version) || 0, rows, widgets };
+    return normalizeLayout(value);
   } catch {
     return { version: 0, rows: [{ columns: DEFAULT_GRID_COLUMNS }], widgets: [] };
   }

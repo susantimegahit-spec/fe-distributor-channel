@@ -21,7 +21,8 @@ const getPagination = (response, rowCount) => {
   const meta = response?.data?.meta ?? payload?.meta ?? payload;
   const total = Number(meta?.total ?? meta?.total_items ?? response?.data?.total ?? rowCount) || 0;
   const currentPage = Number(meta?.current_page ?? meta?.currentPage ?? response?.data?.current_page ?? 1) || 1;
-  const pageCount = Number(meta?.last_page ?? meta?.lastPage ?? meta?.total_pages ?? response?.data?.last_page ?? Math.ceil(total / 10)) || 1;
+  const pageCount =
+    Number(meta?.last_page ?? meta?.lastPage ?? meta?.total_pages ?? response?.data?.last_page ?? Math.ceil(total / 10)) || 1;
   return { total, currentPage, pageCount: Math.max(pageCount, 1) };
 };
 
@@ -165,7 +166,9 @@ export default function Picklist() {
       <MainCard>
         <Stack direction="horizontal" className="justify-content-between flex-wrap mb-3" gap={3}>
           <InputGroup style={{ maxWidth: 420 }}>
-            <InputGroup.Text><i className="ti ti-search" /></InputGroup.Text>
+            <InputGroup.Text>
+              <i className="ti ti-search" />
+            </InputGroup.Text>
             <Form.Control
               type="search"
               value={query}
@@ -197,7 +200,10 @@ export default function Picklist() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={8} className="text-center py-5"><Spinner size="sm" className="me-2" />Loading picklists...</td>
+                <td colSpan={8} className="text-center py-5">
+                  <Spinner size="sm" className="me-2" />
+                  Loading picklists...
+                </td>
               </tr>
             ) : picklists.length ? (
               picklists.map((item, index) => {
@@ -218,14 +224,14 @@ export default function Picklist() {
                     <td>{String(shippingType).toLowerCase() === 'internal' ? '-' : getExpeditionName(item)}</td>
                     <td>{formatDate(valueOf(item, ['posting_date'], ''))}</td>
                     <td>
-                      <Badge className="vehicle-license-badge fs-6 px-2 py-1 mb-1">
-                        {valueOf(item, ['license_plate'])}
-                      </Badge>
+                      <Badge className="vehicle-license-badge fs-6 px-2 py-1 mb-1">{valueOf(item, ['license_plate'])}</Badge>
                       <small className="text-muted d-block">{valueOf(item, ['driver_name'])}</small>
                     </td>
                     <td>{valueOf(item, ['checker_name'])}</td>
                     <td className="text-end fw-semibold">{items}</td>
-                    <td><Badge bg={statusVariant(status)}>{formatStatus(status)}</Badge></td>
+                    <td>
+                      <Badge bg={statusVariant(status)}>{formatStatus(status)}</Badge>
+                    </td>
                     <td className="text-center">
                       <Button
                         variant={actionMenu?.item === item ? 'primary' : 'outline-primary'}
@@ -233,9 +239,7 @@ export default function Picklist() {
                         aria-label={`Open actions for picklist ${id}`}
                         aria-expanded={actionMenu?.item === item}
                         onClick={(event) =>
-                          setActionMenu((current) =>
-                            current?.item === item ? null : { item, target: event.currentTarget }
-                          )
+                          setActionMenu((current) => (current?.item === item ? null : { item, target: event.currentTarget }))
                         }
                       >
                         <i className="ti ti-dots-vertical me-1" /> Actions
@@ -246,7 +250,11 @@ export default function Picklist() {
                 );
               })
             ) : (
-              <tr><td colSpan={8} className="text-center text-muted py-5">No picklists found.</td></tr>
+              <tr>
+                <td colSpan={8} className="text-center text-muted py-5">
+                  No picklists found.
+                </td>
+              </tr>
             )}
           </tbody>
         </Table>
@@ -273,12 +281,7 @@ export default function Picklist() {
         onHide={() => setActionMenu(null)}
       >
         {({ ref, style, placement }) => (
-          <div
-            ref={ref}
-            className="dropdown-menu show"
-            data-popper-placement={placement}
-            style={{ ...style, zIndex: 1080, minWidth: 170 }}
-          >
+          <div ref={ref} className="dropdown-menu show" data-popper-placement={placement} style={{ ...style, zIndex: 1080, minWidth: 170 }}>
             <button
               type="button"
               className="dropdown-item"
@@ -307,31 +310,23 @@ export default function Picklist() {
         )}
       </Overlay>
 
-      {showCreate && (
-        <CreatePicklistModal
-          onClose={() => setShowCreate(false)}
-          onSuccess={fetchPicklists}
-        />
-      )}
+      {showCreate && <CreatePicklistModal onClose={() => setShowCreate(false)} onSuccess={fetchPicklists} />}
 
-      <Modal
-        show={Boolean(detail)}
-        onHide={closeDetail}
-        dialogClassName="picklist-detail-modal"
-        centered
-        scrollable
-      >
+      <Modal show={Boolean(detail)} onHide={closeDetail} dialogClassName="picklist-detail-modal" centered scrollable>
         <Modal.Header closeButton={!loadingDetail}>
           <Modal.Title>{detailMode === 'load' ? 'Load Picklist' : 'Picklist Detail'}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           {loadingDetail ? (
-            <div className="text-center py-5"><Spinner className="me-2" />Loading picklist detail...</div>
+            <div className="text-center py-5">
+              <Spinner className="me-2" />
+              Loading picklist detail...
+            </div>
           ) : detailError ? (
             <div className="alert alert-danger mb-0">{detailError}</div>
           ) : detail ? (
             <>
-              <div className="bg-light border rounded p-3 mb-4">
+              <div className="picklist-detail-summary border rounded p-3 mb-4">
                 <div className="row g-3">
                   <div className="col-md-3">
                     <small className="text-muted d-block">Picklist</small>
@@ -412,7 +407,11 @@ export default function Picklist() {
                     );
                   })}
                   {!(Array.isArray(detail.items) ? detail.items : detail.details || []).length && (
-                    <tr><td colSpan={6} className="text-center text-muted py-4">No item details found.</td></tr>
+                    <tr>
+                      <td colSpan={6} className="text-center text-muted py-4">
+                        No item details found.
+                      </td>
+                    </tr>
                   )}
                 </tbody>
               </Table>
@@ -420,7 +419,9 @@ export default function Picklist() {
           ) : null}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="light-secondary" onClick={closeDetail} disabled={loadingDetail}>Close</Button>
+          <Button variant="light-secondary" onClick={closeDetail} disabled={loadingDetail}>
+            Close
+          </Button>
         </Modal.Footer>
       </Modal>
     </Stack>

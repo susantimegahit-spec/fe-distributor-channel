@@ -4294,6 +4294,48 @@ body {
   box-shadow: 0 10px 20px rgba(49, 95, 180, 0.18);
 }
 
+.pc-content .sales-data-header > .hstack,
+.pc-content .change-product-header > .hstack,
+.sm-workspace-embedded-content .change-product-header > .hstack {
+  flex-wrap: nowrap !important;
+}
+
+.pc-content .sales-data-header > .hstack > .vstack:first-child,
+.pc-content .change-product-header > .hstack > .vstack:first-child,
+.sm-workspace-embedded-content .change-product-header > .hstack > .vstack:first-child {
+  width: auto;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.pc-content .sales-data-header-copy,
+.change-product-header-copy {
+  min-width: 0;
+}
+
+.pc-content .sales-data-header-actions {
+  width: auto;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 575.98px) {
+  .pc-content .sales-data-header > .hstack,
+  .pc-content .change-product-header > .hstack,
+  .sm-workspace-embedded-content .change-product-header > .hstack {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pc-content .sales-data-header-actions,
+  .pc-content .sales-data-header-actions .btn-add-sales {
+    width: 100%;
+  }
+
+  .change-product-header-action {
+    width: 100%;
+  }
+}
+
 .pc-content .claim-transaction-card > .card-header {
   border-bottom-color: rgba(49, 95, 180, 0.08);
   background: #fff !important;
@@ -6920,6 +6962,366 @@ body {
 
 // Dark personalization palette: deep navy surfaces with soft blue highlights.
 [data-pc-theme='dark'] {
+  .btn-add-sales.btn,
+  .pc-content .card-header .btn-light,
+  .pc-content .card-header .btn-add-sales.btn,
+  .sm-workspace-embedded-content .card-header .btn-light,
+  .sm-workspace-embedded-content .card-header .btn-add-sales.btn {
+    --bs-btn-bg: rgba(55, 143, 214, 0.2);
+    --bs-btn-border-color: rgba(98, 180, 255, 0.5);
+    --bs-btn-color: #a6dcff;
+    --bs-btn-hover-bg: rgba(65, 158, 226, 0.34);
+    --bs-btn-hover-border-color: #79c7ff;
+    --bs-btn-hover-color: #fff;
+    --bs-btn-active-bg: rgba(65, 158, 226, 0.42);
+    --bs-btn-active-border-color: #8fd2ff;
+    --bs-btn-active-color: #fff;
+    border-color: var(--bs-btn-border-color);
+    background: var(--bs-btn-bg) !important;
+    color: var(--bs-btn-color) !important;
+    -webkit-text-fill-color: var(--bs-btn-color);
+    box-shadow:
+      inset 0 1px 0 rgba(204, 234, 255, 0.08),
+      0 7px 18px rgba(0, 8, 22, 0.2);
+  }
+
+  .btn-add-sales.btn:hover,
+  .btn-add-sales.btn:focus,
+  .pc-content .card-header .btn-light:hover,
+  .pc-content .card-header .btn-light:focus,
+  .pc-content .card-header .btn-add-sales.btn:hover,
+  .pc-content .card-header .btn-add-sales.btn:focus,
+  .sm-workspace-embedded-content .card-header .btn-light:hover,
+  .sm-workspace-embedded-content .card-header .btn-light:focus,
+  .sm-workspace-embedded-content .card-header .btn-add-sales.btn:hover,
+  .sm-workspace-embedded-content .card-header .btn-add-sales.btn:focus {
+    border-color: var(--bs-btn-hover-border-color);
+    background: var(--bs-btn-hover-bg) !important;
+    color: var(--bs-btn-hover-color) !important;
+    -webkit-text-fill-color: var(--bs-btn-hover-color);
+  }
+
+  .picklist-approved-badge.badge {
+    border: 1px solid #42dfa5;
+    background: rgba(24, 143, 102, 0.24) !important;
+    color: #72f0bd !important;
+    -webkit-text-fill-color: #72f0bd;
+    box-shadow:
+      inset 0 1px 0 rgba(190, 255, 229, 0.1),
+      0 0 14px rgba(48, 213, 151, 0.14);
+  }
+
+  :is(.avtar, .badge).bg-light-primary {
+    border: 1px solid rgba(98, 180, 255, 0.44);
+    background: rgba(55, 143, 214, 0.18) !important;
+    color: #8fd2ff !important;
+    -webkit-text-fill-color: #8fd2ff;
+  }
+
+  :is(.avtar, .badge).bg-light-success {
+    border: 1px solid rgba(72, 213, 151, 0.44);
+    background: rgba(38, 176, 125, 0.17) !important;
+    color: #62e5b1 !important;
+    -webkit-text-fill-color: #62e5b1;
+  }
+
+  :is(.avtar, .badge).bg-light-info {
+    border: 1px solid rgba(79, 209, 231, 0.44);
+    background: rgba(34, 166, 196, 0.17) !important;
+    color: #71e3f5 !important;
+    -webkit-text-fill-color: #71e3f5;
+  }
+
+  :is(.avtar, .badge).bg-light-warning {
+    border: 1px solid rgba(255, 196, 92, 0.46);
+    background: rgba(224, 157, 35, 0.17) !important;
+    color: #ffd27f !important;
+    -webkit-text-fill-color: #ffd27f;
+  }
+
+  :is(.avtar, .badge).bg-light-danger {
+    border: 1px solid rgba(255, 113, 128, 0.48);
+    background: rgba(214, 50, 72, 0.18) !important;
+    color: #ff94a0 !important;
+    -webkit-text-fill-color: #ff94a0;
+  }
+
+  :is(.avtar, .badge).bg-light-secondary {
+    border: 1px solid rgba(169, 189, 215, 0.36);
+    background: rgba(116, 145, 178, 0.16) !important;
+    color: #c5d8ed !important;
+    -webkit-text-fill-color: #c5d8ed;
+  }
+
+  .badge.bg-primary:not(.pc-h-badge) {
+    border: 1px solid rgba(98, 180, 255, 0.5);
+    background: rgba(55, 143, 214, 0.24) !important;
+    color: #a6dcff !important;
+    -webkit-text-fill-color: #a6dcff;
+  }
+
+  .badge.bg-success:not(.pc-h-badge) {
+    border: 1px solid rgba(72, 213, 151, 0.52);
+    background: rgba(24, 143, 102, 0.25) !important;
+    color: #72f0bd !important;
+    -webkit-text-fill-color: #72f0bd;
+    box-shadow: 0 0 12px rgba(48, 213, 151, 0.1);
+  }
+
+  .badge.bg-info:not(.pc-h-badge) {
+    border: 1px solid rgba(79, 209, 231, 0.52);
+    background: rgba(34, 166, 196, 0.24) !important;
+    color: #8aeafa !important;
+    -webkit-text-fill-color: #8aeafa;
+  }
+
+  .badge.bg-warning:not(.pc-h-badge) {
+    border: 1px solid rgba(255, 196, 92, 0.54);
+    background: rgba(224, 157, 35, 0.23) !important;
+    color: #ffda91 !important;
+    -webkit-text-fill-color: #ffda91;
+  }
+
+  .badge.bg-danger:not(.pc-h-badge) {
+    border: 1px solid rgba(255, 113, 128, 0.56);
+    background: rgba(214, 50, 72, 0.24) !important;
+    color: #ffa2ac !important;
+    -webkit-text-fill-color: #ffa2ac;
+  }
+
+  .badge.bg-secondary:not(.pc-h-badge) {
+    border: 1px solid rgba(169, 189, 215, 0.42);
+    background: rgba(116, 145, 178, 0.22) !important;
+    color: #d4e2f2 !important;
+    -webkit-text-fill-color: #d4e2f2;
+  }
+
+  .sm-change-password-modal {
+    border: 1px solid #315b80;
+    background: linear-gradient(145deg, #0b203a 0%, #143b5d 100%) !important;
+    box-shadow: 0 24px 64px rgba(0, 7, 20, 0.52);
+  }
+
+  .sm-change-password-header.modal-header {
+    border-bottom-color: rgba(132, 190, 239, 0.22) !important;
+    background: rgba(7, 25, 48, 0.34) !important;
+  }
+
+  .sm-change-password-title.modal-title,
+  .sm-change-password-control .form-label {
+    color: #edf6ff !important;
+  }
+
+  .sm-change-password-title small {
+    color: #a9bdd7 !important;
+  }
+
+  .sm-change-password-title-icon {
+    border: 1px solid rgba(98, 180, 255, 0.4);
+    background: rgba(63, 145, 211, 0.16);
+    color: #84caff;
+    box-shadow: inset 0 1px 0 rgba(205, 234, 255, 0.08);
+  }
+
+  .sm-change-password-note {
+    border-color: rgba(98, 180, 255, 0.32);
+    background: linear-gradient(135deg, rgba(18, 55, 88, 0.86), rgba(25, 72, 105, 0.8));
+    color: #c5d8ed;
+    box-shadow: inset 0 1px 0 rgba(190, 226, 255, 0.06);
+  }
+
+  .sm-change-password-note i {
+    color: #84caff;
+  }
+
+  .sm-change-password-input {
+    border-color: #376890;
+    background: #0b203a;
+  }
+
+  .sm-change-password-input:focus-within {
+    border-color: #69c2ff;
+    box-shadow: 0 0 0 0.2rem rgba(86, 182, 247, 0.16);
+  }
+
+  .sm-change-password-input-icon {
+    border-right-color: #315b80;
+    background: rgba(31, 75, 113, 0.72);
+    color: #9db7d3;
+  }
+
+  .sm-change-password-input:focus-within .sm-change-password-input-icon {
+    background: rgba(48, 123, 181, 0.24);
+    color: #84caff;
+  }
+
+  .sm-change-password-input-control.form-control {
+    background: transparent !important;
+    color: #edf6ff !important;
+  }
+
+  .sm-change-password-input-control.form-control::placeholder {
+    color: #7895b6;
+  }
+
+  .sm-change-password-visibility.btn {
+    color: #9db7d3;
+  }
+
+  .sm-change-password-visibility.btn:hover,
+  .sm-change-password-visibility.btn:focus {
+    background: rgba(98, 180, 255, 0.14);
+    color: #84caff;
+  }
+
+  .sm-change-password-footer.modal-footer {
+    border-top: 1px solid rgba(132, 190, 239, 0.18) !important;
+    background: rgba(7, 25, 48, 0.24) !important;
+  }
+
+  .sm-change-password-cancel.btn {
+    border-color: #ff6673;
+    background: rgba(214, 35, 52, 0.2);
+    color: #ff8994;
+  }
+
+  .sm-change-password-cancel.btn:hover,
+  .sm-change-password-cancel.btn:focus {
+    border-color: #ff8994;
+    background: rgba(231, 45, 61, 0.34);
+    color: #fff;
+  }
+
+  .sm-change-password-submit.btn:disabled {
+    border: 1px solid #3c5876;
+    background: #263f5d;
+    color: #7891ad;
+    opacity: 1;
+  }
+
+  .table > tbody > tr > .claim-summary-row {
+    border-color: #315b80 !important;
+    background: linear-gradient(135deg, #0a1d35 0%, #123a59 100%) !important;
+    color: #dceaff !important;
+    box-shadow: inset 0 1px 0 rgba(179, 220, 255, 0.06);
+  }
+
+  .claim-summary-metric-card.card {
+    border-color: #37658d !important;
+    background: linear-gradient(145deg, #102b49 0%, #174969 100%) !important;
+    box-shadow:
+      inset 0 1px 0 rgba(179, 220, 255, 0.07),
+      0 8px 20px rgba(0, 8, 22, 0.2);
+  }
+
+  .claim-summary-metric-card .text-muted {
+    color: #b8cce3 !important;
+  }
+
+  .claim-summary-metric-icon.avtar {
+    border: 1px solid currentColor;
+    background: rgba(70, 153, 218, 0.13) !important;
+    box-shadow: inset 0 1px 0 rgba(209, 234, 255, 0.08);
+  }
+
+  .reward-withdrawal-customer-code.badge {
+    border: 1px solid rgba(98, 180, 255, 0.42);
+    background: rgba(40, 118, 181, 0.2) !important;
+    color: #8fd2ff !important;
+    -webkit-text-fill-color: #8fd2ff;
+    box-shadow: inset 0 1px 0 rgba(190, 226, 255, 0.08);
+  }
+
+  .reward-withdrawal-wallet.avtar {
+    border: 1px solid rgba(72, 213, 151, 0.4);
+    background: rgba(38, 176, 125, 0.16) !important;
+    color: #55e0aa !important;
+    -webkit-text-fill-color: #55e0aa;
+    box-shadow: inset 0 1px 0 rgba(179, 255, 225, 0.08);
+  }
+
+  .reward-tabs-card__nav {
+    border-color: #315b80;
+    background: linear-gradient(135deg, #0b203a 0%, #123755 100%);
+    box-shadow: inset 0 1px 0 rgba(181, 222, 255, 0.06);
+  }
+
+  .reward-tabs-card__nav .nav-link {
+    color: #a9bdd7;
+  }
+
+  .reward-tabs-card__nav .nav-link:hover,
+  .reward-tabs-card__nav .nav-link:focus {
+    background: rgba(98, 180, 255, 0.14);
+    color: #dceeff;
+  }
+
+  .reward-tabs-card__nav .nav-link.active {
+    border-color: rgba(151, 211, 255, 0.42);
+    background: linear-gradient(135deg, #378fd6, #62b4ff);
+    color: #fff;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      0 7px 18px rgba(25, 117, 191, 0.32);
+  }
+
+  .reward-tabs-card__content {
+    border-color: #315b80;
+    background: linear-gradient(145deg, #0d223e 0%, #143b5d 100%);
+    box-shadow: 0 12px 30px rgba(1, 10, 25, 0.3);
+  }
+
+  .text-danger,
+  .table .text-danger,
+  .card .text-danger,
+  .modal-content .text-danger {
+    color: #ff7180 !important;
+    -webkit-text-fill-color: #ff7180;
+  }
+
+  .table td.text-danger,
+  .table td .text-danger {
+    font-weight: 700;
+    text-shadow: 0 0 12px rgba(255, 79, 98, 0.28);
+  }
+
+  .sm-inline-alert {
+    border-color: rgba(105, 194, 255, 0.28);
+    background: linear-gradient(135deg, rgba(12, 37, 65, 0.96), rgba(20, 61, 91, 0.96));
+    color: #c5d8ed;
+    box-shadow:
+      inset 0 1px 0 rgba(179, 220, 255, 0.06),
+      0 10px 26px rgba(0, 8, 22, 0.24);
+  }
+
+  .sm-inline-alert strong {
+    color: #edf6ff;
+  }
+
+  .sm-inline-alert-info {
+    --sm-alert-accent: #62b4ff;
+    --sm-alert-bg: rgba(98, 180, 255, 0.14);
+    --sm-alert-color: #84caff;
+  }
+
+  .sm-inline-alert-success {
+    --sm-alert-accent: #48d597;
+    --sm-alert-bg: rgba(72, 213, 151, 0.14);
+    --sm-alert-color: #72e2ad;
+  }
+
+  .sm-inline-alert-warning {
+    --sm-alert-accent: #ffc45c;
+    --sm-alert-bg: rgba(255, 196, 92, 0.14);
+    --sm-alert-color: #ffd27f;
+  }
+
+  .sm-inline-alert-danger {
+    --sm-alert-accent: #ff7180;
+    --sm-alert-bg: rgba(255, 113, 128, 0.14);
+    --sm-alert-color: #ff94a0;
+  }
+
   .reschedule-negotiation-dialog .modal-content {
     border-color: #31597e !important;
     background: #0d223a !important;

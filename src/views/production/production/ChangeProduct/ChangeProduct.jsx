@@ -26,7 +26,7 @@ import { useAlert } from '../../../../utils/alertContext';
 import { getCookies, getOrganizationAssignmentDefault } from '../../../../utils/cookies';
 
 const pageSize = 10;
-const changeProductPermissionKeys = ['production-change-product', getMenuNumber(SYSTEM_KEYS.PRODUCTION, 'production-change-product')];
+const changeProductPermissionKeys = ['production-change-product', getMenuNumber(SYSTEM_KEYS.ENTERPRISE, 'production-change-product')];
 const shiftOptions = ['All', 'Shift 1', 'Shift 2', 'Shift 3'].map((value) => ({ value, label: value }));
 const selectStyles = { menuPortal: (base) => ({ ...base, zIndex: 1090 }) };
 const headerSelectStyles = {
@@ -523,15 +523,16 @@ export default function ChangeProduct() {
   return (
     <>
       <MainCard
+        headerClassName="change-product-header"
         title={
-          <Stack gap={1}>
+          <Stack gap={1} className="change-product-header-copy">
             <h5 className="mb-0">Change Product</h5>
             <span className="text-muted f-12">Manage product changes in the production process.</span>
           </Stack>
         }
         secondary={
           canCreate ? (
-            <Button onClick={() => openCreateModal()}>
+            <Button className="change-product-header-action" onClick={() => openCreateModal()}>
               <i className="ti ti-plus me-1" />
               Create Change Product
             </Button>
@@ -591,11 +592,12 @@ export default function ChangeProduct() {
                               disabled={loadingDetailId !== null || postingId !== null}
                               aria-label={`Open actions for Change Product ${item.documentNumber || ''}`}
                               aria-expanded={String(actionTarget?.item?.id) === String(item.id)}
-                              onClick={(event) =>
+                              onClick={(event) => {
+                                const target = event.currentTarget;
                                 setActionTarget((current) =>
-                                  String(current?.item?.id) === String(item.id) ? null : { item, target: event.currentTarget }
-                                )
-                              }
+                                  String(current?.item?.id) === String(item.id) ? null : { item, target }
+                                );
+                              }}
                             >
                               {String(loadingDetailId) === String(item.id) || String(postingId) === String(item.id) ? (
                                 <span className="spinner-border spinner-border-sm me-1" />
