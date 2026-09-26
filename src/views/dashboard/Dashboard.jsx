@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import MainCard from 'components/MainCard';
 import DashboardLayoutServices from 'services/setting/DashboardLayoutServices';
 import { isAdministratorRole } from '../../systems';
@@ -9,35 +9,42 @@ export default function Dashboard() {
   const roleId = String(getCookies('role') || '');
   const isAdministrator = isAdministratorRole(roleId);
   const [layout, setLayout] = useState(() => readLayout(roleId));
+  const loadDashboardLayout = useCallback(async () => {
+    try {
+      const response = await DashboardLayoutServices.getDashboardLayout();
+      if (response?.data?.success === false) {
+        throw new Error(response.data.message || 'Gagal mengambil layout dashboard.');
+      }
+
+      const responseLayout = response?.data?.data;
+      if (!responseLayout || typeof responseLayout !== 'object') {
+        throw new Error('Format layout dashboard tidak valid.');
+      }
+
+      const nextLayout = normalizeLayout(responseLayout);
+      localStorage.setItem(layoutKey(roleId), JSON.stringify(nextLayout));
+      setLayout(nextLayout);
+    } catch (error) {
+      console.error('[Dashboard] Failed to load dashboard-layouts/me, using cached layout:', error);
+      setLayout(readLayout(roleId));
+    }
+  }, [roleId]);
+
   useEffect(() => {
-    let active = true;
+    loadDashboardLayout();
+  }, [loadDashboardLayout]);
 
-    const loadDashboardLayout = async () => {
-      try {
-        const response = await DashboardLayoutServices.getMyDashboardLayout();
-        if (response?.data?.success === false) {
-          throw new Error(response.data.message || 'Gagal mengambil layout dashboard.');
-        }
-
-        const responseLayout = response?.data?.data;
-        if (!responseLayout || typeof responseLayout !== 'object') {
-          throw new Error('Format layout dashboard tidak valid.');
-        }
-
-        const nextLayout = normalizeLayout(responseLayout);
-        localStorage.setItem(layoutKey(roleId), JSON.stringify(nextLayout));
-        if (active) setLayout(nextLayout);
-      } catch (error) {
-        console.error('[Dashboard] Failed to load dashboard-layouts/me, using cached layout:', error);
-        if (active) setLayout(readLayout(roleId));
+  useEffect(() => {
+    const refreshOnActivation = (event) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type === 'dc:workspace-tab-activated' && event.data?.path === '/dashboard') {
+        loadDashboardLayout();
       }
     };
 
-    loadDashboardLayout();
-    return () => {
-      active = false;
-    };
-  }, [roleId]);
+    window.addEventListener('message', refreshOnActivation);
+    return () => window.removeEventListener('message', refreshOnActivation);
+  }, [loadDashboardLayout]);
 
   useEffect(() => {
     const update = (e) => {

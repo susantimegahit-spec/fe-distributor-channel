@@ -57,6 +57,12 @@ export default function Workspace({ activePath, menuTitle, systemTitle, systemKe
   useEffect(() => {
     selectedPathRef.current = selectedPath;
     setToolbarHidden(false);
+
+    const selectedFrameWindow = frameScrollRefs.current.get(selectedPath)?.scrollWindow;
+    selectedFrameWindow?.postMessage(
+      { type: 'dc:workspace-tab-activated', path: selectedPath },
+      window.location.origin
+    );
   }, [selectedPath]);
 
   useEffect(
@@ -96,6 +102,12 @@ export default function Workspace({ activePath, menuTitle, systemTitle, systemKe
 
   const openTab = useCallback((path, title, currentSystemTitle, currentSystemKey) => {
     if (!path) return;
+    if (path === selectedPathRef.current) {
+      frameScrollRefs.current.get(path)?.scrollWindow?.postMessage(
+        { type: 'dc:workspace-tab-activated', path },
+        window.location.origin
+      );
+    }
     setTabs((current) => {
       const existing = current.find((tab) => tab.path === path);
       if (existing) {

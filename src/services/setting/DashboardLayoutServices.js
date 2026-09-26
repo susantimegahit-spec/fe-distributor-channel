@@ -1,7 +1,7 @@
 import { DataService } from '../../config/dataService';
 
 class DashboardLayoutServices {
-  getMyDashboardLayout() {
+  getDashboardLayout() {
     return DataService.get('dashboard-layouts/me');
   }
 
