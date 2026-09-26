@@ -25,6 +25,7 @@ import { canUseMenuAction } from '../../../utils/actionPermissions';
 import { getMenuNumber, SYSTEM_KEYS } from '../../../systems';
 import { useAlert } from '../../../utils/alertContext';
 import { getCookies } from '../../../utils/cookies';
+import './rates.scss';
 
 const rateColumns = [
   'origin',
@@ -809,18 +810,18 @@ export default function Rates() {
               <h5 className="mb-1">Rates</h5>
               <span className="text-muted f-12">Kelola tarif pengiriman untuk setiap ekspedisi dan rute.</span>
             </div>
+            {canApproveRates ? (
+              <Button
+                variant="success"
+                data-permission-action="approve"
+                disabled={loadingRates || bulkApproving || !selectedRateIds.length}
+                onClick={handleBulkApprove}
+              >
+                <i className={bulkApproving ? 'ti ti-loader-2 me-1' : 'ti ti-checks me-1'} />
+                {bulkApproving ? 'Approving...' : `Approve All${selectedRateIds.length ? ` (${selectedRateIds.length})` : ''}`}
+              </Button>
+            ) : null}
             <Stack direction="horizontal" gap={2} className="d-none">
-              {canApproveRates ? (
-                <Button
-                  variant="success"
-                  data-permission-action="approve"
-                  disabled={loadingRates || bulkApproving || !selectedRateIds.length}
-                  onClick={handleBulkApprove}
-                >
-                  <i className={bulkApproving ? 'ti ti-loader-2 me-1' : 'ti ti-checks me-1'} />
-                  {bulkApproving ? 'Approving...' : `Approve All${selectedRateIds.length ? ` (${selectedRateIds.length})` : ''}`}
-                </Button>
-              ) : null}
               <Button
                 variant="outline-success"
                 disabled={loadingRates || exportingRates || !rates.length}
@@ -865,7 +866,7 @@ export default function Rates() {
           <thead>
             <tr>
               {canApproveRates ? (
-                <th className="d-none" style={{ width: 48 }}>
+                <th style={{ width: 48 }}>
                   <Form.Check
                     type="checkbox"
                     className="m-0 d-inline-flex"
@@ -940,20 +941,32 @@ export default function Rates() {
                 const rateId = getRateId(rate);
                 const isApproved = isRateApproved(rate);
                 const isRateUnavailable = rateValue !== '' && Number(rateValue) === 0;
+                const isSelected = rateId !== null && rateId !== undefined && selectedRateIds.includes(String(rateId));
+                const canSelectRate = canApproveRates && !isApproved && rateId !== null && rateId !== undefined && !bulkApproving;
 
                 return (
                   <tr
                     key={rate.id || rate.rate_id || `${warehouseCode}-${destination}-${index}`}
-                    className={!isApproved ? undefined : isRateUnavailable ? 'table-danger' : 'table-success'}
+                    className={[
+                      'rates-table-row',
+                      canSelectRate ? 'rates-table-row--selectable' : '',
+                      isSelected ? 'rates-table-row--selected' : '',
+                      isApproved && isRateUnavailable ? 'rates-table-row--unavailable' : '',
+                      isApproved && !isRateUnavailable ? 'rates-table-row--approved' : ''
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    onClick={() => canSelectRate && handleToggleRate(rateId)}
                   >
                     {canApproveRates ? (
-                      <td className="d-none">
+                      <td>
                         {!isApproved ? (
                           <Form.Check
                             type="checkbox"
                             className="m-0 d-inline-flex"
-                            checked={rateId !== null && rateId !== undefined && selectedRateIds.includes(String(rateId))}
+                            checked={isSelected}
                             onChange={() => handleToggleRate(rateId)}
+                            onClick={(event) => event.stopPropagation()}
                             disabled={bulkApproving || rateId === null || rateId === undefined}
                             aria-label={`Select rate ${warehouseCode || ''} ${destination || ''}`.trim()}
                           />
@@ -975,7 +988,7 @@ export default function Rates() {
                       {rateValue === '' ? (
                         '-'
                       ) : isRateUnavailable ? (
-                        <Badge bg="light" text="danger" className="border border-danger">
+                        <Badge bg="danger">
                           Not Available
                         </Badge>
                       ) : (

@@ -23,7 +23,6 @@ export const masterDataModules = [
     items: [
       { id: 'logistics-origin', title: 'Origin', icon: 'ti ti-building-warehouse', url: '/logistics/master/origin' },
       { id: 'logistics-destination', title: 'Destination', icon: 'ti ti-map-pin', url: '/logistics/master/destination' },
-      { id: 'logistics-rates', title: 'Rates', icon: 'ti ti-receipt-2', url: '/logistics/master/rates' },
       { id: 'logistics-lead-time', title: 'Lead Time', icon: 'ti ti-clock-hour-4', url: '/logistics/master/lead-time' }
     ]
   },

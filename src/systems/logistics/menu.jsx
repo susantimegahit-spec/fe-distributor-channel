@@ -19,6 +19,17 @@ const logisticsMenu = [
         selected: true,
         icon: 'ti ti-clipboard-list',
         url: withBasePath('/picklists')
+      },
+      {
+        id: 'logistics-rates',
+        menu_key: 36,
+        title: 'Rates',
+        type: 'item',
+        value: 'logistics-rates',
+        label: 'Rates',
+        selected: true,
+        icon: 'ti ti-receipt-2',
+        url: withBasePath('/master/rates')
       }
     ]
   }

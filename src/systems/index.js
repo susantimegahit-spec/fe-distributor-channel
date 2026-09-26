@@ -68,7 +68,8 @@ const menuNumberByKey = (() => {
 
   const registerMenus = (menuItems, systemKey) => {
     menuItems.forEach((item) => {
-      const menuKey = number++;
+      const generatedMenuKey = number++;
+      const menuKey = item.menu_key ?? item.menuKey ?? generatedMenuKey;
       numbers.set(`${systemKey}:${item.id || item.value}`, menuKey);
       item.menu_key = menuKey;
       item.menuKey = menuKey;
