@@ -158,7 +158,7 @@ export default function Picklist() {
           <h4 className="mb-1">Picklist</h4>
           <span className="text-muted f-12">Manage logistics picklists and warehouse allocations.</span>
         </div>
-        <Button data-permission-action="add" onClick={() => setShowCreate(true)}>
+        <Button variant="outline-primary" data-permission-action="add" onClick={() => setShowCreate(true)}>
           <i className="ti ti-plus me-1" /> Create Picklist
         </Button>
       </Stack>

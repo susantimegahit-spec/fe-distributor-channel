@@ -812,7 +812,7 @@ export default function Rates() {
             </div>
             {canApproveRates ? (
               <Button
-                variant="success"
+                variant="outline-primary"
                 data-permission-action="approve"
                 disabled={loadingRates || bulkApproving || !selectedRateIds.length}
                 onClick={handleBulkApprove}
@@ -823,18 +823,18 @@ export default function Rates() {
             ) : null}
             <Stack direction="horizontal" gap={2} className="d-none">
               <Button
-                variant="outline-success"
+                variant="outline-primary"
                 disabled={loadingRates || exportingRates || !rates.length}
                 onClick={handleExportRates}
               >
                 <i className={exportingRates ? 'ti ti-loader-2 me-1' : 'ti ti-file-export me-1'} />
                 {exportingRates ? 'Exporting...' : 'Export Rates'}
               </Button>
-              <Button variant="success" onClick={() => setShowUpload(true)}>
+              <Button variant="outline-primary" onClick={() => setShowUpload(true)}>
                 <i className="ti ti-file-upload me-1" />
                 Upload Excel
               </Button>
-              <Button disabled={downloadingTemplate} onClick={handleDownloadTemplate}>
+              <Button variant="outline-primary" disabled={downloadingTemplate} onClick={handleDownloadTemplate}>
                 <i className={downloadingTemplate ? 'ti ti-loader-2 me-1' : 'ti ti-download me-1'} />
                 {downloadingTemplate ? 'Preparing...' : 'Download Template'}
               </Button>

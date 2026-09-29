@@ -154,15 +154,17 @@ const listMenu = [
     ]
   },
   {
-    id: 'finance',
-    title: 'Finance',
-    value: 'finance',
-    label: 'Finance',
+    id: 'reward-and-claim',
+    title: 'Reward & Claim',
+    value: 'reward-and-claim',
+    label: 'Reward & Claim',
     type: 'group',
     selected: true,
+    collapsible: false,
     children: [
       {
         id: 'finance-reward',
+        menu_key: 16,
         title: 'Reward & Claim',
         value: 'finance-reward',
         label: 'Reward & Claim',

@@ -104,6 +104,7 @@ export default function Resource() {
 
   return (
     <MainCard
+      headerClassName="production-module-header"
       title={
         <Stack gap={1}>
           <h5 className="mb-0">Master Resource</h5>
@@ -111,7 +112,7 @@ export default function Resource() {
         </Stack>
       }
       secondary={
-        <Button variant="primary" onClick={handleSync} disabled={loading || syncing}>
+        <Button variant="outline-primary" onClick={handleSync} disabled={loading || syncing}>
           <i className={`ti ti-refresh me-1 ${syncing ? 'spin' : ''}`} />
           {syncing ? 'Synchronizing...' : 'Sync'}
         </Button>

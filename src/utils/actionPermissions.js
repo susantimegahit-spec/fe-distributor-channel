@@ -86,6 +86,24 @@ const getEntryKey = (entry) =>
 
 const getEntryActions = (entry) => entry?.actions ?? entry?.action ?? entry?.permissions ?? entry;
 
+const normalizeWidgetEntries = (rawActions) => {
+  if (typeof rawActions === 'string') {
+    try {
+      return normalizeWidgetEntries(JSON.parse(rawActions));
+    } catch {
+      return [];
+    }
+  }
+  if (Array.isArray(rawActions)) return rawActions;
+  if (!rawActions || typeof rawActions !== 'object') return [];
+  const source = rawActions.widget ?? rawActions.widgets ?? rawActions.widget_actions ?? rawActions.widgetActions ?? rawActions;
+  if (source !== rawActions) return normalizeWidgetEntries(source);
+  if (source.widget_key !== undefined || source.widgetKey !== undefined) return [source];
+  return Object.entries(source).map(([widgetKey, actions]) => ({ widget_key: widgetKey, actions }));
+};
+
+const getWidgetEntryKey = (entry) => entry?.widget_key ?? entry?.widgetKey ?? entry?.widget_id ?? entry?.widgetId ?? entry?.id ?? entry?.key;
+
 const ACTION_KEYS = {
   create: ['create', 'add', 'upload'],
   read: ['read', 'view', 'detail'],
@@ -174,6 +192,15 @@ export const compactActionsForCookie = (rawActions) =>
     return result;
   }, {});
 
+export const compactWidgetActionsForCookie = (rawActions) =>
+  normalizeWidgetEntries(rawActions).reduce((result, entry) => {
+    const widgetKey = getWidgetEntryKey(entry);
+    if (widgetKey === undefined || widgetKey === null || widgetKey === '') return result;
+    const actions = getEntryActions(entry);
+    result[String(widgetKey)] = Object.keys(ACTION_KEYS).filter((action) => getActionValue(actions, action));
+    return result;
+  }, {});
+
 const getMenuCandidates = (system, menuItem, pathname = '') => {
   const pathParts = pathname.split('/').filter(Boolean);
   const candidates = [
@@ -216,6 +243,12 @@ export const canUseAction = ({ action, system, menuItem, menuKey, pathname = '',
 export const canUseMenuAction = (menuKey, action, actionsCookie = getCookies('actions')) =>
   (Array.isArray(menuKey) ? menuKey : [menuKey]).some((key) => canUseAction({ menuKey: key, action, actionsCookie }));
 
+export const canUseWidgetAction = (widgetKey, action, actionsCookie = getCookies('widget_actions')) => {
+  const normalizedAction = ACTION_ALIASES[normalizeKey(action)] || normalizeKey(action);
+  const entry = normalizeWidgetEntries(actionsCookie).find((item) => normalizeKey(getWidgetEntryKey(item)) === normalizeKey(widgetKey));
+  return entry ? getActionValue(getEntryActions(entry), normalizedAction) : false;
+};
+
 export const getUrlAction = (pathname = '') => {
   const parts = pathname.toLowerCase().split('/').filter(Boolean);
 
@@ -248,4 +281,20 @@ export const detectElementAction = (element) => {
   if (/\bactions?\b|ti-dots-vertical/.test(description)) return 'actions';
 
   return null;
+};
+
+export const detectWidgetElementAction = (element) => {
+  const explicitAction = element.dataset.widgetAction;
+  if (explicitAction) return ACTION_ALIASES[normalizeKey(explicitAction)] || normalizeKey(explicitAction);
+
+  const iconClasses = [...element.querySelectorAll('i, svg')].map((icon) => icon.getAttribute('class') || '').join(' ');
+  const description = [element.textContent, element.getAttribute('aria-label'), element.getAttribute('title'), iconClasses, element.className]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  if (/\b(refresh|sync|synchronize)\b|ti-refresh/.test(description)) return 'sync';
+  if (/\b(approve|reject|reschedule|verify|revision)\b|ti-checks?|ti-circle-check/.test(description)) return 'approve';
+  if (/\b(view|detail|preview|expand|negotiation)\b|vendor-company-link|ti-eye/.test(description)) return 'read';
+  return detectElementAction(element);
 };

@@ -494,7 +494,7 @@ export default function VendorRegistrations({
       <Table responsive hover className="mb-0 align-middle">
         <thead>
           <tr>
-            <th>Company</th>
+            <th className="vendor-company-column">Company</th>
             <th>Vendor type</th>
             <th>Contact person</th>
             <th>Documents</th>
@@ -519,12 +519,15 @@ export default function VendorRegistrations({
                     <td>
                       <Button
                         variant="link"
-                        className="d-flex flex-column align-items-start p-0 text-start"
+                        className="vendor-company-link"
                         onClick={() => showVendorDetail(vendorId)}
                         disabled={!vendorId}
                       >
-                        <strong>{getValue(vendor, ['company_name', 'name'])}</strong>
-                        <small className="text-muted">{getValue(vendor, ['company_email', 'email'])}</small>
+                        <span className="vendor-company-link-copy">
+                          <strong>{getValue(vendor, ['company_name', 'name'])}</strong>
+                          <small>{getValue(vendor, ['company_email', 'email'])}</small>
+                        </span>
+                        <i className="ti ti-external-link vendor-company-link-arrow" aria-hidden="true" />
                       </Button>
                     </td>
                     <td>

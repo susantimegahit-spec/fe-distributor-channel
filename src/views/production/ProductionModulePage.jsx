@@ -13,12 +13,13 @@ export default function ProductionModulePage({
   description,
   icon,
   actionLabel,
-  actionVariant = 'primary',
+  actionVariant = 'outline-primary',
   actionDisabled = true,
   onAction
 }) {
   return (
     <MainCard
+      headerClassName="production-module-header"
       title={
         <Stack gap={1}>
           <h5 className="mb-0">{title}</h5>

@@ -200,6 +200,7 @@ export default function MasterLeadTime() {
 
   return (
     <MainCard
+      headerClassName="role-permission-header"
       title={
         <Stack direction="horizontal" className="justify-content-between flex-wrap" gap={2}>
           <h5 className="mb-0">Master Lead Time</h5>

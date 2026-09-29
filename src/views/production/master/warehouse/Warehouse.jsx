@@ -235,6 +235,7 @@ export default function Warehouse() {
     <>
       <Stack gap={3}>
         <MainCard
+          headerClassName="production-module-header"
           title={
             <Stack gap={1}>
               <h5 className="mb-0">Warehouse Data</h5>
@@ -242,7 +243,13 @@ export default function Warehouse() {
             </Stack>
           }
           secondary={
-            <Button data-permission-action="sync" data-permission-menu-key="47" onClick={syncData} variant="primary" disabled={loadingData}>
+            <Button
+              data-permission-action="sync"
+              data-permission-menu-key="47"
+              onClick={syncData}
+              variant="outline-primary"
+              disabled={loadingData}
+            >
               <i className="ti ti-refresh me-1" />
               Synchronize
             </Button>

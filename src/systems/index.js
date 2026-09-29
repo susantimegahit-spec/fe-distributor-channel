@@ -40,6 +40,8 @@ export const systems = [
     icon: 'ti ti-truck-delivery',
     basePath: '/logistics',
     defaultPath: '/logistics/dashboard',
+    showInUnifiedSidebar: false,
+    unifiedSidebarParent: SYSTEM_KEYS.ENTERPRISE,
     menu: logisticsMenu
   },
   {
@@ -49,6 +51,7 @@ export const systems = [
     icon: 'ti ti-building-factory-2',
     basePath: '/production',
     defaultPath: '/production/dashboard',
+    showInUnifiedSidebar: false,
     menu: productionMenu
   },
   {

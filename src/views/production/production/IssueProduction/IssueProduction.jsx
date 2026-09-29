@@ -893,6 +893,7 @@ export default function IssueProduction() {
   return (
     <>
       <MainCard
+        headerClassName="production-module-header"
         title={
           <Stack gap={1}>
             <h5 className="mb-0">Issue Production</h5>
@@ -901,7 +902,7 @@ export default function IssueProduction() {
         }
         secondary={
           <Button
-            variant="primary"
+            variant="outline-primary"
             onClick={() => {
               setIssueForm(createIssueForm());
               setItemStocks({});

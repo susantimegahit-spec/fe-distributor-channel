@@ -261,6 +261,7 @@ client.interceptors.response.use(
         Cookies.remove('role');
         Cookies.remove('menu');
         Cookies.remove('actions');
+        Cookies.remove('widget_actions');
         Cookies.remove('systems');
         Cookies.remove('system');
         Cookies.remove('expedition_code');

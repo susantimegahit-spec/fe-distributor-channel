@@ -24,7 +24,14 @@ export default function Navigation({ selectedItems, setSelectedItems, setSelectT
   const isAdministrator = isAdministratorRole(roleId);
   const allowedSystemKeys = new Set(normalizeAccessibleSystems(getCookies('system')));
   const availableSystems = systems.filter(
-    (system) => isAdministrator || (allowedSystemKeys.has(system.key) && canAccessSystem(system, permissionMenu, roleId))
+    (system) => {
+      const hasSystemAccess =
+        allowedSystemKeys.has(system.key) ||
+        systems.some(
+          (nestedSystem) => nestedSystem.unifiedSidebarParent === system.key && allowedSystemKeys.has(nestedSystem.key)
+        );
+      return system.showInUnifiedSidebar !== false && (isAdministrator || (hasSystemAccess && canAccessSystem(system, permissionMenu, roleId)));
+    }
   );
 
   const getVisibleItem = (item) => {
@@ -80,7 +87,8 @@ export default function Navigation({ selectedItems, setSelectedItems, setSelectT
     .filter(({ menu }) => menu.children.length);
   const [openSystems, setOpenSystems] = useState(() => {
     const activeSystem = systems.find((system) => pathname.startsWith(system.basePath));
-    return activeSystem ? { [activeSystem.key]: true } : {};
+    const activeSidebarKey = activeSystem?.unifiedSidebarParent || activeSystem?.key;
+    return activeSidebarKey ? { [activeSidebarKey]: true } : {};
   });
 
   const toggleSystem = (systemKey) => {

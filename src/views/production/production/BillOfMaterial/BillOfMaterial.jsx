@@ -611,6 +611,7 @@ export default function BillOfMaterial() {
   return (
     <>
       <MainCard
+        headerClassName="production-module-header"
         title={
           <Stack gap={1}>
             <h5 className="mb-0">Bill of Material</h5>
@@ -622,12 +623,12 @@ export default function BillOfMaterial() {
             <Button variant="outline-primary" onClick={() => fetchBoms(search.trim())} disabled={loading} title="Refresh">
               <i className={`ti ti-refresh ${loading ? 'ti-spin' : ''}`} />
             </Button>
-            <Button variant="light-primary" onClick={() => uploadInputRef.current?.click()} disabled={uploadingExcel}>
+            <Button variant="outline-primary" onClick={() => uploadInputRef.current?.click()} disabled={uploadingExcel}>
               <i className={`${uploadingExcel ? 'ti ti-loader-2' : 'ti ti-file-upload'} me-1`} />
               {uploadingExcel ? 'Uploading...' : 'Upload Excel'}
             </Button>
             <Form.Control ref={uploadInputRef} type="file" accept=".xlsx,.xls" className="d-none" onChange={handleUploadExcel} />
-            <Button variant="primary" onClick={handleOpenCreateModal}>
+            <Button variant="outline-primary" onClick={handleOpenCreateModal}>
               <i className="ti ti-plus me-1" />
               Create
             </Button>

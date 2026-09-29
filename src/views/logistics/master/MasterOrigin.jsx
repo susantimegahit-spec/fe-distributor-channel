@@ -208,6 +208,7 @@ export default function MasterOrigin() {
   return (
     <>
       <MainCard
+        headerClassName="role-permission-header"
         bodyClassName="p-3 p-md-4"
         title={
           <Stack direction="horizontal" className="justify-content-between flex-wrap gap-3">

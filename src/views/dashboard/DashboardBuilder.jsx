@@ -465,6 +465,7 @@ export default function DashboardBuilder({ show, onClose, roleId, onSaved }) {
                               key={item.id}
                               style={{ gridColumn: previewGridColumn, '--sm-dashboard-preview-scale': previewScale }}
                               data-dashboard-widget-id={item.id}
+                              data-widget-key={item.id}
                               onClick={() => setSelectedWidgetId(item.id)}
                             >
                               <button

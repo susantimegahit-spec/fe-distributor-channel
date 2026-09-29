@@ -31,6 +31,7 @@ import RoleServices from '../../../services/setting/RoleServices';
 import UserServices from '../../../services/setting/UserServices';
 import { SYSTEM_KEYS, systems } from '../../../systems';
 import actionRegistry from '../../../data-action.json';
+import widgetActionRegistry from '../../../data-widget-action.json';
 import { useAlert } from '../../../utils/alertContext';
 import { getAssignedCustomerCode } from '../../../utils/cookies';
 
@@ -51,7 +52,8 @@ const initialInput = {
   accessibleSystems: [],
   distributorCodes: [],
   distributorIds: [],
-  actionAssignments: {}
+  actionAssignments: {},
+  widgetActionAssignments: {}
 };
 
 const pageSize = 10;
@@ -67,6 +69,7 @@ const accessibleSystemOptions = [
   { value: SYSTEM_KEYS.CUSTOMER_PORTAL, label: 'Customer Portal', color: '#315fb4' },
   { value: SYSTEM_KEYS.ENTERPRISE, label: 'Corporate', color: '#c0265e' },
   { value: SYSTEM_KEYS.LOGISTICS, label: 'Logistics', color: '#e8590c' },
+  { value: SYSTEM_KEYS.VENDOR_MANAGEMENT, label: 'Vendor Management', color: '#2563eb' },
   { value: SYSTEM_KEYS.PRODUCTION, label: 'Production', color: '#0f766e' }
 ];
 const userActions = actionRegistry.action_definitions.map(({ value, label }) => ({ value, label }));
@@ -78,6 +81,9 @@ const flattenActionMenus = (items = [], system) =>
     ...(item.children?.length ? flattenActionMenus(item.children, system) : [])
   ]);
 const actionMenuOptions = systems.flatMap((system) => flattenActionMenus(system.menu, system));
+const widgetActionOptions = widgetActionRegistry.widgets;
+const widgetActionRegistryByKey = new Map(widgetActionOptions.map((widget) => [widget.widget_key, widget]));
+const getRegisteredWidgetActions = (widgetKey) => widgetActionRegistryByKey.get(widgetKey)?.actions || [];
 
 const isGrantedAction = (value) =>
   value === true ||
@@ -128,6 +134,33 @@ const normalizeActionAssignments = (value) => {
       } else {
         result[matchingMenu.id] = String(actions).split(',').filter(Boolean);
       }
+    }
+    return result;
+  }, {});
+};
+
+const normalizeWidgetActionAssignments = (value) => {
+  const assignmentSource = value?.widget ?? value?.widgets ?? value?.widget_actions ?? value?.widgetActions ?? value?.data ?? value;
+  const assignments = Array.isArray(assignmentSource)
+    ? assignmentSource
+    : assignmentSource && typeof assignmentSource === 'object' && ('widget_key' in assignmentSource || 'widgetKey' in assignmentSource)
+      ? [assignmentSource]
+      : assignmentSource && typeof assignmentSource === 'object'
+        ? Object.entries(assignmentSource).map(([widgetKey, actions]) => ({ widget_key: widgetKey, actions }))
+        : [];
+
+  return assignments.reduce((result, assignment) => {
+    const widgetKey = assignment?.widget_key || assignment?.widgetKey || assignment?.widget_id || assignment?.widgetId || assignment?.id;
+    if (!widgetActionRegistryByKey.has(String(widgetKey))) return result;
+    const actions = assignment?.actions || assignment?.action || assignment;
+    if (Array.isArray(actions)) {
+      result[String(widgetKey)] = actions;
+    } else if (actions && typeof actions === 'object') {
+      result[String(widgetKey)] = getRegisteredWidgetActions(String(widgetKey)).filter((action) => {
+        const permission = actionRegistry.action_definitions.find((definition) => definition.value === action)?.permission || action;
+        return isGrantedAction(actions[action]) || isGrantedAction(actions[permission]);
+      })
+      .filter((assignment) => Object.values(assignment.actions).some(Boolean));
     }
     return result;
   }, {});
@@ -968,6 +1001,7 @@ export default function UserList() {
     (input.originator ? { value: input.originator, label: input.originator } : null);
   const selectedSapStage = listApprovalStage.find((item) => item.value === input.stage) || null;
   const availableActionMenus = actionMenuOptions.filter((item) => input.accessibleSystems.includes(item.systemKey));
+  const availableActionWidgets = widgetActionOptions.filter((item) => input.accessibleSystems.includes(item.system_key));
   const selectedWarehouses = input.whsCodes.map(
     (code) => listWarehouse.find((warehouse) => warehouse.value === code) || { value: code, label: code }
   );
@@ -1020,8 +1054,23 @@ export default function UserList() {
             'shipping-schedule': selectedActions.includes('shipping-schedule')
           }
         };
-      })
-      .filter((assignment) => Object.values(assignment.actions).some(Boolean));
+      });
+  const getWidgetActionAssignmentPayload = () =>
+    availableActionWidgets
+      .map((widget) => {
+        const registeredActions = getRegisteredWidgetActions(widget.widget_key);
+        const selectedActions = (input.widgetActionAssignments[widget.widget_key] || []).filter((action) =>
+          registeredActions.includes(action)
+        );
+        return {
+          widget_key: widget.widget_key,
+          actions: {
+            read: selectedActions.includes('view'),
+            approve: selectedActions.includes('approve'),
+            sync: selectedActions.includes('sync')
+          }
+        };
+      });
 
   const handleActionAssignment = (menuId, action, isChecked) => {
     setInput((currentInput) => {
@@ -1055,6 +1104,33 @@ export default function UserList() {
 
       return { ...currentInput, actionAssignments };
     });
+  };
+  const handleWidgetActionAssignment = (widgetKey, action, isChecked) => {
+    setInput((currentInput) => {
+      const currentActions = currentInput.widgetActionAssignments[widgetKey] || [];
+      return {
+        ...currentInput,
+        widgetActionAssignments: {
+          ...currentInput.widgetActionAssignments,
+          [widgetKey]: isChecked
+            ? [...new Set([...currentActions, action])]
+            : currentActions.filter((currentAction) => currentAction !== action)
+        }
+      };
+    });
+  };
+  const allWidgetActionsChecked =
+    availableActionWidgets.length > 0 &&
+    availableActionWidgets.every((widget) =>
+      getRegisteredWidgetActions(widget.widget_key).every((action) => input.widgetActionAssignments[widget.widget_key]?.includes(action))
+    );
+  const handleCheckAllWidgetActions = (isChecked) => {
+    setInput((currentInput) => ({
+      ...currentInput,
+      widgetActionAssignments: Object.fromEntries(
+        availableActionWidgets.map((widget) => [widget.widget_key, isChecked ? getRegisteredWidgetActions(widget.widget_key) : []])
+      )
+    }));
   };
 
   const openCreateModal = () => {
@@ -1094,7 +1170,29 @@ export default function UserList() {
       distributorCodes: hasAllDistributors ? [ALL_DISTRIBUTORS_VALUE] : distributorCodes,
       distributorIds: hasAllDistributors ? [ALL_DISTRIBUTORS_VALUE] : distributorIds,
       actionAssignments: normalizeActionAssignments(
-        item.actions || item.action_assignments || item.actionAssignments || item.menu_actions || item.menuActions
+        item.actions?.menu ||
+          item.actions?.menus ||
+          item.menu_actions ||
+          item.menuActions ||
+          item.action_assignments?.menu ||
+          item.action_assignments?.menus ||
+          item.actionAssignments?.menu ||
+          item.actionAssignments?.menus ||
+          item.action_assignments ||
+          item.actionAssignments ||
+          item.actions
+      ),
+      widgetActionAssignments: normalizeWidgetActionAssignments(
+        item.actions?.widget ||
+          item.actions?.widgets ||
+          item.widget_actions ||
+          item.widgetActions ||
+          item.action_assignments?.widget ||
+          item.action_assignments?.widgets ||
+          item.actionAssignments?.widget ||
+          item.actionAssignments?.widgets ||
+          item.widget_action_assignments ||
+          item.widgetActionAssignments
       )
     });
     setShowPassword(false);
@@ -1151,7 +1249,10 @@ export default function UserList() {
       originator: input.originator || null,
       stage: input.stage || null,
       accessible_systems: input.accessibleSystems,
-      actions: getActionAssignmentPayload(),
+      actions: {
+        menu: getActionAssignmentPayload(),
+        widget: getWidgetActionAssignmentPayload()
+      },
       organization_assignment: getOrganizationAssignmentPayload(distributorPayload.code_customer),
       code_customer: distributorPayload.code_customer?.toString(),
       id_distributor: distributorPayload.id_distributor?.toString()
@@ -1185,7 +1286,10 @@ export default function UserList() {
       originator: input.originator || null,
       stage: input.stage || null,
       accessible_systems: input.accessibleSystems,
-      actions: getActionAssignmentPayload(),
+      actions: {
+        menu: getActionAssignmentPayload(),
+        widget: getWidgetActionAssignmentPayload()
+      },
       organization_assignment: getOrganizationAssignmentPayload(distributorPayload.code_customer),
       code_customer: distributorPayload.code_customer?.toString(),
       id_distributor: distributorPayload.id_distributor?.toString()
@@ -1230,6 +1334,7 @@ export default function UserList() {
     <>
       <Stack gap={3}>
         <MainCard
+          headerClassName="role-permission-header"
           title={
             <Stack gap={1}>
               <h5 className="mb-0">User List</h5>
@@ -1799,6 +1904,8 @@ export default function UserList() {
               </Card>
             </Tab>
             <Tab eventKey="actions" title="Action Assignment">
+              <Tabs defaultActiveKey="menu-actions" className="mb-3" mountOnEnter>
+                <Tab eventKey="menu-actions" title="Menu">
               <Card className="border mb-0">
                 <Card.Header className="py-3">
                   <Stack direction="horizontal" gap={3} className="justify-content-between">
@@ -1869,6 +1976,79 @@ export default function UserList() {
                   )}
                 </Card.Body>
               </Card>
+                </Tab>
+                <Tab eventKey="widget-actions" title="Widget">
+                  <Card className="border mb-0">
+                    <Card.Header className="py-3">
+                      <Stack direction="horizontal" gap={3} className="justify-content-between">
+                        <Stack direction="horizontal" gap={2}>
+                          <i className="ti ti-layout-dashboard text-primary" />
+                          <div>
+                            <h6 className="mb-0">Widget Action Assignment</h6>
+                            <small className="text-muted">Select the actions this user can perform inside dashboard widgets.</small>
+                          </div>
+                        </Stack>
+                        <Form.Check
+                          type="switch"
+                          id="user-widget-action-check-all"
+                          label="Check All"
+                          checked={allWidgetActionsChecked}
+                          disabled={!availableActionWidgets.length}
+                          onChange={(event) => handleCheckAllWidgetActions(event.target.checked)}
+                        />
+                      </Stack>
+                    </Card.Header>
+                    <Card.Body className="p-0" style={{ maxHeight: 420, overflow: 'auto' }}>
+                      {availableActionWidgets.length ? (
+                        <Table hover className="mb-0 align-middle text-nowrap">
+                          <thead style={{ position: 'sticky', top: 0, zIndex: 2, background: 'var(--bs-body-bg)' }}>
+                            <tr>
+                              <th className="ps-3">Widget Name</th>
+                              {userActions.map((action) => (
+                                <th key={action.value} className="text-center">{action.label}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {availableActionWidgets.map((widget) => (
+                              <tr key={widget.widget_key}>
+                                <td className="ps-3">
+                                  <div className="fw-semibold">{widget.title}</div>
+                                  <small className="text-muted">{widget.group}</small>
+                                </td>
+                                {userActions.map((action) => {
+                                  const isRegistered = getRegisteredWidgetActions(widget.widget_key).includes(action.value);
+                                  return (
+                                    <td key={action.value} className="text-center">
+                                      {isRegistered ? (
+                                        <Form.Check
+                                          type="switch"
+                                          id={`user-widget-action-${widget.widget_key}-${action.value}`}
+                                          aria-label={`${action.label} ${widget.title}`}
+                                          checked={(input.widgetActionAssignments[widget.widget_key] || []).includes(action.value)}
+                                          onChange={(event) =>
+                                            handleWidgetActionAssignment(widget.widget_key, action.value, event.target.checked)
+                                          }
+                                        />
+                                      ) : (
+                                        <span className="text-muted">—</span>
+                                      )}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </Table>
+                      ) : (
+                        <div className="text-center text-muted py-5">
+                          Select an accessible module on the Account &amp; Access tab first.
+                        </div>
+                      )}
+                    </Card.Body>
+                  </Card>
+                </Tab>
+              </Tabs>
             </Tab>
           </Tabs>
         </Modal.Body>

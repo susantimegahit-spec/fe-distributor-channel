@@ -123,6 +123,7 @@ export default function NotificationSettings() {
 
   return (
     <MainCard
+      headerClassName="role-permission-header"
       title={
         <Stack gap={1}>
           <h5 className="mb-0">Notification Settings</h5>

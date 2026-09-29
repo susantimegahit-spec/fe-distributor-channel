@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
-import { canUseAction, detectElementAction } from '../utils/actionPermissions';
+import { canUseAction, canUseWidgetAction, detectElementAction, detectWidgetElementAction } from '../utils/actionPermissions';
 import { getMenuItemByPathname, getSystemByPathname, isAdministratorRole } from '../systems';
 import { getCookies } from '../utils/cookies';
 import './action-permission-guard.scss';
@@ -17,13 +17,19 @@ export default function ActionPermissionGuard() {
     const menuItem = system ? getMenuItemByPathname(system, pathname) : null;
     const roleId = getCookies('role');
     const actionsCookie = getCookies('actions');
+    const widgetActionsCookie = getCookies('widget_actions');
+    const hasWidgetActionAssignments =
+      widgetActionsCookie && typeof widgetActionsCookie === 'object'
+        ? Object.keys(widgetActionsCookie).length > 0
+        : widgetActionsCookie !== undefined && widgetActionsCookie !== null && widgetActionsCookie !== '';
     const isAdministratorSetting =
       isAdministratorRole(roleId) &&
       (pathname === '/setting' ||
         pathname.startsWith('/setting/') ||
         pathname === '/system-setting' ||
         pathname.startsWith('/system-setting/') ||
-        pathname.startsWith('/customer-portal/setting'));
+        pathname.startsWith('/customer-portal/setting') ||
+        pathname === '/dashboard-builder');
 
     const applyPermissions = (root = document) => {
       const elements = [];
@@ -32,7 +38,9 @@ export default function ActionPermissionGuard() {
 
       elements.forEach((element) => {
         if (!element.closest('.pc-content, .sm-workspace-embedded-content, .modal, .offcanvas, .dropdown-menu')) return;
-        const action = detectElementAction(element);
+        const widgetRoot = element.closest('[data-widget-key]');
+        const widgetKey = widgetRoot?.dataset.widgetKey;
+        const action = widgetKey ? detectWidgetElementAction(element) : detectElementAction(element);
         if (!action) {
           element.classList.remove(HIDDEN_CLASS);
           element.removeAttribute('aria-hidden');
@@ -41,15 +49,17 @@ export default function ActionPermissionGuard() {
 
         const allowed =
           isAdministratorSetting ||
-          canUseAction({
-            action,
-            system,
-            menuItem,
-            menuKey: element.dataset.permissionMenuKey,
-            pathname,
-            roleId,
-            actionsCookie
-          });
+          (widgetKey
+            ? !hasWidgetActionAssignments || canUseWidgetAction(widgetKey, action, widgetActionsCookie)
+            : canUseAction({
+                action,
+                system,
+                menuItem,
+                menuKey: element.dataset.permissionMenuKey,
+                pathname,
+                roleId,
+                actionsCookie
+              }));
         element.classList.toggle(HIDDEN_CLASS, !allowed);
         element.setAttribute('aria-hidden', allowed ? 'false' : 'true');
       });
@@ -69,7 +79,7 @@ export default function ActionPermissionGuard() {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ['data-permission-action', 'data-permission-menu-key']
+      attributeFilter: ['data-permission-action', 'data-permission-menu-key', 'data-widget-action', 'data-widget-key']
     });
 
     return () => {

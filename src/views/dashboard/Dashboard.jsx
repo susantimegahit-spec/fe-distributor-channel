@@ -82,7 +82,7 @@ export default function Dashboard() {
                 .map((item) => {
                   const Widget = item.definition.component;
                   return (
-                    <div style={{ gridColumn: `${item.column} / span ${item.span}` }} key={item.id}>
+                    <div data-widget-key={item.id} style={{ gridColumn: `${item.column} / span ${item.span}` }} key={item.id}>
                       <Widget />
                     </div>
                   );

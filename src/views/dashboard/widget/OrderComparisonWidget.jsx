@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import ReactApexChart from 'react-apexcharts';
 import Spinner from 'react-bootstrap/Spinner';
 import Stack from 'react-bootstrap/Stack';
@@ -42,7 +41,6 @@ const normalizeRows = (response) => {
 const formatValue = (value) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(Number(value) || 0);
 
 export default function OrderComparisonWidget() {
-  const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -169,14 +167,6 @@ export default function OrderComparisonWidget() {
               <small className="text-muted">Target, CMO, process, and completed orders by brand</small>
             </span>
           </Stack>
-          <button
-            type="button"
-            className="sm-widget-open"
-            onClick={() => navigate('/customer-portal/dashboard')}
-            aria-label="Open Order Comparison"
-          >
-            <i className="ti ti-arrow-up-right" />
-          </button>
         </Stack>
       }
     >

@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import moment from 'moment';
 import Badge from 'react-bootstrap/Badge';
+import Button from 'react-bootstrap/Button';
 import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
 
@@ -9,6 +10,7 @@ import TablePagination from 'components/TablePagination';
 import LogisticsServices from 'services/logistics/LogisticsServices';
 import RescheduleLogModal from '../../customer-portal/dashboard/RescheduleLogModal';
 import RescheduleOrderActions from '../../customer-portal/dashboard/RescheduleOrderActions';
+import RescheduleOrderItemsRow from '../../customer-portal/dashboard/RescheduleOrderItemsRow';
 
 const PAGE_SIZE = 10;
 const statusConfig = {
@@ -26,7 +28,7 @@ const statusConfig = {
 };
 
 const getOrderValue = (order = {}, keys = [], fallback = '-') => {
-  const key = keys.find((item) => order[item] !== undefined);
+  const key = keys.find((item) => order[item] !== undefined && order[item] !== null && order[item] !== '');
   return key ? order[key] : fallback;
 };
 const normalizeStatus = (value) =>
@@ -49,6 +51,7 @@ export default function RequestRescheduleOrderWidget() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [refresh, setRefresh] = useState(0);
+  const [expandedOrderIds, setExpandedOrderIds] = useState([]);
 
   useEffect(() => {
     let active = true;
@@ -111,15 +114,29 @@ export default function RequestRescheduleOrderWidget() {
               </Stack>
               <span className="text-muted f-12">Sales orders with reschedule requests from Logistics.</span>
             </Stack>
-            <span className="avtar avtar-s bg-light-warning text-warning">
-              <i className="ti ti-calendar-time" />
-            </span>
+            <Stack direction="horizontal" gap={2}>
+              <Button
+                variant="outline-primary"
+                size="sm"
+                onClick={() => setRefresh((value) => value + 1)}
+                disabled={loading}
+                title="Refresh reschedule orders"
+                aria-label="Refresh reschedule orders"
+              >
+                <i className={`ti ti-refresh me-1 ${loading ? 'spin' : ''}`} />
+                Refresh
+              </Button>
+              <span className="avtar avtar-s bg-light-warning text-warning">
+                <i className="ti ti-calendar-time" />
+              </span>
+            </Stack>
           </Stack>
         }
       >
         <Table responsive hover className="mb-0 align-middle">
           <thead>
             <tr>
+              <th className="text-center" aria-label="Expand Sales Order items" />
               <th>No. SO</th>
               <th>Customer</th>
               <th>Depo</th>
@@ -133,13 +150,13 @@ export default function RequestRescheduleOrderWidget() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={8} className="text-center text-muted py-4">
+                <td colSpan={9} className="text-center text-muted py-4">
                   Loading reschedule orders...
                 </td>
               </tr>
             ) : error ? (
               <tr>
-                <td colSpan={8} className="text-center text-danger py-4">
+                <td colSpan={9} className="text-center text-danger py-4">
                   {error}
                 </td>
               </tr>
@@ -149,8 +166,25 @@ export default function RequestRescheduleOrderWidget() {
                 const status = normalizeStatus(getOrderValue(order, ['status'], ''));
                 const statusMeta = getStatusMeta(status);
 
+                const rowKey = String(id || index);
+                const expanded = expandedOrderIds.includes(rowKey);
+
                 return (
-                  <tr key={id || index}>
+                  <Fragment key={rowKey}>
+                  <tr>
+                    <td className="text-center">
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-light-primary rounded-circle"
+                        onClick={() => setExpandedOrderIds((current) => current.includes(rowKey)
+                          ? current.filter((item) => item !== rowKey)
+                          : [...current, rowKey])}
+                        aria-label={expanded ? 'Hide Sales Order items' : 'Show Sales Order items'}
+                        aria-expanded={expanded}
+                      >
+                        <i className={`ti ti-chevron-${expanded ? 'down' : 'right'}`} />
+                      </button>
+                    </td>
                     <td>
                       <button
                         type="button"
@@ -160,7 +194,21 @@ export default function RequestRescheduleOrderWidget() {
                         onClick={() => setDetail(order)}
                         aria-label="View reschedule negotiation"
                       >
-                        {getOrderValue(order, ['sap_doc_num', 'sapDocNum', 'doc_num', 'docNum', 'order_no', 'orderNo'])}
+                        {getOrderValue(order, [
+                          'sap_doc_num',
+                          'sapDocNum',
+                          'doc_num',
+                          'docNum',
+                          'DocNum',
+                          'order_no',
+                          'orderNo',
+                          'order_number',
+                          'orderNumber',
+                          'so_no',
+                          'soNo',
+                          'sales_order_number',
+                          'salesOrderNumber'
+                        ])}
                       </button>
                     </td>
                     <td>{getOrderValue(order, ['customer_name', 'customerName', 'card_name', 'cardName'])}</td>
@@ -175,11 +223,13 @@ export default function RequestRescheduleOrderWidget() {
                       <RescheduleOrderActions order={order} onSuccess={handleSuccess} />
                     </td>
                   </tr>
+                  <RescheduleOrderItemsRow order={order} expanded={expanded} />
+                  </Fragment>
                 );
               })
             ) : (
               <tr>
-                <td colSpan={8} className="text-center text-muted py-4">
+                <td colSpan={9} className="text-center text-muted py-4">
                   No reschedule orders available.
                 </td>
               </tr>

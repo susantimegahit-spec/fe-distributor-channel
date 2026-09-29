@@ -76,7 +76,11 @@ function PersonalizeSettings() {
   };
 
   return (
-    <MainCard title="Personalize" subheader="Choose the appearance used across the application.">
+    <MainCard
+      headerClassName="role-permission-header"
+      title="Personalize"
+      subheader="Choose the appearance used across the application."
+    >
       <div className="system-setting-theme-options">
         <button
           type="button"
@@ -132,7 +136,11 @@ function MasterDataContent({ moduleKey, masterItem }) {
 
   if (!selectedModule) {
     return (
-      <MainCard title="Master Data" subheader="Select a module from the sidebar to manage its master data.">
+      <MainCard
+        headerClassName="role-permission-header"
+        title="Master Data"
+        subheader="Select a module from the sidebar to manage its master data."
+      >
         <div className="system-setting-module-grid">
           {settingMasterDataModules.map((module) => (
             <button
@@ -166,7 +174,11 @@ function MasterDataContent({ moduleKey, masterItem }) {
   }
 
   return (
-    <MainCard title={`${selectedModule.title} Master Data`} subheader="Select a master menu to open its management page.">
+    <MainCard
+      headerClassName="role-permission-header"
+      title={`${selectedModule.title} Master Data`}
+      subheader="Select a master menu to open its management page."
+    >
       <div className="system-setting-master-list">
         {masterItems.length ? (
           masterItems.map((item) => (
@@ -221,22 +233,22 @@ export default function SystemSettingPage() {
   return (
     <Stack gap={3} className="system-setting-page">
       <MainCard className="system-setting-header-card" bodyClassName="system-setting-header">
-        <div>
-          <span className="system-setting-eyebrow">ADMINISTRATOR</span>
-          <div className="system-setting-title-row">
-            <Button
-              type="button"
-              className="system-setting-back-button"
-              data-permission-action="utility"
-              title="Back to Dashboard"
-              aria-label="Back to Dashboard"
-              onClick={() => navigate('/customer-portal/dashboard')}
-            >
-              <i className="ti ti-arrow-left" aria-hidden="true" />
-            </Button>
+        <div className="system-setting-header-copy">
+          <Button
+            type="button"
+            className="system-setting-back-button"
+            data-permission-action="utility"
+            title="Back to Dashboard"
+            aria-label="Back to Dashboard"
+            onClick={() => navigate('/customer-portal/dashboard')}
+          >
+            <i className="ti ti-arrow-left" aria-hidden="true" />
+          </Button>
+          <div>
+            <span className="system-setting-eyebrow">ADMINISTRATOR</span>
             <h3 className="mb-1">System Setting</h3>
+            <p className="text-muted mb-0">Manage users, access, master data, automation, and system notifications.</p>
           </div>
-          <p className="text-muted mb-0">Manage users, access, master data, automation, and system notifications.</p>
         </div>
         <span className="system-setting-header-icon" aria-hidden="true">
           <i className="ti ti-settings" />

@@ -26,10 +26,15 @@
   letter-spacing: 0.12em;
 }
 
-.system-setting-title-row {
+.system-setting-header-copy {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  min-width: 0;
+}
+
+.system-setting-header-copy > div {
+  min-width: 0;
 }
 
 .system-setting-back-button.btn {

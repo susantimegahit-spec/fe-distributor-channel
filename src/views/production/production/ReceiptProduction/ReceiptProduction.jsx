@@ -978,6 +978,7 @@ export default function ReceiptProduction() {
   return (
     <>
       <MainCard
+        headerClassName="production-module-header"
         title={
           <Stack gap={1}>
             <h5 className="mb-0">Receipt Production</h5>
@@ -986,7 +987,7 @@ export default function ReceiptProduction() {
         }
         secondary={
           <Button
-            variant="primary"
+            variant="outline-primary"
             onClick={() => {
               setReceiptForm(createReceiptForm());
               setItemStocks({});

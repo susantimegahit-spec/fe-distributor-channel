@@ -154,6 +154,38 @@ const enterpriseMenu = [
         ]
       },
       {
+        id: 'logistics-navigation',
+        title: 'Logistics',
+        type: 'collapse',
+        value: 'logistics-navigation',
+        label: 'Logistics',
+        selected: true,
+        icon: 'ti ti-truck-delivery',
+        children: [
+          {
+            id: 'logistics-picklists',
+            title: 'Picklist',
+            type: 'item',
+            value: 'logistics-picklists',
+            label: 'Picklist',
+            selected: true,
+            icon: 'ti ti-clipboard-list',
+            url: '/logistics/picklists'
+          },
+          {
+            id: 'logistics-rates',
+            menu_key: 36,
+            title: 'Rates',
+            type: 'item',
+            value: 'logistics-rates',
+            label: 'Rates',
+            selected: true,
+            icon: 'ti ti-receipt-2',
+            url: '/logistics/master/rates'
+          }
+        ]
+      },
+      {
         id: 'enterprise-budget',
         title: 'Budget',
         type: 'item',

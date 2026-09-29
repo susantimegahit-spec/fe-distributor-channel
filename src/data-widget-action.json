@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "widgets": [
+    {
+      "widget_key": "request-reschedule-order",
+      "system_key": "customer-portal",
+      "title": "Request Reschedule Order",
+      "group": "Customer Portal",
+      "actions": ["view", "approve", "sync"],
+      "buttons": {
+        "view": ["Expand SO Items", "View SO Negotiation"],
+        "approve": ["Approve for Packing", "Reschedule Order"],
+        "sync": ["Refresh"]
+      }
+    },
+    {
+      "widget_key": "order-ready",
+      "system_key": "logistics",
+      "title": "Order Ready",
+      "group": "Logistics",
+      "actions": ["view", "approve", "sync"],
+      "buttons": {
+        "view": ["View SO Negotiation"],
+        "approve": ["Approve for Packing", "Reschedule Order"],
+        "sync": ["Refresh"]
+      }
+    },
+    {
+      "widget_key": "vendor-registration-list",
+      "system_key": "vendor-management",
+      "title": "Vendor Registrations",
+      "group": "Vendor Management",
+      "actions": ["view", "approve", "sync"],
+      "buttons": {
+        "view": ["View Vendor", "View Document"],
+        "approve": ["Approve Vendor", "Reject Vendor", "Verify Document", "Revision Document", "Reject Document"],
+        "sync": ["Refresh"]
+      }
+    }
+  ]
+}

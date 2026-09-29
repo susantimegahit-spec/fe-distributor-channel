@@ -118,6 +118,7 @@ export default function MasterDistributor() {
     <>
       <Stack gap={3}>
         <MainCard
+          headerClassName="role-permission-header"
           title={
             <Stack gap={1}>
               <h5 className="mb-0">Distributor Data</h5>

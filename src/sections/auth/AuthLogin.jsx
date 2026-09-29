@@ -22,7 +22,7 @@ import Turnstile from 'components/Turnstile';
 import { AUTH_STATE_CHANGED_EVENT } from '../../utils/authEvents';
 import { getFirstAccessibleMenuPath, isAdministratorRole, normalizeAccessibleSystems, systems } from '../../systems';
 import { setAccessibleSystem } from '../../redux/authReducer';
-import { compactActionsForCookie } from '../../utils/actionPermissions';
+import { compactActionsForCookie, compactWidgetActionsForCookie } from '../../utils/actionPermissions';
 
 // ==============================|| AUTH LOGIN FORM ||============================== //
 
@@ -143,7 +143,26 @@ export default function AuthLoginForm({ className }) {
         const accessibleSystemSource =
           loginData.accessible_system || loginData.accessible_systems || userData.accessible_system || userData.accessible_systems || [];
         const accessibleSystems = normalizeAccessibleSystems(accessibleSystemSource);
+        const actionContainer =
+          [
+            loginData.actions,
+            loginData.action_assignments,
+            loginData.actionAssignments,
+            userData.actions,
+            userData.action_assignments,
+            userData.actionAssignments
+          ].find(
+            (value) =>
+              value &&
+              typeof value === 'object' &&
+              !Array.isArray(value) &&
+              (value.menu || value.menus || value.widget || value.widgets || value.menu_actions || value.widget_actions)
+          ) || {};
         const actionSources = [
+          actionContainer.menu,
+          actionContainer.menus,
+          actionContainer.menu_actions,
+          actionContainer.menuActions,
           loginData.actions,
           loginData.action_assignments,
           loginData.actionAssignments,
@@ -163,6 +182,23 @@ export default function AuthLoginForm({ className }) {
         ];
         const actions =
           actionSources.find((value) => (Array.isArray(value) ? value.length > 0 : value && Object.keys(value).length > 0)) || [];
+        const widgetActionSources = [
+          actionContainer.widget,
+          actionContainer.widgets,
+          actionContainer.widget_actions,
+          actionContainer.widgetActions,
+          loginData.widget_actions,
+          loginData.widgetActions,
+          loginData.widget_action_assignments,
+          loginData.widgetActionAssignments,
+          userData.widget_actions,
+          userData.widgetActions,
+          userData.widget_action_assignments,
+          userData.widgetActionAssignments
+        ];
+        const hasWidgetActionSource = widgetActionSources.some((value) => value !== undefined && value !== null);
+        const widgetActions =
+          widgetActionSources.find((value) => (Array.isArray(value) ? value.length > 0 : value && Object.keys(value).length > 0)) || [];
         const organizationDistributors = normalizeAssignmentValues(organizationAssignment.distributors);
         const customerCode =
           userData.customer_code ||
@@ -251,6 +287,11 @@ export default function AuthLoginForm({ className }) {
         }
         Cookies.set('menu', JSON.stringify(loginData?.menu));
         Cookies.set('actions', JSON.stringify(compactActionsForCookie(actions)));
+        if (hasWidgetActionSource) {
+          Cookies.set('widget_actions', JSON.stringify(compactWidgetActionsForCookie(widgetActions)));
+        } else {
+          Cookies.remove('widget_actions');
+        }
         Cookies.set('systems', JSON.stringify(loginData?.systems || loginData?.system_permissions || []));
         Cookies.set('system', JSON.stringify(accessibleSystems));
         dispatch(setAccessibleSystem(accessibleSystems));

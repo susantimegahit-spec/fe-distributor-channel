@@ -1556,6 +1556,7 @@ export default function ProductionOrder() {
   return (
     <>
       <MainCard
+        headerClassName="production-module-header"
         title={
           <Stack gap={1}>
             <h5 className="mb-0">Production Order</h5>
@@ -1572,7 +1573,7 @@ export default function ProductionOrder() {
               <i className="ti ti-package-export me-1" />
               Create Issue
             </Button>
-            <Button variant="primary" onClick={handleOpenCreate}>
+            <Button variant="outline-primary" onClick={handleOpenCreate}>
               <i className="ti ti-plus me-1" />
               Create Production Order
             </Button>

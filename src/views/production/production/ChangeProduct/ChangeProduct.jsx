@@ -523,7 +523,7 @@ export default function ChangeProduct() {
   return (
     <>
       <MainCard
-        headerClassName="change-product-header"
+        headerClassName="change-product-header production-module-header"
         title={
           <Stack gap={1} className="change-product-header-copy">
             <h5 className="mb-0">Change Product</h5>
@@ -532,7 +532,7 @@ export default function ChangeProduct() {
         }
         secondary={
           canCreate ? (
-            <Button variant="primary" className="change-product-header-action" onClick={() => openCreateModal()}>
+            <Button variant="outline-primary" className="change-product-header-action" onClick={() => openCreateModal()}>
               <i className="ti ti-plus me-1" />
               Create Change Product
             </Button>

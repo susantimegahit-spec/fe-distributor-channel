@@ -103,6 +103,7 @@ export default function DepartmentList() {
 
   return (
     <MainCard
+      headerClassName="role-permission-header"
       title={
         <Stack direction="horizontal" gap={3} className="justify-content-between flex-wrap">
           <div>

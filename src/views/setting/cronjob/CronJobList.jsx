@@ -244,6 +244,7 @@ export default function CronJobList() {
   return (
     <>
       <MainCard
+        headerClassName="role-permission-header"
         title={
           <div className="d-flex w-100 flex-wrap justify-content-between align-items-center gap-2">
             <div>

@@ -426,7 +426,7 @@ export default function MasterTarget() {
                   <div className="flex-grow-1">
                     <h6>Upload Target File</h6>
                     <p className="text-muted f-12 mb-3">Select a completed Excel file in XLSX or XLS format.</p>
-                    <Button variant="primary" disabled={uploading} onClick={() => uploadInputRef.current?.click()}>
+                    <Button variant="outline-primary" disabled={uploading} onClick={() => uploadInputRef.current?.click()}>
                       <i className={`${uploading ? 'ti ti-loader-2' : 'ti ti-upload'} me-1`} />
                       {uploading ? 'Reading File...' : 'Upload Excel'}
                     </Button>
