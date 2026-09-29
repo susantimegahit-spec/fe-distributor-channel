@@ -532,7 +532,7 @@ export default function ChangeProduct() {
         }
         secondary={
           canCreate ? (
-            <Button className="change-product-header-action" onClick={() => openCreateModal()}>
+            <Button variant="primary" className="change-product-header-action" onClick={() => openCreateModal()}>
               <i className="ti ti-plus me-1" />
               Create Change Product
             </Button>

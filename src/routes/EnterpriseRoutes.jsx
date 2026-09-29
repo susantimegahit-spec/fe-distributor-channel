@@ -12,6 +12,7 @@ const Budget = Loadable(lazy(() => import('views/corporate/budget/Budget')));
 const DepartmentList = Loadable(lazy(() => import('views/setting/department/DepartmentList')));
 const CvScreening = Loadable(lazy(() => import('views/customer-portal/cv-screening/CvScreening')));
 const TaskManagement = Loadable(lazy(() => import('views/corporate/hrd/TaskManagement')));
+const ToDoList = Loadable(lazy(() => import('views/corporate/hrd/ToDoList')));
 
 const LegacyEnterpriseRedirect = () => {
   const location = useLocation();
@@ -46,6 +47,10 @@ const EnterpriseRoutes = {
     {
       path: 'corporate/hrd/task-management',
       element: <TaskManagement />
+    },
+    {
+      path: 'corporate/hrd/to-do-list',
+      element: <ToDoList />
     },
     {
       path: 'coporate/*',

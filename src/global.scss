@@ -2831,20 +2831,99 @@ body {
   color: #76849a;
 }
 .sm-dashboard-builder-grid {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
   align-items: start;
+}
+.sm-dashboard-builder-drop-overlay {
+  position: absolute;
+  z-index: 4;
+  top: 0;
+  right: 0;
+  left: 0;
+  min-height: 110px;
+  border: 2px dashed var(--system-primary, #315fb4);
+  border-radius: 12px;
+  background: rgba(var(--system-primary-rgb, 49, 95, 180), 0.1);
+  pointer-events: none;
+  transition:
+    height 0.18s ease,
+    width 0.18s ease,
+    transform 0.18s ease;
+  animation: sm-dashboard-drop-pulse 1s ease-in-out infinite alternate;
+}
+.sm-dashboard-builder-drop-overlay > span {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--system-primary, #315fb4);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  transform: translateX(-50%);
+}
+@keyframes sm-dashboard-drop-pulse {
+  from {
+    background: rgba(var(--system-primary-rgb, 49, 95, 180), 0.06);
+  }
+  to {
+    background: rgba(var(--system-primary-rgb, 49, 95, 180), 0.16);
+  }
 }
 .sm-dashboard-builder-item {
   position: relative;
   min-width: 0;
   border-radius: 12px;
   cursor: pointer;
-  transition: box-shadow 0.16s ease;
+  transition:
+    box-shadow 0.16s ease,
+    opacity 0.16s ease,
+    transform 0.16s ease;
 }
 .sm-dashboard-builder-item.is-selected {
   box-shadow: 0 0 0 3px rgba(var(--system-primary-rgb, 49, 95, 180), 0.28);
+}
+.sm-dashboard-builder-item.is-dragging {
+  opacity: 0.42;
+  transform: scale(0.985);
+}
+.sm-dashboard-builder-item.is-drop-destination {
+  z-index: 3;
+  transform: scaleX(var(--sm-dashboard-preview-scale, 1));
+  transform-origin: center;
+  box-shadow: 0 0 0 3px rgba(var(--system-primary-rgb, 49, 95, 180), 0.2);
+}
+.sm-dashboard-widget-drag-handle {
+  position: absolute;
+  z-index: 5;
+  top: -12px;
+  right: -10px;
+  display: inline-flex;
+  align-items: center;
+  width: 32px;
+  height: 32px;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgba(var(--system-primary-rgb, 49, 95, 180), 0.4);
+  border-radius: 8px;
+  background: var(--bs-body-bg, #fff);
+  color: var(--system-primary, #315fb4);
+  box-shadow: 0 4px 12px rgba(25, 45, 75, 0.12);
+  cursor: grab;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+.sm-dashboard-widget-drag-handle:active {
+  cursor: grabbing;
+}
+.sm-dashboard-widget-drag-handle > i {
+  font-size: 16px;
 }
 .sm-dashboard-builder-item-actions {
   display: flex;
@@ -5033,6 +5112,11 @@ body {
 
 .pc-sidebar .sm-unified-sidebar-system > ul .sm-sidebar-group-items.is-indented {
   padding-left: 38px;
+}
+
+// Keep module children visually nested below the system header.
+.pc-sidebar .sm-unified-sidebar-system > ul .sm-sidebar-group-items:not(.is-indented) {
+  padding-left: 18px;
 }
 
 .pc-sidebar .sm-unified-sidebar-system > ul .pc-submenu {

@@ -986,7 +986,7 @@ export default function ReceiptProduction() {
         }
         secondary={
           <Button
-            variant="success"
+            variant="primary"
             onClick={() => {
               setReceiptForm(createReceiptForm());
               setItemStocks({});

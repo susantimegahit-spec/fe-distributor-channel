@@ -74,6 +74,28 @@ const setAssignmentCookie = (key, values) => {
   }
 };
 
+const sanitizeLoginResponse = (value) => {
+  if (Array.isArray(value)) return value.map(sanitizeLoginResponse);
+  if (!value || typeof value !== 'object') return value;
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => {
+      const isSensitive = ['access_token', 'refresh_token', 'token', 'password'].includes(key.toLowerCase());
+      return [key, isSensitive && item ? '[REDACTED]' : sanitizeLoginResponse(item)];
+    })
+  );
+};
+
+const logLoginResponse = (response, level = 'log') => {
+  const logger = level === 'error' ? console.error : console.log;
+  const snapshot = {
+    status: response?.status,
+    statusText: response?.statusText,
+    data: sanitizeLoginResponse(response?.data)
+  };
+  logger(`[Auth Login] Response\n${JSON.stringify(snapshot, null, 2)}`);
+};
+
 export default function AuthLoginForm({ className }) {
   const isSessionExpired = new URLSearchParams(window.location.search).get('reason') === 'session-expired';
   const [showPassword, setShowPassword] = useState(false);
@@ -107,7 +129,7 @@ export default function AuthLoginForm({ className }) {
 
     try {
       const response = await DataService.post('/auth/login', payload);
-      console.log('Login response:', JSON.stringify(response.data, null, 2));
+      logLoginResponse(response);
 
       if (response.data.success === true) {
         sessionStorage.removeItem('dc-session-expired-redirecting');
@@ -211,19 +233,7 @@ export default function AuthLoginForm({ className }) {
               userData,
               loginData,
               ['units', 'unit_codes', 'unitCodes', 'user_units', 'userUnits', 'unit'],
-              [
-                'unit_code',
-                'unitCode',
-                'u_unit',
-                'U_Unit',
-                'unit',
-                'Unit',
-                'code',
-                'value',
-                'master_unit_id',
-                'masterUnitId',
-                'id'
-              ]
+              ['unit_code', 'unitCode', 'u_unit', 'U_Unit', 'unit', 'Unit', 'code', 'value', 'master_unit_id', 'masterUnitId', 'id']
             );
 
         Cookies.set('isLoggedIn', true);
@@ -232,6 +242,13 @@ export default function AuthLoginForm({ className }) {
         Cookies.set('name', userData.name);
         Cookies.set('email', userData.email);
         Cookies.set('role', userData.role_id);
+        const employeeId =
+          userData.employee?.id || loginData.employee?.id || userData.employee_id || loginData.employee_id || response.data.employee?.id;
+        if (employeeId !== undefined && employeeId !== null && employeeId !== '') {
+          Cookies.set('employee_id', String(employeeId));
+        } else {
+          Cookies.remove('employee_id');
+        }
         Cookies.set('menu', JSON.stringify(loginData?.menu));
         Cookies.set('actions', JSON.stringify(compactActionsForCookie(actions)));
         Cookies.set('systems', JSON.stringify(loginData?.systems || loginData?.system_permissions || []));
@@ -294,6 +311,7 @@ export default function AuthLoginForm({ className }) {
         showAlert(response.data.message, 'danger');
       }
     } catch (error) {
+      logLoginResponse(error?.response, 'error');
       showAlert(error?.message || 'Login failed. Please try again.', 'danger');
     } finally {
       setIsLoading(false);

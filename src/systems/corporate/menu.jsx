@@ -69,6 +69,16 @@ const enterpriseMenu = [
             selected: true,
             icon: 'ti ti-list-check',
             url: withBasePath('/hrd/task-management')
+          },
+          {
+            id: 'enterprise-hrd-to-do-list',
+            title: 'To Do List',
+            type: 'item',
+            value: 'enterprise-hrd-to-do-list',
+            label: 'To Do List',
+            selected: true,
+            icon: 'ti ti-checkbox',
+            url: withBasePath('/hrd/to-do-list')
           }
         ]
       },

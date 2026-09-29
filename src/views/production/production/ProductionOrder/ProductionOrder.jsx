@@ -1565,14 +1565,14 @@ export default function ProductionOrder() {
         secondary={
           <Stack direction="horizontal" gap={2}>
             <Button
-              variant="outline-success"
+              variant="outline-primary"
               onClick={() => setShowAddIssueModal(true)}
               disabled={loadingOrders || Boolean(issuingOrderId)}
             >
               <i className="ti ti-package-export me-1" />
               Create Issue
             </Button>
-            <Button variant="success" onClick={handleOpenCreate}>
+            <Button variant="primary" onClick={handleOpenCreate}>
               <i className="ti ti-plus me-1" />
               Create Production Order
             </Button>
@@ -1979,7 +1979,7 @@ export default function ProductionOrder() {
                       <td>{formatDate(order.dueDate)}</td>
                       <td>{status ? <Badge bg={status.variant}>{status.label}</Badge> : '-'}</td>
                       <td className="text-center">
-                        <Button size="sm" variant="success" disabled={Boolean(issuingOrderId)} onClick={() => handleAddIssue(order)}>
+                        <Button size="sm" variant="primary" disabled={Boolean(issuingOrderId)} onClick={() => handleAddIssue(order)}>
                           <i className={isIssuing ? 'ti ti-loader-2 me-1' : 'ti ti-package-export me-1'} />
                           {isIssuing ? 'Creating...' : 'Create Issue'}
                         </Button>

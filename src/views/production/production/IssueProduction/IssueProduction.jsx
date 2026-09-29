@@ -901,7 +901,7 @@ export default function IssueProduction() {
         }
         secondary={
           <Button
-            variant="success"
+            variant="primary"
             onClick={() => {
               setIssueForm(createIssueForm());
               setItemStocks({});

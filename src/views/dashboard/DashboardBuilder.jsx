@@ -59,6 +59,8 @@ export default function DashboardBuilder({ show, onClose, roleId, onSaved }) {
   const [layout, setLayout] = useState({ version: 0, rows: [{ columns: DEFAULT_GRID_COLUMNS }], widgets: [] });
   const [search, setSearch] = useState('');
   const [selectedWidgetId, setSelectedWidgetId] = useState(null);
+  const [draggedWidgetId, setDraggedWidgetId] = useState(null);
+  const [dragTarget, setDragTarget] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   useEffect(() => {
@@ -116,6 +118,116 @@ export default function DashboardBuilder({ show, onClose, roleId, onSaved }) {
       [n[i], n[t]] = [n[t], n[i]];
       return { ...current, widgets: n.map((widget, index) => ({ ...widget, sort: index + 1 })) };
     });
+  const rangesOverlap = (firstColumn, firstSpan, secondColumn, secondSpan) =>
+    firstColumn < secondColumn + secondSpan && secondColumn < firstColumn + firstSpan;
+  const moveWidgetTo = (id, row, column, span, merge = null) =>
+    setLayout((current) => {
+      const source = current.widgets.find((widget) => widget.id === id);
+      if (!source) return current;
+
+      if (merge?.occupiedId) {
+        const sourceColumn = merge.sourceFirst ? 1 : 2;
+        const occupiedColumn = merge.sourceFirst ? 2 : 1;
+        return {
+          ...current,
+          rows: current.rows.map((item, index) => (index === row - 1 ? { ...item, columns: 2 } : item)),
+          widgets: current.widgets.map((widget) => {
+            if (widget.id === id) return { ...widget, row, column: sourceColumn, span: 1 };
+            if (widget.id === merge.occupiedId) return { ...widget, row, column: occupiedColumn, span: 1 };
+            return widget;
+          })
+        };
+      }
+
+      const targetColumns = current.rows[row - 1]?.columns || DEFAULT_GRID_COLUMNS;
+      const targetSpan = clamp(span ?? source.span, 1, targetColumns);
+      const targetColumn = clamp(column, 1, targetColumns - targetSpan + 1);
+      const occupiedWidgets = current.widgets.filter(
+        (widget) => widget.id !== id && widget.row === row && rangesOverlap(targetColumn, targetSpan, widget.column, widget.span)
+      );
+      if (occupiedWidgets.length > 1) return current;
+      const occupied = occupiedWidgets[0];
+
+      return {
+        ...current,
+        widgets: current.widgets.map((widget) => {
+          if (widget.id === id) return { ...widget, row, column: targetColumn, span: targetSpan };
+          if (widget.id !== occupied?.id) return widget;
+
+          const sourceRowColumns = current.rows[source.row - 1]?.columns || DEFAULT_GRID_COLUMNS;
+          const sourceSpan = clamp(source.span, 1, sourceRowColumns);
+          return {
+            ...widget,
+            row: source.row,
+            column: clamp(source.column, 1, sourceRowColumns - sourceSpan + 1),
+            span: sourceSpan
+          };
+        })
+      };
+    });
+  const getDropColumn = (event, columns) => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const relativeX = Math.min(Math.max(event.clientX - bounds.left, 0), bounds.width - 1);
+    return clamp(Math.floor((relativeX / bounds.width) * columns) + 1, 1, columns);
+  };
+  const getDropPlacement = (event, row, columns) => {
+    const pointerColumn = getDropColumn(event, columns);
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const sourceFirst = event.clientX < bounds.left + bounds.width / 2;
+    const occupied = layout.widgets.find(
+      (widget) =>
+        widget.id !== draggedWidgetId && widget.row === row && pointerColumn >= widget.column && pointerColumn < widget.column + widget.span
+    );
+    const source = layout.widgets.find((widget) => widget.id === draggedWidgetId);
+    const sourceColumns = source ? layout.rows[source.row - 1]?.columns || DEFAULT_GRID_COLUMNS : 1;
+    const rowWidgets = layout.widgets.filter((widget) => widget.id !== draggedWidgetId && widget.row === row);
+    const canAutoSplit =
+      source && occupied && source.row !== row && source.span === sourceColumns && occupied.span === columns && rowWidgets.length === 1;
+    if (canAutoSplit) {
+      const canvas = event.currentTarget.closest('.sm-dashboard-builder-canvas');
+      const targetElement = canvas?.querySelector(`[data-dashboard-widget-id="${occupied.id}"]`);
+      return {
+        row,
+        column: sourceFirst ? 1 : 2,
+        span: 1,
+        previewColumns: 2,
+        occupiedId: occupied.id,
+        occupiedColumn: sourceFirst ? 2 : 1,
+        sourceSpan: 1,
+        height: targetElement?.getBoundingClientRect().height || 110,
+        merge: { occupiedId: occupied.id, sourceFirst }
+      };
+    }
+    const span = clamp(occupied?.span ?? source?.span ?? 1, 1, columns);
+    const canvas = event.currentTarget.closest('.sm-dashboard-builder-canvas');
+    const targetElement = canvas?.querySelector(`[data-dashboard-widget-id="${occupied?.id || draggedWidgetId}"]`);
+    return {
+      row,
+      column: occupied?.column ?? clamp(pointerColumn, 1, columns - span + 1),
+      span,
+      occupiedId: occupied?.id || null,
+      sourceSpan: source?.span || 1,
+      height: targetElement?.getBoundingClientRect().height || 110
+    };
+  };
+  const handleGridDragOver = (event, row, columns) => {
+    if (!event.dataTransfer.types.includes('text/dashboard-widget-id')) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.dataTransfer.dropEffect = 'move';
+    setDragTarget(getDropPlacement(event, row, columns));
+  };
+  const handleGridDrop = (event, row, columns) => {
+    const id = event.dataTransfer.getData('text/dashboard-widget-id');
+    if (!id) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const placement = getDropPlacement(event, row, columns);
+    moveWidgetTo(id, placement.row, placement.column, placement.span, placement.merge);
+    setSelectedWidgetId(id);
+    setDraggedWidgetId(null);
+    setDragTarget(null);
+  };
   const updateWidget = (id, property, value) =>
     setLayout((current) => {
       if (property === 'sort') {
@@ -304,7 +416,31 @@ export default function DashboardBuilder({ show, onClose, roleId, onSaved }) {
                     <div className="sm-dashboard-builder-row-label">
                       Row {rowIndex + 1} · {row.columns} kolom
                     </div>
-                    <div className="sm-dashboard-builder-grid" style={{ gridTemplateColumns: `repeat(${row.columns}, minmax(0, 1fr))` }}>
+                    <div
+                      className={`sm-dashboard-builder-grid${dragTarget?.row === rowIndex + 1 ? ' is-drag-target' : ''}`}
+                      style={{
+                        gridTemplateColumns: `repeat(${
+                          dragTarget?.row === rowIndex + 1 && dragTarget.previewColumns ? dragTarget.previewColumns : row.columns
+                        }, minmax(0, 1fr))`
+                      }}
+                      onDragOver={(event) => handleGridDragOver(event, rowIndex + 1, row.columns)}
+                      onDragLeave={(event) => {
+                        if (!event.currentTarget.contains(event.relatedTarget)) setDragTarget(null);
+                      }}
+                      onDrop={(event) => handleGridDrop(event, rowIndex + 1, row.columns)}
+                    >
+                      {dragTarget?.row === rowIndex + 1 && (
+                        <div
+                          className="sm-dashboard-builder-drop-overlay"
+                          style={{
+                            gridColumn: `${dragTarget.column} / span ${dragTarget.span}`,
+                            height: dragTarget.height
+                          }}
+                          aria-hidden="true"
+                        >
+                          <span>{dragTarget.span} kolom</span>
+                        </div>
+                      )}
                       {layout.widgets
                         .filter((widget) => widget.row === rowIndex + 1)
                         .map((item) => {
@@ -312,13 +448,50 @@ export default function DashboardBuilder({ show, onClose, roleId, onSaved }) {
                           const w = widgetRegistry.find((x) => x.id === item.id);
                           if (!w) return null;
                           const Widget = w.component;
+                          const isDropDestination = dragTarget?.occupiedId === item.id;
+                          const previewScale =
+                            isDropDestination && !dragTarget.previewColumns
+                              ? Math.min(Math.max(dragTarget.sourceSpan / item.span, 0.9), 1.1)
+                              : 1;
+                          const previewGridColumn =
+                            isDropDestination && dragTarget.previewColumns
+                              ? `${dragTarget.occupiedColumn} / span 1`
+                              : `${item.column} / span ${item.span}`;
                           return (
                             <div
-                              className={`sm-dashboard-builder-item${selectedWidgetId === item.id ? ' is-selected' : ''}`}
+                              className={`sm-dashboard-builder-item${selectedWidgetId === item.id ? ' is-selected' : ''}${
+                                draggedWidgetId === item.id ? ' is-dragging' : ''
+                              }${isDropDestination ? ' is-drop-destination' : ''}`}
                               key={item.id}
-                              style={{ gridColumn: `${item.column} / span ${item.span}` }}
+                              style={{ gridColumn: previewGridColumn, '--sm-dashboard-preview-scale': previewScale }}
+                              data-dashboard-widget-id={item.id}
                               onClick={() => setSelectedWidgetId(item.id)}
                             >
+                              <button
+                                type="button"
+                                className="sm-dashboard-widget-drag-handle"
+                                draggable
+                                title="Geser posisi widget"
+                                aria-label={`Geser posisi ${w.title}`}
+                                onClick={(event) => event.stopPropagation()}
+                                onDragStart={(event) => {
+                                  event.stopPropagation();
+                                  event.dataTransfer.effectAllowed = 'move';
+                                  event.dataTransfer.setData('text/dashboard-widget-id', item.id);
+                                  const widgetElement = event.currentTarget.closest('.sm-dashboard-builder-item');
+                                  if (widgetElement) {
+                                    const bounds = widgetElement.getBoundingClientRect();
+                                    event.dataTransfer.setDragImage(widgetElement, Math.min(event.clientX - bounds.left, bounds.width), 24);
+                                  }
+                                  setDraggedWidgetId(item.id);
+                                }}
+                                onDragEnd={() => {
+                                  setDraggedWidgetId(null);
+                                  setDragTarget(null);
+                                }}
+                              >
+                                <i className="ti ti-grip-vertical" />
+                              </button>
                               {selectedWidgetId === item.id && (
                                 <div className="sm-dashboard-widget-properties" onClick={(event) => event.stopPropagation()}>
                                   <div className="sm-dashboard-widget-properties-head">

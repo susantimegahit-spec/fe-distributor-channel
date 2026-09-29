@@ -9,6 +9,7 @@ import LogisticsApprovedWidget from './LogisticsApprovedWidget';
 import LogisticsOrdersWidget from './LogisticsOrdersWidget';
 import LogisticsPendingWidget from './LogisticsPendingWidget';
 import OrderReadyWidget from './OrderReadyWidget';
+import OrderComparisonWidget from './OrderComparisonWidget';
 import ProductionCompletedWidget from './ProductionCompletedWidget';
 import ProductionIssuesWidget from './ProductionIssuesWidget';
 import ProductionMaterialsWidget from './ProductionMaterialsWidget';
@@ -34,6 +35,7 @@ export const widgetRegistry = [
     'full'
   ),
   item('eta-warning', 'ETA Warning', 'Customer Portal', EtaWarningWidget, 'ti ti-alert-triangle', 'full'),
+  item('order-comparison', 'Order Comparison', 'Customer Portal', OrderComparisonWidget, 'ti ti-chart-bar', 'full'),
   item('corporate-requests', 'Purchase Requests', 'Corporate', CorporateRequestsWidget, 'ti ti-file-invoice'),
   item('corporate-pending', 'Pending Requests', 'Corporate', CorporatePendingWidget, 'ti ti-clock'),
   item('corporate-approved', 'Approved Requests', 'Corporate', CorporateApprovedWidget, 'ti ti-circle-check'),
