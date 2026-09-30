@@ -245,7 +245,7 @@ export default function Warehouse() {
           secondary={
             <Button
               data-permission-action="sync"
-              data-permission-menu-key="47"
+              data-permission-menu-key="production-warehouse"
               onClick={syncData}
               variant="outline-primary"
               disabled={loadingData}
@@ -394,7 +394,7 @@ export default function Warehouse() {
                             size="sm"
                             variant="outline-primary"
                             data-permission-action="edit"
-                            data-permission-menu-key="47"
+                            data-permission-menu-key="production-warehouse"
                             onClick={() => openEditWarehouse(item)}
                             title="Edit warehouse"
                             aria-label={`Edit warehouse ${item.whs_code || item.id}`}
@@ -422,7 +422,7 @@ export default function Warehouse() {
                               Reset Filter
                             </Button>
                           ) : (
-                            <Button data-permission-action="sync" data-permission-menu-key="47" variant="primary" onClick={syncData}>
+                            <Button data-permission-action="sync" data-permission-menu-key="production-warehouse" variant="primary" onClick={syncData}>
                               <i className="ti ti-refresh me-1" />
                               Synchronize
                             </Button>

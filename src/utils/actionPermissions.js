@@ -1,6 +1,10 @@
 import { normalizeLogisticsPermission, normalizeLogisticsPath } from './logisticsMigration';
 import { getMenuNumber } from '../systems';
 import { getCookies } from './cookies';
+import actionRegistry from '../data-action.json';
+
+const actionMenuKeys = new Map(actionRegistry.menus.map((menu) => [menu.menu_id, menu.menu_key]));
+const getRegisteredMenuKey = (menuId) => actionMenuKeys.get(menuId);
 
 export const ACTION_ALIASES = {
   add: 'create',
@@ -102,7 +106,15 @@ const normalizeWidgetEntries = (rawActions) => {
   return Object.entries(source).map(([widgetKey, actions]) => ({ widget_key: widgetKey, actions }));
 };
 
-const getWidgetEntryKey = (entry) => entry?.widget_key ?? entry?.widgetKey ?? entry?.widget_id ?? entry?.widgetId ?? entry?.id ?? entry?.key;
+const getWidgetEntryKey = (entry) =>
+  entry?.widget_key ??
+  entry?.widgetKey ??
+  entry?.widget_id ??
+  entry?.widgetId ??
+  entry?.menu_key ??
+  entry?.menuKey ??
+  entry?.id ??
+  entry?.key;
 
 const ACTION_KEYS = {
   create: ['create', 'add', 'upload'],
@@ -122,7 +134,9 @@ const ACTION_BITS = {
   approve: 16,
   export: 32,
   sync: 64,
-  'shipping-schedule': 128
+  'shipping-schedule': 128,
+  add: 256,
+  upload: 512
 };
 
 const ROW_ACTION_KEYS = ['read', 'view', 'detail', 'update', 'edit', 'delete', 'remove', 'approve', 'export', 'download'];
@@ -203,13 +217,14 @@ export const compactWidgetActionsForCookie = (rawActions) =>
 
 const getMenuCandidates = (system, menuItem, pathname = '') => {
   const pathParts = pathname.split('/').filter(Boolean);
+  const registeredMenuKey = getRegisteredMenuKey(menuItem?.id);
   const candidates = [
     menuItem?.id,
     menuItem?.value,
     menuItem?.url,
-    menuItem?.menu_key,
-    menuItem?.menuKey,
-    system?.key && menuItem?.id ? getMenuNumber(system.key, menuItem.id) : null,
+    registeredMenuKey ?? menuItem?.menu_key,
+    registeredMenuKey ?? menuItem?.menuKey,
+    !registeredMenuKey && system?.key && menuItem?.id ? getMenuNumber(system.key, menuItem.id) : null,
     ...pathParts,
     pathParts.slice(-2).join('-'),
     pathParts.slice(-3).join('-')
@@ -219,7 +234,8 @@ const getMenuCandidates = (system, menuItem, pathname = '') => {
 };
 
 export const canUseAction = ({ action, system, menuItem, menuKey, pathname = '', actionsCookie } = {}) => {
-  const normalizedAction = ACTION_ALIASES[normalizeKey(action)] || normalizeKey(action);
+  const requestedAction = normalizeKey(action);
+  const normalizedAction = ['add', 'upload'].includes(requestedAction) ? requestedAction : ACTION_ALIASES[requestedAction] || requestedAction;
   if (!normalizedAction) return false;
 
   const candidates = getMenuCandidates(system, menuItem, pathname);
@@ -227,17 +243,32 @@ export const canUseAction = ({ action, system, menuItem, menuKey, pathname = '',
   const suppliedMenuKeys = (Array.isArray(menuKey) ? menuKey : String(menuKey ?? '').split(','))
     .map((value) => String(value).trim())
     .filter(Boolean);
-  const resolvedMenuKeys = suppliedMenuKeys.flatMap((value) => [value, system?.key ? getMenuNumber(system.key, value) : null]);
-  const exactMenuKeys = [...resolvedMenuKeys, menuItem?.menu_key, menuItem?.menuKey]
+  const resolvedMenuKeys = suppliedMenuKeys.flatMap((value) => [
+    value,
+    getRegisteredMenuKey(value) ?? (system?.key ? getMenuNumber(system.key, value) : null)
+  ]);
+  const registeredMenuKey = getRegisteredMenuKey(menuItem?.id);
+  const exactMenuKeys = [...resolvedMenuKeys, registeredMenuKey ?? menuItem?.menu_key, registeredMenuKey ?? menuItem?.menuKey]
     .filter((value) => value !== undefined && value !== null && value !== '')
     .map(normalizeKey);
   const exactEntries = entries.filter((entry) => exactMenuKeys.includes(normalizeKey(getEntryKey(entry))));
   if (exactEntries.length) {
-    return exactEntries.some((entry) => getActionValue(getEntryActions(entry), normalizedAction));
+    return exactEntries.some((entry) => {
+      const actions = getEntryActions(entry);
+      if (['add', 'upload'].includes(normalizedAction) && typeof actions === 'number' && !(actions & (ACTION_BITS.add | ACTION_BITS.upload))) {
+        return getActionValue(actions, 'create');
+      }
+      return getActionValue(actions, normalizedAction);
+    });
   }
 
   const matchedEntry = entries.find((entry) => candidates.has(normalizeKey(getEntryKey(entry))));
-  return matchedEntry ? getActionValue(getEntryActions(matchedEntry), normalizedAction) : false;
+  if (!matchedEntry) return false;
+  const actions = getEntryActions(matchedEntry);
+  if (['add', 'upload'].includes(normalizedAction) && typeof actions === 'number' && !(actions & (ACTION_BITS.add | ACTION_BITS.upload))) {
+    return getActionValue(actions, 'create');
+  }
+  return getActionValue(actions, normalizedAction);
 };
 
 export const canUseMenuAction = (menuKey, action, actionsCookie = getCookies('actions')) =>
@@ -263,6 +294,7 @@ export const getUrlAction = (pathname = '') => {
 export const detectElementAction = (element) => {
   const explicitAction = element.dataset.permissionAction || element.dataset.action;
   if (['none', 'ignore', 'utility'].includes(normalizeKey(explicitAction))) return null;
+  if (['add', 'upload'].includes(normalizeKey(explicitAction))) return normalizeKey(explicitAction);
   if (explicitAction && ACTION_ALIASES[normalizeKey(explicitAction)]) return ACTION_ALIASES[normalizeKey(explicitAction)];
 
   const href = element.getAttribute('href') || '';
@@ -273,19 +305,24 @@ export const detectElementAction = (element) => {
     .toLowerCase();
 
   if (/\b(delete|remove|hapus)\b|ti-trash/.test(description)) return 'delete';
+  if (/\b(shipping schedule)\b/.test(description)) return 'shipping-schedule';
+  if (/\b(sync|synchronize|refresh)\b|ti-refresh/.test(description)) return 'sync';
   if (/\b(download|export|unduh)\b|ti-download|ti-file-export/.test(description)) return 'export';
-  if (/\b(upload|unggah|import)\b|ti-upload|ti-file-import/.test(description)) return 'create';
+  if (/\b(upload|unggah|import)\b|ti-upload|ti-file-import/.test(description)) return 'upload';
   if (/\b(edit|update|ubah)\b|ti-edit|ti-pencil/.test(description)) return 'update';
   if (/\b(view|detail|preview|lihat)\b|ti-eye/.test(description)) return 'read';
-  if (/\b(add|create|new|tambah)\b|ti-plus/.test(description)) return 'create';
+  if (/\b(add|create|new|tambah)\b|ti-plus/.test(description)) return 'add';
   if (/\bactions?\b|ti-dots-vertical/.test(description)) return 'actions';
 
   return null;
 };
 
 export const detectWidgetElementAction = (element) => {
+  const permissionAction = normalizeKey(element.dataset.permissionAction || element.dataset.action);
+  if (['none', 'ignore', 'utility'].includes(permissionAction)) return null;
   const explicitAction = element.dataset.widgetAction;
   if (explicitAction) return ACTION_ALIASES[normalizeKey(explicitAction)] || normalizeKey(explicitAction);
+  if (permissionAction) return ACTION_ALIASES[permissionAction] || permissionAction;
 
   const iconClasses = [...element.querySelectorAll('i, svg')].map((icon) => icon.getAttribute('class') || '').join(' ');
   const description = [element.textContent, element.getAttribute('aria-label'), element.getAttribute('title'), iconClasses, element.className]

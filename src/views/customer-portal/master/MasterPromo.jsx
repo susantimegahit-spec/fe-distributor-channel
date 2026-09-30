@@ -645,7 +645,7 @@ export default function MasterPromo() {
             <Button
               variant="primary"
               data-permission-action="add"
-              data-permission-menu-key="10"
+              data-permission-menu-key="master-promo"
               onClick={handleOpenAddModal}
               disabled={loadingData}
             >
@@ -805,7 +805,7 @@ export default function MasterPromo() {
                       </div>
                       <h5 className="mb-1">No promo programs yet</h5>
                       <p className="text-muted mb-3">Add promo programs to manage prices and discounts per customer type.</p>
-                      <Button variant="primary" data-permission-action="add" data-permission-menu-key="10" onClick={handleOpenAddModal}>
+                      <Button variant="primary" data-permission-action="add" data-permission-menu-key="master-promo" onClick={handleOpenAddModal}>
                         <i className="ti ti-plus me-1" />
                         Add Program
                       </Button>
@@ -889,7 +889,7 @@ export default function MasterPromo() {
                 type="button"
                 className="dropdown-item"
                 data-permission-action="add"
-                data-permission-menu-key="10"
+                data-permission-menu-key="master-promo"
                 disabled={isActionDisabled}
                 onClick={() => {
                   setPromoActionMenu(null);

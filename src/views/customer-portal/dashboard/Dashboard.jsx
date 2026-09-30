@@ -26,11 +26,7 @@ import { canUseMenuAction } from '../../../utils/actionPermissions';
 import DashboardServices from '../../../services/customer-portal/DashboardServices';
 import DistributorServices from '../../../services/customer-portal/DistributorServices';
 import OrderServices from '../../../services/customer-portal/OrderServices';
-import RescheduleOrderActions from './RescheduleOrderActions';
-import RescheduleOrderItemsRow from './RescheduleOrderItemsRow';
-import RescheduleLogModal from './RescheduleLogModal';
-import LogisticsServices from '../../../services/logistics/LogisticsServices';
-import TablePagination from 'components/TablePagination';
+import RequestRescheduleOrderWidget from '../../dashboard/widget/RequestRescheduleOrderWidget';
 import { currency } from '../../../utils/global';
 import { useAlert } from '../../../utils/alertContext';
 import { getAssignedCustomerCode, getAssignedCustomerCodes } from '../../../utils/cookies';
@@ -1006,55 +1002,6 @@ export default function Dashboard() {
 
   const deliveryOrders = useMemo(() => orders.filter((order) => normalizeStatus(order.status) === 'DELIVERY'), [orders]);
 
-  const [rescheduleDetail, setRescheduleDetail] = useState(null);
-  const [rescheduleOrders, setRescheduleOrders] = useState([]);
-  const [reschedulePage, setReschedulePage] = useState(1);
-  const [rescheduleTotal, setRescheduleTotal] = useState(0);
-  const [reschedulePageCount, setReschedulePageCount] = useState(1);
-  const [loadingReschedules, setLoadingReschedules] = useState(true);
-  const [rescheduleError, setRescheduleError] = useState('');
-  const [rescheduleRefresh, setRescheduleRefresh] = useState(0);
-  const [expandedRescheduleOrderIds, setExpandedRescheduleOrderIds] = useState([]);
-
-  useEffect(() => {
-    let active = true;
-    const fetchReschedules = async () => {
-      setLoadingReschedules(true);
-      setRescheduleError('');
-      try {
-        const response = await LogisticsServices.getLogisticOrders({
-          logistic_status: 'RESCHEDULE_REQUESTED',
-          per_page: 10,
-          page: reschedulePage
-        });
-        if (!(response?.status >= 200 && response.status < 300) || response?.data?.success === false) {
-          throw new Error(response?.data?.message || 'Failed to load reschedule orders');
-        }
-        if (!active) return;
-        const root = response?.data ?? {};
-        const payload = root?.data && !Array.isArray(root.data) ? root.data : root;
-        const page = payload?.orders || payload?.data || payload;
-        const rows = Array.isArray(page) ? page : page?.data || page?.items || [];
-        const meta = payload?.pagination || payload?.meta || page?.pagination || page?.meta || page;
-        const total = Number(meta?.total ?? payload?.total ?? rows.length) || 0;
-        setRescheduleOrders(
-          (Array.isArray(rows) ? rows : []).map((item) => ({ ...item, ...(item.sales_order || item.order || {}) }))
-        );
-        setRescheduleTotal(total);
-        setReschedulePageCount(Number(meta?.last_page ?? payload?.last_page) || Math.max(Math.ceil(total / 10), 1));
-      } catch (error) {
-        if (!active) return;
-        setRescheduleOrders([]);
-        setRescheduleTotal(0);
-        setReschedulePageCount(1);
-        setRescheduleError(error?.response?.data?.message || error?.message || 'Failed to load reschedule orders');
-      } finally {
-        if (active) setLoadingReschedules(false);
-      }
-    };
-    fetchReschedules();
-    return () => { active = false; };
-  }, [reschedulePage, rescheduleRefresh]);
 
   const returnSummaryByDoItem = useMemo(() => {
     const requestsByDoItem = new Map();
@@ -1493,16 +1440,6 @@ export default function Dashboard() {
 
   return (
     <>
-      {rescheduleDetail && (
-        <RescheduleLogModal
-          order={rescheduleDetail}
-          onClose={() => setRescheduleDetail(null)}
-          onSuccess={() => {
-            if (rescheduleOrders.length === 1 && reschedulePage > 1) setReschedulePage((page) => page - 1);
-            else setRescheduleRefresh((value) => value + 1);
-          }}
-        />
-      )}
       <Stack gap={3} className="dashboard-content-stack">
         <MainCard
           className="dashboard-title-card"
@@ -1520,7 +1457,7 @@ export default function Dashboard() {
                   variant="primary"
                   className="dashboard-title-action dashboard-shipping-schedule-action"
                   data-permission-action="shipping-schedule"
-                  data-permission-menu-key="3"
+                  data-permission-menu-key="dashboard-overview"
                   as={Link}
                   to="/customer-portal/shipping-schedule"
                   target="_blank"
@@ -1538,146 +1475,9 @@ export default function Dashboard() {
           }
         />
 
-        <MainCard
-          className="claim-transaction-card dashboard-reschedule-card border border-warning"
-          title={
-            <Stack direction="horizontal" className="justify-content-between align-items-start" gap={3}>
-              <Stack gap={1}>
-                <Stack direction="horizontal" gap={2} className="align-items-center">
-                  <h5 className="mb-0">Request Reschedule Order</h5>
-                  <Badge bg="warning" text="dark">
-                    Logistic
-                  </Badge>
-                </Stack>
-                <span className="text-muted f-12">Sales orders with reschedule requests from Logistics.</span>
-              </Stack>
-              <Stack direction="horizontal" gap={2}>
-                <Button
-                  variant="outline-primary"
-                  size="sm"
-                  onClick={() => setRescheduleRefresh((value) => value + 1)}
-                  disabled={loadingReschedules}
-                  title="Refresh reschedule orders"
-                  aria-label="Refresh reschedule orders"
-                >
-                  <i className={`ti ti-refresh me-1 ${loadingReschedules ? 'spin' : ''}`} />
-                  Refresh
-                </Button>
-                <span className="avtar avtar-s bg-light-warning text-warning">
-                  <i className="ti ti-calendar-time" />
-                </span>
-              </Stack>
-            </Stack>
-          }
-        >
-          <Table responsive hover className="mb-0 align-middle">
-            <thead>
-              <tr>
-                <th className="text-center" aria-label="Expand Sales Order items" />
-                <th>No. SO</th>
-                <th>Customer</th>
-                <th>Depo</th>
-                <th>Order Date</th>
-                <th>ETA</th>
-                <th>Proposed ETA</th>
-                <th>Status</th>
-                <th className="text-end">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loadingReschedules ? (
-                <tr>
-                  <td colSpan={9} className="text-center text-muted py-4">
-                    Loading reschedule orders...
-                  </td>
-                </tr>
-              ) : rescheduleError ? (
-                <tr>
-                  <td colSpan={9} className="text-center text-danger py-4">{rescheduleError}</td>
-                </tr>
-              ) : rescheduleOrders.length ? (
-                rescheduleOrders.map((order, index) => {
-                  const id = getOrderValue(order, ['requested_order_id', 'id', 'sales_order_id', 'salesOrderId'], '');
-                  const status = normalizeStatus(getOrderValue(order, ['status'], ''));
-                  const statusMeta = getStatusMeta(status);
-
-                  const rowKey = String(id || index);
-                  const expanded = expandedRescheduleOrderIds.includes(rowKey);
-
-                  return (
-                    <Fragment key={rowKey}>
-                    <tr>
-                      <td className="text-center">
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-light-primary rounded-circle"
-                          onClick={() => setExpandedRescheduleOrderIds((current) => current.includes(rowKey)
-                            ? current.filter((item) => item !== rowKey)
-                            : [...current, rowKey])}
-                          aria-label={expanded ? 'Hide Sales Order items' : 'Show Sales Order items'}
-                          aria-expanded={expanded}
-                        >
-                          <i className={`ti ti-chevron-${expanded ? 'down' : 'right'}`} />
-                        </button>
-                      </td>
-                      <td>
-                        <button type="button" className="border-0 bg-transparent p-0 fw-semibold text-start"
-                          style={{ color: '#315fb4' }} disabled={!id} onClick={() => setRescheduleDetail(order)}
-                          aria-label="View reschedule negotiation">
-                          {getOrderValue(order, [
-                            'sap_doc_num',
-                            'sapDocNum',
-                            'doc_num',
-                            'docNum',
-                            'DocNum',
-                            'order_no',
-                            'orderNo',
-                            'order_number',
-                            'orderNumber',
-                            'so_no',
-                            'soNo',
-                            'sales_order_number',
-                            'salesOrderNumber'
-                          ])}
-                        </button>
-                      </td>
-                      <td>{getOrderValue(order, ['customer_name', 'customerName', 'card_name', 'cardName'])}</td>
-                      <td>{getOrderValue(order, ['depo', 'depot', 'warehouse_name', 'warehouseName'])}</td>
-                      <td>{formatOrderDate(getOrderValue(order, ['doc_date', 'docDate', 'created_at', 'createdAt'], ''))}</td>
-                      <td>{formatOrderDate(getOrderValue(order, ['eta_date', 'etaDate', 'doc_due_date', 'docDueDate'], ''))}</td>
-                      <td>{formatOrderDate(getOrderValue(order, ['proposed_eta_date', 'proposedEtaDate'], ''))}</td>
-                      <td>
-                        <Badge bg={statusMeta.color}>{statusMeta.label}</Badge>
-                      </td>
-                      <td>
-                        <RescheduleOrderActions order={order} onSuccess={() => {
-                          if (rescheduleOrders.length === 1 && reschedulePage > 1) setReschedulePage((page) => page - 1);
-                          else setRescheduleRefresh((value) => value + 1);
-                        }} />
-                      </td>
-                    </tr>
-                    <RescheduleOrderItemsRow order={order} expanded={expanded} />
-                    </Fragment>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan={9} className="text-center text-muted py-4">
-                    No reschedule orders available.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </Table>
-          <TablePagination
-            currentPage={reschedulePage}
-            onPageChange={setReschedulePage}
-            pageCount={reschedulePageCount}
-            pageSize={10}
-            total={rescheduleTotal}
-            itemLabel="reschedule orders"
-          />
-        </MainCard>
+        <div data-widget-key="request-reschedule-order">
+          <RequestRescheduleOrderWidget />
+        </div>
 
         {!isLoadingComparison && (
           <>

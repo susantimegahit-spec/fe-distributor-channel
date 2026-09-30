@@ -220,7 +220,7 @@ export default function RequestRescheduleOrderWidget() {
                       <Badge bg={statusMeta.color}>{statusMeta.label}</Badge>
                     </td>
                     <td>
-                      <RescheduleOrderActions order={order} onSuccess={handleSuccess} />
+                      <RescheduleOrderActions order={order} widgetKey="request-reschedule-order" onSuccess={handleSuccess} />
                     </td>
                   </tr>
                   <RescheduleOrderItemsRow order={order} expanded={expanded} />
@@ -246,7 +246,7 @@ export default function RequestRescheduleOrderWidget() {
         />
       </MainCard>
 
-      {detail && <RescheduleLogModal order={detail} onClose={() => setDetail(null)} onSuccess={handleSuccess} />}
+      {detail && <RescheduleLogModal order={detail} widgetKey="request-reschedule-order" onClose={() => setDetail(null)} onSuccess={handleSuccess} />}
     </>
   );
 }

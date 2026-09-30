@@ -4,8 +4,10 @@ import { Button, Form, Modal, Stack } from 'react-bootstrap';
 import ThemedDatePicker from 'components/ThemedDatePicker';
 import LogisticsServices from '../../../services/logistics/LogisticsServices';
 import { useAlert } from '../../../utils/alertContext';
+import { getCookies } from '../../../utils/cookies';
+import { canUseWidgetAction } from '../../../utils/actionPermissions';
 
-export default function RescheduleOrderActions({ order, onSuccess, expanded = false }) {
+export default function RescheduleOrderActions({ order, onSuccess, expanded = false, widgetKey }) {
   const { showAlert } = useAlert();
   const [action, setAction] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -17,13 +19,16 @@ export default function RescheduleOrderActions({ order, onSuccess, expanded = fa
     .toUpperCase()
     .replace(/\s+/g, '_');
   const actionsCompleted = ['APPROVED', 'RESCHEDULE_APPROVED'].includes(logisticStatus);
+  const widgetActions = getCookies('widget_actions');
+  const hasWidgetAssignments = widgetActions !== undefined && widgetActions !== null && widgetActions !== '';
+  const canApprove = !widgetKey || !hasWidgetAssignments || canUseWidgetAction(widgetKey, 'approve', widgetActions);
   const openReschedule = () => {
     setForm({ loading: String(order.doc_due_date || '').slice(0, 10), eta: String(order.eta_date || '').slice(0, 10), notes: '' });
     setAction('reschedule');
   };
   const submit = async (event) => {
     event.preventDefault();
-    if (saving || !id) return;
+    if (saving || !id || !canApprove) return;
     if (action === 'reschedule' && (!form.loading || !form.notes.trim())) return;
     setSaving(true);
     try {
@@ -47,12 +52,13 @@ export default function RescheduleOrderActions({ order, onSuccess, expanded = fa
       setSaving(false);
     }
   };
-  if (actionsCompleted) return null;
+  if (actionsCompleted || !canApprove) return null;
 
   return (
     <>
       <Stack direction="horizontal" gap={expanded ? 2 : 1} className="justify-content-end flex-wrap">
         <Button
+          data-permission-action="utility"
           size={expanded ? undefined : 'sm'}
           variant={expanded ? 'success' : 'outline-success'}
           className={expanded ? 'px-4 py-2 rounded-3 fw-semibold' : 'logistics-order-action logistics-order-action--confirm'}
@@ -65,6 +71,7 @@ export default function RescheduleOrderActions({ order, onSuccess, expanded = fa
           {expanded && 'Approve'}
         </Button>
         <Button
+          data-permission-action="utility"
           size={expanded ? undefined : 'sm'}
           variant="outline-danger"
           className={expanded ? 'px-4 py-2 rounded-3 fw-semibold' : 'logistics-order-action'}
@@ -120,10 +127,11 @@ export default function RescheduleOrderActions({ order, onSuccess, expanded = fa
             )}
           </Modal.Body>
           <Modal.Footer>
-            <Button variant="light-secondary" disabled={saving} onClick={() => setAction(null)}>
+            <Button variant="light-secondary" data-permission-action="utility" disabled={saving} onClick={() => setAction(null)}>
               Cancel
             </Button>
             <Button
+              data-permission-action="utility"
               type="submit"
               variant={action === 'approve' ? 'success' : 'danger'}
               disabled={saving || (action === 'reschedule' && (!form.loading || !form.notes.trim()))}
@@ -137,4 +145,9 @@ export default function RescheduleOrderActions({ order, onSuccess, expanded = fa
   );
 }
 
-RescheduleOrderActions.propTypes = { order: PropTypes.object.isRequired, onSuccess: PropTypes.func.isRequired, expanded: PropTypes.bool };
+RescheduleOrderActions.propTypes = {
+  order: PropTypes.object.isRequired,
+  onSuccess: PropTypes.func.isRequired,
+  expanded: PropTypes.bool,
+  widgetKey: PropTypes.string
+};

@@ -35,7 +35,7 @@ const getLogParticipant = (log) => {
   ).trim();
 };
 
-export default function RescheduleLogModal({ order, onClose, onSuccess }) {
+export default function RescheduleLogModal({ order, onClose, onSuccess, widgetKey }) {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -136,11 +136,12 @@ export default function RescheduleLogModal({ order, onClose, onSuccess }) {
         )}
       </Modal.Body>
       <Modal.Footer className="reschedule-negotiation-footer justify-content-between gap-2">
-        <Button variant="light-secondary" className="px-4 py-2 rounded-3" onClick={onClose}>
+        <Button variant="light-secondary" data-permission-action="utility" className="px-4 py-2 rounded-3" onClick={onClose}>
           Close
         </Button>
         <RescheduleOrderActions
           expanded
+          widgetKey={widgetKey}
           order={order}
           onSuccess={() => {
             setAttempt((value) => value + 1);
@@ -155,5 +156,6 @@ export default function RescheduleLogModal({ order, onClose, onSuccess }) {
 RescheduleLogModal.propTypes = {
   order: PropTypes.object.isRequired,
   onClose: PropTypes.func.isRequired,
-  onSuccess: PropTypes.func
+  onSuccess: PropTypes.func,
+  widgetKey: PropTypes.string
 };

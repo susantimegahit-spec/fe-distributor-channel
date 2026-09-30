@@ -1367,7 +1367,7 @@ export default function LogisticsDashboard() {
       </Modal>
 
       {orderLogDetail && (
-        <RescheduleLogModal order={orderLogDetail} onClose={() => setOrderLogDetail(null)} onSuccess={fetchDeliveryOrders} />
+        <RescheduleLogModal order={orderLogDetail} widgetKey="order-ready" onClose={() => setOrderLogDetail(null)} onSuccess={fetchDeliveryOrders} />
       )}
     </Stack>
   );

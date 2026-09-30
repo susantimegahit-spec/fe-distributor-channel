@@ -23,6 +23,7 @@ import TablePagination from 'components/TablePagination';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import LoaderButton from '../../../components/LoaderButton';
 import LoaderData from '../../../components/LoaderData';
+import TaskManagementServices from '../../../services/corporate/TaskManagementServices';
 import DistributorServices from '../../../services/customer-portal/DistributorServices';
 import WarehouseServices from '../../../services/customer-portal/WarehouseServices';
 import ExpeditionServices from '../../../services/logistics/ExpeditionServices';
@@ -49,6 +50,7 @@ const initialInput = {
   ocrCodes3: [],
   originator: '',
   stage: '',
+  employeeId: '',
   accessibleSystems: [],
   distributorCodes: [],
   distributorIds: [],
@@ -80,7 +82,10 @@ const flattenActionMenus = (items = [], system) =>
     ...(item.type === 'item' ? [{ ...item, systemKey: system.key, systemTitle: system.title }] : []),
     ...(item.children?.length ? flattenActionMenus(item.children, system) : [])
   ]);
-const actionMenuOptions = systems.flatMap((system) => flattenActionMenus(system.menu, system));
+const actionMenuOptions = systems
+  .flatMap((system) => flattenActionMenus(system.menu, system))
+  .map((menu) => ({ ...menu, menu_key: actionRegistryByMenuId.get(menu.id)?.menu_key ?? menu.menu_key }))
+  .filter((menu) => getRegisteredMenuActions(menu.id).length > 0);
 const widgetActionOptions = widgetActionRegistry.widgets;
 const widgetActionRegistryByKey = new Map(widgetActionOptions.map((widget) => [widget.widget_key, widget]));
 const getRegisteredWidgetActions = (widgetKey) => widgetActionRegistryByKey.get(widgetKey)?.actions || [];
@@ -108,6 +113,7 @@ const normalizeActionAssignments = (value) => {
         : [];
 
   return assignments.reduce((result, assignment) => {
+    if (assignment?.type === 'widget') return result;
     const menuId = assignment?.menu_key || assignment?.menuKey || assignment?.menu_id || assignment?.menuId || assignment?.id;
     const actions = assignment?.actions || assignment?.action || assignment;
     const matchingMenu = actionMenuOptions.find(
@@ -115,6 +121,10 @@ const normalizeActionAssignments = (value) => {
     );
 
     if (matchingMenu) {
+      if (Array.isArray(assignment.selected_actions)) {
+        result[matchingMenu.id] = assignment.selected_actions.filter((action) => getRegisteredMenuActions(matchingMenu.id).includes(action));
+        return result;
+      }
       if (Array.isArray(actions)) {
         result[matchingMenu.id] = actions;
       } else if (actions && typeof actions === 'object') {
@@ -143,15 +153,28 @@ const normalizeWidgetActionAssignments = (value) => {
   const assignmentSource = value?.widget ?? value?.widgets ?? value?.widget_actions ?? value?.widgetActions ?? value?.data ?? value;
   const assignments = Array.isArray(assignmentSource)
     ? assignmentSource
-    : assignmentSource && typeof assignmentSource === 'object' && ('widget_key' in assignmentSource || 'widgetKey' in assignmentSource)
+    : assignmentSource && typeof assignmentSource === 'object' &&
+        ('widget_key' in assignmentSource || 'widgetKey' in assignmentSource || 'menu_key' in assignmentSource)
       ? [assignmentSource]
       : assignmentSource && typeof assignmentSource === 'object'
         ? Object.entries(assignmentSource).map(([widgetKey, actions]) => ({ widget_key: widgetKey, actions }))
         : [];
 
   return assignments.reduce((result, assignment) => {
-    const widgetKey = assignment?.widget_key || assignment?.widgetKey || assignment?.widget_id || assignment?.widgetId || assignment?.id;
+    if (assignment?.type === 'menu') return result;
+    const widgetKey =
+      assignment?.widget_key ||
+      assignment?.widgetKey ||
+      assignment?.widget_id ||
+      assignment?.widgetId ||
+      assignment?.menu_key ||
+      assignment?.menuKey ||
+      assignment?.id;
     if (!widgetActionRegistryByKey.has(String(widgetKey))) return result;
+    if (Array.isArray(assignment.selected_actions)) {
+      result[String(widgetKey)] = assignment.selected_actions.filter((action) => getRegisteredWidgetActions(String(widgetKey)).includes(action));
+      return result;
+    }
     const actions = assignment?.actions || assignment?.action || assignment;
     if (Array.isArray(actions)) {
       result[String(widgetKey)] = actions;
@@ -159,8 +182,7 @@ const normalizeWidgetActionAssignments = (value) => {
       result[String(widgetKey)] = getRegisteredWidgetActions(String(widgetKey)).filter((action) => {
         const permission = actionRegistry.action_definitions.find((definition) => definition.value === action)?.permission || action;
         return isGrantedAction(actions[action]) || isGrantedAction(actions[permission]);
-      })
-      .filter((assignment) => Object.values(assignment.actions).some(Boolean));
+      });
     }
     return result;
   }, {});
@@ -263,6 +285,13 @@ const getOriginatorList = (response) => {
   }
 
   return [];
+};
+
+const getEmployeeList = (response) => {
+  const payload = response?.data?.data ?? response?.data ?? [];
+  const list = Array.isArray(payload) ? payload : (payload?.data ?? payload?.items ?? payload?.rows ?? payload?.employees ?? []);
+
+  return Array.isArray(list) ? list : [];
 };
 
 const getUserOriginatorValue = (item) => {
@@ -501,18 +530,21 @@ export default function UserList() {
   const [listExpedition, setListExpedition] = useState([]);
   const [listOriginator, setListOriginator] = useState([]);
   const [listApprovalStage, setListApprovalStage] = useState([]);
+  const [listEmployee, setListEmployee] = useState([]);
   const [loadingWarehouse, setLoadingWarehouse] = useState(false);
   const [loadingUnit, setLoadingUnit] = useState(false);
   const [loadingOcr, setLoadingOcr] = useState(false);
   const [loadingExpedition, setLoadingExpedition] = useState(false);
   const [loadingOriginator, setLoadingOriginator] = useState(false);
   const [loadingApprovalStage, setLoadingApprovalStage] = useState(false);
+  const [loadingEmployee, setLoadingEmployee] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showView, setShowView] = useState(false);
   const [formMode, setFormMode] = useState('create');
   const [loadingSubmit, setLoadingSubmit] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [loadingDetailAction, setLoadingDetailAction] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [userActionMenu, setUserActionMenu] = useState(null);
@@ -534,6 +566,7 @@ export default function UserList() {
     getListExpedition();
     getListOriginator();
     getListApprovalStage();
+    getListEmployee();
     // Load all user form master data once when the page is mounted.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -679,6 +712,43 @@ export default function UserList() {
       showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch originator data', 'danger');
     } finally {
       setLoadingOriginator(false);
+    }
+  };
+
+  const getListEmployee = async () => {
+    setLoadingEmployee(true);
+
+    try {
+      const response = await TaskManagementServices.getEmployee();
+      if (response?.data?.success === false) {
+        throw new Error(response.data.message || 'Failed to fetch employee data');
+      }
+
+      const options = getEmployeeList(response)
+        .map((employee) => {
+          if (typeof employee !== 'object' || employee === null) {
+            const value = String(employee ?? '').trim();
+            return { value, label: value };
+          }
+
+          const value = String(employee.id ?? employee.employee_id ?? employee.employeeId ?? employee.value ?? '').trim();
+          const code = String(employee.employee_code ?? employee.code ?? employee.nik ?? '').trim();
+          const name = String(employee.employee_name ?? employee.name ?? employee.full_name ?? employee.label ?? '').trim();
+          const email = String(employee.email ?? employee.user?.email ?? '').trim();
+
+          return {
+            value,
+            label: [code, name].filter(Boolean).join(' - ') || email || value || '-'
+          };
+        })
+        .filter((employee) => employee.value);
+
+      setListEmployee(options);
+    } catch (error) {
+      setListEmployee([]);
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch employee data', 'danger');
+    } finally {
+      setLoadingEmployee(false);
     }
   };
 
@@ -1000,7 +1070,12 @@ export default function UserList() {
     listOriginator.find((item) => item.value === input.originator) ||
     (input.originator ? { value: input.originator, label: input.originator } : null);
   const selectedSapStage = listApprovalStage.find((item) => item.value === input.stage) || null;
-  const availableActionMenus = actionMenuOptions.filter((item) => input.accessibleSystems.includes(item.systemKey));
+  const selectedEmployee =
+    listEmployee.find((item) => String(item.value) === String(input.employeeId)) ||
+    (input.employeeId ? { value: input.employeeId, label: input.employeeId } : null);
+  const availableActionMenus = [
+    ...new Map(actionMenuOptions.filter((item) => input.accessibleSystems.includes(item.systemKey)).map((menu) => [menu.id, menu])).values()
+  ];
   const availableActionWidgets = widgetActionOptions.filter((item) => input.accessibleSystems.includes(item.system_key));
   const selectedWarehouses = input.whsCodes.map(
     (code) => listWarehouse.find((warehouse) => warehouse.value === code) || { value: code, label: code }
@@ -1043,8 +1118,11 @@ export default function UserList() {
         const selectedActions = (input.actionAssignments[menu.id] || []).filter((action) => registeredActions.includes(action));
         return {
           menu_key: menu.menu_key,
+          selected_actions: selectedActions,
           actions: {
             create: selectedActions.includes('add') || selectedActions.includes('upload'),
+            add: selectedActions.includes('add'),
+            upload: selectedActions.includes('upload'),
             read: selectedActions.includes('view'),
             update: selectedActions.includes('edit'),
             delete: selectedActions.includes('delete'),
@@ -1064,6 +1142,7 @@ export default function UserList() {
         );
         return {
           widget_key: widget.widget_key,
+          selected_actions: selectedActions,
           actions: {
             read: selectedActions.includes('view'),
             approve: selectedActions.includes('approve'),
@@ -1071,6 +1150,11 @@ export default function UserList() {
           }
         };
       });
+
+  const getCombinedActionAssignmentPayload = () => ({
+    menu: getActionAssignmentPayload(),
+    widget: getWidgetActionAssignmentPayload()
+  });
 
   const handleActionAssignment = (menuId, action, isChecked) => {
     setInput((currentInput) => {
@@ -1127,9 +1211,12 @@ export default function UserList() {
   const handleCheckAllWidgetActions = (isChecked) => {
     setInput((currentInput) => ({
       ...currentInput,
-      widgetActionAssignments: Object.fromEntries(
-        availableActionWidgets.map((widget) => [widget.widget_key, isChecked ? getRegisteredWidgetActions(widget.widget_key) : []])
-      )
+      widgetActionAssignments: {
+        ...currentInput.widgetActionAssignments,
+        ...Object.fromEntries(
+          availableActionWidgets.map((widget) => [widget.widget_key, isChecked ? [...getRegisteredWidgetActions(widget.widget_key)] : []])
+        )
+      }
     }));
   };
 
@@ -1166,6 +1253,7 @@ export default function UserList() {
       ocrCodes3: getUserOcrCodes(item, 'ocr_code3', ['ocrCode3', 'departments', 'department_codes']),
       originator: getUserOriginatorValue(item),
       stage: String(item.stage ?? item.sap_stage ?? ''),
+      employeeId: String(item.employee_id ?? item.employeeId ?? item.employee?.id ?? ''),
       accessibleSystems: getUserAccessibleSystems(item),
       distributorCodes: hasAllDistributors ? [ALL_DISTRIBUTORS_VALUE] : distributorCodes,
       distributorIds: hasAllDistributors ? [ALL_DISTRIBUTORS_VALUE] : distributorIds,
@@ -1199,8 +1287,9 @@ export default function UserList() {
     setShowMenu(true);
   };
 
-  const getUserDetail = async (id) => {
+  const getUserDetail = async (id, action) => {
     setLoadingDetail(true);
+    setLoadingDetailAction({ id, action });
     try {
       const response = await UserServices.getUserDetail(id);
 
@@ -1215,16 +1304,19 @@ export default function UserList() {
       return null;
     } finally {
       setLoadingDetail(false);
+      setLoadingDetailAction(null);
     }
   };
 
   const openEditModal = async (item) => {
-    const userDetail = await getUserDetail(item.id);
+    if (loadingDetail) return;
+    const userDetail = await getUserDetail(item.id, 'edit');
     if (userDetail) showEditModal(userDetail);
   };
 
   const openViewModal = async (item) => {
-    const userDetail = await getUserDetail(item.id);
+    if (loadingDetail) return;
+    const userDetail = await getUserDetail(item.id, 'view');
     if (userDetail) {
       setSelectedUser(userDetail);
       setShowView(true);
@@ -1248,11 +1340,9 @@ export default function UserList() {
       ocr_code3: input.ocrCodes3,
       originator: input.originator || null,
       stage: input.stage || null,
+      employee_id: input.employeeId || null,
       accessible_systems: input.accessibleSystems,
-      actions: {
-        menu: getActionAssignmentPayload(),
-        widget: getWidgetActionAssignmentPayload()
-      },
+      actions: getCombinedActionAssignmentPayload(),
       organization_assignment: getOrganizationAssignmentPayload(distributorPayload.code_customer),
       code_customer: distributorPayload.code_customer?.toString(),
       id_distributor: distributorPayload.id_distributor?.toString()
@@ -1285,11 +1375,9 @@ export default function UserList() {
       ocr_code3: input.ocrCodes3,
       originator: input.originator || null,
       stage: input.stage || null,
+      employee_id: input.employeeId || null,
       accessible_systems: input.accessibleSystems,
-      actions: {
-        menu: getActionAssignmentPayload(),
-        widget: getWidgetActionAssignmentPayload()
-      },
+      actions: getCombinedActionAssignmentPayload(),
       organization_assignment: getOrganizationAssignmentPayload(distributorPayload.code_customer),
       code_customer: distributorPayload.code_customer?.toString(),
       id_distributor: distributorPayload.id_distributor?.toString()
@@ -1536,9 +1624,18 @@ export default function UserList() {
                               )
                             }
                           >
-                            <i className="ti ti-dots-vertical me-1" />
-                            Actions
-                            <i className="ti ti-chevron-down ms-1" />
+                            {loadingDetailAction && String(loadingDetailAction.id) === String(item.id) ? (
+                              <>
+                                <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true" />
+                                {loadingDetailAction.action === 'view' ? 'Loading view...' : 'Loading edit...'}
+                              </>
+                            ) : (
+                              <>
+                                <i className="ti ti-dots-vertical me-1" />
+                                Actions
+                                <i className="ti ti-chevron-down ms-1" />
+                              </>
+                            )}
                           </Button>
                         </td>
                       </tr>
@@ -1861,17 +1958,17 @@ export default function UserList() {
                 </Card.Body>
               </Card>
             </Tab>
-            <Tab eventKey="sap" title="SAP Assignment">
+            <Tab eventKey="sap" title="SAP & Employee Assignment">
               <Card className="border mb-0">
                 <Card.Header className="py-3">
                   <Stack direction="horizontal" gap={2}>
                     <i className="ti ti-plug-connected text-primary" />
-                    <h6 className="mb-0">SAP Assignment</h6>
+                    <h6 className="mb-0">SAP & Employee Assignment</h6>
                   </Stack>
                 </Card.Header>
                 <Card.Body>
                   <Row className="g-3">
-                    <Col md={6}>
+                    <Col md={4}>
                       <Form.Label className="f-12 text-muted">Originator</Form.Label>
                       <Select
                         value={selectedSapOriginator}
@@ -1885,7 +1982,7 @@ export default function UserList() {
                         noOptionsMessage={() => 'No originator found'}
                       />
                     </Col>
-                    <Col md={6}>
+                    <Col md={4}>
                       <Form.Label className="f-12 text-muted">Stage</Form.Label>
                       <Select
                         value={selectedSapStage}
@@ -1897,6 +1994,20 @@ export default function UserList() {
                         isClearable
                         isSearchable
                         noOptionsMessage={() => 'No approval stage found'}
+                      />
+                    </Col>
+                    <Col md={4}>
+                      <Form.Label className="f-12 text-muted">Employee / User</Form.Label>
+                      <Select
+                        value={selectedEmployee}
+                        options={listEmployee}
+                        menuPosition="fixed"
+                        onChange={(option) => setInput((currentInput) => ({ ...currentInput, employeeId: option?.value || '' }))}
+                        placeholder={loadingEmployee ? 'Loading employees...' : 'Select Employee'}
+                        isLoading={loadingEmployee}
+                        isClearable
+                        isSearchable
+                        noOptionsMessage={() => 'No employee found'}
                       />
                     </Col>
                   </Row>
@@ -2258,9 +2369,18 @@ export default function UserList() {
             Close
           </Button>
           {selectedUser && (
-            <Button variant="primary" onClick={() => openEditModal(selectedUser)}>
-              <i className="ti ti-pencil me-1" />
-              Edit User
+            <Button variant="primary" disabled={loadingDetail} onClick={() => openEditModal(selectedUser)}>
+              {loadingDetailAction?.action === 'edit' && String(loadingDetailAction.id) === String(selectedUser.id) ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true" />
+                  Loading...
+                </>
+              ) : (
+                <>
+                  <i className="ti ti-pencil me-1" />
+                  Edit User
+                </>
+              )}
             </Button>
           )}
         </Modal.Footer>

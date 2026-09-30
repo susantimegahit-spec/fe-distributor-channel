@@ -18,10 +18,7 @@ export default function ActionPermissionGuard() {
     const roleId = getCookies('role');
     const actionsCookie = getCookies('actions');
     const widgetActionsCookie = getCookies('widget_actions');
-    const hasWidgetActionAssignments =
-      widgetActionsCookie && typeof widgetActionsCookie === 'object'
-        ? Object.keys(widgetActionsCookie).length > 0
-        : widgetActionsCookie !== undefined && widgetActionsCookie !== null && widgetActionsCookie !== '';
+    const hasWidgetActionAssignments = widgetActionsCookie !== undefined && widgetActionsCookie !== null && widgetActionsCookie !== '';
     const isAdministratorSetting =
       isAdministratorRole(roleId) &&
       (pathname === '/setting' ||

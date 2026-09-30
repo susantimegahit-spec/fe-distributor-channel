@@ -1824,7 +1824,7 @@ export default function ProductionOrder() {
                     type="button"
                     className="dropdown-item"
                     data-permission-action="edit"
-                    data-permission-menu-key="50"
+                    data-permission-menu-key="production-order"
                     onClick={() => {
                       if (order) handleOpenEdit(order);
                     }}

@@ -34,7 +34,6 @@ const colorMap = {
   Done: '#059669',
   Cancelled: '#dc2626'
 };
-const priorityVariant = { Urgent: 'danger', High: 'warning', Normal: 'primary', Low: 'secondary' };
 const slaMap = { Urgent: '4 Jam', High: '24 Jam', Normal: '72 Jam', Low: '168 Jam' };
 
 const initials = (name) =>
@@ -63,7 +62,7 @@ const toDateTimeLocal = (date) => {
   const offset = value.getTimezoneOffset() * 60000;
   return new Date(value.getTime() - offset).toISOString().slice(0, 16);
 };
-const formatDuration = (minutes) => `${Math.floor(minutes / 60)}j ${minutes % 60}m`;
+const toDateInput = (date) => toDateTimeLocal(date).slice(0, 10);
 const isCompletedTask = (task) => {
   const status = String(task?.status_category || task?.status || '').toLowerCase();
   return ['done', 'completed', 'complete', 'selesai'].includes(status);
@@ -72,7 +71,7 @@ const responseData = (response) => response?.data?.data ?? response?.data ?? nul
 const responseList = (response) => {
   const data = responseData(response);
   if (Array.isArray(data)) return data;
-  const rows = data?.data || data?.items || data?.rows || data?.results;
+  const rows = data?.data || data?.items || data?.rows || data?.results || data?.employees || data?.comments;
   return Array.isArray(rows) ? rows : [];
 };
 const apiError = (response) => response?.data?.success === false || (response?.status && response.status >= 400);
@@ -97,6 +96,47 @@ const normalizeDepartment = (item, index) => ({
   name: item?.ocr_name ?? item?.ocrName ?? item?.OcrName ?? item?.name ?? '',
   status: Number(item?.status ?? item?.is_active ?? 1)
 });
+const normalizeEmployee = (item, index) => ({
+  ...item,
+  id: item?.id ?? item?.employee_id ?? item?.employeeId ?? item?.user_id ?? `employee-${index}`,
+  name:
+    item?.name ??
+    item?.employee_name ??
+    item?.employeeName ??
+    item?.full_name ??
+    item?.fullName ??
+    item?.user?.name ??
+    `Employee ${index + 1}`,
+  nik: item?.nik ?? item?.employee_code ?? item?.employeeCode ?? item?.code ?? '',
+  email: item?.email ?? item?.employee_email ?? item?.employeeEmail ?? item?.user?.email ?? ''
+});
+const employeeList = (response) => responseList(response).map(normalizeEmployee);
+const buildCommentThreads = (items) => {
+  const nodes = new Map();
+  const collect = (list, parentId = null) => {
+    if (!Array.isArray(list)) return;
+    list.forEach((item, index) => {
+      const id = item.id ?? item.comment_id ?? `comment-${nodes.size}-${index}`;
+      const key = String(id);
+      const previous = nodes.get(key);
+      const explicitParentId = item.parent_comment_id ?? item.parentCommentId ?? item.parent_comment?.id;
+      nodes.set(key, {
+        item: { ...previous?.item, ...item, id },
+        parentId: explicitParentId ?? parentId ?? previous?.parentId ?? null,
+        replies: []
+      });
+      collect(item.replies ?? item.children ?? item.child_comments, id);
+    });
+  };
+  collect(items);
+  const roots = [];
+  nodes.forEach((node) => {
+    const parent = node.parentId == null ? null : nodes.get(String(node.parentId));
+    if (parent && parent !== node) parent.replies.push(node);
+    else roots.push(node);
+  });
+  return roots;
+};
 const spaceMatchesDepartment = (space, department) => {
   const references = [space?.department_id, space?.department_code, space?.ocr_code, space?.department?.id, space?.department?.code]
     .filter((value) => value !== undefined && value !== null)
@@ -181,7 +221,20 @@ const AvatarStack = ({ names }) => (
   </div>
 );
 
-const StatusBadge = ({ status }) => <Badge style={{ background: `${colorMap[status]}18`, color: colorMap[status] }}>{status}</Badge>;
+const statusBadgeClass = {
+  'To Do': 'to-do',
+  'In Progress': 'in-progress',
+  'In Review': 'in-review',
+  Done: 'done',
+  Cancelled: 'cancelled'
+};
+const StatusBadge = ({ status }) => (
+  <span className={`todo-status-badge todo-status-badge--${statusBadgeClass[status] || 'default'}`}>{status}</span>
+);
+const priorityBadgeClass = { Urgent: 'urgent', High: 'high', Normal: 'normal', Low: 'low' };
+const PriorityBadge = ({ priority }) => (
+  <span className={`todo-priority-badge todo-priority-badge--${priorityBadgeClass[priority] || 'default'}`}>{priority}</span>
+);
 
 export default function ToDoList() {
   const { showAlert } = useAlert();
@@ -195,10 +248,14 @@ export default function ToDoList() {
   const [selectedId, setSelectedId] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
   const [createDataLoading, setCreateDataLoading] = useState(false);
-  const [showEdit, setShowEdit] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [loadingEditEmployees, setLoadingEditEmployees] = useState(false);
+  const [editEmployeesError, setEditEmployeesError] = useState(false);
   const [comment, setComment] = useState('');
   const [comments, setComments] = useState([]);
+  const [expandedCommentIds, setExpandedCommentIds] = useState([]);
+  const [replyToComment, setReplyToComment] = useState(null);
+  const [sendingComment, setSendingComment] = useState(false);
   const [masters, setMasters] = useState({
     workspaces: [],
     spaces: [],
@@ -250,17 +307,8 @@ export default function ToDoList() {
     priorityId: '',
     startDate: '',
     dueDate: '',
-    progressPercentage: 0,
     assigneeIds: []
   });
-  const loggedInUserId = getCookies('id');
-  const loggedInEmail = getCookies('email');
-  const matchedEmployee = masters.employees.find(
-    (item) => String(item.user_id || item.user?.id || '') === String(loggedInUserId) || item.email === loggedInEmail
-  );
-  const currentEmployeeId =
-    getCookies('employee_id') || getCookies('employeeId') || matchedEmployee?.id || matchedEmployee?.employee_id || '';
-
   const availableTaskLists = useMemo(() => {
     const rows = spaceHierarchy[String(scope.spaceId)]?.lists || masters.lists;
     if (!scope.folderId) return rows;
@@ -323,7 +371,7 @@ export default function ToDoList() {
             TaskManagementServices.getStatuses(),
             TaskManagementServices.getPriorities(),
             TaskManagementServices.getTaskTypes(),
-            TaskManagementServices.getEmployees(),
+            TaskManagementServices.getEmployee(),
             DistributorServices.getOcrByType(3)
           ]
         );
@@ -357,7 +405,7 @@ export default function ToDoList() {
           statuses: responseList(statusesResponse),
           priorities: responseList(prioritiesResponse),
           types: responseList(typesResponse),
-          employees: responseList(employeesResponse)
+          employees: employeeList(employeesResponse)
         });
         setSpaceHierarchy({});
         await loadTasks(nextScope);
@@ -372,22 +420,64 @@ export default function ToDoList() {
   }, []);
 
   const selectedTask = tasks.find((task) => task.id === selectedId) || null;
+  const commentThreads = useMemo(() => buildCommentThreads(comments), [comments]);
+  const commentAuthorName = (item) => {
+    const authorEmployeeId = item?.author_employee_id ?? item?.authorEmployeeId;
+    const employee = authorEmployeeId == null
+      ? null
+      : masters.employees.find((entry) =>
+          [entry.id, entry.employee_id, entry.employeeId].some((id) => id != null && String(id) === String(authorEmployeeId))
+        );
+    return employee
+      ? entityName(employee, employee.employee_name)
+      : entityName(item?.author_employee || item?.author || item?.user, item?.employee_name || (authorEmployeeId ? `Employee ${authorEmployeeId}` : 'User'));
+  };
   const selectedListTasks =
     selectedListDetail && String(scope.listId) === String(selectedListDetail.id) ? tasks.filter((task) => !task.parentTaskId) : [];
   const filteredTasks = tasks;
 
   const updateLocalTask = (id, changes) => setTasks((current) => current.map((task) => (task.id === id ? { ...task, ...changes } : task)));
+  const taskEditValues = (task) => ({
+    title: task.title || '',
+    description: task.description || '',
+    priorityId: task.priorityId || '',
+    startDate: toDateInput(task.startDate),
+    dueDate: toDateInput(task.dueDate),
+    assigneeIds: task.assigneeIds || []
+  });
   const openTask = async (task) => {
     setSelectedId(task.id);
+    setEditForm(taskEditValues(task));
+    setComment('');
+    setReplyToComment(null);
+    setComments([]);
+    setExpandedCommentIds([]);
+    setLoadingEditEmployees(true);
+    setEditEmployeesError(false);
     try {
-      const response = await TaskManagementServices.getTaskDetail(task.id);
+      const [detailResult, employeesResult] = await Promise.allSettled([
+        TaskManagementServices.getTaskDetail(task.id),
+        TaskManagementServices.getEmployee()
+      ]);
+      if (detailResult.status === 'rejected') throw detailResult.reason;
+      const response = detailResult.value;
       if (apiError(response)) throw new Error(response?.data?.message);
+      const employeesResponse = employeesResult.status === 'fulfilled' ? employeesResult.value : null;
+      if (!employeesResponse || apiError(employeesResponse)) {
+        setEditEmployeesError(true);
+        showAlert(employeesResponse?.data?.message || employeesResult.reason?.message || 'Gagal mengambil master employee.', 'danger');
+      } else {
+        setMasters((current) => ({ ...current, employees: employeeList(employeesResponse) }));
+      }
       const detail = normalizeApiTask(responseData(response));
       updateLocalTask(task.id, detail);
+      setEditForm(taskEditValues(detail));
       const commentsResponse = await TaskManagementServices.getComments(task.id);
       if (!apiError(commentsResponse)) setComments(responseList(commentsResponse));
     } catch (error) {
       showAlert(error?.response?.data?.message || error?.message || 'Gagal mengambil detail tugas.', 'danger');
+    } finally {
+      setLoadingEditEmployees(false);
     }
   };
   const openListDetail = async (list) => {
@@ -460,15 +550,16 @@ export default function ToDoList() {
       setSaving(false);
     }
   };
-  const openCreateTask = () => {
+  const openCreateTask = async () => {
+    const departmentId =
+      departments.find((department) =>
+        masters.spaces.some((space) => String(space.id) === String(scope.spaceId) && spaceMatchesDepartment(space, department))
+      )?.id ||
+      selectedDepartmentIds[0] ||
+      '';
     setForm({
       ...emptyForm,
-      departmentId:
-        departments.find((department) =>
-          masters.spaces.some((space) => String(space.id) === String(scope.spaceId) && spaceMatchesDepartment(space, department))
-        )?.id ||
-        selectedDepartmentIds[0] ||
-        '',
+      departmentId,
       spaceId: scope.spaceId || '',
       folderId: scope.folderId || '',
       listId: scope.listId || availableTaskLists[0]?.id || '',
@@ -478,6 +569,17 @@ export default function ToDoList() {
     });
     setListForm({ listName: '', description: '', colorHex: '#2563eb', defaultView: 'LIST' });
     setShowCreate(true);
+    setCreateDataLoading(true);
+    try {
+      const employeesResponse = await TaskManagementServices.getEmployee();
+      if (apiError(employeesResponse)) throw new Error(employeesResponse?.data?.message || 'Failed to load employees.');
+      setMasters((current) => ({ ...current, employees: employeeList(employeesResponse) }));
+    } catch (error) {
+      setMasters((current) => ({ ...current, employees: [] }));
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to load assignee employees.', 'danger');
+    } finally {
+      setCreateDataLoading(false);
+    }
   };
   const changeCreateDepartment = async (departmentId) => {
     const department = departments.find((item) => String(item.id) === String(departmentId));
@@ -496,62 +598,42 @@ export default function ToDoList() {
       const [foldersResponse, listsResponse, employeesResponse] = await Promise.all([
         TaskManagementServices.getFolders({ space_id: space.id }),
         TaskManagementServices.getLists({ space_id: space.id }),
-        TaskManagementServices.getEmployees({ department_id: department.id })
+        TaskManagementServices.getEmployee()
       ]);
       const folderRows = responseList(foldersResponse);
       const listRows = responseList(listsResponse);
       setSpaceHierarchy((current) => ({ ...current, [String(space.id)]: { folders: folderRows, lists: listRows } }));
-      setMasters((current) => ({ ...current, employees: responseList(employeesResponse) }));
+      setMasters((current) => ({ ...current, employees: employeeList(employeesResponse) }));
     } catch (error) {
       showAlert(error?.response?.data?.message || 'Failed to load department folders.', 'danger');
     } finally {
       setCreateDataLoading(false);
     }
   };
-  const taskCreatorEmployeeId = String(selectedTask?.createdByEmployeeId ?? '').trim();
-  const loggedInEmployeeId = String(currentEmployeeId ?? '').trim();
-  const canEditSelectedTask = Boolean(taskCreatorEmployeeId && loggedInEmployeeId && taskCreatorEmployeeId === loggedInEmployeeId);
-  useEffect(() => {
-    if (import.meta.env.DEV && selectedTask) {
-      console.debug('[Task Edit Access]', {
-        taskId: selectedTask.id,
-        createdByEmployeeId: taskCreatorEmployeeId || null,
-        loggedInEmployeeId: loggedInEmployeeId || null,
-        canEdit: canEditSelectedTask
-      });
-    }
-  }, [canEditSelectedTask, loggedInEmployeeId, selectedTask, taskCreatorEmployeeId]);
-  const openEditTask = () => {
-    if (!selectedTask || !canEditSelectedTask) return;
-    setEditForm({
-      title: selectedTask.title || '',
-      description: selectedTask.description || '',
-      priorityId: selectedTask.priorityId || '',
-      startDate: toDateTimeLocal(selectedTask.startDate),
-      dueDate: toDateTimeLocal(selectedTask.dueDate),
-      progressPercentage: Math.min(100, Math.max(0, Number(selectedTask.progressPercentage) || 0)),
-      assigneeIds: selectedTask.assigneeIds || []
-    });
-    setShowEdit(true);
-  };
   const editTask = async (event) => {
     event.preventDefault();
-    if (!selectedTask || !canEditSelectedTask) return;
+    if (!selectedTask) return;
+    if (editForm.startDate && editForm.dueDate && new Date(editForm.startDate) > new Date(editForm.dueDate)) {
+      showAlert('Start Date tidak boleh melewati Deadline.', 'warning');
+      return;
+    }
     setSavingEdit(true);
     try {
       const response = await TaskManagementServices.putEditTask(selectedTask.id, {
         title: editForm.title.trim(),
         description: editForm.description.trim(),
         priority_id: editForm.priorityId ? Number(editForm.priorityId) : undefined,
-        start_date: editForm.startDate ? new Date(editForm.startDate).toISOString() : undefined,
-        due_date: editForm.dueDate ? new Date(editForm.dueDate).toISOString() : undefined,
-        progress_percentage: Math.min(100, Math.max(0, Number(editForm.progressPercentage) || 0)),
+        start_date: editForm.startDate || null,
+        due_date: editForm.dueDate || undefined,
         assignee_ids: editForm.assigneeIds.map(Number)
       });
       if (apiError(response)) throw new Error(response?.data?.message);
-      setShowEdit(false);
       const detailResponse = await TaskManagementServices.getTaskDetail(selectedTask.id);
-      if (!apiError(detailResponse)) updateLocalTask(selectedTask.id, normalizeApiTask(responseData(detailResponse)));
+      if (!apiError(detailResponse)) {
+        const updatedTask = normalizeApiTask(responseData(detailResponse));
+        updateLocalTask(selectedTask.id, updatedTask);
+        setEditForm(taskEditValues(updatedTask));
+      }
       else await loadTasks();
       showAlert('Tugas berhasil diperbarui.', 'success');
     } catch (error) {
@@ -605,33 +687,105 @@ export default function ToDoList() {
     }
   };
   const sendComment = async () => {
-    if (!comment.trim()) return;
+    if (!selectedTask || !comment.trim() || sendingComment) return;
+    const parentCommentId = replyToComment?.id ?? null;
+    setSendingComment(true);
     try {
-      const response = await TaskManagementServices.createComment(selectedTask.id, {
+      const response = await TaskManagementServices.postCommentTask(selectedTask.id, {
         comment_text: comment.trim(),
+        parent_comment_id: parentCommentId,
         is_internal_only: false
       });
       if (apiError(response)) throw new Error(response?.data?.message);
       setComment('');
+      setReplyToComment(null);
+      if (parentCommentId != null) setExpandedCommentIds((current) => [...new Set([...current, String(parentCommentId)])]);
       const listResponse = await TaskManagementServices.getComments(selectedTask.id);
+      if (apiError(listResponse)) throw new Error(listResponse?.data?.message || 'Gagal memuat komentar.');
       setComments(responseList(listResponse));
     } catch (error) {
       showAlert(error?.response?.data?.message || error?.message || 'Gagal mengirim komentar.', 'danger');
+    } finally {
+      setSendingComment(false);
     }
+  };
+  const renderCommentComposer = (isReply = false) => (
+    <div className={`todo-comment-composer ${isReply ? 'is-reply' : ''}`}>
+      {isReply && (
+        <div className="todo-comment-composer-heading">
+          <span><i className="ti ti-corner-down-right me-1" /> Reply to {commentAuthorName(replyToComment)}</span>
+          <Button type="button" variant="link" size="sm" className="p-0" data-permission-action="none"
+            disabled={sendingComment} onClick={() => { setReplyToComment(null); setComment(''); }}>
+            Cancel
+          </Button>
+        </div>
+      )}
+      <div className="todo-comment-composer-row">
+        <Form.Control as="textarea" rows={2} value={comment} disabled={sendingComment}
+          onChange={(event) => setComment(event.target.value)}
+          placeholder={isReply ? 'Tulis balasan...' : 'Tulis komentar...'} />
+        <Button size="sm" data-permission-action="none" disabled={!comment.trim() || sendingComment} onClick={sendComment}>
+          {sendingComment ? <span className="spinner-border spinner-border-sm" role="status" aria-label="Sending comment" /> : <i className="ti ti-send" />}
+          <span>{sendingComment ? 'Sending' : 'Send'}</span>
+        </Button>
+      </div>
+    </div>
+  );
+  const renderCommentThread = (node) => {
+    const item = node.item;
+    const key = String(item.id);
+    const expanded = expandedCommentIds.includes(key);
+    return (
+      <div key={key} className="todo-comment-card">
+        <div className="todo-comment-card-header">
+          <span className="todo-comment-avatar" aria-hidden="true">{initials(commentAuthorName(item))}</span>
+          <div className="todo-comment-author">
+            <strong>{commentAuthorName(item)}</strong>
+            {item.created_at && <small>{formatDate(item.created_at)}</small>}
+          </div>
+        </div>
+        <div className="todo-comment-text">{item.comment_text || item.text}</div>
+        <div className="todo-comment-actions">
+          {node.parentId == null && (
+            <Button type="button" variant="link" size="sm" className="todo-comment-action" data-permission-action="none"
+              onClick={() => { setReplyToComment(item); setComment(''); }}>
+              <i className="ti ti-arrow-back-up me-1" /> Reply
+            </Button>
+          )}
+          {node.replies.length > 0 && (
+            <Button type="button" variant="link" size="sm" className="todo-comment-action" data-permission-action="none"
+              aria-expanded={expanded}
+              onClick={() => setExpandedCommentIds((current) =>
+                current.includes(key) ? current.filter((id) => id !== key) : [...current, key]
+              )}>
+              <i className={`ti ti-chevron-${expanded ? 'up' : 'down'} me-1`} />
+              {expanded ? 'Hide' : 'Show'} {node.replies.length} {node.replies.length === 1 ? 'reply' : 'replies'}
+            </Button>
+          )}
+        </div>
+        {replyToComment?.id === item.id && renderCommentComposer(true)}
+        {expanded && (
+          <div className="todo-comment-replies">
+            {node.replies.map(renderCommentThread)}
+          </div>
+        )}
+      </div>
+    );
   };
   const deleteTask = () =>
     showConfirm({
       title: 'Hapus tugas?',
-      subTitle: `${selectedTask.code} akan dihapus dari daftar.`,
+      subTitle: `${selectedTask.code} akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`,
       onConfirm: async () => {
-        const response = await TaskManagementServices.deleteTask(selectedTask.id);
-        if (apiError(response)) {
-          showAlert(response?.data?.message || 'Gagal menghapus tugas.', 'danger');
-          return;
+        try {
+          const response = await TaskManagementServices.deleteTask(selectedTask.id);
+          if (apiError(response)) throw new Error(response?.data?.message || 'Gagal menghapus tugas.');
+          setSelectedId(null);
+          await loadTasks();
+          showAlert('Tugas berhasil dihapus.', 'success');
+        } catch (error) {
+          showAlert(error?.response?.data?.message || error?.message || 'Gagal menghapus tugas.', 'danger');
         }
-        setSelectedId(null);
-        await loadTasks();
-        showAlert('Tugas berhasil dihapus.', 'success');
       }
     });
   const selectDepartment = async (department) => {
@@ -647,7 +801,7 @@ export default function ToDoList() {
         TaskManagementServices.getFolders({ space_id: space.id }),
         TaskManagementServices.getLists({ space_id: space.id }),
         TaskManagementServices.getStatuses({ space_id: space.id }),
-        TaskManagementServices.getEmployees({ department_id: department.id })
+        TaskManagementServices.getEmployee({ department_id: department.id })
       ]);
       const folderRows = responseList(foldersResponse);
       const listRows = responseList(listsResponse);
@@ -659,7 +813,7 @@ export default function ToDoList() {
         folders: folderRows,
         lists: listRows,
         statuses: responseList(statusesResponse),
-        employees: responseList(employeesResponse)
+        employees: employeeList(employeesResponse)
       }));
       setSpaceHierarchy((current) => ({ ...current, [String(space.id)]: { folders: folderRows, lists: listRows } }));
       await loadTasks(nextScope);
@@ -697,7 +851,7 @@ export default function ToDoList() {
         TaskManagementServices.getFolders({ space_id: space.id }),
         TaskManagementServices.getLists({ space_id: space.id }),
         TaskManagementServices.getStatuses({ space_id: space.id }),
-        TaskManagementServices.getEmployees({ department_id: resolvedDepartmentId })
+        TaskManagementServices.getEmployee({ department_id: resolvedDepartmentId })
       ]);
       const folderRows = responseList(foldersResponse);
       const listRows = responseList(listsResponse);
@@ -709,7 +863,7 @@ export default function ToDoList() {
         folders: folderRows,
         lists: listRows,
         statuses: responseList(statusesResponse),
-        employees: responseList(employeesResponse)
+        employees: employeeList(employeesResponse)
       }));
       setSpaceHierarchy((current) => ({ ...current, [String(space.id)]: { folders: folderRows, lists: listRows } }));
       await loadTasks(nextScope);
@@ -1113,8 +1267,6 @@ export default function ToDoList() {
                                       <span>Status</span>
                                       <span>Assignee</span>
                                       <span>Due Date</span>
-                                      <span>Progress</span>
-                                      <span>Duration</span>
                                     </div>
                                     <button
                                       type="button"
@@ -1122,9 +1274,7 @@ export default function ToDoList() {
                                       onClick={() => openTask(task)}
                                     >
                                       <span>
-                                        <Badge bg="light-primary" text="primary">
-                                          {task.priority}
-                                        </Badge>
+                                        <PriorityBadge priority={task.priority} />
                                         {task.slaHours ? <small>SLA {task.slaHours} Jam</small> : null}
                                       </span>
                                       <span>
@@ -1132,18 +1282,6 @@ export default function ToDoList() {
                                       </span>
                                       <span>{task.assignees.length ? <AvatarStack names={task.assignees} /> : '-'}</span>
                                       <span className={isOverdue(task) ? 'overdue' : ''}>{formatDate(task.dueDate)}</span>
-                                      <span className="content-subtask-progress">
-                                        <small>
-                                          {checklistProgress(task).done}/{checklistProgress(task).total}
-                                          <strong>{task.progressPercentage || checklistProgress(task).percent}%</strong>
-                                        </small>
-                                        <ProgressBar
-                                          className="progress-thin"
-                                          now={task.progressPercentage || checklistProgress(task).percent}
-                                          variant="success"
-                                        />
-                                      </span>
-                                      <span>{formatDuration(task.trackedMinutes)}</span>
                                     </button>
                                   </div>
                                 ) : null}
@@ -1155,13 +1293,8 @@ export default function ToDoList() {
                                       <span>Status</span>
                                       <span>Assignee</span>
                                       <span>Due Date</span>
-                                      <span>Progress</span>
-                                      <span>Duration</span>
                                     </div>
-                                    {subtasks.map((subtask) => {
-                                      const checklist = checklistProgress(subtask);
-                                      const progress = subtask.progressPercentage || checklist.percent;
-                                      return (
+                                    {subtasks.map((subtask) => (
                                         <button
                                           key={subtask.id}
                                           type="button"
@@ -1176,9 +1309,7 @@ export default function ToDoList() {
                                             </span>
                                           </span>
                                           <span>
-                                            <Badge bg="light-primary" text="primary">
-                                              {subtask.priority}
-                                            </Badge>
+                                            <PriorityBadge priority={subtask.priority} />
                                             {subtask.slaHours ? <small>SLA {subtask.slaHours} Jam</small> : null}
                                           </span>
                                           <span>
@@ -1186,17 +1317,8 @@ export default function ToDoList() {
                                           </span>
                                           <span>{subtask.assignees.length ? <AvatarStack names={subtask.assignees} /> : '-'}</span>
                                           <span className={isOverdue(subtask) ? 'overdue' : ''}>{formatDate(subtask.dueDate)}</span>
-                                          <span className="content-subtask-progress">
-                                            <small>
-                                              {checklist.done}/{checklist.total}
-                                              <strong>{progress}%</strong>
-                                            </small>
-                                            <ProgressBar className="progress-thin" now={progress} variant="success" />
-                                          </span>
-                                          <span>{formatDuration(subtask.trackedMinutes)}</span>
                                         </button>
-                                      );
-                                    })}
+                                    ))}
                                   </div>
                                 ) : null}
                               </div>
@@ -1231,23 +1353,19 @@ export default function ToDoList() {
                     <th>Status</th>
                     <th>Assignee</th>
                     <th>Due Date</th>
-                    <th>Progress</th>
-                    <th>Duration</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={7} className="text-center py-5">
+                      <td colSpan={5} className="text-center py-5">
                         <span className="spinner-border spinner-border-sm me-2" />
                         Loading tasks...
                       </td>
                     </tr>
                   ) : null}
                   {!loading &&
-                    filteredTasks.map((task) => {
-                      const progress = checklistProgress(task);
-                      return (
+                    filteredTasks.map((task) => (
                         <tr key={task.id} role="button" onClick={() => openTask(task)}>
                           <td style={{ minWidth: 250 }}>
                             <div className="task-code">{task.code}</div>
@@ -1257,7 +1375,7 @@ export default function ToDoList() {
                             </div>
                           </td>
                           <td>
-                            <Badge bg={priorityVariant[task.priority]}>{task.priority}</Badge>
+                            <PriorityBadge priority={task.priority} />
                             <div className="text-muted f-10 mt-1">SLA {slaMap[task.priority]}</div>
                           </td>
                           <td>
@@ -1272,19 +1390,8 @@ export default function ToDoList() {
                               {formatDate(task.dueDate)}
                             </span>
                           </td>
-                          <td style={{ minWidth: 110 }}>
-                            <div className="d-flex justify-content-between f-10 mb-1">
-                              <span>
-                                {progress.done}/{progress.total}
-                              </span>
-                              <span>{progress.percent}%</span>
-                            </div>
-                            <ProgressBar className="progress-thin" now={progress.percent} variant="success" />
-                          </td>
-                          <td className="text-nowrap">{formatDuration(task.trackedMinutes)}</td>
                         </tr>
-                      );
-                    })}
+                    ))}
                 </tbody>
               </Table>
             ) : (
@@ -1321,7 +1428,6 @@ export default function ToDoList() {
                         {filteredTasks
                           .filter((task) => task.status === status)
                           .map((task) => {
-                            const progress = checklistProgress(task);
                             return (
                               <Card
                                 className={`kanban-card ${String(draggingTaskId) === String(task.id) ? 'dragging' : ''}`}
@@ -1350,19 +1456,10 @@ export default function ToDoList() {
                                   </div>
                                   <div className="kanban-task-title fw-semibold mb-2">{task.title}</div>
                                   <div className="kanban-card-meta d-flex justify-content-between mb-2">
-                                    <Badge bg={priorityVariant[task.priority]}>{task.priority}</Badge>
+                                    <PriorityBadge priority={task.priority} />
                                     <AvatarStack names={task.assignees} />
                                   </div>
-                                  <ProgressBar
-                                    className="progress-thin mb-2"
-                                    now={progress.percent}
-                                    style={{ '--bs-progress-bar-bg': colorMap[status] }}
-                                  />
-                                  <div className="d-flex justify-content-between text-muted f-10">
-                                    <span>
-                                      <i className="ti ti-checklist me-1" />
-                                      {progress.done}/{progress.total}
-                                    </span>
+                                  <div className="d-flex justify-content-end text-muted f-10">
                                     <span className={isOverdue(task) ? 'overdue' : ''}>
                                       <i className="ti ti-calendar me-1" />
                                       {formatDate(task.dueDate)}
@@ -1400,92 +1497,104 @@ export default function ToDoList() {
                 <div className="task-code mb-1">{selectedTask.code}</div>
                 <Offcanvas.Title>{selectedTask.title}</Offcanvas.Title>
               </div>
-              {canEditSelectedTask ? (
-                <Button variant="outline-primary" size="sm" className="me-2" onClick={openEditTask}>
-                  <i className="ti ti-edit me-1" />
-                  Edit
-                </Button>
-              ) : null}
-              <Button variant="outline-danger" size="sm" className="me-3" onClick={deleteTask}>
-                <i className="ti ti-trash" />
-              </Button>
             </Offcanvas.Header>
             <Offcanvas.Body>
-              <Row className="g-3 mb-4">
-                <Col sm={6}>
-                  <Form.Label className="text-muted f-11">Status</Form.Label>
-                  <Form.Select
-                    size="sm"
-                    value={selectedTask.statusId || selectedTask.status}
-                    onChange={(event) => changeTaskStatus(selectedTask, event.target.value)}
-                  >
-                    {(masters.statuses.length ? masters.statuses : statuses).map((item) => (
-                      <option key={item.id || item} value={item.id || item}>
-                        {typeof item === 'object' ? statusLabel(item) : item}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Col>
-                <Col sm={6}>
-                  <Form.Label className="text-muted f-11">Priority & SLA</Form.Label>
-                  <div>
-                    <Badge bg={priorityVariant[selectedTask.priority]}>
-                      {selectedTask.priority} · SLA {slaMap[selectedTask.priority]}
-                    </Badge>
+              <Form onSubmit={editTask}>
+                <Row className="g-3 mb-4">
+                  <Col xs={12}>
+                    <Form.Label>Title *</Form.Label>
+                    <Form.Control required disabled={savingEdit} value={editForm.title}
+                      onChange={(event) => setEditForm((current) => ({ ...current, title: event.target.value }))} />
+                  </Col>
+                  <Col sm={6}>
+                    <Form.Label>Status</Form.Label>
+                    <Form.Select size="sm" value={selectedTask.statusId || selectedTask.status}
+                      onChange={(event) => changeTaskStatus(selectedTask, event.target.value)}>
+                      {(masters.statuses.length ? masters.statuses : statuses).map((item) => (
+                        <option key={item.id || item} value={item.id || item}>
+                          {typeof item === 'object' ? statusLabel(item) : item}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  </Col>
+                  <Col sm={6}>
+                    <Form.Label>Priority</Form.Label>
+                    <Form.Select disabled={savingEdit} value={editForm.priorityId}
+                      onChange={(event) => setEditForm((current) => ({ ...current, priorityId: event.target.value }))}>
+                      <option value="">Select Priority</option>
+                      {masters.priorities.map((item) => (
+                        <option key={item.id} value={item.id}>{priorityLabel(item)}</option>
+                      ))}
+                    </Form.Select>
+                  </Col>
+                  <Col xs={12}>
+                    <Form.Label>Assignees</Form.Label>
+                    <Select isMulti isDisabled={savingEdit || loadingEditEmployees || editEmployeesError}
+                      isLoading={loadingEditEmployees} closeMenuOnSelect={false}
+                      classNamePrefix="task-assignee-select" menuPortalTarget={document.body} menuPosition="fixed"
+                      options={masters.employees.map((item) => ({
+                        value: item.id,
+                        label: `${entityName(item, item.employee_name)}${item.nik ? ` · ${item.nik}` : ''}`
+                      }))}
+                      value={masters.employees.filter((item) => editForm.assigneeIds.some((id) => String(id) === String(item.id)))
+                        .map((item) => ({
+                          value: item.id,
+                          label: `${entityName(item, item.employee_name)}${item.nik ? ` · ${item.nik}` : ''}`
+                        }))}
+                      onChange={(options) => setEditForm((current) => ({ ...current, assigneeIds: (options || []).map((option) => option.value) }))}
+                      styles={{ menuPortal: (base) => ({ ...base, zIndex: 1090 }) }}
+                      placeholder={loadingEditEmployees ? 'Loading employees...' : 'Select assignees...'} />
+                  </Col>
+                  <Col sm={6}>
+                    <Form.Label>Start Date</Form.Label>
+                    <Form.Control type="date" disabled={savingEdit} value={editForm.startDate}
+                      onChange={(event) => setEditForm((current) => ({ ...current, startDate: event.target.value }))} />
+                  </Col>
+                  <Col sm={6}>
+                    <Form.Label>Deadline</Form.Label>
+                    <Form.Control type="date" disabled={savingEdit} value={editForm.dueDate}
+                      onChange={(event) => setEditForm((current) => ({ ...current, dueDate: event.target.value }))} />
+                  </Col>
+                  <Col xs={12}>
+                    <Form.Label>Description</Form.Label>
+                    <Form.Control as="textarea" rows={3} disabled={savingEdit} value={editForm.description}
+                      onChange={(event) => setEditForm((current) => ({ ...current, description: event.target.value }))} />
+                  </Col>
+                </Row>
+                <div className="d-flex justify-content-end gap-2 mb-4">
+                  <Button type="button" variant="outline-danger" data-permission-action="none" disabled={savingEdit} onClick={deleteTask}>
+                    <i className="ti ti-trash me-1" />
+                    Delete Task
+                  </Button>
+                  <Button type="submit" data-permission-action="none"
+                    disabled={savingEdit || !editForm.title.trim()}>
+                    {savingEdit ? <span className="spinner-border spinner-border-sm me-2" /> : <i className="ti ti-device-floppy me-1" />}
+                    {savingEdit ? 'Updating...' : 'Update Task'}
+                  </Button>
+                </div>
+              </Form>
+              <Tabs defaultActiveKey="comments" className="todo-conversation-tabs mb-3">
+                <Tab eventKey="comments" title={<><i className="ti ti-message-circle me-2" />Comments <span className="todo-tab-count">{comments.length}</span></>}>
+                  <div className="todo-comment-list">
+                    {commentThreads.map(renderCommentThread)}
+                    {!commentThreads.length && <div className="todo-comment-empty">Belum ada komentar. Mulai percakapan di bawah.</div>}
                   </div>
-                </Col>
-                <Col sm={6}>
-                  <Form.Label className="text-muted f-11">Assignees</Form.Label>
-                  <div className="d-flex align-items-center gap-2">
-                    <AvatarStack names={selectedTask.assignees} />
-                    <span className="f-12">{selectedTask.assignees.join(', ')}</span>
-                  </div>
-                </Col>
-                <Col sm={3}>
-                  <Form.Label className="text-muted f-11">Start Date</Form.Label>
-                  <div className="f-12 fw-semibold">{formatDate(selectedTask.startDate)}</div>
-                </Col>
-                <Col sm={3}>
-                  <Form.Label className="text-muted f-11">Deadline</Form.Label>
-                  <div className={`f-12 ${isOverdue(selectedTask) ? 'overdue' : 'fw-semibold'}`}>{formatDate(selectedTask.dueDate)}</div>
-                </Col>
-              </Row>
-              <div className="mb-4">
-                <h6>Description</h6>
-                <p className="text-muted f-12 lh-lg">{selectedTask.description}</p>
-              </div>
-              <Tabs defaultActiveKey="comments" className="mb-3">
-                <Tab eventKey="comments" title="Comments">
-                  {comments.map((item) => (
-                    <div key={item.id} className="border-bottom py-2">
-                      <strong className="f-12">{entityName(item.user, item.employee_name || 'User')}</strong>
-                      <div className="f-12">{item.comment_text || item.text}</div>
-                    </div>
-                  ))}
-                  <div className="d-flex gap-2 mt-3">
-                    <Form.Control
-                      size="sm"
-                      value={comment}
-                      onChange={(event) => setComment(event.target.value)}
-                      placeholder="Tulis komentar..."
-                    />
-                    <Button size="sm" disabled={!comment.trim()} onClick={sendComment}>
-                      Send
-                    </Button>
-                  </div>
+                  {!replyToComment && renderCommentComposer()}
                 </Tab>
-                <Tab eventKey="activity" title="Activity">
+                <Tab eventKey="activity" title={<><i className="ti ti-activity me-2" />Activity</>}>
+                  <div className="todo-activity-list">
                   {selectedTask.activityLogs?.map((item) => (
-                    <div className="border-start ps-3 ms-1 mb-3" key={item.id}>
-                      <p className="f-12 mb-1">
+                    <div className="todo-activity-item" key={item.id}>
+                      <p className="mb-1">
                         <strong>{entityName(item.user, item.employee_name || 'System')}</strong> {item.description || item.action}
                       </p>
-                      <p className="text-muted f-10 mb-0">
+                      <p className="text-muted mb-0">
                         {item.created_at ? formatDate(item.created_at.slice(0, 10)) : 'Aktivitas terbaru'}
                       </p>
                     </div>
                   ))}
-                  {!selectedTask.activityLogs?.length ? <p className="text-muted f-12">Belum ada aktivitas.</p> : null}
+                  {!selectedTask.activityLogs?.length ? <div className="todo-comment-empty">Belum ada aktivitas.</div> : null}
+                  </div>
                 </Tab>
               </Tabs>
             </Offcanvas.Body>
@@ -1583,104 +1692,6 @@ export default function ToDoList() {
         ) : null}
       </Offcanvas>
 
-      <Modal className="todo-task-modal" show={showEdit} onHide={() => !savingEdit && setShowEdit(false)} centered>
-        <Form onSubmit={editTask}>
-          <Modal.Header closeButton={!savingEdit}>
-            <Modal.Title>Edit Task</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            <Row className="g-3">
-              <Col xs={12}>
-                <Form.Label>Title *</Form.Label>
-                <Form.Control
-                  required
-                  value={editForm.title}
-                  onChange={(event) => setEditForm((current) => ({ ...current, title: event.target.value }))}
-                />
-              </Col>
-              <Col xs={12}>
-                <Form.Label>Description</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={3}
-                  value={editForm.description}
-                  onChange={(event) => setEditForm((current) => ({ ...current, description: event.target.value }))}
-                />
-              </Col>
-              <Col sm={4}>
-                <Form.Label>Priority</Form.Label>
-                <Form.Select
-                  value={editForm.priorityId}
-                  onChange={(event) => setEditForm((current) => ({ ...current, priorityId: event.target.value }))}
-                >
-                  <option value="">Select Priority</option>
-                  {masters.priorities.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {priorityLabel(item)}
-                    </option>
-                  ))}
-                </Form.Select>
-              </Col>
-              <Col sm={4}>
-                <Form.Label>Start Date</Form.Label>
-                <Form.Control
-                  type="datetime-local"
-                  value={editForm.startDate}
-                  onChange={(event) => setEditForm((current) => ({ ...current, startDate: event.target.value }))}
-                />
-              </Col>
-              <Col sm={4}>
-                <Form.Label>Deadline</Form.Label>
-                <Form.Control
-                  type="datetime-local"
-                  value={editForm.dueDate}
-                  onChange={(event) => setEditForm((current) => ({ ...current, dueDate: event.target.value }))}
-                />
-              </Col>
-              <Col xs={12}>
-                <Form.Label>Progress ({editForm.progressPercentage}%)</Form.Label>
-                <Form.Range
-                  min={0}
-                  max={100}
-                  value={editForm.progressPercentage}
-                  onChange={(event) => setEditForm((current) => ({ ...current, progressPercentage: Number(event.target.value) }))}
-                />
-              </Col>
-              <Col xs={12}>
-                <Form.Label>Assignee</Form.Label>
-                <Select
-                  isMulti
-                  closeMenuOnSelect={false}
-                  classNamePrefix="task-assignee-select"
-                  menuPortalTarget={document.body}
-                  menuPosition="fixed"
-                  options={masters.employees.map((item) => ({
-                    value: item.id,
-                    label: entityName(item, item.employee_name)
-                  }))}
-                  value={masters.employees
-                    .filter((item) => editForm.assigneeIds.some((id) => String(id) === String(item.id)))
-                    .map((item) => ({ value: item.id, label: entityName(item, item.employee_name) }))}
-                  onChange={(options) =>
-                    setEditForm((current) => ({ ...current, assigneeIds: (options || []).map((option) => option.value) }))
-                  }
-                  styles={{ menuPortal: (base) => ({ ...base, zIndex: 1090 }) }}
-                  placeholder="Select assignees..."
-                />
-              </Col>
-            </Row>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button type="button" variant="light-secondary" disabled={savingEdit} onClick={() => setShowEdit(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={savingEdit || !editForm.title.trim()}>
-              {savingEdit ? <span className="spinner-border spinner-border-sm me-2" /> : <i className="ti ti-device-floppy me-1" />}
-              {savingEdit ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </Modal.Footer>
-        </Form>
-      </Modal>
 
       <Modal className="todo-task-modal" show={showFolderModal} onHide={() => !savingFolder && setShowFolderModal(false)} centered>
         <Form onSubmit={createDepartmentFolder}>
@@ -1765,7 +1776,7 @@ export default function ToDoList() {
         </Form>
       </Modal>
 
-      <Modal className="todo-task-modal" show={showCreate} onHide={() => setShowCreate(false)} size="xl" centered>
+      <Modal className="todo-task-modal todo-create-modal" show={showCreate} onHide={() => setShowCreate(false)} size="xl" centered>
         <Form onSubmit={createTask}>
           <Modal.Header closeButton>
             <Modal.Title>New Task</Modal.Title>

@@ -231,7 +231,7 @@ export default function OrderReadyWidget() {
                   </td>
                   <td className="text-end">
                     {order.status === 'ORDER_APPROVED' && !['APPROVED', 'RESCHEDULE_APPROVED'].includes(order.logisticStatus) ? (
-                      <RescheduleOrderActions order={order} onSuccess={fetchOrders} />
+                      <RescheduleOrderActions order={order} widgetKey="order-ready" onSuccess={fetchOrders} />
                     ) : (
                       <span className="text-muted">-</span>
                     )}
@@ -257,7 +257,7 @@ export default function OrderReadyWidget() {
           itemLabel="orders"
         />
       </MainCard>
-      {selectedOrder && <RescheduleLogModal order={selectedOrder} onClose={() => setSelectedOrder(null)} onSuccess={fetchOrders} />}
+      {selectedOrder && <RescheduleLogModal order={selectedOrder} widgetKey="order-ready" onClose={() => setSelectedOrder(null)} onSuccess={fetchOrders} />}
     </>
   );
 }

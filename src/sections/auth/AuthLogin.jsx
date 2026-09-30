@@ -23,6 +23,7 @@ import { AUTH_STATE_CHANGED_EVENT } from '../../utils/authEvents';
 import { getFirstAccessibleMenuPath, isAdministratorRole, normalizeAccessibleSystems, systems } from '../../systems';
 import { setAccessibleSystem } from '../../redux/authReducer';
 import { compactActionsForCookie, compactWidgetActionsForCookie } from '../../utils/actionPermissions';
+import widgetActionRegistry from '../../data-widget-action.json';
 
 // ==============================|| AUTH LOGIN FORM ||============================== //
 
@@ -196,9 +197,17 @@ export default function AuthLoginForm({ className }) {
           userData.widget_action_assignments,
           userData.widgetActionAssignments
         ];
-        const hasWidgetActionSource = widgetActionSources.some((value) => value !== undefined && value !== null);
-        const widgetActions =
+        const explicitWidgetActions =
           widgetActionSources.find((value) => (Array.isArray(value) ? value.length > 0 : value && Object.keys(value).length > 0)) || [];
+        const widgetKeys = new Set(widgetActionRegistry.widgets.map((widget) => String(widget.widget_key)));
+        const embeddedWidgetActions = Array.isArray(actions)
+          ? actions.filter((assignment) =>
+              widgetKeys.has(String(assignment?.widget_key ?? assignment?.widgetKey ?? assignment?.menu_key ?? assignment?.menuKey ?? ''))
+            )
+          : [];
+        const widgetActions = explicitWidgetActions.length ? explicitWidgetActions : embeddedWidgetActions;
+        const hasWidgetActionSource =
+          widgetActionSources.some((value) => value !== undefined && value !== null) || Array.isArray(actions);
         const organizationDistributors = normalizeAssignmentValues(organizationAssignment.distributors);
         const customerCode =
           userData.customer_code ||

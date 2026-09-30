@@ -44,7 +44,12 @@ const getMasterApprovalName = (item) =>
   '';
 
 const getMenuValue = (item) => item?.value || item?.id || '';
-const getPermissionMenuValue = (item) => item?.id || item?.value || '';
+const getRawMenuValue = (value) => {
+  const normalizedValue = String(value || '');
+  const separatorIndex = normalizedValue.indexOf(':');
+
+  return separatorIndex >= 0 ? normalizedValue.slice(separatorIndex + 1) : normalizedValue;
+};
 
 const renderMenuLabel = (label, id) => (
   <span>
@@ -61,7 +66,9 @@ const scopeMenuNode = (item, systemKey) => {
 
   return {
     ...item,
-    value: isParentNode ? `${systemKey}:${value}` : getPermissionMenuValue(item),
+    // CheckboxTree requires globally unique values. The same route can appear
+    // under more than one system (for example logistics-picklists).
+    value: `${systemKey}:${value}`,
     label: renderMenuLabel(title, menuNumber),
     children: item.children?.map((child) => scopeMenuNode(child, systemKey))
   };
@@ -95,7 +102,8 @@ const flattenLeafMenuValues = (menus = []) =>
 
 const allSystemKeys = accessibleSystemOptions.map((option) => option.value);
 
-const getSystemMenuValues = (systemKey) => new Set(flattenLeafMenuValues(buildMenuNodesBySystems([systemKey])));
+const getSystemMenuValues = (systemKey) =>
+  new Set(flattenLeafMenuValues(buildMenuNodesBySystems([systemKey])).map(getRawMenuValue));
 
 const getRoleMenus = (item) =>
   normalizePermissionMenu(
@@ -172,7 +180,7 @@ export default function PermissionList() {
   const allMenuCount = useMemo(() => flattenLeafMenuValues(allMenuNodes).length, [allMenuNodes]);
   const selectedMenuCount = selectedLeafMenuValues.size;
   const selectedCheckedMenus = useMemo(
-    () => [...new Set(checked.filter((item) => selectedLeafMenuValues.has(item)))],
+    () => [...new Set(checked.filter((item) => selectedLeafMenuValues.has(item)).map(getRawMenuValue))],
     [checked, selectedLeafMenuValues]
   );
 
@@ -213,11 +221,12 @@ export default function PermissionList() {
       const roleMenus = getRoleMenus(roleDetail);
       const roleAccessibleSystems = resolveRoleAccessibleSystems(roleDetail);
       const roleMenuNodes = buildMenuNodesBySystems(roleAccessibleSystems);
-      const roleMenuValues = new Set(flattenMenuValues(roleMenuNodes));
+      const roleMenuValues = flattenLeafMenuValues(roleMenuNodes);
+      const selectedRoleMenus = new Set(roleMenus.map(getRawMenuValue));
 
       setMenuName(roleDetail?.name || '');
       setMasterApprovalId(getMasterApprovalId(roleDetail?.role_menu?.approval));
-      setChecked(roleMenus.filter((item) => roleMenuValues.has(item)));
+      setChecked(roleMenuValues.filter((item) => selectedRoleMenus.has(getRawMenuValue(item))));
       setAccessibleSystems(roleAccessibleSystems);
       setExpanded(flattenExpandableMenuValues(roleMenuNodes));
       setShowMenu(true);

@@ -119,8 +119,15 @@ class TaskManagementServices {
   getComments(taskId) {
     return DataService.get(`/task-management/tasks/${taskId}/comments`);
   }
+  postCommentTask(taskId, { comment_text, parent_comment_id = null, is_internal_only = false }) {
+    return DataService.post(`/task-management/tasks/${taskId}/comments`, {
+      comment_text,
+      parent_comment_id,
+      is_internal_only
+    });
+  }
   createComment(taskId, payload) {
-    return DataService.post(`/task-management/tasks/${taskId}/comments`, payload);
+    return this.postCommentTask(taskId, payload);
   }
 
   getStatuses(params) {
@@ -138,8 +145,11 @@ class TaskManagementServices {
   getDepartments() {
     return DataService.get('/task-management/master/departments');
   }
-  getEmployees(params) {
+  getEmployee(params) {
     return DataService.get(`/task-management/master/employees${query(params)}`);
+  }
+  getEmployees(params) {
+    return this.getEmployee(params);
   }
 }
 
