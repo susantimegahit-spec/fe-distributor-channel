@@ -57,6 +57,8 @@ const normalizeEntries = (rawActions) => {
   }
 
   const nestedEntries = [
+    rawActions.menu,
+    rawActions.menus,
     rawActions.actions,
     rawActions.action_assignments,
     rawActions.actionAssignments,
@@ -88,7 +90,13 @@ const getEntryKey = (entry) =>
   entry?.value ??
   entry?.key;
 
-const getEntryActions = (entry) => entry?.actions ?? entry?.action ?? entry?.permissions ?? entry;
+const getEntryActions = (entry) => {
+  const actions = entry?.actions ?? entry?.action ?? entry?.permissions;
+  // The checked actions are the most precise representation (especially for
+  // Add versus Upload, which both map to the backend's Create flag).
+  if (Array.isArray(entry?.selected_actions)) return entry.selected_actions;
+  return actions?.selected_actions ?? actions?.selectedActions ?? actions ?? entry?.selected_actions ?? entry;
+};
 
 const normalizeWidgetEntries = (rawActions) => {
   if (typeof rawActions === 'string') {
@@ -139,7 +147,10 @@ const ACTION_BITS = {
   upload: 512
 };
 
-const ROW_ACTION_KEYS = ['read', 'view', 'detail', 'update', 'edit', 'delete', 'remove', 'approve', 'export', 'download'];
+const ROW_ACTION_KEYS = [
+  'create', 'add', 'upload', 'read', 'view', 'detail', 'update', 'edit', 'delete', 'remove', 'approve',
+  'export', 'download', 'sync', 'synchronize', 'shipping-schedule'
+];
 
 const isAllowedValue = (value) => {
   if (value === true || value === 1 || value === '1' || String(value).toLowerCase() === 'true') return true;
@@ -153,7 +164,7 @@ const isAllowedValue = (value) => {
 const getActionValue = (actions, action) => {
   if (typeof actions === 'number') {
     if (action === 'actions')
-      return Boolean(actions & (ACTION_BITS.read | ACTION_BITS.update | ACTION_BITS.delete | ACTION_BITS.approve | ACTION_BITS.export));
+      return Boolean(actions & Object.values(ACTION_BITS).reduce((mask, bit) => mask | bit, 0));
     return Boolean(actions & (ACTION_BITS[action] || 0));
   }
 
@@ -195,25 +206,29 @@ const getActionValue = (actions, action) => {
   });
 };
 
-export const compactActionsForCookie = (rawActions) =>
-  normalizeEntries(rawActions).reduce((result, entry) => {
+const COOKIE_ACTIONS = ['add', 'upload', 'read', 'update', 'delete', 'approve', 'export', 'sync', 'shipping-schedule'];
+
+export const compactActionsForCookie = (rawActions, rawWidgetActions = []) => ({
+  menu: normalizeEntries(rawActions).flatMap((entry) => {
     const menuKey = getEntryKey(entry);
-    if (menuKey === undefined || menuKey === null || menuKey === '') return result;
+    if (menuKey === undefined || menuKey === null || menuKey === '') return [];
 
     const actions = getEntryActions(entry);
-    const mask = Object.entries(ACTION_BITS).reduce((value, [action, bit]) => (getActionValue(actions, action) ? value | bit : value), 0);
-    result[String(menuKey)] = mask;
-    return result;
-  }, {});
+    const selected = COOKIE_ACTIONS.filter((action) => getActionValue(actions, action));
+    if (!selected.includes('add') && !selected.includes('upload') && getActionValue(actions, 'create')) selected.push('create');
+    return selected.length ? [{ menu_key: String(menuKey), actions: selected }] : [];
+  }),
+  widget: compactWidgetActionsForCookie(rawWidgetActions)
+});
 
 export const compactWidgetActionsForCookie = (rawActions) =>
-  normalizeWidgetEntries(rawActions).reduce((result, entry) => {
+  normalizeWidgetEntries(rawActions).flatMap((entry) => {
     const widgetKey = getWidgetEntryKey(entry);
-    if (widgetKey === undefined || widgetKey === null || widgetKey === '') return result;
+    if (widgetKey === undefined || widgetKey === null || widgetKey === '') return [];
     const actions = getEntryActions(entry);
-    result[String(widgetKey)] = Object.keys(ACTION_KEYS).filter((action) => getActionValue(actions, action));
-    return result;
-  }, {});
+    const selected = Object.keys(ACTION_KEYS).filter((action) => getActionValue(actions, action));
+    return selected.length ? [{ widget_key: String(widgetKey), actions: selected }] : [];
+  });
 
 const getMenuCandidates = (system, menuItem, pathname = '') => {
   const pathParts = pathname.split('/').filter(Boolean);
@@ -248,7 +263,9 @@ export const canUseAction = ({ action, system, menuItem, menuKey, pathname = '',
     getRegisteredMenuKey(value) ?? (system?.key ? getMenuNumber(system.key, value) : null)
   ]);
   const registeredMenuKey = getRegisteredMenuKey(menuItem?.id);
-  const exactMenuKeys = [...resolvedMenuKeys, registeredMenuKey ?? menuItem?.menu_key, registeredMenuKey ?? menuItem?.menuKey]
+  const exactMenuKeys = (resolvedMenuKeys.length
+    ? resolvedMenuKeys
+    : [registeredMenuKey ?? menuItem?.menu_key, registeredMenuKey ?? menuItem?.menuKey])
     .filter((value) => value !== undefined && value !== null && value !== '')
     .map(normalizeKey);
   const exactEntries = entries.filter((entry) => exactMenuKeys.includes(normalizeKey(getEntryKey(entry))));
@@ -262,6 +279,7 @@ export const canUseAction = ({ action, system, menuItem, menuKey, pathname = '',
     });
   }
 
+  if (resolvedMenuKeys.length) return false;
   const matchedEntry = entries.find((entry) => candidates.has(normalizeKey(getEntryKey(entry))));
   if (!matchedEntry) return false;
   const actions = getEntryActions(matchedEntry);
@@ -298,21 +316,21 @@ export const detectElementAction = (element) => {
   if (explicitAction && ACTION_ALIASES[normalizeKey(explicitAction)]) return ACTION_ALIASES[normalizeKey(explicitAction)];
 
   const href = element.getAttribute('href') || '';
-  const iconClasses = [...element.querySelectorAll('i, svg')].map((icon) => icon.getAttribute('class') || '').join(' ');
-  const description = [element.textContent, element.getAttribute('aria-label'), element.getAttribute('title'), href, iconClasses]
+  const iconClasses = new Set([...element.querySelectorAll('i, svg')].flatMap((icon) => (icon.getAttribute('class') || '').split(/\s+/)));
+  const description = [element.textContent, element.getAttribute('aria-label'), element.getAttribute('title'), href]
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
 
-  if (/\b(delete|remove|hapus)\b|ti-trash/.test(description)) return 'delete';
+  if (/\b(delete|remove|hapus)\b/.test(description) || iconClasses.has('ti-trash')) return 'delete';
   if (/\b(shipping schedule)\b/.test(description)) return 'shipping-schedule';
-  if (/\b(sync|synchronize|refresh)\b|ti-refresh/.test(description)) return 'sync';
-  if (/\b(download|export|unduh)\b|ti-download|ti-file-export/.test(description)) return 'export';
-  if (/\b(upload|unggah|import)\b|ti-upload|ti-file-import/.test(description)) return 'upload';
-  if (/\b(edit|update|ubah)\b|ti-edit|ti-pencil/.test(description)) return 'update';
-  if (/\b(view|detail|preview|lihat)\b|ti-eye/.test(description)) return 'read';
-  if (/\b(add|create|new|tambah)\b|ti-plus/.test(description)) return 'add';
-  if (/\bactions?\b|ti-dots-vertical/.test(description)) return 'actions';
+  if (/\b(sync|synchronize)\b/.test(description)) return 'sync';
+  if (/\b(download|export|unduh)\b/.test(description) || iconClasses.has('ti-download') || iconClasses.has('ti-file-export')) return 'export';
+  if (/\b(upload|unggah|import)\b/.test(description) || iconClasses.has('ti-upload') || iconClasses.has('ti-file-import')) return 'upload';
+  if (/\b(edit|update|ubah)\b/.test(description) || iconClasses.has('ti-edit') || iconClasses.has('ti-pencil')) return 'update';
+  if (/\b(view|detail|preview|lihat)\b/.test(description) || iconClasses.has('ti-eye')) return 'read';
+  if (/\b(add|create|new|tambah)\b/.test(description) || iconClasses.has('ti-plus')) return 'add';
+  if (/\bactions?\b/.test(description) || iconClasses.has('ti-dots-vertical')) return 'actions';
 
   return null;
 };

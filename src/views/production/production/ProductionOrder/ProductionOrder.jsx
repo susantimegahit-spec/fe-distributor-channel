@@ -717,7 +717,7 @@ export default function ProductionOrder() {
     return (
       <button
         type="button"
-        className={`btn btn-link link-dark text-decoration-none fw-semibold p-0 text-nowrap ${alignment === 'end' ? 'float-end' : ''}`}
+        className={`btn btn-link text-decoration-none fw-semibold p-0 text-nowrap sm-table-sort-button ${ascending || descending ? 'is-active' : ''} ${alignment === 'end' ? 'float-end' : ''}`}
         onClick={() => handleOrderSort(key)}
         aria-label={`Sort by ${label}`}
       >
@@ -1565,15 +1565,7 @@ export default function ProductionOrder() {
         }
         secondary={
           <Stack direction="horizontal" gap={2}>
-            <Button
-              variant="outline-primary"
-              onClick={() => setShowAddIssueModal(true)}
-              disabled={loadingOrders || Boolean(issuingOrderId)}
-            >
-              <i className="ti ti-package-export me-1" />
-              Create Issue
-            </Button>
-            <Button variant="outline-primary" onClick={handleOpenCreate}>
+            <Button data-permission-action="add" data-permission-menu-key="production-order" variant="outline-primary" onClick={handleOpenCreate}>
               <i className="ti ti-plus me-1" />
               Create Production Order
             </Button>
@@ -1637,12 +1629,12 @@ export default function ProductionOrder() {
               </Col>
               <Col md={6} lg={4}>
                 <Stack direction="horizontal" gap={2}>
-                  <Button className="flex-grow-1" disabled={loadingOrders} onClick={() => fetchProductionOrders()}>
+                  <Button variant="outline-primary" className="flex-grow-1" disabled={loadingOrders} onClick={() => fetchProductionOrders()}>
                     <i className={loadingOrders ? 'ti ti-loader-2 me-1' : 'ti ti-search me-1'} />
                     {loadingOrders ? 'Loading...' : 'Search'}
                   </Button>
                   <Button
-                    variant="light-secondary"
+                    variant="outline-primary"
                     disabled={loadingOrders}
                     aria-label="Reset production order filters"
                     onClick={() => {
@@ -1708,7 +1700,22 @@ export default function ProductionOrder() {
 
                 return (
                   <tr key={order.id}>
-                    <td>{order.number || '-'}</td>
+                    <td>
+                      {order.number ? (
+                        <Button
+                          variant="link"
+                          className="p-0 fw-semibold text-decoration-none sm-table-document-link"
+                          data-permission-action="view"
+                          data-permission-menu-key="production-order"
+                          disabled={loadingOrderDetail}
+                          onClick={() => handleOpenDetail(order)}
+                        >
+                          {order.number}
+                        </Button>
+                      ) : (
+                        '-'
+                      )}
+                    </td>
                     <td>
                       <div className="fw-semibold">{order.itemCode || '-'}</div>
                       <div className="text-muted f-12">{order.itemName || '-'}</div>
@@ -2690,8 +2697,8 @@ export default function ProductionOrder() {
           setShowBomModal(false);
         }}
         size="lg"
-        className="production-nested-modal"
-        backdropClassName="production-nested-modal-backdrop"
+        className="production-nested-modal production-selector-modal"
+        backdropClassName="production-selector-modal-backdrop"
         centered
         scrollable
       >

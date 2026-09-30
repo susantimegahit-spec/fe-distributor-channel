@@ -500,7 +500,7 @@ export default function ReceiptProduction() {
     return (
       <button
         type="button"
-        className="btn btn-link link-dark text-decoration-none fw-semibold p-0 text-nowrap"
+        className={`btn btn-link text-decoration-none fw-semibold p-0 text-nowrap sm-table-sort-button ${ascending || descending ? 'is-active' : ''}`}
         onClick={() => handleReceiptSort(key)}
         aria-label={`Sort by ${label}`}
       >
@@ -987,6 +987,8 @@ export default function ReceiptProduction() {
         }
         secondary={
           <Button
+            data-permission-action="add"
+            data-permission-menu-key="production-receipt"
             variant="outline-primary"
             onClick={() => {
               setReceiptForm(createReceiptForm());
@@ -1024,13 +1026,13 @@ export default function ReceiptProduction() {
               </Col>
               <Col md={4}>
                 <Stack direction="horizontal" gap={2}>
-                  <Button className="flex-grow-1" disabled={loadingReceipts} onClick={() => fetchReceipts()}>
+                  <Button variant="outline-primary" className="flex-grow-1" disabled={loadingReceipts} onClick={() => fetchReceipts()}>
                     <i className={loadingReceipts ? 'ti ti-loader-2 me-1' : 'ti ti-search me-1'} />
                     {loadingReceipts ? 'Loading...' : 'Search'}
                   </Button>
                   <Button
                     className="btn-icon rounded flex-shrink-0"
-                    variant="light-secondary"
+                    variant="outline-primary"
                     disabled={loadingReceipts}
                     aria-label="Reset receipt filters"
                     title="Reset filters"
@@ -1069,7 +1071,7 @@ export default function ReceiptProduction() {
                     <td>
                       <Button
                         variant="link"
-                        className="p-0 fw-semibold text-decoration-none"
+                        className="p-0 fw-semibold text-decoration-none sm-table-document-link"
                         disabled={loadingReceiptDetailId !== null}
                         onClick={() => handleViewDetail(receipt)}
                       >
@@ -1400,8 +1402,8 @@ export default function ReceiptProduction() {
         show={showBomModal}
         onHide={() => !loadingBoms && !loadingBomDetail && setShowBomModal(false)}
         size="xl"
-        className="production-nested-modal"
-        backdropClassName="production-nested-modal-backdrop"
+        className="production-nested-modal production-selector-modal"
+        backdropClassName="production-selector-modal-backdrop"
         dialogClassName="receipt-pdo-selection-modal"
         centered
         scrollable
@@ -1462,7 +1464,7 @@ export default function ReceiptProduction() {
             </Row>
           </Form>
 
-          <Table responsive hover className="mb-0 align-middle">
+          <Table responsive hover className="mb-0 align-middle receipt-pdo-selection-table">
             <thead>
               <tr>
                 <th className="text-center" style={{ width: 52 }}>
@@ -1494,7 +1496,7 @@ export default function ReceiptProduction() {
                   return (
                     <tr
                       key={bom.id}
-                      className={cannotSelect ? 'table-warning' : isSelected ? 'table-primary' : ''}
+                      className={cannotSelect ? 'receipt-pdo-unpostable-row' : isSelected ? 'table-primary' : ''}
                       role="checkbox"
                       aria-checked={isSelected}
                       aria-disabled={cannotSelect}

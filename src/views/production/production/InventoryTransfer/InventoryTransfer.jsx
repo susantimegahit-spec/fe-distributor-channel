@@ -929,7 +929,7 @@ export default function InventoryTransfer() {
           </Stack>
         }
         secondary={
-          <Button variant="outline-primary" onClick={openCreateModal}>
+          <Button data-permission-action="add" data-permission-menu-key="production-inventory-transfer" variant="outline-primary" onClick={openCreateModal}>
             <i className="ti ti-plus me-1" />
             Create Inventory Transfer
           </Button>
@@ -957,6 +957,7 @@ export default function InventoryTransfer() {
               <Col md={4}>
                 <Stack direction="horizontal" gap={2}>
                   <Button
+                    variant="outline-primary"
                     className="flex-grow-1"
                     disabled={loadingInventoryTransfers}
                     onClick={() => {
@@ -968,7 +969,7 @@ export default function InventoryTransfer() {
                     {loadingInventoryTransfers ? 'Loading...' : 'Search'}
                   </Button>
                   <Button
-                    variant="light-secondary"
+                    variant="outline-primary"
                     disabled={loadingInventoryTransfers}
                     aria-label="Reset inventory transfer filters"
                     onClick={() => {
@@ -1565,13 +1566,13 @@ export default function InventoryTransfer() {
                             </td>
                           ) : null}
                           <td
-                            className="text-center bg-body"
+                            className="text-center inventory-transfer-action-cell"
                             style={{ position: 'sticky', right: 0, zIndex: 2, minWidth: 75, boxShadow: '-4px 0 8px rgba(0,0,0,.04)' }}
                           >
                             <Button
                               type="button"
                               data-permission-action="create"
-                              className="btn-icon avatar-s"
+                              className="inventory-transfer-remove-button"
                               variant="outline-danger"
                               size="sm"
                               onClick={() => removeLine(lineIndex)}
@@ -1642,7 +1643,15 @@ export default function InventoryTransfer() {
         </Modal.Footer>
       </Modal>
 
-      <Modal show={activeBinLineIndex !== null} onHide={closeBinModal} size="xl" centered scrollable>
+      <Modal
+        show={activeBinLineIndex !== null}
+        onHide={closeBinModal}
+        size="xl"
+        className="production-nested-modal production-selector-modal"
+        backdropClassName="production-selector-modal-backdrop"
+        centered
+        scrollable
+      >
         <Modal.Header closeButton>
           <Modal.Title>{activeBinType === 'from' ? 'From' : 'To'} Bin Locations</Modal.Title>
         </Modal.Header>

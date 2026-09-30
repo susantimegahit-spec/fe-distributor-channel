@@ -17,7 +17,7 @@ import SimpleBarScroll from 'components/third-party/SimpleBar';
 import SmestaLogo from 'assets/images/smesta_text_transparent.png';
 import { handlerDrawerOpen, useGetMenuMaster } from 'api/menu';
 
-import { getAssignedCustomerCodes, getCookies } from '../../utils/cookies';
+import { getAssignedCustomerCodes, getCookies, removeActionsCookie } from '../../utils/cookies';
 import { Modal } from 'react-bootstrap';
 import UserServices from '../../services/setting/UserServices';
 import NotificationServices from '../../services/shared/NotificationServices';
@@ -257,7 +257,7 @@ export default function Header({ showSidebar = true }) {
       Cookies.remove('email');
       Cookies.remove('role');
       Cookies.remove('menu');
-      Cookies.remove('actions');
+      removeActionsCookie();
       Cookies.remove('widget_actions');
       Cookies.remove('systems');
       Cookies.remove('system');
@@ -471,7 +471,7 @@ export default function Header({ showSidebar = true }) {
                   <Nav.Link
                     as={Link}
                     to="#"
-                    className="pc-head-link ms-0"
+                    className="pc-head-link sm-sidebar-toggle ms-0"
                     id="sidebar-hide"
                     onClick={() => {
                       handlerDrawerOpen(!drawerOpen);
@@ -485,7 +485,7 @@ export default function Header({ showSidebar = true }) {
                   <Nav.Link
                     as={Link}
                     to="#"
-                    className="pc-head-link ms-0"
+                    className="pc-head-link sm-sidebar-toggle ms-0"
                     id="mobile-collapse"
                     onClick={() => handlerDrawerOpen(!drawerOpen)}
                   >

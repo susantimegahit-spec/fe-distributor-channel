@@ -490,7 +490,7 @@ export default function IssueProduction() {
     return (
       <button
         type="button"
-        className="btn btn-link link-dark text-decoration-none fw-semibold p-0 text-nowrap"
+        className={`btn btn-link text-decoration-none fw-semibold p-0 text-nowrap sm-table-sort-button ${ascending || descending ? 'is-active' : ''}`}
         onClick={() => handleIssueSort(key)}
         aria-label={`Sort by ${label}`}
       >
@@ -902,6 +902,8 @@ export default function IssueProduction() {
         }
         secondary={
           <Button
+            data-permission-action="add"
+            data-permission-menu-key="production-issue"
             variant="outline-primary"
             onClick={() => {
               setIssueForm(createIssueForm());
@@ -939,13 +941,13 @@ export default function IssueProduction() {
               </Col>
               <Col md={4}>
                 <Stack direction="horizontal" gap={2}>
-                  <Button className="flex-grow-1" disabled={loading} onClick={() => fetchIssues()}>
+                  <Button variant="outline-primary" className="flex-grow-1" disabled={loading} onClick={() => fetchIssues()}>
                     <i className={loading ? 'ti ti-loader-2 me-1' : 'ti ti-search me-1'} />
                     {loading ? 'Loading...' : 'Search'}
                   </Button>
                   <Button
                     className="btn-icon rounded flex-shrink-0"
-                    variant="light-secondary"
+                    variant="outline-primary"
                     disabled={loading}
                     aria-label="Reset issue filters"
                     title="Reset filters"
@@ -984,7 +986,7 @@ export default function IssueProduction() {
                   <td>
                     <Button
                       variant="link"
-                      className="p-0 fw-semibold text-decoration-none"
+                      className="p-0 fw-semibold text-decoration-none sm-table-document-link"
                       disabled={loadingDetailId !== null}
                       onClick={() => handleViewDetail(issue)}
                     >
@@ -1371,8 +1373,8 @@ export default function IssueProduction() {
         show={showOrderModal}
         onHide={() => !loadingOrders && !loadingOrderDetailId && setShowOrderModal(false)}
         size="xl"
-        className="production-nested-modal"
-        backdropClassName="production-nested-modal-backdrop"
+        className="production-nested-modal production-selector-modal"
+        backdropClassName="production-selector-modal-backdrop"
         dialogClassName="issue-pdo-selection-modal"
         centered
         scrollable

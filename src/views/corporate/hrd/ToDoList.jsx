@@ -776,6 +776,7 @@ export default function ToDoList() {
     showConfirm({
       title: 'Hapus tugas?',
       subTitle: `${selectedTask.code} akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`,
+      skipCountdown: true,
       onConfirm: async () => {
         try {
           const response = await TaskManagementServices.deleteTask(selectedTask.id);

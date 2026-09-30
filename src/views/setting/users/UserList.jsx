@@ -89,6 +89,28 @@ const actionMenuOptions = systems
 const widgetActionOptions = widgetActionRegistry.widgets;
 const widgetActionRegistryByKey = new Map(widgetActionOptions.map((widget) => [widget.widget_key, widget]));
 const getRegisteredWidgetActions = (widgetKey) => widgetActionRegistryByKey.get(widgetKey)?.actions || [];
+const actionBitValues = {
+  view: 2,
+  add: 256,
+  edit: 4,
+  delete: 8,
+  approve: 16,
+  download: 32,
+  upload: 512,
+  sync: 64,
+  'shipping-schedule': 128
+};
+const decodeActionBitmask = (value, registeredActions) => {
+  if (typeof value !== 'number' && !(typeof value === 'string' && /^\d+$/.test(value.trim()))) return null;
+  const mask = Number(value);
+  if (!Number.isSafeInteger(mask) || mask < 0) return [];
+  const selected = registeredActions.filter((action) => Boolean(mask & actionBitValues[action]));
+  // Older backend records only used the shared Create bit for Add/Upload.
+  if (mask & 1 && !(mask & (actionBitValues.add | actionBitValues.upload))) {
+    return [...new Set([...selected, ...registeredActions.filter((action) => action === 'add' || action === 'upload')])];
+  }
+  return selected;
+};
 
 const isGrantedAction = (value) =>
   value === true ||
@@ -98,8 +120,52 @@ const isGrantedAction = (value) =>
     .trim()
     .toLowerCase() === 'true';
 
+const hasAssignments = (value) =>
+  Array.isArray(value) ? value.length > 0 : Boolean(value && typeof value === 'object' && Object.keys(value).length > 0);
+
+const getSavedAssignments = (item, group) => {
+  // User detail returns actions as [{ menu: [...], widget: [...] }].
+  // An empty group is intentional: do not fall back to another user's or legacy data.
+  if (Array.isArray(item.actions)) {
+    const groupedActions = item.actions.filter(
+      (entry) => entry && typeof entry === 'object' && !Array.isArray(entry) && (group in entry || `${group}s` in entry)
+    );
+    if (groupedActions.length) return groupedActions.flatMap((entry) => entry[group] ?? entry[`${group}s`] ?? []);
+  }
+  const sources = [
+    item.actions?.[group],
+    item.actions?.[group === 'menu' ? 'menus' : 'widgets'],
+    item.action_assignments?.[group],
+    item.actionAssignments?.[group],
+    item.action_permissions?.[group],
+    item.actionPermissions?.[group],
+    group === 'menu' ? item.menu_actions ?? item.menuActions : item.widget_actions ?? item.widgetActions,
+    group === 'widget' ? item.widget_action_assignments ?? item.widgetActionAssignments : null,
+    item.custom_permissions,
+    item.action_assignments,
+    item.actionAssignments,
+    item.action_permissions,
+    item.actionPermissions,
+    item.actions
+  ];
+  return sources.find(hasAssignments) ?? [];
+};
+
+const normalizeActionNames = (names, registeredActions, actionValues = {}) =>
+  [...new Set(names.flatMap((name) => {
+    const normalizedName = String(name ?? '').trim().toLowerCase();
+    if (registeredActions.includes(normalizedName)) return [normalizedName];
+    return actionRegistry.action_definitions
+      .filter(({ value, permission }) => {
+        if (permission !== normalizedName || !registeredActions.includes(value)) return false;
+        if (permission === 'create' && ('add' in actionValues || 'upload' in actionValues)) return isGrantedAction(actionValues[value]);
+        return true;
+      })
+      .map(({ value }) => value);
+  }))];
+
 const normalizeActionAssignments = (value) => {
-  const assignmentSource = value?.data ?? value?.action_assignments ?? value?.actionAssignments ?? value;
+  const assignmentSource = value?.data ?? value?.menu ?? value?.menus ?? value?.action_assignments ?? value?.actionAssignments ?? value;
   const assignments = Array.isArray(assignmentSource)
     ? assignmentSource
     : assignmentSource && typeof assignmentSource === 'object' && ('menu_key' in assignmentSource || 'menuKey' in assignmentSource)
@@ -114,19 +180,23 @@ const normalizeActionAssignments = (value) => {
 
   return assignments.reduce((result, assignment) => {
     if (assignment?.type === 'widget') return result;
-    const menuId = assignment?.menu_key || assignment?.menuKey || assignment?.menu_id || assignment?.menuId || assignment?.id;
-    const actions = assignment?.actions || assignment?.action || assignment;
+    const menuId = assignment?.menu_key ?? assignment?.menuKey ?? assignment?.menu_id ?? assignment?.menuId ?? assignment?.id;
+    const actions = assignment?.actions ?? assignment?.action ?? assignment;
     const matchingMenu = actionMenuOptions.find(
       (menu) => String(menu.menu_key) === String(menuId) || String(menu.id) === normalizeLogisticsPermission(String(menuId))
     );
 
     if (matchingMenu) {
-      if (Array.isArray(assignment.selected_actions)) {
-        result[matchingMenu.id] = assignment.selected_actions.filter((action) => getRegisteredMenuActions(matchingMenu.id).includes(action));
+      const registeredActions = getRegisteredMenuActions(matchingMenu.id);
+      const decodedActions = decodeActionBitmask(actions, registeredActions);
+      if (Array.isArray(assignment.selected_actions) && assignment.selected_actions.length) {
+        result[matchingMenu.id] = normalizeActionNames(assignment.selected_actions, registeredActions, actions);
         return result;
       }
       if (Array.isArray(actions)) {
-        result[matchingMenu.id] = actions;
+        result[matchingMenu.id] = normalizeActionNames(actions, registeredActions);
+      } else if (decodedActions !== null) {
+        result[matchingMenu.id] = decodedActions;
       } else if (actions && typeof actions === 'object') {
         const normalizedActions = [
           isGrantedAction(actions.read) && 'view',
@@ -137,10 +207,11 @@ const normalizeActionAssignments = (value) => {
           isGrantedAction(actions['shipping-schedule']) && 'shipping-schedule',
           (isGrantedAction(actions.sync) || isGrantedAction(actions.synchronize) || isGrantedAction(actions.can_sync)) && 'sync'
         ].filter(Boolean);
-        if (isGrantedAction(actions.create)) {
-          normalizedActions.push(...getRegisteredMenuActions(matchingMenu.id).filter((action) => ['add', 'upload'].includes(action)));
-        }
-        result[matchingMenu.id] = [...new Set(normalizedActions)];
+        if (isGrantedAction(actions.add) || (isGrantedAction(actions.create) && !('add' in actions) && !('upload' in actions)))
+          normalizedActions.push('add');
+        if (isGrantedAction(actions.upload) || (isGrantedAction(actions.create) && !('add' in actions) && !('upload' in actions)))
+          normalizedActions.push('upload');
+        result[matchingMenu.id] = [...new Set(normalizedActions)].filter((action) => registeredActions.includes(action));
       } else {
         result[matchingMenu.id] = String(actions).split(',').filter(Boolean);
       }
@@ -171,15 +242,19 @@ const normalizeWidgetActionAssignments = (value) => {
       assignment?.menuKey ||
       assignment?.id;
     if (!widgetActionRegistryByKey.has(String(widgetKey))) return result;
-    if (Array.isArray(assignment.selected_actions)) {
-      result[String(widgetKey)] = assignment.selected_actions.filter((action) => getRegisteredWidgetActions(String(widgetKey)).includes(action));
+    const registeredActions = getRegisteredWidgetActions(String(widgetKey));
+    if (Array.isArray(assignment.selected_actions) && assignment.selected_actions.length) {
+      result[String(widgetKey)] = normalizeActionNames(assignment.selected_actions, registeredActions);
       return result;
     }
-    const actions = assignment?.actions || assignment?.action || assignment;
+    const actions = assignment?.actions ?? assignment?.action ?? assignment;
+    const decodedActions = decodeActionBitmask(actions, registeredActions);
     if (Array.isArray(actions)) {
-      result[String(widgetKey)] = actions;
+      result[String(widgetKey)] = normalizeActionNames(actions, registeredActions);
+    } else if (decodedActions !== null) {
+      result[String(widgetKey)] = decodedActions;
     } else if (actions && typeof actions === 'object') {
-      result[String(widgetKey)] = getRegisteredWidgetActions(String(widgetKey)).filter((action) => {
+      result[String(widgetKey)] = registeredActions.filter((action) => {
         const permission = actionRegistry.action_definitions.find((definition) => definition.value === action)?.permission || action;
         return isGrantedAction(actions[action]) || isGrantedAction(actions[permission]);
       });
@@ -1257,31 +1332,8 @@ export default function UserList() {
       accessibleSystems: getUserAccessibleSystems(item),
       distributorCodes: hasAllDistributors ? [ALL_DISTRIBUTORS_VALUE] : distributorCodes,
       distributorIds: hasAllDistributors ? [ALL_DISTRIBUTORS_VALUE] : distributorIds,
-      actionAssignments: normalizeActionAssignments(
-        item.actions?.menu ||
-          item.actions?.menus ||
-          item.menu_actions ||
-          item.menuActions ||
-          item.action_assignments?.menu ||
-          item.action_assignments?.menus ||
-          item.actionAssignments?.menu ||
-          item.actionAssignments?.menus ||
-          item.action_assignments ||
-          item.actionAssignments ||
-          item.actions
-      ),
-      widgetActionAssignments: normalizeWidgetActionAssignments(
-        item.actions?.widget ||
-          item.actions?.widgets ||
-          item.widget_actions ||
-          item.widgetActions ||
-          item.action_assignments?.widget ||
-          item.action_assignments?.widgets ||
-          item.actionAssignments?.widget ||
-          item.actionAssignments?.widgets ||
-          item.widget_action_assignments ||
-          item.widgetActionAssignments
-      )
+      actionAssignments: normalizeActionAssignments(getSavedAssignments(item, 'menu')),
+      widgetActionAssignments: normalizeWidgetActionAssignments(getSavedAssignments(item, 'widget'))
     });
     setShowPassword(false);
     setShowMenu(true);

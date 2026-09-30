@@ -17,7 +17,7 @@ export default function ActionPermissionGuard() {
     const menuItem = system ? getMenuItemByPathname(system, pathname) : null;
     const roleId = getCookies('role');
     const actionsCookie = getCookies('actions');
-    const widgetActionsCookie = getCookies('widget_actions');
+    const widgetActionsCookie = getCookies('widget_actions') ?? actionsCookie?.widget;
     const hasWidgetActionAssignments = widgetActionsCookie !== undefined && widgetActionsCookie !== null && widgetActionsCookie !== '';
     const isAdministratorSetting =
       isAdministratorRole(roleId) &&

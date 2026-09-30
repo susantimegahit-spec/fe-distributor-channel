@@ -22,7 +22,7 @@ import Turnstile from 'components/Turnstile';
 import { AUTH_STATE_CHANGED_EVENT } from '../../utils/authEvents';
 import { getFirstAccessibleMenuPath, isAdministratorRole, normalizeAccessibleSystems, systems } from '../../systems';
 import { setAccessibleSystem } from '../../redux/authReducer';
-import { compactActionsForCookie, compactWidgetActionsForCookie } from '../../utils/actionPermissions';
+import { setActionsCookie } from '../../utils/cookies';
 import widgetActionRegistry from '../../data-widget-action.json';
 
 // ==============================|| AUTH LOGIN FORM ||============================== //
@@ -295,9 +295,9 @@ export default function AuthLoginForm({ className }) {
           Cookies.remove('employee_id');
         }
         Cookies.set('menu', JSON.stringify(loginData?.menu));
-        Cookies.set('actions', JSON.stringify(compactActionsForCookie(actions)));
+        setActionsCookie(loginData.actions ?? userData.actions ?? { menu: actions, widget: widgetActions });
         if (hasWidgetActionSource) {
-          Cookies.set('widget_actions', JSON.stringify(compactWidgetActionsForCookie(widgetActions)));
+          Cookies.set('widget_actions', JSON.stringify(widgetActions));
         } else {
           Cookies.remove('widget_actions');
         }

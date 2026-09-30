@@ -228,6 +228,23 @@ body {
   z-index: 1065;
 }
 
+// Nested production selectors also open under the Corporate route. Their
+// backdrops must sit above the fullscreen Create modal to blur its contents.
+.modal-backdrop.production-selector-modal-backdrop {
+  z-index: 1060;
+  background-color: rgba(8, 18, 38, 0.4);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.modal-backdrop.production-selector-modal-backdrop.show {
+  opacity: 1;
+}
+
+.modal.production-selector-modal {
+  z-index: 1065;
+}
+
 .modal-backdrop.sap-connection-retry-backdrop {
   z-index: 1100;
 }
@@ -4520,6 +4537,73 @@ body {
   font-size: 0.76rem;
 }
 
+.table .sm-table-sort-button.btn,
+.table .sm-table-document-link.btn {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.table .sm-table-sort-button.btn {
+  display: inline-flex;
+  align-items: center;
+  color: inherit;
+}
+
+.table .sm-table-sort-button.btn:hover,
+.table .sm-table-sort-button.btn:focus-visible,
+.table .sm-table-sort-button.btn.is-active {
+  color: var(--system-primary, #315fb4);
+}
+
+.table .sm-table-document-link.btn {
+  color: var(--system-primary, #315fb4);
+}
+
+.table .sm-table-document-link.btn:hover,
+.table .sm-table-document-link.btn:focus-visible {
+  color: var(--system-primary, #315fb4);
+  text-decoration: underline !important;
+  text-underline-offset: 3px;
+}
+
+.table .sm-table-document-link.btn:focus-visible,
+.table .sm-table-sort-button.btn:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+.inventory-transfer-action-cell {
+  background: var(--bs-body-bg);
+}
+
+.table .inventory-transfer-remove-button.btn {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 50%;
+  box-shadow: none;
+}
+
+.receipt-pdo-selection-table.table > tbody > .receipt-pdo-unpostable-row > td {
+  --bs-table-bg: #fff7e8;
+  --bs-table-color: #584321;
+  --bs-table-border-color: #eadbbd;
+  background-color: #fff7e8 !important;
+  color: #584321;
+}
+
+.receipt-pdo-selection-table .receipt-pdo-unpostable-row .text-muted {
+  color: #806d4f !important;
+}
+
+.receipt-pdo-selection-table .receipt-pdo-unpostable-row .text-danger {
+  color: #b64c30 !important;
+}
+
 .pc-content .table > thead > tr > th,
 .sm-workspace-embedded-content .table > thead > tr > th {
   padding: 0.7rem 0.65rem;
@@ -6428,6 +6512,7 @@ body {
   }
 }
 
+.pc-header .sm-sidebar-toggle.pc-head-link,
 .pc-header .sm-theme-toggle.pc-head-link,
 .pc-header .sm-notification-toggle.pc-head-link {
   position: relative;
@@ -6451,10 +6536,13 @@ body {
   padding: 0;
 }
 
+.pc-header .sm-sidebar-toggle.pc-head-link::before,
 .pc-header .sm-theme-toggle.pc-head-link::before {
   display: none;
 }
 
+.pc-header .sm-sidebar-toggle.pc-head-link:hover,
+.pc-header .sm-sidebar-toggle.pc-head-link:focus,
 .pc-header .sm-theme-toggle.pc-head-link:hover,
 .pc-header .sm-theme-toggle.pc-head-link:focus {
   border-color: rgba(var(--system-primary-rgb, 49, 95, 180), 0.26);
@@ -6462,6 +6550,7 @@ body {
   color: var(--system-primary, #315fb4);
 }
 
+.pc-header .sm-sidebar-toggle.pc-head-link > i,
 .pc-header .sm-theme-toggle.pc-head-link > i {
   color: inherit;
   font-size: 1.2rem;
@@ -7993,6 +8082,7 @@ body {
     box-shadow: 0 12px 32px rgba(2, 10, 24, 0.34);
   }
 
+  .pc-header .sm-sidebar-toggle.pc-head-link,
   .pc-header .sm-theme-toggle.pc-head-link,
   .pc-header .sm-notification-toggle.pc-head-link,
   .pc-header .sm-account-toggle.pc-head-link {
@@ -8004,6 +8094,8 @@ body {
       0 8px 22px rgba(0, 8, 22, 0.3) !important;
   }
 
+  .pc-header .sm-sidebar-toggle.pc-head-link:hover,
+  .pc-header .sm-sidebar-toggle.pc-head-link:focus,
   .pc-header .sm-theme-toggle.pc-head-link:hover,
   .pc-header .sm-theme-toggle.pc-head-link:focus,
   .pc-header .sm-notification-toggle.pc-head-link:hover,
@@ -8015,6 +8107,7 @@ body {
     color: #fff !important;
   }
 
+  .pc-header .sm-sidebar-toggle.pc-head-link > i,
   .pc-header .sm-theme-toggle.pc-head-link > i,
   .pc-header .sm-account-toggle.pc-head-link > i,
   .pc-header .sm-notification-toggle.pc-head-link > i {
@@ -8309,6 +8402,27 @@ body {
 
   .table tbody tr:hover > td {
     background-color: rgba(82, 166, 232, 0.18) !important;
+  }
+
+  .receipt-pdo-selection-table.table > tbody > .receipt-pdo-unpostable-row > td,
+  .receipt-pdo-selection-table.table > tbody > .receipt-pdo-unpostable-row:hover > td {
+    --bs-table-bg: #263d55;
+    --bs-table-color: #e4effa;
+    --bs-table-border-color: #49627b;
+    background-color: #263d55 !important;
+    color: #e4effa !important;
+  }
+
+  .receipt-pdo-selection-table .receipt-pdo-unpostable-row .text-muted,
+  .receipt-pdo-selection-table .receipt-pdo-unpostable-row:hover .text-muted {
+    color: #b7cbde !important;
+    -webkit-text-fill-color: #b7cbde;
+  }
+
+  .receipt-pdo-selection-table .receipt-pdo-unpostable-row .text-danger,
+  .receipt-pdo-selection-table .receipt-pdo-unpostable-row:hover .text-danger {
+    color: #ffb990 !important;
+    -webkit-text-fill-color: #ffb990;
   }
 
   .table > tbody > .sm-order-products-row > td {
@@ -8608,6 +8722,19 @@ body {
     color: #69c2ff !important;
   }
 
+  .table .sm-table-document-link.btn {
+    border: 0 !important;
+    background: transparent !important;
+    color: #9bd7ff !important;
+    box-shadow: none !important;
+  }
+
+  .table .sm-table-document-link.btn:hover,
+  .table .sm-table-document-link.btn:focus-visible {
+    color: #dceeff !important;
+    text-decoration: underline !important;
+  }
+
   .table .btn:hover,
   .table .btn:focus-visible,
   .table .dropdown-toggle:hover,
@@ -8633,6 +8760,17 @@ body {
     border-color: #ff6675;
     background: rgba(224, 48, 66, 0.22);
     color: #ffb3bb;
+  }
+
+  .inventory-transfer-action-cell {
+    background: #143556 !important;
+  }
+
+  .table .inventory-transfer-remove-button.btn {
+    border-color: #ff8994;
+    background: rgba(224, 48, 66, 0.12);
+    color: #ffb3bb;
+    box-shadow: none;
   }
 
   .table .btn-danger:hover,

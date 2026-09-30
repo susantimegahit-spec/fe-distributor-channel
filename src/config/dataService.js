@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getCookies } from '../utils/cookies';
+import { getCookies, removeActionsCookie } from '../utils/cookies';
 import QueryString from 'qs';
 import Cookies from 'js-cookie';
 import { useAlert } from '../utils/alertContext';
@@ -260,7 +260,7 @@ client.interceptors.response.use(
         Cookies.remove('email');
         Cookies.remove('role');
         Cookies.remove('menu');
-        Cookies.remove('actions');
+        removeActionsCookie();
         Cookies.remove('widget_actions');
         Cookies.remove('systems');
         Cookies.remove('system');

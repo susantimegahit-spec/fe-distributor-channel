@@ -4,10 +4,37 @@ const getCookies = (key) => {
   const data = Cookies.get(key);
 
   try {
-    return JSON.parse(data);
+    const parsed = JSON.parse(data);
+    if (key === 'actions' && parsed?.__action_cookie_chunks) {
+      const chunks = Array.from({ length: parsed.__action_cookie_chunks }, (_, index) => Cookies.get(`actions_${index}`));
+      return chunks.every((chunk) => typeof chunk === 'string') ? JSON.parse(chunks.join('')) : undefined;
+    }
+    return parsed;
   } catch (err) {
     return data;
   }
+};
+
+const removeActionsCookie = () => {
+  const marker = getCookies('actions');
+  const count = Cookies.get('actions_chunks') || (marker?.__action_cookie_chunks ?? 0);
+  for (let index = 0; index < Number(count); index += 1) Cookies.remove(`actions_${index}`);
+  Cookies.remove('actions_chunks');
+  Cookies.remove('actions');
+};
+
+const setActionsCookie = (actions) => {
+  removeActionsCookie();
+  const serialized = JSON.stringify(actions ?? { menu: [], widget: [] });
+  const chunkSize = 1500;
+  if (serialized.length <= chunkSize) {
+    Cookies.set('actions', serialized);
+    return;
+  }
+  const chunks = serialized.match(new RegExp(`.{1,${chunkSize}}`, 'gs')) || [];
+  chunks.forEach((chunk, index) => Cookies.set(`actions_${index}`, chunk));
+  Cookies.set('actions_chunks', String(chunks.length));
+  Cookies.set('actions', JSON.stringify({ __action_cookie_chunks: chunks.length }));
 };
 
 const normalizeCustomerCode = (value) => {
@@ -77,6 +104,8 @@ const removeCookies = (key) => {
 
 export {
   getCookies,
+  setActionsCookie,
+  removeActionsCookie,
   setCookies,
   removeCookies,
   normalizeCustomerCode,

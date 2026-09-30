@@ -20,13 +20,12 @@ import DistributorServices from '../../../../services/customer-portal/Distributo
 import ProductServices from '../../../../services/customer-portal/ProductServices';
 import WarehouseServices from '../../../../services/customer-portal/WarehouseServices';
 import ProductionServices from '../../../../services/production/ProductionServices';
-import { getMenuNumber, SYSTEM_KEYS } from '../../../../systems';
 import { canUseMenuAction } from '../../../../utils/actionPermissions';
 import { useAlert } from '../../../../utils/alertContext';
 import { getCookies, getOrganizationAssignmentDefault } from '../../../../utils/cookies';
 
 const pageSize = 10;
-const changeProductPermissionKeys = ['production-change-product', getMenuNumber(SYSTEM_KEYS.ENTERPRISE, 'production-change-product')];
+const changeProductPermissionKey = 'production-change-product';
 const shiftOptions = ['All', 'Shift 1', 'Shift 2', 'Shift 3'].map((value) => ({ value, label: value }));
 const selectStyles = { menuPortal: (base) => ({ ...base, zIndex: 1090 }) };
 const headerSelectStyles = {
@@ -228,7 +227,7 @@ export default function ChangeProduct() {
   const [warehouseOptions, setWarehouseOptions] = useState([]);
   const [unitOptions, setUnitOptions] = useState([]);
   const [ocrOptions, setOcrOptions] = useState({ branch: [], businessUnit: [], department: [] });
-  const canCreate = canUseMenuAction(changeProductPermissionKeys, 'create');
+  const canCreate = canUseMenuAction(changeProductPermissionKey, 'add');
   const pageCount = Math.max(Math.ceil(rows.length / pageSize), 1);
   const safeCurrentPage = Math.min(currentPage, pageCount);
   const paginatedRows = useMemo(() => {
@@ -532,7 +531,13 @@ export default function ChangeProduct() {
         }
         secondary={
           canCreate ? (
-            <Button variant="outline-primary" className="change-product-header-action" onClick={() => openCreateModal()}>
+            <Button
+              data-permission-action="add"
+              data-permission-menu-key="production-change-product"
+              variant="outline-primary"
+              className="change-product-header-action"
+              onClick={() => openCreateModal()}
+            >
               <i className="ti ti-plus me-1" />
               Create Change Product
             </Button>
