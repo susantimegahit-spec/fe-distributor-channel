@@ -6,7 +6,7 @@
 
 .todo-page .workspace-shell {
   display: grid;
-  grid-template-columns: 230px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   min-height: 690px;
   border: 1px solid var(--todo-border);
   border-radius: 14px;
@@ -254,6 +254,278 @@
   background: #fff;
 }
 
+.todo-page .task-panel-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--todo-border);
+}
+
+.todo-page .quick-list-create {
+  display: grid;
+  grid-template-columns:
+    minmax(140px, 0.8fr)
+    minmax(150px, 0.9fr)
+    minmax(150px, 0.8fr)
+    minmax(130px, 0.7fr)
+    minmax(240px, 1.4fr);
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--todo-border);
+  background: #f8fafc;
+}
+
+.todo-page .quick-list-department-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 10px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  color: #475569;
+  background: #fff;
+  font-size: 12px;
+}
+
+.todo-page .quick-list-department-label span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.todo-page .task-list-group-row > td {
+  padding: 9px 14px;
+  background: #f1f5f9;
+}
+
+.todo-page .task-list-group-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #334155;
+  font-weight: 700;
+}
+
+.todo-page .task-list-group-heading small {
+  color: var(--todo-muted);
+  font-weight: 500;
+}
+
+.todo-page .task-list-group-summary {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  min-width: 0;
+}
+
+.todo-page .task-list-group-progress-meta {
+  display: grid;
+  grid-template-columns: auto minmax(90px, 180px) 38px;
+  align-items: center;
+  gap: 8px;
+  color: var(--todo-muted);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.todo-page .task-list-group-progress {
+  width: clamp(90px, 12vw, 180px);
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dbe3ec;
+}
+
+.todo-page .task-list-group-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #22c55e;
+  transition: width 0.2s ease;
+}
+
+.todo-page .task-list-group-progress-meta strong {
+  color: inherit;
+  font-size: 11px;
+  text-align: right;
+}
+
+.todo-page .task-list-inline-create-row > td {
+  padding: 8px 14px 8px 62px;
+  border-bottom: 1px dashed var(--todo-border);
+  background: rgb(248 250 252 / 72%);
+}
+
+.todo-page .task-list-inline-create {
+  max-width: 760px;
+}
+
+.todo-page .task-list-inline-create .form-control {
+  font-size: 12px;
+}
+
+.todo-page .task-list-group-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.todo-page .task-list-group-name {
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+}
+
+.todo-page .task-list-group-name:not(:disabled) {
+  cursor: pointer;
+}
+
+.todo-page .task-list-group-name:not(:disabled):hover,
+.todo-page .task-list-group-name:not(:disabled):focus-visible {
+  color: #2563eb;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  outline: none;
+}
+
+.todo-page .task-list-group-name:disabled {
+  opacity: 1;
+}
+
+.todo-page .task-list-group-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 6px;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+}
+
+.todo-page .task-list-group-toggle:hover,
+.todo-page .task-list-group-toggle:focus-visible {
+  color: #2563eb;
+  background: rgb(37 99 235 / 8%);
+  outline: none;
+}
+
+.todo-page .task-list-simple-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 42px;
+  padding-left: 48px;
+}
+
+.todo-page .task-list-item-check {
+  flex: 0 0 auto;
+}
+
+.todo-page .task-list-simple-title {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.todo-page .task-list-simple-row .avatar-stack {
+  flex: 0 0 auto;
+}
+
+.todo-page .task-list-simple-meta {
+  display: grid;
+  grid-template-columns: minmax(90px, 130px) minmax(92px, 120px) minmax(105px, 125px);
+  align-items: center;
+  gap: 16px;
+  flex: 0 0 auto;
+}
+
+.todo-page .task-list-meta-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  color: var(--todo-muted);
+  font-size: 11px;
+}
+
+.todo-page .task-list-meta-item > small {
+  color: var(--todo-muted);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.todo-page .task-list-meta-due-date > span {
+  white-space: nowrap;
+}
+
+.todo-page .task-list-group-body,
+.todo-page .task-list-item-row {
+  visibility: visible;
+  opacity: 1;
+}
+
+.todo-page .task-list-group-body {
+  display: table-row-group;
+}
+
+.todo-page .task-list-item-row {
+  display: table-row;
+}
+
+.todo-page .task-bulk-floating-bar {
+  position: fixed;
+  z-index: 1060;
+  right: 24px;
+  bottom: 24px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(900px, calc(100vw - 32px));
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 18px 45px rgb(15 23 42 / 24%);
+  transform: translateX(-50%);
+}
+
+.todo-page .task-bulk-selection-count {
+  flex: 0 0 auto;
+  color: #475569;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.todo-page .task-bulk-list-select {
+  min-width: 190px;
+}
+
+.todo-page .task-bulk-clear {
+  flex: 0 0 auto;
+}
+
 .todo-page .folder-lists-heading {
   display: flex;
   align-items: center;
@@ -341,6 +613,38 @@
   padding-block: 9px;
   font-size: 12px;
   font-weight: 500;
+}
+
+.todo-page .content-list-task-input {
+  padding: 9px 14px 9px 42px;
+  border-bottom: 1px dashed #e2e8f0;
+}
+
+.todo-page .content-list-task-input .input-group {
+  max-width: 760px;
+}
+
+.todo-page .task-row-delete {
+  opacity: 0;
+  transform: translateX(4px);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+  pointer-events: none;
+}
+
+.todo-page .task-panel tbody tr:hover .task-row-delete,
+.todo-page .task-panel tbody tr:focus-within .task-row-delete,
+.todo-page .task-row-delete:focus-visible {
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+@media (hover: none) {
+  .todo-page .task-row-delete {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+  }
 }
 
 .todo-page .content-subtask-table {
@@ -563,6 +867,20 @@
 .todo-page .kanban-task-title {
   font-size: 11px;
   line-height: 1.35;
+}
+.todo-page .kanban-task-context {
+  display: grid;
+  gap: 4px;
+  padding: 7px 8px;
+  border: 1px solid var(--todo-border);
+  border-radius: 7px;
+  color: var(--todo-muted);
+  font-size: 9px;
+}
+.todo-page .kanban-task-context span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .todo-page .kanban-card-meta .badge {
   padding: 4px 7px;
@@ -1004,10 +1322,55 @@
     border-color: #315b7d;
   }
 
+  .todo-page .task-list-group-row > td {
+    background: #174264;
+  }
+
+  .todo-page .quick-list-create {
+    border-color: #315b7d;
+    background: #0d2740;
+  }
+
+  .todo-page .quick-list-department-label {
+    color: #dceafa;
+    border-color: #47779d;
+    background: #102d49;
+  }
+
+  .todo-page .task-list-group-heading {
+    color: #dceafa;
+  }
+
+  .todo-page .task-list-group-progress {
+    background: #284f6f;
+  }
+
+  .todo-page .task-list-inline-create-row > td {
+    background: #102d49;
+  }
+
+  .todo-page .task-bulk-floating-bar {
+    color: #dceafa;
+    border-color: #47779d;
+    background: #163653;
+    box-shadow: 0 18px 45px rgb(0 0 0 / 38%);
+  }
+
+  .todo-page .task-bulk-selection-count {
+    color: #c7d9ea;
+  }
+
+  .todo-page .task-bulk-list-select {
+    color: #eaf4ff;
+    border-color: #47779d;
+    background-color: #0d2740;
+  }
+
   .todo-page .folder-lists-heading,
   .todo-page .content-list-row,
   .todo-page .content-task-tree,
-  .todo-page .content-task-row {
+  .todo-page .content-task-row,
+  .todo-page .content-list-task-input {
     border-color: #315b7d;
   }
 
@@ -1257,6 +1620,54 @@
 @media (max-width: 575.98px) {
   .todo-page .workspace-content {
     padding: 14px;
+  }
+
+  .todo-page .quick-list-create {
+    grid-template-columns: 1fr;
+  }
+
+  .todo-page .task-list-group-heading,
+  .todo-page .task-list-group-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .todo-page .task-list-group-summary {
+    gap: 5px;
+    padding-left: 34px;
+  }
+
+  .todo-page .task-list-simple-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding-left: 20px;
+  }
+
+  .todo-page .task-list-inline-create-row > td {
+    padding-left: 34px;
+  }
+
+  .todo-page .task-list-simple-title {
+    flex-basis: calc(100% - 42px);
+  }
+
+  .todo-page .task-list-simple-meta {
+    grid-template-columns: repeat(3, minmax(82px, 1fr));
+    width: 100%;
+    padding-left: 28px;
+  }
+
+  .todo-page .task-bulk-floating-bar {
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+    flex-wrap: wrap;
+    width: auto;
+    transform: none;
+  }
+
+  .todo-page .task-bulk-list-select {
+    flex: 1 1 calc(100% - 100px);
   }
 
   .todo-detail-drawer .todo-comment-replies {

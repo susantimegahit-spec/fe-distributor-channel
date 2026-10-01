@@ -4,9 +4,9 @@ import Button from 'react-bootstrap/Button';
 import Card from 'react-bootstrap/Card';
 import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
+import InputGroup from 'react-bootstrap/InputGroup';
 import Modal from 'react-bootstrap/Modal';
 import Offcanvas from 'react-bootstrap/Offcanvas';
-import ProgressBar from 'react-bootstrap/ProgressBar';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
@@ -63,10 +63,6 @@ const toDateTimeLocal = (date) => {
   return new Date(value.getTime() - offset).toISOString().slice(0, 16);
 };
 const toDateInput = (date) => toDateTimeLocal(date).slice(0, 10);
-const isCompletedTask = (task) => {
-  const status = String(task?.status_category || task?.status || '').toLowerCase();
-  return ['done', 'completed', 'complete', 'selesai'].includes(status);
-};
 const responseData = (response) => response?.data?.data ?? response?.data ?? null;
 const responseList = (response) => {
   const data = responseData(response);
@@ -198,6 +194,10 @@ const normalizeApiTask = (task) => {
       null,
     folder: entityName(safeTask.folder, safeTask.folder_name),
     list: entityName(safeTask.list, safeTask.list_name),
+    department: entityName(
+      safeTask.department || safeTask.space?.department,
+      safeTask.department_name || safeTask.department_code || safeTask.space?.department_name || safeTask.space?.name
+    ),
     checklist,
     checklistGroups: checklists,
     parentTaskId: safeTask.parent_task_id || safeTask.parentTaskId || null,
@@ -242,10 +242,19 @@ export default function ToDoList() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [view, setView] = useState('board');
+  const [view, setView] = useState('list');
   const [draggingTaskId, setDraggingTaskId] = useState(null);
   const [dragOverStatus, setDragOverStatus] = useState('');
   const [selectedId, setSelectedId] = useState(null);
+  const [selectedTaskIds, setSelectedTaskIds] = useState([]);
+  const [deletingSelectedTasks, setDeletingSelectedTasks] = useState(false);
+  const [moveTargetListId, setMoveTargetListId] = useState('');
+  const [movingSelectedTasks, setMovingSelectedTasks] = useState(false);
+  const [copyingSelectedTasks, setCopyingSelectedTasks] = useState(false);
+  const [showBulkUpdate, setShowBulkUpdate] = useState(false);
+  const [savingBulkUpdate, setSavingBulkUpdate] = useState(false);
+  const [bulkUpdateForm, setBulkUpdateForm] = useState({ statusId: '', assigneeIds: [], dueDate: '' });
+  const [collapsedTaskListIds, setCollapsedTaskListIds] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
   const [createDataLoading, setCreateDataLoading] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
@@ -270,9 +279,9 @@ export default function ToDoList() {
   const [departmentLoading, setDepartmentLoading] = useState(true);
   const [selectedDepartmentIds, setSelectedDepartmentIds] = useState([]);
   const [expandedDepartmentIds, setExpandedDepartmentIds] = useState([]);
-  const [expandedListIds, setExpandedListIds] = useState([]);
-  const [expandedTaskIds, setExpandedTaskIds] = useState([]);
   const [selectedListDetail, setSelectedListDetail] = useState(null);
+  const [listDetailTasks, setListDetailTasks] = useState([]);
+  const [loadingListDetail, setLoadingListDetail] = useState(false);
   const [spaceHierarchy, setSpaceHierarchy] = useState({});
   const [showSpaceInput, setShowSpaceInput] = useState(false);
   const [newSpaceName, setNewSpaceName] = useState('');
@@ -283,6 +292,14 @@ export default function ToDoList() {
   const [folderForm, setFolderForm] = useState({ folderName: '', description: '', colorHex: '#4f46e5' });
   const [savingList, setSavingList] = useState(false);
   const [listForm, setListForm] = useState({ listName: '', description: '', colorHex: '#2563eb', defaultView: 'LIST' });
+  const [quickListForm, setQuickListForm] = useState({ departmentId: '', folderId: '', listName: '' });
+  const [quickListFoldersLoading, setQuickListFoldersLoading] = useState(false);
+  const [quickListLoadedSpaceIds, setQuickListLoadedSpaceIds] = useState([]);
+  const [savingQuickList, setSavingQuickList] = useState(false);
+  const [taskFilters, setTaskFilters] = useState({ assigneeIds: [], statusId: '' });
+  const [inlineTaskListId, setInlineTaskListId] = useState('');
+  const [inlineTaskText, setInlineTaskText] = useState('');
+  const [savingInlineTasks, setSavingInlineTasks] = useState(false);
   const [scope, setScope] = useState({ workspaceId: '', spaceId: '', folderId: '', listId: '' });
   const emptyForm = {
     departmentId: '',
@@ -314,15 +331,6 @@ export default function ToDoList() {
     if (!scope.folderId) return rows;
     return rows.filter((item) => String(item.folder_id || item.folder?.id || '') === String(scope.folderId));
   }, [masters.lists, scope.folderId, scope.spaceId, spaceHierarchy]);
-  const selectedFolderLists = useMemo(
-    () =>
-      scope.folderId
-        ? (spaceHierarchy[String(scope.spaceId)]?.lists || masters.lists).filter(
-            (item) => String(item.folder_id || item.folder?.id || '') === String(scope.folderId)
-          )
-        : [],
-    [masters.lists, scope.folderId, scope.spaceId, spaceHierarchy]
-  );
   const createFolders = useMemo(
     () =>
       (spaceHierarchy[String(form.spaceId)]?.folders || []).filter(
@@ -351,6 +359,7 @@ export default function ToDoList() {
         });
         if (apiError(response)) throw new Error(response?.data?.message || 'Gagal mengambil daftar tugas');
         setTasks(responseList(response).map(normalizeApiTask));
+        setSelectedTaskIds([]);
       } catch (error) {
         setTasks([]);
         showAlert(error?.response?.data?.message || 'Gagal mengambil daftar tugas.', 'danger');
@@ -392,6 +401,18 @@ export default function ToDoList() {
         const workspaceId = workspaceRows[0]?.id || '';
         const spacesResponse = await TaskManagementServices.getSpaces({ workspace_id: workspaceId || 1 });
         const spaceRows = responseList(spacesResponse);
+        const listResponses = await Promise.allSettled(
+          spaceRows.map((space) => TaskManagementServices.getLists({ space_id: space.id }))
+        );
+        const initialSpaceHierarchy = spaceRows.reduce((result, space, index) => {
+          const response = listResponses[index];
+          result[String(space.id)] = {
+            folders: [],
+            lists: response.status === 'fulfilled' && !apiError(response.value) ? responseList(response.value) : []
+          };
+          return result;
+        }, {});
+        const initialLists = Object.values(initialSpaceHierarchy).flatMap((hierarchy) => hierarchy.lists);
         setSelectedDepartmentIds([]);
         setExpandedDepartmentIds([]);
         setNewSpaceDepartmentId('');
@@ -401,13 +422,13 @@ export default function ToDoList() {
           workspaces: workspaceRows,
           spaces: spaceRows,
           folders: [],
-          lists: [],
+          lists: initialLists,
           statuses: responseList(statusesResponse),
           priorities: responseList(prioritiesResponse),
           types: responseList(typesResponse),
           employees: employeeList(employeesResponse)
         });
-        setSpaceHierarchy({});
+        setSpaceHierarchy(initialSpaceHierarchy);
         await loadTasks(nextScope);
       } catch {
         await loadTasks();
@@ -432,9 +453,141 @@ export default function ToDoList() {
       ? entityName(employee, employee.employee_name)
       : entityName(item?.author_employee || item?.author || item?.user, item?.employee_name || (authorEmployeeId ? `Employee ${authorEmployeeId}` : 'User'));
   };
-  const selectedListTasks =
-    selectedListDetail && String(scope.listId) === String(selectedListDetail.id) ? tasks.filter((task) => !task.parentTaskId) : [];
-  const filteredTasks = tasks;
+  const selectedListTasks = listDetailTasks.filter((task) => !task.parentTaskId);
+  const filteredTasks = useMemo(
+    () =>
+      tasks.filter((task) => {
+        const matchesStatus =
+          !taskFilters.statusId ||
+          String(task.statusId) === String(taskFilters.statusId) ||
+          task.status === statusLabel(masters.statuses.find((status) => String(status.id) === String(taskFilters.statusId)));
+        const selectedEmployees = masters.employees.filter((employee) =>
+          taskFilters.assigneeIds.some((id) => String(id) === String(employee.id))
+        );
+        const matchesAssignee =
+          !taskFilters.assigneeIds.length ||
+          task.assigneeIds.some((id) => taskFilters.assigneeIds.some((selectedId) => String(id) === String(selectedId))) ||
+          selectedEmployees.some((employee) => task.assignees.includes(entityName(employee, employee.employee_name)));
+        return matchesStatus && matchesAssignee;
+      }),
+    [masters.employees, masters.statuses, taskFilters.assigneeIds, taskFilters.statusId, tasks]
+  );
+  const allTaskListOptions = useMemo(() => {
+    const rows = [
+      ...tasks
+        .filter((task) => task.list_id)
+        .map((task) => ({
+          id: task.list_id,
+          list_name: task.list,
+          space_id: task.space_id,
+          folder_id: task.folder_id,
+          folder_name: task.folder
+        })),
+      ...masters.lists,
+      ...Object.entries(spaceHierarchy).flatMap(([spaceId, hierarchy]) =>
+        (hierarchy?.lists || []).map((list) => ({ ...list, space_id: list.space_id || spaceId }))
+      )
+    ];
+    return [...new Map(rows.filter((item) => item?.id).map((item) => [String(item.id), item])).values()].sort((first, second) =>
+      entityName(first).localeCompare(entityName(second))
+    );
+  }, [masters.lists, spaceHierarchy, tasks]);
+  const groupedListTasks = useMemo(() => {
+    const visibleLists = allTaskListOptions.filter((list) => {
+      const matchesSpace = !scope.spaceId || String(list.space_id || list.space?.id || '') === String(scope.spaceId);
+      const matchesFolder = !scope.folderId || String(list.folder_id || list.folder?.id || '') === String(scope.folderId);
+      const matchesList = !scope.listId || String(list.id) === String(scope.listId);
+      return matchesSpace && matchesFolder && matchesList;
+    });
+    const groups = new Map(
+      visibleLists.map((list) => [
+        String(list.id),
+        {
+          key: String(list.id),
+          list: entityName(list, 'Without List'),
+          folder: entityName(list.folder, list.folder_name),
+          department: entityName(list.department || list.space?.department, list.department_name || '-'),
+          tasks: []
+        }
+      ])
+    );
+    filteredTasks.forEach((task) => {
+      const key = String(task.list_id || task.list || 'without-list');
+      if (!groups.has(key)) {
+        groups.set(key, {
+          key,
+          list: task.list || 'Without List',
+          folder: task.folder || '-',
+          department: task.department || '-',
+          tasks: []
+        });
+      }
+      groups.get(key).tasks.push(task);
+    });
+    return [...groups.values()].sort((first, second) => first.list.localeCompare(second.list));
+  }, [allTaskListOptions, filteredTasks, scope.folderId, scope.listId, scope.spaceId]);
+  const isAdministrator = isAdministratorRole(getCookies('role'));
+  const quickListDepartment = departments.find((item) => String(item.id) === String(quickListForm.departmentId));
+  const quickListSpace = quickListDepartment
+    ? masters.spaces.find((item) => spaceMatchesDepartment(item, quickListDepartment))
+    : null;
+  const quickListFolders = quickListSpace ? spaceHierarchy[String(quickListSpace.id)]?.folders || [] : [];
+
+  useEffect(() => {
+    if (isAdministrator || !departments.length || quickListForm.departmentId) return;
+    const assignedDepartment = getOrganizationAssignment().departments[0];
+    const department =
+      departments.find(
+        (item) =>
+          String(item.id).toLowerCase() === String(assignedDepartment || '').toLowerCase() ||
+          item.code.toLowerCase() === String(assignedDepartment || '').toLowerCase()
+      ) || departments[0];
+    setQuickListForm((current) => ({ ...current, departmentId: String(department.id), folderId: '' }));
+    setSelectedDepartmentIds([String(department.id)]);
+    selectDepartment(department);
+    // Department non-administrator mengikuti assignment dari cookie saat halaman dibuka.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [departments, isAdministrator, quickListForm.departmentId]);
+
+  useEffect(() => {
+    const spaceId = String(quickListSpace?.id || '');
+    if (!spaceId || quickListLoadedSpaceIds.includes(spaceId) || spaceHierarchy[spaceId]?.folders?.length) return;
+    let active = true;
+    setQuickListFoldersLoading(true);
+    Promise.all([
+      TaskManagementServices.getFolders({ space_id: quickListSpace.id }),
+      TaskManagementServices.getLists({ space_id: quickListSpace.id })
+    ])
+      .then(([foldersResponse, listsResponse]) => {
+        if (!active || apiError(foldersResponse) || apiError(listsResponse)) return;
+        setSpaceHierarchy((current) => ({
+          ...current,
+          [String(quickListSpace.id)]: {
+            folders: responseList(foldersResponse),
+            lists: responseList(listsResponse)
+          }
+        }));
+        setQuickListLoadedSpaceIds((current) => [...new Set([...current, spaceId])]);
+      })
+      .catch(() => {
+        if (active) showAlert('Gagal mengambil folder untuk List Project.', 'danger');
+      })
+      .finally(() => {
+        if (active) setQuickListFoldersLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+    // Fetch ulang hanya ketika Space berubah. Perubahan hasil pada spaceHierarchy tidak boleh membatalkan finally di atas.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quickListSpace?.id]);
+
+  const changeTaskView = (nextView) => {
+    setView(nextView);
+    if (nextView !== 'list') return;
+    setCollapsedTaskListIds([]);
+    loadTasks({ workspaceId: scope.workspaceId, spaceId: '', folderId: '', listId: '' });
+  };
 
   const updateLocalTask = (id, changes) => setTasks((current) => current.map((task) => (task.id === id ? { ...task, ...changes } : task)));
   const taskEditValues = (task) => ({
@@ -482,15 +635,17 @@ export default function ToDoList() {
   };
   const openListDetail = async (list) => {
     setSelectedListDetail(list);
-    const next = {
-      ...scope,
-      spaceId: list.space_id || scope.spaceId,
-      folderId: list.folder_id || list.folder?.id || scope.folderId,
-      listId: list.id
-    };
-    setScope(next);
-    setExpandedListIds((current) => [...new Set([...current, String(list.id)])]);
-    await loadTasks(next);
+    setListDetailTasks([]);
+    setLoadingListDetail(true);
+    try {
+      const response = await TaskManagementServices.getTask({ list_id: list.id, include_subtasks: true, per_page: 100 });
+      if (apiError(response)) throw new Error(response?.data?.message || 'Gagal mengambil task List Project.');
+      setListDetailTasks(responseList(response).map(normalizeApiTask));
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Gagal mengambil detail List Project.', 'danger');
+    } finally {
+      setLoadingListDetail(false);
+    }
   };
   const changeTaskStatus = async (task, value, { silent = false } = {}) => {
     const master = masters.statuses.find((item) => String(item.id) === String(value) || statusLabel(item) === value);
@@ -548,6 +703,49 @@ export default function ToDoList() {
       showAlert(error?.response?.data?.message || error?.message || 'Gagal membuat tugas.', 'danger');
     } finally {
       setSaving(false);
+    }
+  };
+  const saveInlineTasks = async (list, taskText = inlineTaskText) => {
+    const titles = taskText
+      .split(/\r?\n/)
+      .map((title) => title.trim())
+      .filter(Boolean);
+    if (!titles.length || savingInlineTasks) return;
+    const spaceId = list.space_id || list.space?.id || scope.spaceId;
+    const folderId = list.folder_id || list.folder?.id || scope.folderId;
+    if (!spaceId || !folderId || !list.id) {
+      showAlert('Space, Folder, atau List Project tidak dapat ditentukan.', 'warning');
+      return;
+    }
+    setSavingInlineTasks(true);
+    try {
+      const defaultStatusId = masters.statuses.find((item) => Number(item.id) === 1 || /to.?do/i.test(statusLabel(item)))?.id;
+      const defaultPriorityId = masters.priorities.find((item) => Number(item.id) === 3 || /normal/i.test(priorityLabel(item)))?.id;
+      const defaultTypeId = masters.types.find((item) => Number(item.id) === 1 || /^task$/i.test(taskTypeLabel(item)))?.id;
+      const results = await Promise.allSettled(
+        titles.map((title) =>
+          TaskManagementServices.createTask({
+            space_id: spaceId,
+            folder_id: folderId,
+            list_id: list.id,
+            title,
+            status_id: defaultStatusId || undefined,
+            priority_id: defaultPriorityId || undefined,
+            task_type_id: defaultTypeId || undefined
+          })
+        )
+      );
+      const failedTitles = titles.filter((_, index) => results[index].status === 'rejected' || apiError(results[index].value));
+      const createdCount = titles.length - failedTitles.length;
+      setInlineTaskText(failedTitles.join('\n'));
+      await loadTasks(scope);
+      if (createdCount) showAlert(`${createdCount} task berhasil dibuat.`, 'success');
+      if (failedTitles.length) showAlert(`${failedTitles.length} task gagal dibuat dan tetap tersedia di input.`, 'danger');
+      else setInlineTaskListId('');
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Gagal membuat task.', 'danger');
+    } finally {
+      setSavingInlineTasks(false);
     }
   };
   const openCreateTask = async () => {
@@ -686,6 +884,71 @@ export default function ToDoList() {
       setSavingList(false);
     }
   };
+  const createQuickTaskList = async () => {
+    const listName = quickListForm.listName.trim();
+    if (!quickListSpace?.id || !quickListForm.folderId || !listName || savingQuickList) {
+      if (!quickListSpace?.id || !quickListForm.folderId) showAlert('Pilih Department dan Folder terlebih dahulu.', 'warning');
+      return;
+    }
+    setSavingQuickList(true);
+    try {
+      const response = await TaskManagementServices.postListTask({
+        space_id: quickListSpace.id,
+        folder_id: quickListForm.folderId,
+        list_name: listName,
+        color_hex: '#2563eb',
+        default_view: 'LIST'
+      });
+      if (apiError(response)) throw new Error(response?.data?.message);
+      const listsResponse = await TaskManagementServices.getLists({ space_id: quickListSpace.id });
+      if (apiError(listsResponse)) throw new Error(listsResponse?.data?.message);
+      const listRows = responseList(listsResponse);
+      setSpaceHierarchy((current) => ({
+        ...current,
+        [String(quickListSpace.id)]: {
+          folders: current[String(quickListSpace.id)]?.folders || [],
+          lists: listRows
+        }
+      }));
+      setMasters((current) => ({
+        ...current,
+        lists: [
+          ...current.lists.filter((item) => String(item.space_id || item.space?.id || '') !== String(quickListSpace.id)),
+          ...listRows
+        ]
+      }));
+      setQuickListForm((current) => ({ ...current, listName: '' }));
+      showAlert(`List Project ${listName} berhasil dibuat.`, 'success');
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Gagal membuat List Project.', 'danger');
+    } finally {
+      setSavingQuickList(false);
+    }
+  };
+  const filterTasksByQuickDepartment = async (departmentId) => {
+    setQuickListForm((current) => ({ ...current, departmentId, folderId: '' }));
+    setSelectedDepartmentIds(departmentId ? [String(departmentId)] : []);
+    setTaskFilters((current) => ({ ...current, assigneeIds: [] }));
+    if (!departmentId) {
+      const nextScope = { ...scope, spaceId: '', folderId: '', listId: '' };
+      setScope(nextScope);
+      await loadTasks(nextScope);
+      return;
+    }
+    const department = departments.find((item) => String(item.id) === String(departmentId));
+    if (department) await selectDepartment(department);
+  };
+  const filterTasksByQuickFolder = async (folderId) => {
+    setQuickListForm((current) => ({ ...current, folderId }));
+    const nextScope = {
+      ...scope,
+      spaceId: quickListSpace?.id || '',
+      folderId,
+      listId: ''
+    };
+    setScope(nextScope);
+    await loadTasks(nextScope);
+  };
   const sendComment = async () => {
     if (!selectedTask || !comment.trim() || sendingComment) return;
     const parentCommentId = replyToComment?.id ?? null;
@@ -789,6 +1052,184 @@ export default function ToDoList() {
         }
       }
     });
+  const deleteTaskFromRow = (task) =>
+    showConfirm({
+      title: 'Hapus tugas?',
+      subTitle: `${task.code} - ${task.title} akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`,
+      skipCountdown: true,
+      onConfirm: async () => {
+        try {
+          const response = await TaskManagementServices.deleteTask(task.id);
+          if (apiError(response)) throw new Error(response?.data?.message || 'Gagal menghapus tugas.');
+          setSelectedTaskIds((current) => current.filter((id) => id !== String(task.id)));
+          await loadTasks();
+          showAlert('Tugas berhasil dihapus.', 'success');
+        } catch (error) {
+          showAlert(error?.response?.data?.message || error?.message || 'Gagal menghapus tugas.', 'danger');
+        }
+      }
+    });
+  const deleteSelectedTasks = () => {
+    const selectedTasks = tasks.filter((task) => selectedTaskIds.includes(String(task.id)));
+    if (!selectedTasks.length || deletingSelectedTasks) return;
+
+    showConfirm({
+      title: `Hapus ${selectedTasks.length} task?`,
+      subTitle: 'Task yang dipilih akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.',
+      skipCountdown: true,
+      onConfirm: async () => {
+        setDeletingSelectedTasks(true);
+        try {
+          const results = await Promise.allSettled(selectedTasks.map((task) => TaskManagementServices.deleteTask(task.id)));
+          const failedIds = selectedTasks
+            .filter((_, index) => results[index].status === 'rejected' || apiError(results[index].value))
+            .map((task) => String(task.id));
+          const deletedCount = selectedTasks.length - failedIds.length;
+
+          await loadTasks();
+          setSelectedTaskIds(failedIds);
+          if (deletedCount) showAlert(`${deletedCount} task berhasil dihapus.`, 'success');
+          if (failedIds.length) showAlert(`${failedIds.length} task gagal dihapus.`, 'danger');
+        } catch (error) {
+          showAlert(error?.response?.data?.message || error?.message || 'Gagal menghapus task.', 'danger');
+        } finally {
+          setDeletingSelectedTasks(false);
+        }
+      }
+    });
+  };
+  const moveSelectedTasks = () => {
+    const selectedTasks = tasks.filter((task) => selectedTaskIds.includes(String(task.id)));
+    const targetList = allTaskListOptions.find((item) => String(item.id) === String(moveTargetListId));
+    if (!selectedTasks.length || !targetList || movingSelectedTasks) return;
+
+    showConfirm({
+      title: `Pindahkan ${selectedTasks.length} task?`,
+      subTitle: `Task yang dipilih akan dipindahkan ke List Project ${entityName(targetList)}.`,
+      skipCountdown: true,
+      onConfirm: async () => {
+        setMovingSelectedTasks(true);
+        try {
+          const folderId = targetList.folder_id || targetList.folder?.id;
+          const results = await Promise.allSettled(
+            selectedTasks.map((task) =>
+              TaskManagementServices.putEditTask(task.id, {
+                list_id: targetList.id,
+                folder_id: folderId || undefined
+              })
+            )
+          );
+          const failedIds = selectedTasks
+            .filter((_, index) => results[index].status === 'rejected' || apiError(results[index].value))
+            .map((task) => String(task.id));
+          const movedCount = selectedTasks.length - failedIds.length;
+
+          await loadTasks({ workspaceId: scope.workspaceId, spaceId: '', folderId: '', listId: '' });
+          setSelectedTaskIds(failedIds);
+          if (!failedIds.length) setMoveTargetListId('');
+          if (movedCount) showAlert(`${movedCount} task berhasil dipindahkan ke ${entityName(targetList)}.`, 'success');
+          if (failedIds.length) showAlert(`${failedIds.length} task gagal dipindahkan.`, 'danger');
+        } catch (error) {
+          showAlert(error?.response?.data?.message || error?.message || 'Gagal memindahkan task.', 'danger');
+        } finally {
+          setMovingSelectedTasks(false);
+        }
+      }
+    });
+  };
+  const copySelectedTasks = () => {
+    const selectedTasks = tasks.filter((task) => selectedTaskIds.includes(String(task.id)));
+    const targetList = allTaskListOptions.find((item) => String(item.id) === String(moveTargetListId));
+    if (!selectedTasks.length || !targetList || copyingSelectedTasks) return;
+    const folderId = targetList.folder_id || targetList.folder?.id;
+    const hierarchySpaceId = Object.entries(spaceHierarchy).find(([, hierarchy]) =>
+      (hierarchy?.lists || []).some((list) => String(list.id) === String(targetList.id))
+    )?.[0];
+    const spaceId = targetList.space_id || targetList.space?.id || hierarchySpaceId;
+    if (!spaceId || !folderId) {
+      showAlert('Space atau Folder tujuan tidak dapat ditentukan.', 'warning');
+      return;
+    }
+
+    showConfirm({
+      title: `Copy ${selectedTasks.length} task?`,
+      subTitle: `Salinan task akan dibuat di List Project ${entityName(targetList)}.`,
+      skipCountdown: true,
+      onConfirm: async () => {
+        setCopyingSelectedTasks(true);
+        try {
+          const results = await Promise.allSettled(
+            selectedTasks.map((task) =>
+              TaskManagementServices.createTask({
+                space_id: spaceId,
+                folder_id: folderId,
+                list_id: targetList.id,
+                title: task.title,
+                description: task.description || '',
+                status_id: task.statusId || undefined,
+                priority_id: task.priorityId || undefined,
+                task_type_id: task.task_type_id || task.taskTypeId || undefined,
+                start_date: task.startDate || undefined,
+                due_date: task.dueDate || undefined,
+                estimated_hours: task.estimatedHours || undefined,
+                assignee_ids: task.assigneeIds || []
+              })
+            )
+          );
+          const failedCount = results.filter((result) => result.status === 'rejected' || apiError(result.value)).length;
+          const copiedCount = selectedTasks.length - failedCount;
+          if (copiedCount) showAlert(`${copiedCount} task berhasil dicopy.`, 'success');
+          if (failedCount) showAlert(`${failedCount} task gagal dicopy.`, 'danger');
+          if (!failedCount) setMoveTargetListId('');
+        } catch (error) {
+          showAlert(error?.response?.data?.message || error?.message || 'Gagal mengcopy task.', 'danger');
+        } finally {
+          setCopyingSelectedTasks(false);
+        }
+      }
+    });
+  };
+  const updateSelectedTasks = async (event) => {
+    event.preventDefault();
+    const selectedTasks = tasks.filter((task) => selectedTaskIds.includes(String(task.id)));
+    const hasTaskChanges = bulkUpdateForm.assigneeIds.length || bulkUpdateForm.dueDate;
+    if (!selectedTasks.length || (!bulkUpdateForm.statusId && !hasTaskChanges) || savingBulkUpdate) {
+      if (!bulkUpdateForm.statusId && !hasTaskChanges) showAlert('Pilih minimal satu perubahan untuk diterapkan.', 'warning');
+      return;
+    }
+    setSavingBulkUpdate(true);
+    try {
+      const results = await Promise.allSettled(
+        selectedTasks.map(async (task) => {
+          if (bulkUpdateForm.statusId) {
+            const statusResponse = await TaskManagementServices.changeStatus(task.id, bulkUpdateForm.statusId);
+            if (apiError(statusResponse)) throw new Error(statusResponse?.data?.message || 'Gagal mengubah status.');
+          }
+          if (hasTaskChanges) {
+            const updateResponse = await TaskManagementServices.putEditTask(task.id, {
+              assignee_ids: bulkUpdateForm.assigneeIds.length ? bulkUpdateForm.assigneeIds.map(Number) : undefined,
+              due_date: bulkUpdateForm.dueDate || undefined
+            });
+            if (apiError(updateResponse)) throw new Error(updateResponse?.data?.message || 'Gagal memperbarui task.');
+          }
+        })
+      );
+      const failedIds = selectedTasks.filter((_, index) => results[index].status === 'rejected').map((task) => String(task.id));
+      const updatedCount = selectedTasks.length - failedIds.length;
+      await loadTasks(scope);
+      setSelectedTaskIds(failedIds);
+      if (updatedCount) showAlert(`${updatedCount} task berhasil diperbarui.`, 'success');
+      if (failedIds.length) showAlert(`${failedIds.length} task gagal diperbarui.`, 'danger');
+      if (!failedIds.length) {
+        setShowBulkUpdate(false);
+        setBulkUpdateForm({ statusId: '', assigneeIds: [], dueDate: '' });
+      }
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Gagal memperbarui task.', 'danger');
+    } finally {
+      setSavingBulkUpdate(false);
+    }
+  };
   const selectDepartment = async (department) => {
     const space = masters.spaces.find((item) => spaceMatchesDepartment(item, department)) || {
       id: department.code,
@@ -806,8 +1247,7 @@ export default function ToDoList() {
       ]);
       const folderRows = responseList(foldersResponse);
       const listRows = responseList(listsResponse);
-      const preferredList = listRows.find((item) => /to.?do/i.test(entityName(item))) || listRows[0];
-      const nextScope = { ...scope, spaceId: space.id, folderId: preferredList?.folder_id || '', listId: preferredList?.id || '' };
+      const nextScope = { ...scope, spaceId: space.id, folderId: '', listId: '' };
       setScope(nextScope);
       setMasters((current) => ({
         ...current,
@@ -823,15 +1263,21 @@ export default function ToDoList() {
       showAlert(error?.response?.data?.message || `Gagal memuat data department ${department.name}.`, 'danger');
     }
   };
-  const changeDepartments = (options) => {
+  const changeDepartments = async (options) => {
     const ids = (options || []).map((option) => String(option.value));
     setSelectedDepartmentIds(ids);
     setExpandedDepartmentIds((current) => [...new Set([...current.filter((id) => ids.includes(id)), ...ids])]);
     if (!ids.includes(String(newSpaceDepartmentId))) setNewSpaceDepartmentId(ids[0] || '');
     if (!ids.length) {
-      setScope((current) => ({ ...current, spaceId: '', folderId: '', listId: '' }));
-      setMasters((current) => ({ ...current, folders: [], lists: [] }));
-      setTasks([]);
+      const nextScope = { ...scope, spaceId: '', folderId: '', listId: '' };
+      setScope(nextScope);
+      setMasters((current) => ({ ...current, folders: [] }));
+      await loadTasks(nextScope);
+      return;
+    }
+    if (ids.length === 1) {
+      const department = departments.find((item) => String(item.id) === ids[0]);
+      if (department) await selectDepartment(department);
       return;
     }
     const activeSpace = masters.spaces.find((item) => String(item.id) === String(scope.spaceId));
@@ -840,7 +1286,7 @@ export default function ToDoList() {
       departments.some((department) => ids.includes(String(department.id)) && spaceMatchesDepartment(activeSpace, department));
     if (!activeStillVisible) {
       const firstDepartment = departments.find((department) => String(department.id) === ids[0]);
-      if (firstDepartment) selectDepartment(firstDepartment);
+      if (firstDepartment) await selectDepartment(firstDepartment);
     }
   };
   const selectSpace = async (space, departmentId) => {
@@ -856,8 +1302,7 @@ export default function ToDoList() {
       ]);
       const folderRows = responseList(foldersResponse);
       const listRows = responseList(listsResponse);
-      const preferredList = listRows.find((item) => /to.?do/i.test(entityName(item))) || listRows[0];
-      const nextScope = { ...scope, spaceId: space.id, folderId: preferredList?.folder_id || '', listId: preferredList?.id || '' };
+      const nextScope = { ...scope, spaceId: space.id, folderId: '', listId: '' };
       setScope(nextScope);
       setMasters((current) => ({
         ...current,
@@ -933,201 +1378,6 @@ export default function ToDoList() {
   return (
     <div className="todo-page">
       <div className="workspace-shell">
-        <aside className="workspace-nav">
-          <div className="text-uppercase text-muted fw-semibold f-10 mb-2">Workspace</div>
-          <div className="workspace-picker d-flex align-items-center gap-2 mb-4">
-            <span className="metric-icon text-white" style={{ background: '#4f46e5' }}>
-              <i className="ti ti-building" />
-            </span>
-            <div className="min-w-0">
-              <div className="fw-semibold f-12 text-truncate">
-                {entityName(
-                  masters.workspaces.find((item) => String(item.id) === String(scope.workspaceId)),
-                  'PT Susanti Megah'
-                )}
-              </div>
-              <div className="text-muted f-10">Corporate Workspace</div>
-            </div>
-          </div>
-          <Form.Group className="mb-4">
-            <Form.Label className="text-uppercase text-muted fw-semibold f-10 mb-2">Departments</Form.Label>
-            {departmentLoading ? (
-              <div className="department-picker-skeleton" />
-            ) : (
-              <Select
-                isMulti
-                isClearable
-                closeMenuOnSelect={false}
-                classNamePrefix="department-select-control"
-                menuPortalTarget={document.body}
-                menuPosition="fixed"
-                placeholder={departments.length ? 'Select departments...' : 'No departments available'}
-                isDisabled={!departments.length}
-                options={departments.map((department) => ({
-                  value: String(department.id),
-                  label: `${department.code ? `${department.code} - ` : ''}${department.name}`
-                }))}
-                value={departments
-                  .filter((department) => selectedDepartmentIds.includes(String(department.id)))
-                  .map((department) => ({
-                    value: String(department.id),
-                    label: `${department.code ? `${department.code} - ` : ''}${department.name}`
-                  }))}
-                onChange={changeDepartments}
-                styles={{
-                  menuPortal: (base) => ({ ...base, zIndex: 1090 }),
-                  control: (base) => ({ ...base, minHeight: 34, fontSize: 12 }),
-                  multiValue: (base) => ({ ...base, maxWidth: '100%' })
-                }}
-              />
-            )}
-          </Form.Group>
-          <div className="text-uppercase text-muted fw-semibold f-10 mb-2">Department & Task</div>
-          <div className="workspace-tree">
-            {departmentLoading ? (
-              <div className="department-loading" role="status" aria-live="polite">
-                <span className="visually-hidden">Mengambil master department...</span>
-                {[0, 1, 2, 3, 4].map((item) => (
-                  <div className="department-skeleton" key={item}>
-                    <span />
-                    <span />
-                    <span />
-                  </div>
-                ))}
-              </div>
-            ) : null}
-            {!departmentLoading &&
-              departments
-                .filter((department) => selectedDepartmentIds.includes(String(department.id)))
-                .map((department) => {
-                  const departmentId = String(department.id);
-                  const isExpanded = expandedDepartmentIds.includes(departmentId);
-                  const space = masters.spaces.find((item) => spaceMatchesDepartment(item, department)) || {
-                    id: department.code,
-                    space_name: department.name,
-                    department_id: department.id,
-                    department_code: department.code
-                  };
-                  const hierarchy = spaceHierarchy[String(space?.id)] || { folders: [], lists: [] };
-                  return (
-                    <div key={department.id} className="department-tree-group">
-                      <div className={`tree-row department-row ${isExpanded ? 'active' : ''}`}>
-                        <button
-                          className="department-select"
-                          type="button"
-                          onClick={() => {
-                            setExpandedDepartmentIds((current) =>
-                              current.includes(departmentId) ? current.filter((id) => id !== departmentId) : [...current, departmentId]
-                            );
-                            if (!isExpanded && space) selectSpace(space, department.id);
-                          }}
-                        >
-                          <i className={`ti ${isExpanded ? 'ti-chevron-down' : 'ti-chevron-right'}`} />
-                          <i className="ti ti-users text-primary" />
-                          <span className="text-truncate" title={department.name}>
-                            {department.name}
-                          </span>
-                        </button>
-                        <button
-                          type="button"
-                          className="department-add"
-                          data-permission-action="none"
-                          title={`Add folder to ${department.name}`}
-                          aria-label={`Add folder to ${department.name}`}
-                          onClick={(event) => openFolderModal(event, department)}
-                        >
-                          <span aria-hidden="true">+</span>
-                        </button>
-                      </div>
-                      {isExpanded ? (
-                        <>
-                          {!hierarchy.folders.length ? <div className="text-muted f-10 ps-4 py-2">No folders available.</div> : null}
-                          {hierarchy.folders.map((folder) => {
-                            const folderId = String(folder.id);
-                            const color = folderColor(folder.color_hex);
-                            return (
-                              <div key={folder.id} className="tree-branch">
-                                <button
-                                  className={`tree-row ps-lg-4 ${String(scope.folderId) === folderId ? 'active' : ''}`}
-                                  type="button"
-                                  onClick={() => {
-                                    const next = {
-                                      ...scope,
-                                      spaceId: folder.space_id || space.id,
-                                      folderId: folder.id,
-                                      listId: ''
-                                    };
-                                    setScope(next);
-                                    loadTasks(next);
-                                  }}
-                                >
-                                  <i className="ti ti-folder" style={{ color }} />
-                                  <span className="text-truncate">{entityName(folder)}</span>
-                                </button>
-                              </div>
-                            );
-                          })}
-                        </>
-                      ) : null}
-                    </div>
-                  );
-                })}
-          </div>
-          {showSpaceInput ? (
-            <div className="new-space-box mt-3">
-              {selectedDepartmentIds.length > 1 ? (
-                <Form.Select
-                  size="sm"
-                  className="mb-2"
-                  value={newSpaceDepartmentId}
-                  onChange={(event) => setNewSpaceDepartmentId(event.target.value)}
-                  aria-label="Department tujuan Space"
-                >
-                  {departments
-                    .filter((department) => selectedDepartmentIds.includes(String(department.id)))
-                    .map((department) => (
-                      <option key={department.id} value={department.id}>
-                        {department.name}
-                      </option>
-                    ))}
-                </Form.Select>
-              ) : null}
-              <Form.Control
-                size="sm"
-                autoFocus
-                value={newSpaceName}
-                onChange={(event) => setNewSpaceName(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') createSpace();
-                  if (event.key === 'Escape') setShowSpaceInput(false);
-                }}
-                placeholder="New Space name"
-              />
-              <div className="d-flex gap-1 mt-2">
-                <Button
-                  size="sm"
-                  className="flex-grow-1"
-                  data-permission-action="none"
-                  disabled={!newSpaceName.trim()}
-                  onClick={createSpace}
-                >
-                  Add
-                </Button>
-                <Button
-                  size="sm"
-                  variant="light-secondary"
-                  onClick={() => {
-                    setShowSpaceInput(false);
-                    setNewSpaceName('');
-                  }}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          ) : null}
-        </aside>
-
         <main className="workspace-content">
           <Stack direction="horizontal" className="justify-content-between align-items-start gap-3 mb-4">
             <div className="todo-title-row">
@@ -1164,236 +1414,327 @@ export default function ToDoList() {
             </Stack>
           </Stack>
 
-          {scope.folderId ? (
-            <section className="folder-lists-panel mb-3">
-              <div className="folder-lists-heading">
-                <div>
-                  <div className="text-muted f-10 text-uppercase fw-semibold">Task Lists</div>
-                  <div className="fw-semibold">
-                    {entityName(
-                      masters.folders.find((item) => String(item.id) === String(scope.folderId)),
-                      'Folder'
-                    )}
-                  </div>
-                </div>
-                <Badge bg="light-primary" text="primary">
-                  {selectedFolderLists.length} List
-                </Badge>
-              </div>
-              {!selectedFolderLists.length ? <div className="text-muted f-12 p-3">No Lists in this Folder.</div> : null}
-              {selectedFolderLists.map((list) => {
-                const listId = String(list.id);
-                const listExpanded = expandedListIds.includes(listId);
-                const listTasks = String(scope.listId) === listId ? tasks.filter((task) => !task.parentTaskId) : [];
-                const listSubtasks = listTasks.flatMap((task) => {
-                  const nestedSubtasks = Array.isArray(task.subtasks) ? task.subtasks : [];
-                  return nestedSubtasks.length ? nestedSubtasks : tasks.filter((item) => String(item.parentTaskId) === String(task.id));
-                });
-                const completedSubtasks = listSubtasks.filter(isCompletedTask).length;
-                const listProgress = listSubtasks.length ? Math.round((completedSubtasks / listSubtasks.length) * 100) : 0;
-                return (
-                  <div className="content-list-branch" key={list.id}>
-                    <div className={`content-list-row ${String(scope.listId) === listId ? 'active' : ''}`}>
-                      <button
-                        type="button"
-                        className="content-list-toggle"
-                        aria-label={`${listExpanded ? 'Tutup' : 'Buka'} task ${entityName(list)}`}
-                        onClick={() => {
-                          const willExpand = !listExpanded;
-                          setExpandedListIds((current) =>
-                            willExpand ? [...new Set([...current, listId])] : current.filter((id) => id !== listId)
-                          );
-                          if (willExpand) {
-                            const next = { ...scope, listId: list.id };
-                            setScope(next);
-                            loadTasks(next);
-                          }
-                        }}
-                      >
-                        <i className={`ti ${listExpanded ? 'ti-chevron-down' : 'ti-chevron-right'}`} />
-                      </button>
-                      <button type="button" className="content-list-name" onClick={() => openListDetail(list)}>
-                        <i className="ti ti-list-check" />
-                        <span>{entityName(list)}</span>
-                      </button>
-                      <div className="content-list-progress" title={`${completedSubtasks} of ${listSubtasks.length} subtasks completed`}>
-                        <span>
-                          {completedSubtasks}/{listSubtasks.length} completed
-                        </span>
-                        <ProgressBar className="progress-thin" now={listProgress} variant="success" />
-                        <strong>{listProgress}%</strong>
-                      </div>
-                    </div>
-                    {listExpanded ? (
-                      <div className="content-task-tree">
-                        {loading && String(scope.listId) === listId ? (
-                          <div className="text-muted f-11 py-2 ps-4">
-                            <span className="spinner-border spinner-border-sm me-2" />
-                            Loading tasks...
-                          </div>
-                        ) : null}
-                        {!loading && String(scope.listId) === listId && !listTasks.length ? (
-                          <div className="text-muted f-11 py-2 ps-4">No Tasks in this List.</div>
-                        ) : null}
-                        {!loading &&
-                          String(scope.listId) === listId &&
-                          listTasks.map((task) => {
-                            const taskId = String(task.id);
-                            const taskExpanded = expandedTaskIds.includes(taskId);
-                            const subtasks = task.subtasks?.length
-                              ? task.subtasks
-                              : tasks.filter((item) => String(item.parentTaskId) === taskId);
-                            return (
-                              <div className="content-task-branch" key={task.id}>
-                                <div className="content-task-row">
-                                  <button
-                                    type="button"
-                                    className="content-task-toggle"
-                                    onClick={() =>
-                                      setExpandedTaskIds((current) =>
-                                        current.includes(taskId) ? current.filter((id) => id !== taskId) : [...current, taskId]
-                                      )
-                                    }
-                                  >
-                                    <i className={`ti ${taskExpanded ? 'ti-chevron-down' : 'ti-chevron-right'}`} />
-                                  </button>
-                                  <button type="button" className="content-task-name" onClick={() => openTask(task)}>
-                                    {task.title}
-                                  </button>
-                                </div>
-                                {taskExpanded ? (
-                                  <div className="content-task-detail-table">
-                                    <div className="content-task-detail-grid content-subtask-header" aria-hidden="true">
-                                      <span>Priority</span>
-                                      <span>Status</span>
-                                      <span>Assignee</span>
-                                      <span>Due Date</span>
-                                    </div>
-                                    <button
-                                      type="button"
-                                      className="content-task-detail-grid content-subtask-detail"
-                                      onClick={() => openTask(task)}
-                                    >
-                                      <span>
-                                        <PriorityBadge priority={task.priority} />
-                                        {task.slaHours ? <small>SLA {task.slaHours} Jam</small> : null}
-                                      </span>
-                                      <span>
-                                        <StatusBadge status={task.status} />
-                                      </span>
-                                      <span>{task.assignees.length ? <AvatarStack names={task.assignees} /> : '-'}</span>
-                                      <span className={isOverdue(task) ? 'overdue' : ''}>{formatDate(task.dueDate)}</span>
-                                    </button>
-                                  </div>
-                                ) : null}
-                                {taskExpanded && subtasks.length ? (
-                                  <div className="content-subtask-table">
-                                    <div className="content-subtask-grid content-subtask-header" aria-hidden="true">
-                                      <span>Task</span>
-                                      <span>Priority</span>
-                                      <span>Status</span>
-                                      <span>Assignee</span>
-                                      <span>Due Date</span>
-                                    </div>
-                                    {subtasks.map((subtask) => (
-                                        <button
-                                          key={subtask.id}
-                                          type="button"
-                                          className="content-subtask-grid content-subtask-detail"
-                                          onClick={() => openTask(subtask)}
-                                        >
-                                          <span className="content-subtask-title">
-                                            <i className="ti ti-corner-down-right" />
-                                            <span>
-                                              <small>{subtask.code}</small>
-                                              <strong>{subtask.title}</strong>
-                                            </span>
-                                          </span>
-                                          <span>
-                                            <PriorityBadge priority={subtask.priority} />
-                                            {subtask.slaHours ? <small>SLA {subtask.slaHours} Jam</small> : null}
-                                          </span>
-                                          <span>
-                                            <StatusBadge status={subtask.status} />
-                                          </span>
-                                          <span>{subtask.assignees.length ? <AvatarStack names={subtask.assignees} /> : '-'}</span>
-                                          <span className={isOverdue(subtask) ? 'overdue' : ''}>{formatDate(subtask.dueDate)}</span>
-                                        </button>
-                                    ))}
-                                  </div>
-                                ) : null}
-                              </div>
-                            );
-                          })}
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </section>
-          ) : null}
-
-          <div className="d-flex justify-content-end mb-3">
-            <div className="btn-group">
-              <Button size="sm" variant={view === 'list' ? 'primary' : 'outline-secondary'} onClick={() => setView('list')} title="List">
-                <i className="ti ti-list" />
-              </Button>
-              <Button size="sm" variant={view === 'board' ? 'primary' : 'outline-secondary'} onClick={() => setView('board')} title="Board">
-                <i className="ti ti-layout-kanban" />
-              </Button>
-            </div>
-          </div>
-
           <div className="task-panel p-0 overflow-hidden">
+            <div className="task-panel-toolbar">
+              <div>
+                <div className="text-muted f-10 text-uppercase fw-semibold">All Tasks</div>
+                <div className="fw-semibold">{filteredTasks.length} task</div>
+              </div>
+              <Stack direction="horizontal" gap={2}>
+                <div className="btn-group">
+                  <Button
+                    size="sm"
+                    variant={view === 'list' ? 'primary' : 'outline-secondary'}
+                    onClick={() => changeTaskView('list')}
+                    title="List"
+                  >
+                    <i className="ti ti-list" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={view === 'board' ? 'primary' : 'outline-secondary'}
+                    onClick={() => changeTaskView('board')}
+                    title="Card"
+                  >
+                    <i className="ti ti-layout-kanban" />
+                  </Button>
+                </div>
+              </Stack>
+            </div>
+            {view === 'list' ? (
+              <div className="quick-list-create">
+                {isAdministrator ? (
+                  <Form.Select
+                    size="sm"
+                    className="quick-list-department"
+                    aria-label="Department List Project"
+                    value={quickListForm.departmentId}
+                    disabled={savingQuickList}
+                    onChange={(event) => filterTasksByQuickDepartment(event.target.value)}
+                  >
+                    <option value="">Select Department...</option>
+                    {departments.map((department) => (
+                      <option key={department.id} value={department.id}>
+                        {department.name}
+                      </option>
+                    ))}
+                  </Form.Select>
+                ) : (
+                  <div className="quick-list-department-label" title={quickListDepartment?.name || 'Department'}>
+                    <i className="ti ti-building" />
+                    <span>{quickListDepartment?.name || 'Department dari akun'}</span>
+                  </div>
+                )}
+                <Form.Select
+                  size="sm"
+                  className="quick-list-folder"
+                  aria-label="Folder List Project"
+                  value={quickListForm.folderId}
+                  disabled={!quickListSpace || quickListFoldersLoading || savingQuickList}
+                  onChange={(event) => filterTasksByQuickFolder(event.target.value)}
+                >
+                  <option value="">{quickListFoldersLoading ? 'Loading Folder...' : 'Select Folder...'}</option>
+                  {quickListFolders.map((folder) => (
+                    <option key={folder.id} value={folder.id}>
+                      {entityName(folder)}
+                    </option>
+                  ))}
+                </Form.Select>
+                <Select
+                  isMulti
+                  isClearable
+                  closeMenuOnSelect={false}
+                  className="task-filter-assignee"
+                  classNamePrefix="task-filter-assignee-select"
+                  menuPortalTarget={document.body}
+                  menuPosition="fixed"
+                  aria-label="Filter task by assignees"
+                  placeholder="All Assignees"
+                  options={masters.employees.map((employee) => ({
+                    value: employee.id,
+                    label: entityName(employee, employee.employee_name)
+                  }))}
+                  value={masters.employees
+                    .filter((employee) => taskFilters.assigneeIds.some((id) => String(id) === String(employee.id)))
+                    .map((employee) => ({ value: employee.id, label: entityName(employee, employee.employee_name) }))}
+                  onChange={(options) =>
+                    setTaskFilters((current) => ({ ...current, assigneeIds: (options || []).map((option) => option.value) }))
+                  }
+                  styles={{
+                    menuPortal: (base) => ({ ...base, zIndex: 1090 }),
+                    control: (base) => ({ ...base, minHeight: 31, fontSize: 12 })
+                  }}
+                />
+                <Form.Select
+                  size="sm"
+                  className="task-filter-status"
+                  aria-label="Filter task by status"
+                  value={taskFilters.statusId}
+                  onChange={(event) => setTaskFilters((current) => ({ ...current, statusId: event.target.value }))}
+                >
+                  <option value="">All Statuses</option>
+                  {masters.statuses.map((status) => (
+                    <option key={status.id} value={status.id}>
+                      {statusLabel(status)}
+                    </option>
+                  ))}
+                </Form.Select>
+                <InputGroup size="sm" className="quick-list-name">
+                  <InputGroup.Text>
+                    {savingQuickList ? <span className="spinner-border spinner-border-sm" /> : <i className="ti ti-plus" />}
+                  </InputGroup.Text>
+                  <Form.Control
+                    type="text"
+                    value={quickListForm.listName}
+                    disabled={!quickListForm.folderId || savingQuickList}
+                    placeholder="Add new List Project, lalu tekan Enter..."
+                    aria-label="Nama List Project baru"
+                    onChange={(event) => setQuickListForm((current) => ({ ...current, listName: event.target.value }))}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter') return;
+                      event.preventDefault();
+                      createQuickTaskList();
+                    }}
+                  />
+                </InputGroup>
+              </div>
+            ) : null}
             {view === 'list' ? (
               <Table responsive hover className="align-middle mb-0">
-                <thead>
-                  <tr>
-                    <th>Task</th>
-                    <th>Priority</th>
-                    <th>Status</th>
-                    <th>Assignee</th>
-                    <th>Due Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
+                {loading ? (
+                  <tbody>
                     <tr>
-                      <td colSpan={5} className="text-center py-5">
+                      <td colSpan={7} className="text-center py-5">
                         <span className="spinner-border spinner-border-sm me-2" />
                         Loading tasks...
                       </td>
                     </tr>
-                  ) : null}
-                  {!loading &&
-                    filteredTasks.map((task) => (
-                        <tr key={task.id} role="button" onClick={() => openTask(task)}>
-                          <td style={{ minWidth: 250 }}>
-                            <div className="task-code">{task.code}</div>
-                            <div className="fw-semibold f-13 mt-1">{task.title}</div>
-                            <div className="text-muted f-10">
-                              {task.folder} / {task.list}
+                  </tbody>
+                ) : (
+                  groupedListTasks.map((group) => {
+                    const isCollapsed = collapsedTaskListIds.includes(group.key);
+                    const projectList = allTaskListOptions.find((list) => String(list.id) === group.key);
+                    const completedTasks = group.tasks.filter((task) =>
+                      ['done', 'completed', 'complete', 'selesai'].includes(
+                        String(task.status_category || task.status || '').toLowerCase()
+                      )
+                    ).length;
+                    const progress = group.tasks.length ? Math.round((completedTasks / group.tasks.length) * 100) : 0;
+                    return (
+                      <tbody key={group.key} className="task-list-group-body">
+                        <tr className="task-list-group-row">
+                          <td colSpan={7}>
+                            <div className="task-list-group-heading">
+                              <div className="task-list-group-main">
+                                <button
+                                  type="button"
+                                  className="task-list-group-toggle"
+                                  aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${group.list}`}
+                                  aria-expanded={!isCollapsed}
+                                  onClick={() =>
+                                    setCollapsedTaskListIds((current) =>
+                                      current.includes(group.key)
+                                        ? current.filter((id) => id !== group.key)
+                                        : [...current, group.key]
+                                    )
+                                  }
+                                >
+                                  <i className={`ti ${isCollapsed ? 'ti-chevron-right' : 'ti-chevron-down'}`} />
+                                </button>
+                                <Form.Check
+                                  type="checkbox"
+                                  aria-label={`Select all tasks in ${group.list}`}
+                                  checked={group.tasks.every((task) => selectedTaskIds.includes(String(task.id)))}
+                                  disabled={!group.tasks.length || deletingSelectedTasks || movingSelectedTasks || copyingSelectedTasks}
+                                  onChange={(event) => {
+                                    const groupTaskIds = group.tasks.map((task) => String(task.id));
+                                    setSelectedTaskIds((current) =>
+                                      event.target.checked
+                                        ? [...new Set([...current, ...groupTaskIds])]
+                                        : current.filter((id) => !groupTaskIds.includes(id))
+                                    );
+                                  }}
+                                />
+                                <i className="ti ti-list-check" />
+                                <button
+                                  type="button"
+                                  className="task-list-group-name"
+                                  data-permission-action="none"
+                                  disabled={!projectList}
+                                  onClick={() => projectList && openListDetail(projectList)}
+                                >
+                                  {group.list}
+                                </button>
+                              </div>
+                              <div className="task-list-group-summary">
+                                <small>
+                                  {group.department} / {group.folder} · {group.tasks.length} task
+                                </small>
+                                <div className="task-list-group-progress-meta">
+                                  <span>{completedTasks}/{group.tasks.length} done</span>
+                                  <div
+                                    className="task-list-group-progress"
+                                    role="progressbar"
+                                    aria-label={`${group.list} completion`}
+                                    aria-valuemin="0"
+                                    aria-valuemax="100"
+                                    aria-valuenow={progress}
+                                  >
+                                    <span style={{ width: `${progress}%` }} />
+                                  </div>
+                                  <strong>{progress}%</strong>
+                                </div>
+                              </div>
                             </div>
                           </td>
-                          <td>
-                            <PriorityBadge priority={task.priority} />
-                            <div className="text-muted f-10 mt-1">SLA {slaMap[task.priority]}</div>
-                          </td>
-                          <td>
-                            <StatusBadge status={task.status} />
-                          </td>
-                          <td>
-                            <AvatarStack names={task.assignees} />
-                          </td>
-                          <td>
-                            <span className={isOverdue(task) ? 'overdue' : ''}>
-                              {isOverdue(task) && <i className="ti ti-alert-circle me-1" />}
-                              {formatDate(task.dueDate)}
-                            </span>
+                        </tr>
+                        {!isCollapsed && projectList ? (
+                          <tr className="task-list-inline-create-row">
+                            <td colSpan={7}>
+                              <InputGroup size="sm" className="task-list-inline-create">
+                                <InputGroup.Text>
+                                  {savingInlineTasks && String(inlineTaskListId) === group.key ? (
+                                    <span className="spinner-border spinner-border-sm" />
+                                  ) : (
+                                    <i className="ti ti-plus" />
+                                  )}
+                                </InputGroup.Text>
+                                <Form.Control
+                                  type="text"
+                                  value={String(inlineTaskListId) === group.key ? inlineTaskText : ''}
+                                  disabled={savingInlineTasks}
+                                  placeholder={`Add task to ${group.list}...`}
+                                  aria-label={`Add task to ${group.list}`}
+                                  onFocus={() => {
+                                    if (String(inlineTaskListId) !== group.key) {
+                                      setInlineTaskListId(projectList.id);
+                                      setInlineTaskText('');
+                                    }
+                                  }}
+                                  onChange={(event) => {
+                                    setInlineTaskListId(projectList.id);
+                                    setInlineTaskText(event.target.value);
+                                  }}
+                                  onKeyDown={(event) => {
+                                    if (event.key !== 'Enter' || !event.currentTarget.value.trim()) return;
+                                    event.preventDefault();
+                                    saveInlineTasks(projectList, event.currentTarget.value);
+                                  }}
+                                  onPaste={(event) => {
+                                    const pastedText = event.clipboardData.getData('text');
+                                    if (!pastedText.trim()) return;
+                                    event.preventDefault();
+                                    setInlineTaskListId(projectList.id);
+                                    setInlineTaskText(pastedText);
+                                    saveInlineTasks(projectList, pastedText);
+                                  }}
+                                />
+                              </InputGroup>
+                            </td>
+                          </tr>
+                        ) : null}
+                        {!isCollapsed && group.tasks.map((task) => (
+                        <tr
+                          className="task-list-item-row"
+                          key={task.id}
+                          role="button"
+                          data-permission-action="none"
+                          onClick={() => openTask(task)}
+                        >
+                          <td colSpan={7}>
+                            <div className="task-list-simple-row">
+                              <Form.Check
+                                type="checkbox"
+                                className="task-list-item-check"
+                                aria-label={`Select ${task.title}`}
+                                checked={selectedTaskIds.includes(String(task.id))}
+                                disabled={deletingSelectedTasks || movingSelectedTasks || copyingSelectedTasks}
+                                onClick={(event) => event.stopPropagation()}
+                                onChange={(event) => {
+                                  const taskId = String(task.id);
+                                  setSelectedTaskIds((current) =>
+                                    event.target.checked ? [...new Set([...current, taskId])] : current.filter((id) => id !== taskId)
+                                  );
+                                }}
+                              />
+                              <span className="task-list-simple-title">{task.title}</span>
+                              <div className="task-list-simple-meta">
+                                <div className="task-list-meta-item task-list-meta-assignee">
+                                  <small>Assignee</small>
+                                  {task.assignees.length ? <AvatarStack names={task.assignees} /> : <span>-</span>}
+                                </div>
+                                <div className="task-list-meta-item">
+                                  <small>Status</small>
+                                  <StatusBadge status={task.status} />
+                                </div>
+                                <div className="task-list-meta-item task-list-meta-due-date">
+                                  <small>Due Date</small>
+                                  <span className={isOverdue(task) ? 'overdue' : ''}>{formatDate(task.dueDate)}</span>
+                                </div>
+                              </div>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline-danger"
+                                className="task-row-delete"
+                                data-permission-action="none"
+                                aria-label={`Delete ${task.title}`}
+                                title="Delete task"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  deleteTaskFromRow(task);
+                                }}
+                              >
+                                <i className="ti ti-trash" />
+                              </Button>
+                            </div>
                           </td>
                         </tr>
-                    ))}
-                </tbody>
+                        ))}
+                      </tbody>
+                    );
+                  })
+                )}
               </Table>
             ) : (
               <div className="kanban-scroll p-3">
@@ -1456,6 +1797,20 @@ export default function ToDoList() {
                                         )}
                                   </div>
                                   <div className="kanban-task-title fw-semibold mb-2">{task.title}</div>
+                                  <div className="kanban-task-context mb-2">
+                                    <span>
+                                      <i className="ti ti-building me-1" />
+                                      {task.department || '-'}
+                                    </span>
+                                    <span>
+                                      <i className="ti ti-folder me-1" />
+                                      {task.folder || '-'}
+                                    </span>
+                                    <span>
+                                      <i className="ti ti-list-check me-1" />
+                                      {task.list || '-'}
+                                    </span>
+                                  </div>
                                   <div className="kanban-card-meta d-flex justify-content-between mb-2">
                                     <PriorityBadge priority={task.priority} />
                                     <AvatarStack names={task.assignees} />
@@ -1487,8 +1842,175 @@ export default function ToDoList() {
               </div>
             )}
           </div>
+          {view === 'list' && selectedTaskIds.length ? (
+            <div className="task-bulk-floating-bar" role="region" aria-label="Selected task actions">
+              <span className="task-bulk-selection-count">
+                <strong>{selectedTaskIds.length}</strong> selected
+              </span>
+              <Form.Select
+                size="sm"
+                className="task-bulk-list-select"
+                aria-label="Select destination List Project for Move or Copy"
+                value={moveTargetListId}
+                disabled={movingSelectedTasks || copyingSelectedTasks || deletingSelectedTasks}
+                onChange={(event) => setMoveTargetListId(event.target.value)}
+              >
+                <option value="">Select destination List Project...</option>
+                {allTaskListOptions.map((list) => (
+                  <option key={list.id} value={list.id}>
+                    {entityName(list)}{entityName(list.folder, list.folder_name) !== '-' ? ` — ${entityName(list.folder, list.folder_name)}` : ''}
+                  </option>
+                ))}
+              </Form.Select>
+              <Button
+                type="button"
+                size="sm"
+                variant="primary"
+                data-permission-action="none"
+                disabled={!moveTargetListId || movingSelectedTasks || copyingSelectedTasks || deletingSelectedTasks}
+                onClick={moveSelectedTasks}
+              >
+                {movingSelectedTasks ? <span className="spinner-border spinner-border-sm me-1" /> : <i className="ti ti-arrow-move-right me-1" />}
+                Move
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline-primary"
+                data-permission-action="none"
+                disabled={!moveTargetListId || movingSelectedTasks || copyingSelectedTasks || deletingSelectedTasks}
+                onClick={copySelectedTasks}
+              >
+                {copyingSelectedTasks ? <span className="spinner-border spinner-border-sm me-1" /> : <i className="ti ti-copy me-1" />}
+                Copy
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline-secondary"
+                data-permission-action="none"
+                disabled={movingSelectedTasks || copyingSelectedTasks || deletingSelectedTasks || savingBulkUpdate}
+                onClick={() => {
+                  setBulkUpdateForm({ statusId: '', assigneeIds: [], dueDate: '' });
+                  setShowBulkUpdate(true);
+                }}
+              >
+                <i className="ti ti-edit me-1" />
+                Update
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="danger"
+                data-permission-action="none"
+                disabled={deletingSelectedTasks || movingSelectedTasks || copyingSelectedTasks || savingBulkUpdate}
+                onClick={deleteSelectedTasks}
+              >
+                {deletingSelectedTasks ? <span className="spinner-border spinner-border-sm me-1" /> : <i className="ti ti-trash me-1" />}
+                Delete
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="light-secondary"
+                className="task-bulk-clear"
+                data-permission-action="none"
+                aria-label="Clear task selection"
+                title="Clear selection"
+                disabled={deletingSelectedTasks || movingSelectedTasks || copyingSelectedTasks}
+                onClick={() => {
+                  setSelectedTaskIds([]);
+                  setMoveTargetListId('');
+                }}
+              >
+                <i className="ti ti-x" />
+              </Button>
+            </div>
+          ) : null}
         </main>
       </div>
+
+      <Modal
+        className="todo-task-modal"
+        show={showBulkUpdate}
+        onHide={() => !savingBulkUpdate && setShowBulkUpdate(false)}
+        centered
+      >
+        <Form onSubmit={updateSelectedTasks}>
+          <Modal.Header closeButton={!savingBulkUpdate}>
+            <Modal.Title>Update {selectedTaskIds.length} Selected Tasks</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <p className="text-muted f-11 mb-3">Field yang dikosongkan tidak akan mengubah data task.</p>
+            <Row className="g-3">
+              <Col xs={12} md={6}>
+                <Form.Label>Status</Form.Label>
+                <Form.Select
+                  value={bulkUpdateForm.statusId}
+                  disabled={savingBulkUpdate}
+                  onChange={(event) => setBulkUpdateForm((current) => ({ ...current, statusId: event.target.value }))}
+                >
+                  <option value="">Keep current status</option>
+                  {masters.statuses.map((status) => (
+                    <option key={status.id} value={status.id}>
+                      {statusLabel(status)}
+                    </option>
+                  ))}
+                </Form.Select>
+              </Col>
+              <Col xs={12} md={6}>
+                <Form.Label>Due Date</Form.Label>
+                <Form.Control
+                  type="date"
+                  value={bulkUpdateForm.dueDate}
+                  disabled={savingBulkUpdate}
+                  onChange={(event) => setBulkUpdateForm((current) => ({ ...current, dueDate: event.target.value }))}
+                />
+              </Col>
+              <Col xs={12}>
+                <Form.Label>Assignee</Form.Label>
+                <Select
+                  isMulti
+                  closeMenuOnSelect={false}
+                  classNamePrefix="task-form-select"
+                  menuPortalTarget={document.body}
+                  menuPosition="fixed"
+                  isDisabled={savingBulkUpdate}
+                  placeholder="Keep current assignees"
+                  options={masters.employees.map((employee) => ({
+                    value: employee.id,
+                    label: `${entityName(employee, employee.employee_name)}${employee.nik ? ` · ${employee.nik}` : ''}`
+                  }))}
+                  value={masters.employees
+                    .filter((employee) => bulkUpdateForm.assigneeIds.some((id) => String(id) === String(employee.id)))
+                    .map((employee) => ({
+                      value: employee.id,
+                      label: `${entityName(employee, employee.employee_name)}${employee.nik ? ` · ${employee.nik}` : ''}`
+                    }))}
+                  onChange={(options) =>
+                    setBulkUpdateForm((current) => ({ ...current, assigneeIds: (options || []).map((option) => option.value) }))
+                  }
+                  styles={{ menuPortal: (base) => ({ ...base, zIndex: 1090 }) }}
+                />
+              </Col>
+            </Row>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button
+              type="button"
+              variant="light-secondary"
+              disabled={savingBulkUpdate}
+              onClick={() => setShowBulkUpdate(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" data-permission-action="none" disabled={savingBulkUpdate}>
+              {savingBulkUpdate ? <span className="spinner-border spinner-border-sm me-2" /> : <i className="ti ti-check me-1" />}
+              Apply Update
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
 
       <Offcanvas show={Boolean(selectedTask)} onHide={() => setSelectedId(null)} placement="end" className="todo-detail-drawer">
         {selectedTask && (
@@ -1605,7 +2127,10 @@ export default function ToDoList() {
 
       <Offcanvas
         show={Boolean(selectedListDetail)}
-        onHide={() => setSelectedListDetail(null)}
+        onHide={() => {
+          setSelectedListDetail(null);
+          setListDetailTasks([]);
+        }}
         placement="end"
         className="todo-detail-drawer list-detail-drawer"
       >
@@ -1625,7 +2150,9 @@ export default function ToDoList() {
                   <Form.Label className="text-muted f-11">Folder</Form.Label>
                   <div className="f-12 fw-semibold">
                     {entityName(
-                      masters.folders.find((item) => String(item.id) === String(scope.folderId)),
+                      masters.folders.find(
+                        (item) => String(item.id) === String(selectedListDetail.folder_id || selectedListDetail.folder?.id)
+                      ),
                       selectedListDetail.folder_name || '-'
                     )}
                   </div>
@@ -1651,19 +2178,19 @@ export default function ToDoList() {
                   <h6 className="mb-0">List Task</h6>
                   <span className="text-muted f-11">{selectedListTasks.length} Task</span>
                 </div>
-                {loading ? (
+                {loadingListDetail ? (
                   <div className="text-center text-muted py-4">
                     <span className="spinner-border spinner-border-sm me-2" />
                     Loading tasks...
                   </div>
                 ) : null}
-                {!loading && !selectedListTasks.length ? (
+                {!loadingListDetail && !selectedListTasks.length ? (
                   <div className="list-detail-empty text-center text-muted py-4">
                     <i className="ti ti-clipboard-off f-24" />
                     <div className="mt-2 f-12">No Tasks in this List.</div>
                   </div>
                 ) : null}
-                {!loading &&
+                {!loadingListDetail &&
                   selectedListTasks.map((task) => {
                     const subtaskCount =
                       task.subtasks?.length || tasks.filter((item) => String(item.parentTaskId) === String(task.id)).length;

@@ -1117,11 +1117,18 @@ export default function MasterPromo() {
         </Modal.Footer>
       </Modal>
 
-      <Modal show={Boolean(selectedPromo)} onHide={() => setSelectedPromo(null)} size="xl" centered fullscreen="lg-down">
+      <Modal
+        show={Boolean(selectedPromo)}
+        onHide={() => setSelectedPromo(null)}
+        size="xl"
+        centered
+        fullscreen="lg-down"
+        className="promo-detail-modal"
+      >
         <Modal.Header closeButton>
           <Modal.Title>Promo Program Detail</Modal.Title>
         </Modal.Header>
-        <Modal.Body className="bg-light">
+        <Modal.Body className="bg-body-tertiary">
           {selectedPromo ? (
             <Stack gap={3}>
               <Card className="border-0 shadow-sm mb-0">
@@ -1139,19 +1146,19 @@ export default function MasterPromo() {
 
                   <Row className="g-3 mt-2">
                     <Col md={4}>
-                      <div className="border rounded p-3 h-100 bg-white">
+                      <div className="border rounded p-3 h-100 bg-body-tertiary">
                         <div className="text-muted f-12 mb-1">TANGGAL MULAI</div>
                         <div className="fw-semibold">{formatDate(selectedPromo.start_date)}</div>
                       </div>
                     </Col>
                     <Col md={4}>
-                      <div className="border rounded p-3 h-100 bg-white">
+                      <div className="border rounded p-3 h-100 bg-body-tertiary">
                         <div className="text-muted f-12 mb-1">TANGGAL SELESAI</div>
                         <div className="fw-semibold">{formatDate(selectedPromo.end_date)}</div>
                       </div>
                     </Col>
                     <Col md={4}>
-                      <div className="border rounded p-3 h-100 bg-white">
+                      <div className="border rounded p-3 h-100 bg-body-tertiary">
                         <div className="text-muted f-12 mb-1">TOTAL ITEM</div>
                         <div className="fw-semibold">{selectedPromo.items?.length || 0} item</div>
                       </div>
@@ -1161,7 +1168,7 @@ export default function MasterPromo() {
               </Card>
 
               <Card className="border-0 shadow-sm mb-0">
-                <Card.Header className="bg-white py-3">
+                <Card.Header className="bg-body py-3">
                   <h6 className="mb-0">Customer Program</h6>
                 </Card.Header>
                 <Card.Body className="p-0">
@@ -1203,7 +1210,7 @@ export default function MasterPromo() {
               </Card>
 
               <Card className="border-0 shadow-sm mb-0">
-                <Card.Header className="bg-white py-3">
+                <Card.Header className="bg-body py-3">
                   <h6 className="mb-0">Item Program</h6>
                 </Card.Header>
                 <Card.Body className="p-0">
@@ -1237,7 +1244,7 @@ export default function MasterPromo() {
               </Card>
 
               <Card className="border-0 shadow-sm mb-0">
-                <Card.Header className="bg-white py-3">
+                <Card.Header className="bg-body py-3">
                   <h6 className="mb-0">Promo Rules</h6>
                 </Card.Header>
                 <Card.Body className="p-0">
