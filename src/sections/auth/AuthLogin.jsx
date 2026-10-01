@@ -20,9 +20,16 @@ import { DataService } from '../../config/dataService';
 import LoaderButton from '../../components/LoaderButton';
 import Turnstile from 'components/Turnstile';
 import { AUTH_STATE_CHANGED_EVENT } from '../../utils/authEvents';
-import { getFirstAccessibleMenuPath, isAdministratorRole, normalizeAccessibleSystems, systems } from '../../systems';
+import {
+  getFirstAccessibleMenuPath,
+  isAdministratorRole,
+  normalizeAccessibleSystems,
+  normalizePermissionMenu,
+  systems
+} from '../../systems';
 import { setAccessibleSystem } from '../../redux/authReducer';
-import { setActionsCookie } from '../../utils/cookies';
+import { removeActionsCookie, setActionsCookie } from '../../utils/cookies';
+import { compactActionsForCookie } from '../../utils/actionPermissions';
 import widgetActionRegistry from '../../data-widget-action.json';
 
 // ==============================|| AUTH LOGIN FORM ||============================== //
@@ -129,6 +136,15 @@ export default function AuthLoginForm({ className }) {
     };
 
     try {
+      // Permission payloads from older sessions can make the Cookie request
+      // header exceed the production web server limit before login is handled.
+      removeActionsCookie();
+      Cookies.remove('widget_actions');
+      Cookies.remove('menu');
+      Cookies.remove('systems');
+      Cookies.remove('organization_assignment');
+      Cookies.remove('customerCode');
+
       const response = await DataService.post('/auth/login', payload);
       logLoginResponse(response);
 
@@ -294,14 +310,15 @@ export default function AuthLoginForm({ className }) {
         } else {
           Cookies.remove('employee_id');
         }
-        Cookies.set('menu', JSON.stringify(loginData?.menu));
-        setActionsCookie(loginData.actions ?? userData.actions ?? { menu: actions, widget: widgetActions });
+        const compactActions = compactActionsForCookie(actions, widgetActions);
+        Cookies.set('menu', JSON.stringify(normalizePermissionMenu(loginData?.menu)));
+        setActionsCookie(compactActions);
         if (hasWidgetActionSource) {
-          Cookies.set('widget_actions', JSON.stringify(widgetActions));
+          Cookies.set('widget_actions', JSON.stringify(compactActions.widget));
         } else {
           Cookies.remove('widget_actions');
         }
-        Cookies.set('systems', JSON.stringify(loginData?.systems || loginData?.system_permissions || []));
+        Cookies.set('systems', JSON.stringify(accessibleSystems));
         Cookies.set('system', JSON.stringify(accessibleSystems));
         dispatch(setAccessibleSystem(accessibleSystems));
         if (String(customerCode).trim()) {

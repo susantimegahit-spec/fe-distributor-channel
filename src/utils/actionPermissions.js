@@ -216,7 +216,8 @@ export const compactActionsForCookie = (rawActions, rawWidgetActions = []) => ({
     const actions = getEntryActions(entry);
     const selected = COOKIE_ACTIONS.filter((action) => getActionValue(actions, action));
     if (!selected.includes('add') && !selected.includes('upload') && getActionValue(actions, 'create')) selected.push('create');
-    return selected.length ? [{ menu_key: String(menuKey), actions: selected }] : [];
+    const actionMask = selected.reduce((mask, action) => mask | (ACTION_BITS[action] || 0), 0);
+    return actionMask ? [{ menu_key: String(menuKey), actions: actionMask }] : [];
   }),
   widget: compactWidgetActionsForCookie(rawWidgetActions)
 });
@@ -227,7 +228,8 @@ export const compactWidgetActionsForCookie = (rawActions) =>
     if (widgetKey === undefined || widgetKey === null || widgetKey === '') return [];
     const actions = getEntryActions(entry);
     const selected = Object.keys(ACTION_KEYS).filter((action) => getActionValue(actions, action));
-    return selected.length ? [{ widget_key: String(widgetKey), actions: selected }] : [];
+    const actionMask = selected.reduce((mask, action) => mask | (ACTION_BITS[action] || 0), 0);
+    return actionMask ? [{ widget_key: String(widgetKey), actions: actionMask }] : [];
   });
 
 const getMenuCandidates = (system, menuItem, pathname = '') => {
