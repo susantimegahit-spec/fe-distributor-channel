@@ -29,7 +29,13 @@ const Material = Loadable(lazy(() => import('views/production/master/material/Ma
 const Resource = Loadable(lazy(() => import('views/production/master/resource/Resource')));
 const Warehouse = Loadable(lazy(() => import('views/production/master/warehouse/Warehouse')));
 const VendorRegistrations = Loadable(lazy(() => import('views/vendor-management/VendorRegistrations')));
-const settingMasterDataModules = masterDataModules.filter((module) => !['production', 'vendor-management'].includes(module.key));
+const settingMasterDataModules = masterDataModules
+  .filter((module) => module.key !== 'vendor-management')
+  .map((module) =>
+    module.key === 'production'
+      ? { ...module, items: module.items.filter((item) => item.id === 'production-warehouse') }
+      : module
+  );
 
 const masterDataComponents = {
   'master-distributor': MasterDistributor,
@@ -132,7 +138,7 @@ function PersonalizeSettings() {
 
 function MasterDataContent({ moduleKey, masterItem }) {
   const navigate = useNavigate();
-  const selectedModule = masterDataModules.find((module) => module.key === moduleKey);
+  const selectedModule = settingMasterDataModules.find((module) => module.key === moduleKey);
 
   if (!selectedModule) {
     return (
