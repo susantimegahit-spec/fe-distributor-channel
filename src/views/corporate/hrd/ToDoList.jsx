@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Badge from 'react-bootstrap/Badge';
 import Button from 'react-bootstrap/Button';
 import Card from 'react-bootstrap/Card';
@@ -255,6 +255,9 @@ export default function ToDoList() {
   const [savingBulkUpdate, setSavingBulkUpdate] = useState(false);
   const [bulkUpdateForm, setBulkUpdateForm] = useState({ statusId: '', assigneeIds: [], dueDate: '' });
   const [collapsedTaskListIds, setCollapsedTaskListIds] = useState([]);
+  const [loadedTaskListIds, setLoadedTaskListIds] = useState([]);
+  const [loadingTaskListIds, setLoadingTaskListIds] = useState([]);
+  const initializedCollapsedListsRef = useRef(false);
   const [showCreate, setShowCreate] = useState(false);
   const [createDataLoading, setCreateDataLoading] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
@@ -358,7 +361,11 @@ export default function ToDoList() {
           per_page: 100
         });
         if (apiError(response)) throw new Error(response?.data?.message || 'Gagal mengambil daftar tugas');
-        setTasks(responseList(response).map(normalizeApiTask));
+        const taskRows = responseList(response).map(normalizeApiTask);
+        setTasks(taskRows);
+        setLoadedTaskListIds([
+          ...new Set(taskRows.map((task) => task.list_id).filter((listId) => listId !== undefined && listId !== null).map(String))
+        ]);
         setSelectedTaskIds([]);
       } catch (error) {
         setTasks([]);
@@ -369,6 +376,23 @@ export default function ToDoList() {
     },
     [scope, showAlert]
   );
+
+  const loadTasksForList = async (list) => {
+    const listId = String(list.id);
+    if (!listId || loadingTaskListIds.includes(listId)) return;
+    setLoadingTaskListIds((current) => [...new Set([...current, listId])]);
+    try {
+      const response = await TaskManagementServices.getTask({ list_id: list.id, include_subtasks: true, per_page: 100 });
+      if (apiError(response)) throw new Error(response?.data?.message || 'Gagal mengambil task List Project.');
+      const listTasks = responseList(response).map(normalizeApiTask);
+      setTasks((current) => [...current.filter((task) => String(task.list_id) !== listId), ...listTasks]);
+      setLoadedTaskListIds((current) => [...new Set([...current, listId])]);
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Gagal mengambil task List Project.', 'danger');
+    } finally {
+      setLoadingTaskListIds((current) => current.filter((id) => id !== listId));
+    }
+  };
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -492,6 +516,7 @@ export default function ToDoList() {
       entityName(first).localeCompare(entityName(second))
     );
   }, [masters.lists, spaceHierarchy, tasks]);
+
   const groupedListTasks = useMemo(() => {
     const visibleLists = allTaskListOptions.filter((list) => {
       const matchesSpace = !scope.spaceId || String(list.space_id || list.space?.id || '') === String(scope.spaceId);
@@ -532,6 +557,12 @@ export default function ToDoList() {
     ? masters.spaces.find((item) => spaceMatchesDepartment(item, quickListDepartment))
     : null;
   const quickListFolders = quickListSpace ? spaceHierarchy[String(quickListSpace.id)]?.folders || [] : [];
+
+  useEffect(() => {
+    if (initializedCollapsedListsRef.current || !allTaskListOptions.length) return;
+    initializedCollapsedListsRef.current = true;
+    setCollapsedTaskListIds(allTaskListOptions.map((list) => String(list.id)));
+  }, [allTaskListOptions]);
 
   useEffect(() => {
     if (isAdministrator || !departments.length || quickListForm.departmentId) return;
@@ -585,7 +616,7 @@ export default function ToDoList() {
   const changeTaskView = (nextView) => {
     setView(nextView);
     if (nextView !== 'list') return;
-    setCollapsedTaskListIds([]);
+    setCollapsedTaskListIds(allTaskListOptions.map((list) => String(list.id)));
     loadTasks({ workspaceId: scope.workspaceId, spaceId: '', folderId: '', listId: '' });
   };
 
@@ -738,7 +769,7 @@ export default function ToDoList() {
       const failedTitles = titles.filter((_, index) => results[index].status === 'rejected' || apiError(results[index].value));
       const createdCount = titles.length - failedTitles.length;
       setInlineTaskText(failedTitles.join('\n'));
-      await loadTasks(scope);
+      await loadTasksForList(list);
       if (createdCount) showAlert(`${createdCount} task berhasil dibuat.`, 'success');
       if (failedTitles.length) showAlert(`${failedTitles.length} task gagal dibuat dan tetap tersedia di input.`, 'danger');
       else setInlineTaskListId('');
@@ -1403,7 +1434,11 @@ export default function ToDoList() {
               </div>
             </div>
             <Stack direction="horizontal" gap={2}>
-              <Button variant="outline-secondary" onClick={() => loadTasks()} disabled={loading}>
+              <Button
+                variant="outline-secondary"
+                onClick={() => loadTasks()}
+                disabled={loading}
+              >
                 <i className={`ti ti-refresh me-1 ${loading ? 'spin' : ''}`} />
                 Refresh
               </Button>
@@ -1559,7 +1594,8 @@ export default function ToDoList() {
                         String(task.status_category || task.status || '').toLowerCase()
                       )
                     ).length;
-                    const progress = group.tasks.length ? Math.round((completedTasks / group.tasks.length) * 100) : 0;
+                    const totalTasks = group.tasks.length;
+                    const progress = totalTasks ? Math.round((completedTasks / totalTasks) * 100) : 0;
                     return (
                       <tbody key={group.key} className="task-list-group-body">
                         <tr className="task-list-group-row">
@@ -1571,20 +1607,29 @@ export default function ToDoList() {
                                   className="task-list-group-toggle"
                                   aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${group.list}`}
                                   aria-expanded={!isCollapsed}
-                                  onClick={() =>
+                                  onClick={() => {
                                     setCollapsedTaskListIds((current) =>
                                       current.includes(group.key)
                                         ? current.filter((id) => id !== group.key)
                                         : [...current, group.key]
-                                    )
-                                  }
+                                    );
+                                    if (isCollapsed && projectList && !loadedTaskListIds.includes(group.key)) {
+                                      loadTasksForList(projectList);
+                                    }
+                                  }}
                                 >
-                                  <i className={`ti ${isCollapsed ? 'ti-chevron-right' : 'ti-chevron-down'}`} />
+                                  {loadingTaskListIds.includes(group.key) ? (
+                                    <span className="spinner-border spinner-border-sm" />
+                                  ) : (
+                                    <i className={`ti ${isCollapsed ? 'ti-chevron-right' : 'ti-chevron-down'}`} />
+                                  )}
                                 </button>
                                 <Form.Check
                                   type="checkbox"
                                   aria-label={`Select all tasks in ${group.list}`}
-                                  checked={group.tasks.every((task) => selectedTaskIds.includes(String(task.id)))}
+                                  checked={Boolean(
+                                    group.tasks.length && group.tasks.every((task) => selectedTaskIds.includes(String(task.id)))
+                                  )}
                                   disabled={!group.tasks.length || deletingSelectedTasks || movingSelectedTasks || copyingSelectedTasks}
                                   onChange={(event) => {
                                     const groupTaskIds = group.tasks.map((task) => String(task.id));
@@ -1608,10 +1653,10 @@ export default function ToDoList() {
                               </div>
                               <div className="task-list-group-summary">
                                 <small>
-                                  {group.department} / {group.folder} · {group.tasks.length} task
+                                  {group.department} / {group.folder} · {totalTasks} task
                                 </small>
                                 <div className="task-list-group-progress-meta">
-                                  <span>{completedTasks}/{group.tasks.length} done</span>
+                                  <span>{completedTasks}/{totalTasks} done</span>
                                   <div
                                     className="task-list-group-progress"
                                     role="progressbar"
@@ -1670,6 +1715,13 @@ export default function ToDoList() {
                                   }}
                                 />
                               </InputGroup>
+                            </td>
+                          </tr>
+                        ) : null}
+                        {!isCollapsed && loadedTaskListIds.includes(group.key) && !group.tasks.length ? (
+                          <tr className="task-list-empty-row">
+                            <td colSpan={7} className="text-muted f-11">
+                              No Tasks in this List Project.
                             </td>
                           </tr>
                         ) : null}
@@ -1831,7 +1883,7 @@ export default function ToDoList() {
                 </div>
               </div>
             )}
-            {!loading && !filteredTasks.length && (
+            {!loading && (view === 'board' ? !filteredTasks.length : !groupedListTasks.length) && (
               <div className="text-center py-5">
                 <i className="ti ti-clipboard-off text-muted f-32" />
                 <h6 className="mt-3">No tasks found</h6>

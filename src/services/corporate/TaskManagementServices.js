@@ -28,6 +28,19 @@ class TaskManagementServices {
   getTasks(payload = {}) {
     return this.getTask(payload);
   }
+  getWidgetTask(payload = {}) {
+    const params = {
+      workspace_id: payload.workspace_id,
+      space_id: payload.space_id,
+      department_id: payload.department_id,
+      folder_id: payload.folder_id,
+      list_id: payload.list_id,
+      employee_id: payload.employee_id,
+      date_from: payload.date_from,
+      date_to: payload.date_to
+    };
+    return DataService.get(`/task-management/dashboard/summary${query(params)}`);
+  }
   createTask(payload) {
     return DataService.post('/task-management/tasks', payload);
   }

@@ -8,7 +8,7 @@ import Stack from 'react-bootstrap/Stack';
 import MainCard from 'components/MainCard';
 import { formatMetric } from './widgetUtils';
 
-export default function WidgetShell({ title, subtitle, icon, color, loading, error, metrics, onOpen }) {
+export default function WidgetShell({ title, subtitle, icon, color, loading, error, metrics, onOpen, children }) {
   return (
     <MainCard
       className="h-100 sm-dashboard-widget"
@@ -37,18 +37,21 @@ export default function WidgetShell({ title, subtitle, icon, color, loading, err
       ) : error ? (
         <div className="sm-widget-state text-danger">{error}</div>
       ) : (
-        <Row className="g-2">
-          {metrics.map((metric) => (
-            <Col xs={6} md={metrics.length > 2 ? 3 : 6} key={metric.label}>
-              <Card className="sm-widget-metric h-100 mb-0">
-                <Card.Body>
-                  <span>{metric.label}</span>
-                  <strong>{metric.formatter ? metric.formatter(metric.value) : formatMetric(metric.value)}</strong>
-                </Card.Body>
-              </Card>
-            </Col>
-          ))}
-        </Row>
+        <>
+          <Row className="g-2">
+            {metrics.map((metric) => (
+              <Col xs={6} md={metrics.length > 2 ? 3 : 6} key={metric.label}>
+                <Card className="sm-widget-metric h-100 mb-0">
+                  <Card.Body>
+                    <span>{metric.label}</span>
+                    <strong>{metric.formatter ? metric.formatter(metric.value) : formatMetric(metric.value)}</strong>
+                  </Card.Body>
+                </Card>
+              </Col>
+            ))}
+          </Row>
+          {children}
+        </>
       )}
     </MainCard>
   );
@@ -62,5 +65,6 @@ WidgetShell.propTypes = {
   loading: PropTypes.bool,
   error: PropTypes.string,
   metrics: PropTypes.arrayOf(PropTypes.object).isRequired,
-  onOpen: PropTypes.func.isRequired
+  onOpen: PropTypes.func.isRequired,
+  children: PropTypes.node
 };

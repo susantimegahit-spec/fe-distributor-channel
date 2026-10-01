@@ -370,6 +370,11 @@
   font-size: 12px;
 }
 
+.todo-page .task-list-empty-row > td {
+  padding: 10px 14px 12px 90px;
+  border-bottom: 1px solid var(--todo-border);
+}
+
 .todo-page .task-list-group-main {
   display: inline-flex;
   align-items: center;

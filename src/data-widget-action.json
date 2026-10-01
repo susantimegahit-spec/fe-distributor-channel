@@ -36,6 +36,16 @@
         "approve": ["Approve Vendor", "Reject Vendor", "Verify Document", "Revision Document", "Reject Document"],
         "sync": ["Refresh"]
       }
+    },
+    {
+      "widget_key": "task-management",
+      "system_key": "corporate",
+      "title": "Task Management",
+      "group": "Corporate",
+      "actions": ["view"],
+      "buttons": {
+        "view": ["Open Task Management"]
+      }
     }
   ]
 }

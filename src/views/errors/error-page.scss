@@ -2,11 +2,25 @@
   --error-ink: #17233d;
   --error-muted: #667085;
   --error-brand: #0d6efd;
-  align-items: center;
-  background:
+  --error-surface: rgba(255, 255, 255, 0.94);
+  --error-surface-soft: #f7f9fc;
+  --error-border: rgba(23, 35, 61, 0.08);
+  --error-border-soft: #e8edf5;
+  --error-icon-surface: #fff;
+  --error-secondary-ink: #596780;
+  --error-help: #8992a5;
+  --error-divider: #edf0f5;
+  --error-status: rgba(13, 110, 253, 0.09);
+  --error-glow-border: rgba(13, 110, 253, 0.12);
+  --error-card-shadow: rgba(39, 55, 85, 0.12);
+  --error-logo-background: rgba(255, 255, 255, 0.72);
+  --error-logo-border: rgba(13, 110, 253, 0.18);
+  --error-page-background:
     radial-gradient(circle at 12% 18%, rgba(13, 110, 253, 0.1), transparent 30%),
     radial-gradient(circle at 88% 82%, rgba(33, 193, 166, 0.1), transparent 28%),
     linear-gradient(145deg, #f8faff 0%, #f4f7fb 52%, #f9fbfd 100%);
+  align-items: center;
+  background: var(--error-page-background);
   display: flex;
   justify-content: center;
   min-height: 100vh;
@@ -16,7 +30,7 @@
 }
 
 .app-error-page__glow {
-  border: 1px solid rgba(13, 110, 253, 0.12);
+  border: 1px solid var(--error-glow-border);
   border-radius: 50%;
   height: 340px;
   position: absolute;
@@ -42,10 +56,10 @@
 }
 
 .app-error-card {
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid rgba(23, 35, 61, 0.08);
+  background: var(--error-surface);
+  border: 1px solid var(--error-border);
   border-radius: 24px;
-  box-shadow: 0 24px 70px rgba(39, 55, 85, 0.12);
+  box-shadow: 0 24px 70px var(--error-card-shadow);
   max-width: 660px;
   padding: 42px 52px 36px;
   position: relative;
@@ -55,6 +69,10 @@
 }
 
 .app-error-card__brand {
+  background: var(--error-logo-background);
+  border: 1px solid var(--error-logo-border);
+  border-radius: 14px;
+  box-sizing: border-box;
   display: block;
   width: 280px;
   height: 100px;
@@ -62,6 +80,7 @@
   max-width: 100%;
   object-fit: contain;
   object-position: center;
+  padding: 10px 16px;
 }
 
 .app-error-card__visual {
@@ -74,7 +93,7 @@
 }
 
 .app-error-card__status {
-  color: rgba(13, 110, 253, 0.09);
+  color: var(--error-status);
   font-size: clamp(96px, 18vw, 148px);
   font-weight: 800;
   letter-spacing: -0.08em;
@@ -88,7 +107,7 @@
 
 .app-error-card__icon {
   align-items: center;
-  background: #fff;
+  background: var(--error-icon-surface);
   border: 1px solid rgba(13, 110, 253, 0.13);
   border-radius: 18px;
   box-shadow: 0 12px 28px rgba(13, 110, 253, 0.16);
@@ -131,10 +150,10 @@
 
 .app-error-card__detail {
   align-items: flex-start;
-  background: #f7f9fc;
-  border: 1px solid #e8edf5;
+  background: var(--error-surface-soft);
+  border: 1px solid var(--error-border-soft);
   border-radius: 12px;
-  color: #596780;
+  color: var(--error-secondary-ink);
   display: flex;
   font-size: 13px;
   gap: 9px;
@@ -171,7 +190,7 @@
 }
 
 .app-error-card__back {
-  color: #596780;
+  color: var(--error-secondary-ink);
   text-decoration: none;
 }
 
@@ -186,11 +205,48 @@
 }
 
 .app-error-card__help {
-  border-top: 1px solid #edf0f5;
-  color: #8992a5;
+  border-top: 1px solid var(--error-divider);
+  color: var(--error-help);
   font-size: 12px;
   margin: 30px 0 0;
   padding-top: 20px;
+}
+
+[data-pc-theme='dark'] .app-error-page,
+[data-bs-theme='dark'] .app-error-page {
+  --error-ink: #f2f6ff;
+  --error-muted: #a9b9ce;
+  --error-brand: #61b3ff;
+  --error-surface: rgba(15, 44, 70, 0.96);
+  --error-surface-soft: rgba(24, 64, 94, 0.78);
+  --error-border: rgba(104, 180, 239, 0.24);
+  --error-border-soft: rgba(104, 180, 239, 0.2);
+  --error-icon-surface: #143d60;
+  --error-secondary-ink: #b9c8da;
+  --error-help: #8fa5bd;
+  --error-divider: rgba(132, 175, 210, 0.2);
+  --error-status: rgba(97, 179, 255, 0.13);
+  --error-glow-border: rgba(97, 179, 255, 0.18);
+  --error-card-shadow: rgba(0, 9, 22, 0.42);
+  --error-logo-background: rgba(5, 24, 42, 0.42);
+  --error-logo-border: rgba(97, 179, 255, 0.42);
+  --error-page-background:
+    radial-gradient(circle at 12% 18%, rgba(35, 137, 220, 0.16), transparent 30%),
+    radial-gradient(circle at 88% 82%, rgba(22, 175, 156, 0.12), transparent 28%),
+    linear-gradient(145deg, #071d30 0%, #0a263e 52%, #0b2f49 100%);
+
+  .app-error-card__brand {
+    box-shadow: 0 10px 28px rgba(0, 10, 25, 0.28), inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+    filter: brightness(1.55) saturate(1.08);
+  }
+
+  .app-error-card__actions .btn-outline-secondary {
+    --bs-btn-color: #c2d0df;
+    --bs-btn-border-color: #6f8ca8;
+    --bs-btn-hover-color: #071d30;
+    --bs-btn-hover-bg: #c2d0df;
+    --bs-btn-hover-border-color: #c2d0df;
+  }
 }
 
 @media (max-width: 575.98px) {

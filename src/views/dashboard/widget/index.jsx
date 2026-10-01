@@ -21,6 +21,7 @@ import VendorApprovedWidget from './VendorApprovedWidget';
 import VendorPendingWidget from './VendorPendingWidget';
 import VendorRegistrationListWidget from './VendorRegistrationListWidget';
 import VendorRegistrationsWidget from './VendorRegistrationsWidget';
+import TaskManagementWidget from './TaskManagementWidget';
 const item = (id, title, group, component, icon, size = 'standard') => ({ id, title, group, component, icon, size });
 export const widgetRegistry = [
   item('customer-orders', 'Total Orders', 'Customer Portal', CustomerOrdersWidget, 'ti ti-shopping-cart'),
@@ -39,6 +40,7 @@ export const widgetRegistry = [
   item('corporate-requests', 'Purchase Requests', 'Corporate', CorporateRequestsWidget, 'ti ti-file-invoice'),
   item('corporate-pending', 'Pending Requests', 'Corporate', CorporatePendingWidget, 'ti ti-clock'),
   item('corporate-approved', 'Approved Requests', 'Corporate', CorporateApprovedWidget, 'ti ti-circle-check'),
+  item('task-management', 'Task Management', 'Corporate', TaskManagementWidget, 'ti ti-list-check'),
   item('logistics-orders', 'Orders Ready', 'Logistics', LogisticsOrdersWidget, 'ti ti-truck-delivery'),
   item('logistics-approved', 'Approved Orders', 'Logistics', LogisticsApprovedWidget, 'ti ti-circle-check'),
   item('logistics-pending', 'Non Approved', 'Logistics', LogisticsPendingWidget, 'ti ti-clock'),

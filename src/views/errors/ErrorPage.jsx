@@ -1,6 +1,6 @@
 import PropTypes from 'prop-types';
 import Button from 'react-bootstrap/Button';
-import SmestaLogo from 'assets/images/smesta_text_line.png';
+import SmestaLogo from 'assets/images/smesta_text_line_transparent.png';
 
 import './error-page.scss';
 
