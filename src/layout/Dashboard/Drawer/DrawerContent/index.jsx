@@ -35,6 +35,7 @@ export default function Navigation({ selectedItems, setSelectedItems, setSelectT
   );
 
   const getVisibleItem = (item) => {
+    if (item.hidden) return null;
     if (item.children?.length) {
       const children = item.children.map(getVisibleItem).filter(Boolean);
       return children.length ? { ...item, children } : null;

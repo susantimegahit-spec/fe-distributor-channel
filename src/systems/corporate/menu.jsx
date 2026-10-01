@@ -62,20 +62,21 @@ const enterpriseMenu = [
           },
           {
             id: 'enterprise-hrd-task-management',
-            title: 'Task Management',
+            title: 'ClickUp',
             type: 'item',
             value: 'enterprise-hrd-task-management',
-            label: 'Task Management',
+            label: 'ClickUp',
             selected: true,
+            hidden: true,
             icon: 'ti ti-list-check',
             url: withBasePath('/hrd/task-management')
           },
           {
             id: 'enterprise-hrd-to-do-list',
-            title: 'To Do List',
+            title: 'Task Management',
             type: 'item',
             value: 'enterprise-hrd-to-do-list',
-            label: 'To Do List',
+            label: 'Task Management',
             selected: true,
             icon: 'ti ti-checkbox',
             url: withBasePath('/hrd/to-do-list')

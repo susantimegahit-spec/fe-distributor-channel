@@ -122,6 +122,13 @@ const formatDateInputValue = (value) => {
   return Number.isNaN(date.getTime()) ? today : formatInputDate(date);
 };
 
+const normalizeQuantity = (value, fallback = '') => {
+  if (value === '' || value === null || value === undefined) return fallback;
+
+  const quantity = Number(value);
+  return Number.isFinite(quantity) ? quantity : fallback;
+};
+
 const createInitialForm = () => ({
   type: 'Special',
   status: PRODUCTION_STATUS_PLANNED,
@@ -327,7 +334,10 @@ const normalizeProductionOrder = (item = {}, index = 0) => ({
     item.product?.product_name ||
     item.product?.name ||
     '',
-  plannedQuantity: item.PlannedQty ?? item.PlannedQuantity ?? item.planned_qty ?? item.planned_quantity ?? item.quantity ?? item.qty ?? 0,
+  plannedQuantity: normalizeQuantity(
+    item.PlannedQty ?? item.PlannedQuantity ?? item.planned_qty ?? item.planned_quantity ?? item.quantity ?? item.qty,
+    0
+  ),
   completedQuantity: item.CmpltQty ?? item.CompletedQty ?? item.completed_qty ?? item.completed_quantity ?? item.cmplt_qty ?? 0,
   warehouse:
     (typeof item.warehouse === 'string' ? item.warehouse : item.warehouse?.code || item.warehouse?.whs_code) ||
@@ -468,7 +478,7 @@ const mapOrderDetailToForm = (order) => {
         };
       })
     },
-    plannedQuantity: order.plannedQuantity || '',
+    plannedQuantity: normalizeQuantity(order.plannedQuantity),
     unit: order.headerData?.u_unit || order.headerData?.U_Unit || order.headerData?.Unit || order.unit || '',
     warehouse: order.warehouse || '',
     series: order.Series ?? order.series ?? order.headerData?.Series ?? '',
@@ -1133,7 +1143,7 @@ export default function ProductionOrder() {
         whs_code: order.warehouse,
         details: []
       },
-      plannedQuantity: order.plannedQuantity || '',
+      plannedQuantity: normalizeQuantity(order.plannedQuantity),
       unit: order.u_unit || order.U_Unit || order.Unit || '',
       warehouse: order.warehouse || '',
       orderDate: formatDateInputValue(order.orderDate),
@@ -2178,7 +2188,19 @@ export default function ProductionOrder() {
                   : 'Create Production Order'}
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        <Modal.Body aria-busy={isDuplicate && loadingBomDetail} className="position-relative">
+          {isDuplicate && loadingBomDetail ? (
+            <div
+              className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-body"
+              style={{ zIndex: 3 }}
+            >
+              <div className="text-center text-muted">
+                <span className="spinner-border text-primary mb-3" role="status" aria-label="Loading Production Order items" />
+                <div className="fw-semibold text-body">Loading Production Order...</div>
+                <small>Please wait while all items are being loaded.</small>
+              </div>
+            </div>
+          ) : null}
           <Row className="g-3 mb-3">
             <Col lg={6}>
               <Card className="border mb-0 h-100">

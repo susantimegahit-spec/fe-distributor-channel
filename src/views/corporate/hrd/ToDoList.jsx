@@ -1146,7 +1146,7 @@ export default function ToDoList() {
                 <h4 className="mb-1">
                   {entityName(
                     masters.lists.find((item) => String(item.id) === String(scope.listId)),
-                    'To Do List'
+                    'Task Management'
                   )}
                 </h4>
                 <div className="text-muted f-12">Manage departmental work in one place.</div>

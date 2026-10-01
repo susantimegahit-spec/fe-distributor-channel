@@ -67,21 +67,38 @@ const allDistributorOption = {
   name: 'All Distributor',
   isAll: true
 };
-const accessibleSystemOptions = [
-  { value: SYSTEM_KEYS.CUSTOMER_PORTAL, label: 'Customer Portal', color: '#315fb4' },
-  { value: SYSTEM_KEYS.ENTERPRISE, label: 'Corporate', color: '#c0265e' },
-  { value: SYSTEM_KEYS.LOGISTICS, label: 'Logistics', color: '#e8590c' },
-  { value: SYSTEM_KEYS.VENDOR_MANAGEMENT, label: 'Vendor Management', color: '#2563eb' },
-  { value: SYSTEM_KEYS.PRODUCTION, label: 'Production', color: '#0f766e' }
-];
+const accessibleSystemColors = {
+  [SYSTEM_KEYS.CUSTOMER_PORTAL]: '#315fb4',
+  [SYSTEM_KEYS.ENTERPRISE]: '#c0265e',
+  [SYSTEM_KEYS.VENDOR_MANAGEMENT]: '#2563eb'
+};
+const accessibleSystemOptions = systems
+  .filter((system) => system.showInUnifiedSidebar !== false)
+  .map((system) => ({ value: system.key, label: system.title, color: accessibleSystemColors[system.key] }));
 const userActions = actionRegistry.action_definitions.map(({ value, label }) => ({ value, label }));
 const actionRegistryByMenuId = new Map(actionRegistry.menus.map((menu) => [menu.menu_id, menu]));
 const getRegisteredMenuActions = (menuId) => actionRegistryByMenuId.get(menuId)?.actions || [];
+const hiddenClickUpMenuKey = actionRegistryByMenuId.get('enterprise-hrd-task-management')?.menu_key;
+const getPreservedClickUpActions = (assignments) => {
+  const entries = Array.isArray(assignments)
+    ? assignments
+    : assignments && typeof assignments === 'object'
+      ? Object.entries(assignments).map(([menuKey, actions]) => ({ menu_key: menuKey, actions }))
+      : [];
+  return entries.filter((entry) => {
+    const key = String(entry?.menu_key ?? entry?.menuKey ?? entry?.menu_id ?? entry?.menuId ?? entry?.id);
+    return key === String(hiddenClickUpMenuKey) || key === 'enterprise-hrd-task-management';
+  });
+};
 const flattenActionMenus = (items = [], system) =>
-  items.flatMap((item) => [
-    ...(item.type === 'item' ? [{ ...item, systemKey: system.key, systemTitle: system.title }] : []),
-    ...(item.children?.length ? flattenActionMenus(item.children, system) : [])
-  ]);
+  items.flatMap((item) =>
+    item.hidden
+      ? []
+      : [
+          ...(item.type === 'item' ? [{ ...item, systemKey: system.key, systemTitle: system.title }] : []),
+          ...(item.children?.length ? flattenActionMenus(item.children, system) : [])
+        ]
+  );
 const actionMenuOptions = systems
   .flatMap((system) => flattenActionMenus(system.menu, system))
   .map((menu) => ({ ...menu, menu_key: actionRegistryByMenuId.get(menu.id)?.menu_key ?? menu.menu_key }))
@@ -487,24 +504,24 @@ const getAccessibleSystemValue = (item) => {
 };
 
 const normalizeAccessibleSystems = (value) => {
-  let systems = normalizeArray(value);
+  let systemValues = normalizeArray(value);
 
   if (typeof value === 'string') {
     try {
       const parsedValue = JSON.parse(value);
 
-      systems = Array.isArray(parsedValue) ? parsedValue : normalizeArray(parsedValue);
+      systemValues = Array.isArray(parsedValue) ? parsedValue : normalizeArray(parsedValue);
     } catch {
-      systems = value.split(',');
+      systemValues = value.split(',');
     }
   }
 
   return [
     ...new Set(
-      systems
+      systemValues
         .map((item) => String(getAccessibleSystemValue(item)).trim().toLowerCase())
         .map((item) => accessibleSystemAliases[item] || item)
-        .filter((item) => accessibleSystemOptions.some((option) => option.value === item))
+        .filter((item) => systems.some((system) => system.key === item))
     )
   ];
 };
@@ -625,6 +642,7 @@ export default function UserList() {
   const [userActionMenu, setUserActionMenu] = useState(null);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [preservedClickUpActions, setPreservedClickUpActions] = useState([]);
   const [keywords, setKeywords] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedRole, setSelectedRole] = useState('');
@@ -1065,6 +1083,7 @@ export default function UserList() {
     setShowView(false);
     setSelectedUser(null);
     setSelectedUserId(null);
+    setPreservedClickUpActions([]);
     setUserActionMenu(null);
     setFormMode('create');
   };
@@ -1090,13 +1109,19 @@ export default function UserList() {
   const handleSelectAccessibleSystems = (options) => {
     const selectedSystems = (options || []).map((option) => option.value);
 
-    setInput((currentInput) => ({
-      ...currentInput,
-      accessibleSystems: selectedSystems,
-      expeditionCode: selectedSystems.includes(SYSTEM_KEYS.LOGISTICS) ? currentInput.expeditionCode : '',
-      distributorCodes: selectedSystems.includes(SYSTEM_KEYS.CUSTOMER_PORTAL) ? currentInput.distributorCodes : [],
-      distributorIds: selectedSystems.includes(SYSTEM_KEYS.CUSTOMER_PORTAL) ? currentInput.distributorIds : []
-    }));
+    setInput((currentInput) => {
+      const legacySystems = currentInput.accessibleSystems.filter(
+        (systemKey) => !accessibleSystemOptions.some((option) => option.value === systemKey)
+      );
+      const nextSystems = [...new Set([...selectedSystems, ...legacySystems])];
+      return {
+        ...currentInput,
+        accessibleSystems: nextSystems,
+        expeditionCode: nextSystems.includes(SYSTEM_KEYS.LOGISTICS) ? currentInput.expeditionCode : '',
+        distributorCodes: nextSystems.includes(SYSTEM_KEYS.CUSTOMER_PORTAL) ? currentInput.distributorCodes : [],
+        distributorIds: nextSystems.includes(SYSTEM_KEYS.CUSTOMER_PORTAL) ? currentInput.distributorIds : []
+      };
+    });
   };
 
   const handleSelectExpedition = (option) => {
@@ -1227,7 +1252,7 @@ export default function UserList() {
       });
 
   const getCombinedActionAssignmentPayload = () => ({
-    menu: getActionAssignmentPayload(),
+    menu: [...getActionAssignmentPayload(), ...(input.accessibleSystems.includes(SYSTEM_KEYS.ENTERPRISE) ? preservedClickUpActions : [])],
     widget: getWidgetActionAssignmentPayload()
   });
 
@@ -1298,11 +1323,13 @@ export default function UserList() {
   const openCreateModal = () => {
     setFormMode('create');
     setInput(initialInput);
+    setPreservedClickUpActions([]);
     setShowPassword(false);
     setShowMenu(true);
   };
 
   const showEditModal = (item) => {
+    const savedMenuAssignments = getSavedAssignments(item, 'menu');
     const distributors = getUserDistributors(item);
     const distributorCodes = distributors.flatMap((distributor) => normalizeArray(distributor.code)).map(String);
     const distributorIds = distributors.flatMap((distributor) => normalizeArray(distributor.id)).map(String);
@@ -1313,6 +1340,7 @@ export default function UserList() {
 
     setFormMode('edit');
     setSelectedUserId(item.id);
+    setPreservedClickUpActions(getPreservedClickUpActions(savedMenuAssignments));
     setShowView(false);
     setInput({
       name: item.name || '',
@@ -1332,7 +1360,7 @@ export default function UserList() {
       accessibleSystems: getUserAccessibleSystems(item),
       distributorCodes: hasAllDistributors ? [ALL_DISTRIBUTORS_VALUE] : distributorCodes,
       distributorIds: hasAllDistributors ? [ALL_DISTRIBUTORS_VALUE] : distributorIds,
-      actionAssignments: normalizeActionAssignments(getSavedAssignments(item, 'menu')),
+      actionAssignments: normalizeActionAssignments(savedMenuAssignments),
       widgetActionAssignments: normalizeWidgetActionAssignments(getSavedAssignments(item, 'widget'))
     });
     setShowPassword(false);

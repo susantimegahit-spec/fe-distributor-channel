@@ -14,6 +14,7 @@ const hasActivePath = (item, pathname) => {
 
 const getVisibleMenuTree = (items, permissionMenu, roleId) =>
   items.reduce((result, item) => {
+    if (item.hidden) return result;
     if (item.children?.length) {
       const children = getVisibleMenuTree(item.children, permissionMenu, roleId);
       if (children.length) result.push({ ...item, children });

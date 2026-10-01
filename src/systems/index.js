@@ -214,7 +214,7 @@ export const getAccessibleMenuItems = (system, permissionMenu = [], roleId) => {
   if (!system?.menu) return [];
 
   return flattenMenuItems(system.menu).filter(
-    (item) => item.type === 'item' && item.url && canAccessMenuItem(item, permissionMenu, roleId)
+    (item) => item.type === 'item' && !item.hidden && item.url && canAccessMenuItem(item, permissionMenu, roleId)
   );
 };
 

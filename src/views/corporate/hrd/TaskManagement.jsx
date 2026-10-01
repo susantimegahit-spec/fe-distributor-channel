@@ -374,7 +374,7 @@ export default function TaskManagement() {
     <MainCard
       title={
         <Stack gap={1}>
-          <h5 className="mb-0">Task Management</h5>
+          <h5 className="mb-0">ClickUp</h5>
           <span className="text-muted f-12">Monitor and filter tasks synchronized from ClickUp.</span>
         </Stack>
       }

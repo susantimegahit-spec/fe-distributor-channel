@@ -27,6 +27,7 @@ import { SYSTEM_KEYS, getMenuNumber, getSystemByKey, normalizeAccessibleSystems,
 import { useAlert } from '../../../utils/alertContext';
 
 const pageSize = 10;
+const hiddenClickUpMenuId = 'enterprise-hrd-task-management';
 const accessibleSystemOptions = [
   { value: SYSTEM_KEYS.CUSTOMER_PORTAL, label: 'Customer Portal' },
   { value: SYSTEM_KEYS.ENTERPRISE, label: 'Corporate' },
@@ -59,6 +60,7 @@ const renderMenuLabel = (label, id) => (
 );
 
 const scopeMenuNode = (item, systemKey) => {
+  if (item.hidden) return null;
   const isParentNode = Boolean(item.children?.length);
   const value = getMenuValue(item);
   const title = item.label || item.title;
@@ -70,7 +72,7 @@ const scopeMenuNode = (item, systemKey) => {
     // under more than one system (for example logistics-picklists).
     value: `${systemKey}:${value}`,
     label: renderMenuLabel(title, menuNumber),
-    children: item.children?.map((child) => scopeMenuNode(child, systemKey))
+    children: item.children?.map((child) => scopeMenuNode(child, systemKey)).filter(Boolean)
   };
 };
 
@@ -85,7 +87,7 @@ const buildMenuNodesBySystems = (systemKeys = []) =>
       value: system.key,
       type: 'group',
       selected: true,
-      children: system.menu.map((item) => scopeMenuNode(item, system.key))
+      children: system.menu.map((item) => scopeMenuNode(item, system.key)).filter(Boolean)
     };
   });
 
@@ -166,6 +168,7 @@ export default function PermissionList() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [roleId, setRoleId] = useState(null);
   const [checked, setChecked] = useState([]);
+  const [preservedHiddenMenus, setPreservedHiddenMenus] = useState([]);
   const [expanded, setExpanded] = useState([]);
   const [menuName, setMenuName] = useState('');
   const [accessibleSystems, setAccessibleSystems] = useState([]);
@@ -227,6 +230,7 @@ export default function PermissionList() {
       setMenuName(roleDetail?.name || '');
       setMasterApprovalId(getMasterApprovalId(roleDetail?.role_menu?.approval));
       setChecked(roleMenuValues.filter((item) => selectedRoleMenus.has(getRawMenuValue(item))));
+      setPreservedHiddenMenus(roleMenus.filter((menu) => getRawMenuValue(menu) === hiddenClickUpMenuId));
       setAccessibleSystems(roleAccessibleSystems);
       setExpanded(flattenExpandableMenuValues(roleMenuNodes));
       setShowMenu(true);
@@ -269,6 +273,7 @@ export default function PermissionList() {
     setAccessibleSystems([]);
     setMasterApprovalId('');
     setChecked([]);
+    setPreservedHiddenMenus([]);
     setExpanded([]);
     setShowMenu(false);
   };
@@ -284,6 +289,7 @@ export default function PermissionList() {
     setAccessibleSystems([]);
     setMasterApprovalId('');
     setChecked([]);
+    setPreservedHiddenMenus([]);
     setExpanded([]);
     setShowMenu(true);
   };
@@ -316,18 +322,24 @@ export default function PermissionList() {
 
   const handleEdit = async () => {
     setLoadingSubmit(true);
+    const menusToSave = [
+      ...new Set([
+        ...selectedCheckedMenus,
+        ...(accessibleSystems.includes(SYSTEM_KEYS.ENTERPRISE) ? preservedHiddenMenus : [])
+      ])
+    ];
     const payload = {
       name: menuName,
       is_active: true,
       accessible_systems: accessibleSystems,
       approval_id: masterApprovalId,
-      menu: selectedCheckedMenus
+      menu: menusToSave
     };
 
     const response = await RoleServices.putEditRole(roleId, payload);
     if (response.data.success) {
       showAlert('Data updated successfully', 'success');
-      Cookies.set('menu', JSON.stringify(selectedCheckedMenus));
+      Cookies.set('menu', JSON.stringify(menusToSave));
       Cookies.set('system', JSON.stringify(accessibleSystems));
       resetForm();
       window.location.replace('/');
