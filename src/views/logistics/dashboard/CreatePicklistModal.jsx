@@ -7,6 +7,7 @@ import OrderServices from '../../../services/customer-portal/OrderServices';
 import WarehouseServices from '../../../services/customer-portal/WarehouseServices';
 import LogisticsServices from '../../../services/logistics/LogisticsServices';
 import ExpeditionServices from '../../../services/logistics/ExpeditionServices';
+import ProductionServices from '../../../services/production/ProductionServices';
 import ProductionWarehouseServices from '../../../services/production/WarehouseServices';
 import { useAlert } from '../../../utils/alertContext';
 
@@ -210,6 +211,11 @@ const normalizeWarehouseOption = (item) => {
   const name = String(item?.whs_name ?? item?.whsName ?? item?.WhsName ?? item?.warehouse_name ?? item?.name ?? '').trim();
   return value ? { value, label: name && name !== value ? `${value} — ${name}` : value } : null;
 };
+const normalizeSeriesOption = (item) => {
+  const value = item?.series ?? item?.Series ?? item?.series_code ?? item?.seriesCode ?? item?.value ?? item?.code ?? item?.id;
+  const label = item?.series_name ?? item?.seriesName ?? item?.SeriesName ?? item?.name ?? item?.label ?? item?.description ?? value;
+  return value === undefined || value === null || value === '' ? null : { value, label: String(label) };
+};
 const normalizeBinOption = (item, index) => {
   const value = String(item?.abs_entry ?? item?.absEntry ?? item?.AbsEntry ?? item?.id ?? item?.bin_code ?? item?.BinCode ?? '').trim();
   const code = String(item?.bin_code ?? item?.binCode ?? item?.BinCode ?? item?.code ?? item?.BinLoc ?? value).trim();
@@ -241,7 +247,10 @@ const normalizeBinOption = (item, index) => {
 
 export default function CreatePicklistModal({ onClose, onSuccess }) {
   const { showAlert } = useAlert();
-  const [form, setForm] = useState({ postingDate: today(), comments: '' });
+  const [form, setForm] = useState({ postingDate: today(), series: '', comments: '' });
+  const [seriesOptions, setSeriesOptions] = useState([]);
+  const [loadingSeries, setLoadingSeries] = useState(false);
+  const [seriesError, setSeriesError] = useState('');
   const [lines, setLines] = useState([]);
   const [shippingType, setShippingType] = useState('');
   const [licensePlate, setLicensePlate] = useState('');
@@ -322,6 +331,7 @@ export default function CreatePicklistModal({ onClose, onSuccess }) {
     saving ||
     !shippingType ||
     !form.postingDate ||
+    !form.series ||
     !lines.length ||
     invalidLines ||
     (shippingType === 'internal' && !licensePlate);
@@ -347,6 +357,7 @@ export default function CreatePicklistModal({ onClose, onSuccess }) {
       checker_name: checkerName,
       posting_date: form.postingDate,
       due_date: form.postingDate,
+      series: Number(form.series) || form.series,
       total_weight_limit: Number(capacity) || 0,
       comments: form.comments.trim(),
       to_whs_code: '',
@@ -398,6 +409,31 @@ export default function CreatePicklistModal({ onClose, onSuccess }) {
       setWarehouseError(err?.response?.data?.message || err.message || 'Failed to load warehouses.');
     } finally {
       setLoadingWarehouses(false);
+    }
+  };
+
+  const fetchSeries = async (postingDate) => {
+    if (!postingDate) {
+      setSeriesOptions([]);
+      return;
+    }
+    setLoadingSeries(true);
+    setSeriesError('');
+    try {
+      const response = await ProductionServices.getSeries(postingDate.replaceAll('-', ''), 15);
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to load series.');
+      const options = getResponseRows(response, ['series']).map(normalizeSeriesOption).filter(Boolean);
+      setSeriesOptions(options);
+      setForm((current) => ({
+        ...current,
+        series: options.some((option) => String(option.value) === String(current.series)) ? current.series : ''
+      }));
+    } catch (err) {
+      setSeriesOptions([]);
+      setForm((current) => ({ ...current, series: '' }));
+      setSeriesError(err?.response?.data?.message || err.message || 'Failed to load series.');
+    } finally {
+      setLoadingSeries(false);
     }
   };
 
@@ -477,6 +513,12 @@ export default function CreatePicklistModal({ onClose, onSuccess }) {
     // Warehouse master data is loaded once when the picklist modal opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    fetchSeries(form.postingDate);
+    // Series is reloaded whenever the picklist posting date changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.postingDate]);
 
   const fetchVehicles = async () => {
     setLoadingVehicles(true);
@@ -777,8 +819,36 @@ export default function CreatePicklistModal({ onClose, onSuccess }) {
               <Form.Control
                 type="date"
                 value={form.postingDate}
-                onChange={(event) => setForm({ ...form, postingDate: event.target.value })}
+                onChange={(event) => setForm({ ...form, postingDate: event.target.value, series: '' })}
               />
+            </Col>
+            <Col md={4}>
+              <Form.Label htmlFor="picklist-series">Series *</Form.Label>
+              <Select
+                inputId="picklist-series"
+                classNamePrefix="react-select"
+                options={seriesOptions}
+                value={seriesOptions.find((option) => String(option.value) === String(form.series)) || null}
+                onChange={(option) => setForm((current) => ({ ...current, series: option?.value ?? '' }))}
+                placeholder={loadingSeries ? 'Loading series...' : 'Select series'}
+                isLoading={loadingSeries}
+                isDisabled={loadingSeries || !form.postingDate}
+                noOptionsMessage={() => (seriesError ? 'Failed to load series' : 'No series found')}
+              />
+              {seriesError ? (
+                <Form.Text className="text-danger">
+                  {seriesError}{' '}
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="p-0 align-baseline"
+                    onClick={() => fetchSeries(form.postingDate)}
+                    disabled={loadingSeries}
+                  >
+                    Retry
+                  </Button>
+                </Form.Text>
+              ) : null}
             </Col>
             {shippingType === 'internal' && (
               <Col md={4}>
@@ -829,6 +899,7 @@ export default function CreatePicklistModal({ onClose, onSuccess }) {
                     data-permission-action="utility"
                     size="sm"
                     variant="outline-danger"
+                    className="picklist-reset-button"
                     disabled={!lines.length}
                     onClick={() => setResetting(true)}
                   >
@@ -1019,7 +1090,10 @@ export default function CreatePicklistModal({ onClose, onSuccess }) {
                   )}
                 </tbody>
               </Table>
-              <div className="bg-light border rounded p-3 d-flex justify-content-between flex-wrap gap-3" aria-live="polite">
+              <div
+                className="picklist-create-summary border rounded p-3 d-flex justify-content-between flex-wrap gap-3"
+                aria-live="polite"
+              >
                 <span>
                   {orderCount} Sales Orders · {lines.length} items
                 </span>
