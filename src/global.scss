@@ -5045,6 +5045,50 @@ body {
   }
 }
 
+[data-pc-theme='dark'] :is(.order-return-detail-actions, .vendor-registration-detail-actions),
+[data-bs-theme='dark'] :is(.order-return-detail-actions, .vendor-registration-detail-actions) {
+  .btn-outline-secondary {
+    border-color: #6886a5 !important;
+    background: rgba(116, 145, 178, 0.12) !important;
+    color: #c5d8ed !important;
+  }
+
+  .btn-outline-danger {
+    border-color: rgba(255, 76, 91, 0.72) !important;
+    background: rgba(214, 35, 52, 0.16) !important;
+    color: #ff6673 !important;
+  }
+
+  .btn-outline-success {
+    border-color: rgba(72, 213, 151, 0.68) !important;
+    background: rgba(38, 176, 125, 0.16) !important;
+    color: #62e5b1 !important;
+  }
+
+  .btn:hover,
+  .btn:focus-visible {
+    color: #fff;
+  }
+
+  .btn-outline-secondary:hover,
+  .btn-outline-secondary:focus-visible {
+    border-color: #91abc5 !important;
+    background: rgba(116, 145, 178, 0.28) !important;
+  }
+
+  .btn-outline-danger:hover,
+  .btn-outline-danger:focus-visible {
+    border-color: #ff6b77 !important;
+    background: rgba(231, 45, 61, 0.34) !important;
+  }
+
+  .btn-outline-success:hover,
+  .btn-outline-success:focus-visible {
+    border-color: #72f0bd !important;
+    background: rgba(38, 176, 125, 0.34) !important;
+  }
+}
+
 [data-pc-theme='dark'] .order-create-page .order-balance-estimate,
 [data-bs-theme='dark'] .order-create-page .order-balance-estimate {
   color: #dceafa;

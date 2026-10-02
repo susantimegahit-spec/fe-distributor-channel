@@ -744,8 +744,8 @@ export default function VendorRegistrations({
             </Tabs>
           ) : null}
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="light-secondary" data-permission-action="none" onClick={closeVendorDetail} disabled={detailLoading}>
+        <Modal.Footer className="vendor-registration-detail-actions">
+          <Button variant="outline-secondary" data-permission-action="none" onClick={closeVendorDetail} disabled={detailLoading}>
             Close
           </Button>
           <Button
@@ -757,7 +757,7 @@ export default function VendorRegistrations({
             <i className="ti ti-x me-1" aria-hidden="true" /> Reject
           </Button>
           <Button
-            variant="success"
+            variant="outline-success"
             data-permission-action={allowManagementActions ? 'none' : 'approve'}
             data-permission-menu-key={vendorActionMenuKeys}
             onClick={() => openRegistrationAction('approve')}

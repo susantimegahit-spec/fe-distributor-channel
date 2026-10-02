@@ -517,14 +517,14 @@ export default function OrderRetur() {
             </div>
           ) : null}
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={closeDetail}>Close</Button>
+        <Modal.Footer className="order-return-detail-actions">
+          <Button variant="outline-secondary" onClick={closeDetail}>Close</Button>
           {canManageSelectedReturn && (
             <>
-              <Button variant="danger" onClick={() => confirmReturnAction('reject')}>
+              <Button variant="outline-danger" onClick={() => confirmReturnAction('reject')}>
                 <i className="ti ti-x me-1" /> Reject
               </Button>
-              <Button variant="success" onClick={() => confirmReturnAction('approve')}>
+              <Button variant="outline-success" onClick={() => confirmReturnAction('approve')}>
                 <i className="ti ti-check me-1" /> Approve
               </Button>
             </>
