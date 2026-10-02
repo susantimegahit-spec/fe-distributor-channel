@@ -501,6 +501,36 @@
   }
 }
 
+[data-pc-theme='dark'] :is(.task-page-actions, .task-view-actions),
+[data-bs-theme='dark'] :is(.task-page-actions, .task-view-actions) {
+  .btn-primary {
+    border-color: #5eb8ff !important;
+    background: rgb(39 137 220 / 20%) !important;
+    color: #cceaff !important;
+    box-shadow: none !important;
+
+    &:hover,
+    &:focus-visible {
+      border-color: #8fd2ff !important;
+      background: rgb(40 127 202 / 48%) !important;
+      color: #fff !important;
+    }
+  }
+
+  .btn-outline-secondary {
+    border-color: #47779d;
+    background: transparent;
+    color: #a9bdd2;
+
+    &:hover,
+    &:focus-visible {
+      border-color: #69c2ff;
+      background: rgb(69 151 221 / 16%);
+      color: #dceeff;
+    }
+  }
+}
+
 .todo-page .task-list-empty-row > td {
   padding: 10px 14px 12px 90px;
   border-bottom: 1px solid var(--todo-border);

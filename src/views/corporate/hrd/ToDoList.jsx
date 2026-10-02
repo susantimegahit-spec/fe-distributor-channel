@@ -1437,7 +1437,7 @@ export default function ToDoList() {
                 <div className="text-muted f-12">Manage departmental work in one place.</div>
               </div>
             </div>
-            <Stack direction="horizontal" gap={2}>
+            <Stack direction="horizontal" gap={2} className="task-page-actions">
               <Button
                 variant="outline-secondary"
                 onClick={() => loadTasks()}
@@ -1460,7 +1460,7 @@ export default function ToDoList() {
                 <div className="fw-semibold">{filteredTasks.length} task</div>
               </div>
               <Stack direction="horizontal" gap={2}>
-                <div className="btn-group">
+                <div className="btn-group task-view-actions">
                   <Button
                     size="sm"
                     variant={view === 'list' ? 'primary' : 'outline-secondary'}

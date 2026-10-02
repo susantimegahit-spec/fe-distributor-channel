@@ -17,22 +17,41 @@ const formatLeadTime = (value) => {
 
 const normalizeRate = (item, index, route) => {
   const expedition = item.expedition_data ?? item.expedition ?? {};
+  const vendor = item.vendor_data ?? item.vendor ?? expedition.vendor_data ?? expedition.vendor ?? {};
   const expeditionName =
     typeof expedition === 'object'
-      ? (expedition.name ?? expedition.expedition_name ?? expedition.code ?? expedition.expedition_code)
+      ? (expedition.expedition_name ?? expedition.name ?? expedition.code ?? expedition.expedition_code)
       : expedition;
   const price = Number(item.price);
 
   return {
     id: String(item.id ?? item.rate_id ?? `${route.key}-${index}`),
-    name: expeditionName ?? item.expedition_name ?? item.expedition_code ?? '-',
+    name:
+      item.expedition_name ??
+      expeditionName ??
+      vendor.expedition_name ??
+      vendor.company_name ??
+      vendor.name ??
+      item.expedition_code ??
+      '-',
+    vendorCode:
+      item.sap_vendor_code ??
+      item.sapVendorCode ??
+      item.vendor_code ??
+      expedition.sap_vendor_code ??
+      expedition.sapVendorCode ??
+      expedition.vendor_code ??
+      vendor.sap_vendor_code ??
+      vendor.sapVendorCode ??
+      vendor.vendor_code ??
+      '',
     service: item.service_type ?? item.service ?? item.transport_mode ?? '-',
     etaDays: item.eta_days ?? '-',
     price: Number.isFinite(price) ? price : null
   };
 };
 
-export default function PicklistRecommendations({ lines }) {
+export default function PicklistRecommendations({ lines, onSelectExpedition }) {
   const [selectedExpedition, setSelectedExpedition] = useState(null);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -70,6 +89,7 @@ export default function PicklistRecommendations({ lines }) {
     const validRoutes = routes.filter((route) => route.valid && route.origin && route.destination && route.weight > 0);
 
     setSelectedExpedition(null);
+    onSelectExpedition?.(null);
     setError('');
     if (!validRoutes.length) {
       setResults(routes.map((route) => ({ ...route, rates: [] })));
@@ -101,7 +121,12 @@ export default function PicklistRecommendations({ lines }) {
     return () => {
       active = false;
     };
-  }, [routes]);
+  }, [routes, onSelectExpedition]);
+
+  const selectExpedition = (selectionKey, rate) => {
+    setSelectedExpedition({ key: selectionKey, id: rate.id });
+    onSelectExpedition?.(rate);
+  };
 
   return (
     <section className="mt-4 border rounded p-3">
@@ -149,7 +174,7 @@ export default function PicklistRecommendations({ lines }) {
                           key={rate.id}
                           className={selected === rate.id ? 'table-primary' : undefined}
                           style={{ cursor: 'pointer' }}
-                          onClick={() => setSelectedExpedition({ key: selectionKey, id: rate.id })}
+                          onClick={() => selectExpedition(selectionKey, rate)}
                         >
                           <td className="text-center">
                             <Form.Check
@@ -158,7 +183,7 @@ export default function PicklistRecommendations({ lines }) {
                               aria-label={`Select ${rate.name} for SO ${route.orderNumber}`}
                               checked={selected === rate.id}
                               onClick={(event) => event.stopPropagation()}
-                              onChange={() => setSelectedExpedition({ key: selectionKey, id: rate.id })}
+                              onChange={() => selectExpedition(selectionKey, rate)}
                             />
                           </td>
                           <td className="fw-semibold">{rate.name}</td>

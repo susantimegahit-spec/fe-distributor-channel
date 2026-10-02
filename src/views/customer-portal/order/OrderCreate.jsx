@@ -2161,7 +2161,7 @@ export default function OrderPost({ cmoMode = false }) {
             {allowAdd && (
               <Button
                 size="sm"
-                variant="light-primary"
+                variant={isDetailMode ? 'outline-primary' : 'light-primary'}
                 onClick={() => addItemDisc(section)}
                 disabled={isTradePromoLimitReached}
                 title={isTradePromoLimitReached ? 'Maximum Total Trade Promo has been reached' : undefined}
@@ -2354,7 +2354,11 @@ export default function OrderPost({ cmoMode = false }) {
             }
             secondary={
               <Stack direction="horizontal" gap={2} className="flex-wrap">
-                <Button variant="danger" onClick={() => (cmoMode ? navigate('/customer-portal/order/cmo') : navigate(-1))}>
+                <Button
+                  variant="outline-danger"
+                  className="order-cancel-button"
+                  onClick={() => (cmoMode ? navigate('/customer-portal/order/cmo') : navigate(-1))}
+                >
                   <i className="ti ti-arrow-left me-1" />
                   Cancel
                 </Button>
@@ -2613,7 +2617,7 @@ export default function OrderPost({ cmoMode = false }) {
                             </Stack>
                           </div>
                           {!cmoMode && (
-                            <Button variant="light-primary" onClick={handleOpenDiscount}>
+                            <Button variant={isDetailMode ? 'outline-primary' : 'light-primary'} onClick={handleOpenDiscount}>
                               <i className="ti ti-discount-2 me-1" />
                               Set Discount
                             </Button>
@@ -2657,7 +2661,7 @@ export default function OrderPost({ cmoMode = false }) {
                           </Col>
                           {orderInput.useBalance ? (
                             <Col md={6}>
-                              <div className="border rounded p-3 h-100 bg-light">
+                              <div className="order-balance-estimate border rounded p-3 h-100">
                                 <div className="text-muted f-12 mb-1">Maximum Estimated Discount Value</div>
                                 <h5 className="mb-1 text-primary">{formatCurrency(maximumDiscountEstimate)}</h5>
                               </div>
@@ -2768,7 +2772,14 @@ export default function OrderPost({ cmoMode = false }) {
                                   <span className="text-truncate">{fileName}</span>
                                 </div>
                                 {fileUrl ? (
-                                  <Button as="a" href={fileUrl} target="_blank" rel="noreferrer" variant="light-primary" size="sm">
+                                  <Button
+                                    as="a"
+                                    href={fileUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    variant={isDetailMode ? 'outline-primary' : 'light-primary'}
+                                    size="sm"
+                                  >
                                     <i className="ti ti-eye me-1" />
                                     View
                                   </Button>
@@ -2829,7 +2840,7 @@ export default function OrderPost({ cmoMode = false }) {
               </Stack>
             }
             secondary={
-              <Button variant="light-primary" onClick={addItem}>
+              <Button variant={isDetailMode ? 'outline-primary' : 'light-primary'} onClick={addItem}>
                 <i className="ti ti-plus me-1" />
                 Add Row
               </Button>

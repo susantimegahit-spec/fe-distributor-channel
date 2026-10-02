@@ -301,6 +301,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
   const [orderSort, setOrderSort] = useState({ key: '', direction: 'asc' });
   const [orderLayout, setOrderLayout] = useState('list');
   const [orderCalendarMonth, setOrderCalendarMonth] = useState(() => moment().startOf('month'));
+  const [selectedOrderCalendarDay, setSelectedOrderCalendarDay] = useState(null);
   const [permissionDetail, setPermissionDetail] = useState(null);
   const pendingOrderRefreshRef = useRef(false);
   const refreshOrdersRef = useRef(null);
@@ -1726,7 +1727,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
               </Stack>
             }
             secondary={
-              <Stack direction="horizontal" gap={2} className="flex-wrap justify-content-end">
+              <Stack direction="horizontal" gap={2} className="sm-order-header-actions flex-wrap justify-content-end">
                 <div className="btn-group" role="group" aria-label="Order layout">
                   <Button
                     variant={orderLayout === 'list' ? 'light-secondary' : 'outline-secondary'}
@@ -1769,7 +1770,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
               </Stack>
             }
             secondary={
-              <Stack direction="horizontal" gap={2} className="flex-wrap justify-content-end">
+              <Stack direction="horizontal" gap={2} className="sm-cmo-header-actions flex-wrap justify-content-end">
                 <div className="btn-group" role="group" aria-label="CMO layout">
                   <Button
                     variant={commitmentLayout === 'list' ? 'light-secondary' : 'outline-secondary'}
@@ -2447,6 +2448,8 @@ export default function OrderList({ showOnlyCommitment = false }) {
                         {orderCalendarDays.map(({ date: calendarDate, orders: calendarOrders }) => {
                           const isCurrentMonth = calendarDate.isSame(orderCalendarMonth, 'month');
                           const isToday = calendarDate.isSame(moment(), 'day');
+                          const visibleCalendarOrders = calendarOrders.slice(0, 2);
+                          const hiddenCalendarOrderCount = Math.max(calendarOrders.length - visibleCalendarOrders.length, 0);
                           const canCreateOrderOnDate = isCurrentMonth && canCreateOrder;
                           const createOrderForDate = () => {
                             if (canCreateOrderOnDate) {
@@ -2469,7 +2472,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                                 {calendarDate.date()}
                               </span>
                               <Stack gap={1}>
-                                {calendarOrders.map((order) => (
+                                {visibleCalendarOrders.map((order) => (
                                   <button
                                     key={order.id}
                                     type="button"
@@ -2489,6 +2492,17 @@ export default function OrderList({ showOnlyCommitment = false }) {
                                     <span className="d-block text-truncate text-muted">{getStatusLabel(order.status)}</span>
                                   </button>
                                 ))}
+                                {hiddenCalendarOrderCount > 0 ? (
+                                  <Button
+                                    size="sm"
+                                    variant="light-primary"
+                                    className="w-100 px-1 py-1 fw-semibold"
+                                    style={{ fontSize: 10 }}
+                                    onClick={() => setSelectedOrderCalendarDay({ date: calendarDate.clone(), orders: calendarOrders })}
+                                  >
+                                    <i className="ti ti-list-details me-1" />+{hiddenCalendarOrderCount} lainnya
+                                  </Button>
+                                ) : null}
                                 {canCreateOrderOnDate ? (
                                   <button
                                     type="button"
@@ -2513,6 +2527,57 @@ export default function OrderList({ showOnlyCommitment = false }) {
           </>
         )}
       </Stack>
+      <Modal
+        show={Boolean(selectedOrderCalendarDay)}
+        onHide={() => setSelectedOrderCalendarDay(null)}
+        centered
+        size="lg"
+      >
+        <Modal.Header closeButton>
+          <div>
+            <Modal.Title>Order pada {selectedOrderCalendarDay?.date?.format('DD MMMM YYYY')}</Modal.Title>
+            <div className="text-muted f-12 mt-1">
+              {selectedOrderCalendarDay?.orders?.length || 0} order pada tanggal ini
+            </div>
+          </div>
+        </Modal.Header>
+        <Modal.Body>
+          <Stack gap={2}>
+            {(selectedOrderCalendarDay?.orders || []).map((order) => (
+              <Card key={order.id} className="border mb-0 shadow-none">
+                <Card.Body className="p-3">
+                  <Stack direction="horizontal" gap={3} className="justify-content-between align-items-center flex-wrap">
+                    <div className="flex-grow-1">
+                      <div className="fw-semibold mb-1">{order.sap_doc_num || order.order_no || 'Order'}</div>
+                      <div>{order.customer_name || order.customer_code || '-'}</div>
+                      <small className="text-muted">{getStatusLabel(order.status)}</small>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant={orderActionMenu?.order === order ? 'primary' : 'outline-primary'}
+                      aria-label={`Open actions for ${order.sap_doc_num || order.order_no || 'order'}`}
+                      aria-expanded={orderActionMenu?.order === order}
+                      onClick={(event) =>
+                        setOrderActionMenu((current) =>
+                          current?.order === order ? null : { order, target: event.currentTarget }
+                        )
+                      }
+                    >
+                      <i className="ti ti-dots-vertical me-1" /> Actions
+                      <i className="ti ti-chevron-down ms-1" />
+                    </Button>
+                  </Stack>
+                </Card.Body>
+              </Card>
+            ))}
+          </Stack>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="light-secondary" onClick={() => setSelectedOrderCalendarDay(null)}>
+            Tutup
+          </Button>
+        </Modal.Footer>
+      </Modal>
       <Overlay
         show={Boolean(orderActionMenu)}
         target={orderActionMenu?.target}
@@ -3249,7 +3314,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                     </tbody>
                   </Table>
                 </Card.Body>
-                <Card.Footer className="text-end bg-white">
+                <Card.Footer className="text-end">
                   <span className="text-muted me-2">Total Discount</span>
                   <span className="fw-semibold text-primary">{currency(selectedOrderDiscountTotal)}</span>
                 </Card.Footer>

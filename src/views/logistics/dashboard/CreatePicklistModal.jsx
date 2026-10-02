@@ -258,6 +258,8 @@ export default function CreatePicklistModal({ onClose, onSuccess }) {
   const [loadingVehicles, setLoadingVehicles] = useState(false);
   const [vehicleError, setVehicleError] = useState('');
   const [driver, setDriver] = useState(null);
+  const [externalDriverName, setExternalDriverName] = useState('');
+  const [selectedExpedition, setSelectedExpedition] = useState(null);
   const [driverOptions, setDriverOptions] = useState([]);
   const [loadingDrivers, setLoadingDrivers] = useState(false);
   const [driverError, setDriverError] = useState('');
@@ -334,17 +336,27 @@ export default function CreatePicklistModal({ onClose, onSuccess }) {
     !form.series ||
     !lines.length ||
     invalidLines ||
-    (shippingType === 'internal' && !licensePlate);
+    (shippingType === 'internal' && !licensePlate) ||
+    (shippingType === 'external' && !selectedExpedition?.vendorCode);
 
   const savePicklist = async () => {
     if (saveDisabled) return;
     setSaving(true);
     setError('');
-    const driverName = String(
-      getVehicleValue(driver?.driver, ['driver_name', 'driverName', 'DriverName', 'nama_sopir', 'NamaSopir', 'name', 'Name']) ||
-        driver?.label ||
-        ''
-    );
+    const driverName =
+      shippingType === 'external'
+        ? externalDriverName.trim()
+        : String(
+            getVehicleValue(driver?.driver, ['driver_name', 'driverName', 'DriverName', 'nama_sopir', 'NamaSopir', 'name', 'Name']) ||
+              driver?.label ||
+              ''
+          );
+    const expedition =
+      shippingType === 'internal'
+        ? { id: '01', name: 'Internal' }
+        : shippingType === 'pickup'
+          ? { id: '02', name: 'Pickup' }
+          : { id: String(selectedExpedition?.vendorCode || ''), name: selectedExpedition?.name || '' };
     const checkerName = String(
       getVehicleValue(checker?.checker, ['checker_name', 'checkerName', 'CheckerName', 'nama_checker', 'NamaChecker', 'name', 'Name']) ||
         checker?.label ||
@@ -355,6 +367,8 @@ export default function CreatePicklistModal({ onClose, onSuccess }) {
       license_plate: licensePlate,
       driver_name: driverName,
       checker_name: checkerName,
+      expedition_id: expedition.id,
+      expedition_name: expedition.name,
       posting_date: form.postingDate,
       due_date: form.postingDate,
       series: Number(form.series) || form.series,
@@ -719,6 +733,8 @@ export default function CreatePicklistModal({ onClose, onSuccess }) {
                   setLicensePlate('');
                   setCapacity('');
                   setDriver(null);
+                  setExternalDriverName('');
+                  setSelectedExpedition(null);
                   setChecker(null);
                 }}
                 placeholder="Select shipping type"
@@ -801,6 +817,30 @@ export default function CreatePicklistModal({ onClose, onSuccess }) {
                         </Button>
                       </Form.Text>
                     ) : null}
+                  </Col>
+                </Row>
+              </Col>
+            )}
+            {shippingType === 'external' && (
+              <Col xs={12}>
+                <Row className="g-3">
+                  <Col md={4}>
+                    <Form.Label htmlFor="picklist-external-license-plate">License Plate Number</Form.Label>
+                    <Form.Control
+                      id="picklist-external-license-plate"
+                      value={licensePlate}
+                      onChange={(event) => setLicensePlate(event.target.value)}
+                      placeholder="Enter license plate number"
+                    />
+                  </Col>
+                  <Col md={4}>
+                    <Form.Label htmlFor="picklist-external-driver">Driver</Form.Label>
+                    <Form.Control
+                      id="picklist-external-driver"
+                      value={externalDriverName}
+                      onChange={(event) => setExternalDriverName(event.target.value)}
+                      placeholder="Enter driver name"
+                    />
                   </Col>
                 </Row>
               </Col>
@@ -1107,7 +1147,9 @@ export default function CreatePicklistModal({ onClose, onSuccess }) {
                   Total item weight exceeds the weight limit. Reduce the pick quantities.
                 </Alert>
               )}
-              {shippingType === 'external' && <PicklistRecommendations lines={lines} />}
+              {shippingType === 'external' && (
+                <PicklistRecommendations lines={lines} onSelectExpedition={setSelectedExpedition} />
+              )}
             </>
           )}
         </Modal.Body>
