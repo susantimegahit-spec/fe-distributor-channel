@@ -7,6 +7,7 @@ import Form from 'react-bootstrap/Form';
 import InputGroup from 'react-bootstrap/InputGroup';
 import Modal from 'react-bootstrap/Modal';
 import Offcanvas from 'react-bootstrap/Offcanvas';
+import Overlay from 'react-bootstrap/Overlay';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
@@ -235,6 +236,11 @@ const priorityBadgeClass = { Urgent: 'urgent', High: 'high', Normal: 'normal', L
 const PriorityBadge = ({ priority }) => (
   <span className={`todo-priority-badge todo-priority-badge--${priorityBadgeClass[priority] || 'default'}`}>{priority}</span>
 );
+const getInlineTaskTitles = (taskText = '') =>
+  taskText
+    .split(/\r?\n/)
+    .map((title) => title.trim())
+    .filter(Boolean);
 
 export default function ToDoList() {
   const { showAlert } = useAlert();
@@ -303,6 +309,7 @@ export default function ToDoList() {
   const [inlineTaskListId, setInlineTaskListId] = useState('');
   const [inlineTaskText, setInlineTaskText] = useState('');
   const [savingInlineTasks, setSavingInlineTasks] = useState(false);
+  const [pasteConfirmation, setPasteConfirmation] = useState(null);
   const [scope, setScope] = useState({ workspaceId: '', spaceId: '', folderId: '', listId: '' });
   const emptyForm = {
     departmentId: '',
@@ -737,10 +744,7 @@ export default function ToDoList() {
     }
   };
   const saveInlineTasks = async (list, taskText = inlineTaskText) => {
-    const titles = taskText
-      .split(/\r?\n/)
-      .map((title) => title.trim())
-      .filter(Boolean);
+    const titles = getInlineTaskTitles(taskText);
     if (!titles.length || savingInlineTasks) return;
     const spaceId = list.space_id || list.space?.id || scope.spaceId;
     const folderId = list.folder_id || list.folder?.id || scope.folderId;
@@ -1707,14 +1711,67 @@ export default function ToDoList() {
                                   }}
                                   onPaste={(event) => {
                                     const pastedText = event.clipboardData.getData('text');
-                                    if (!pastedText.trim()) return;
+                                    const titles = getInlineTaskTitles(pastedText);
+                                    if (!titles.length) return;
                                     event.preventDefault();
                                     setInlineTaskListId(projectList.id);
                                     setInlineTaskText(pastedText);
-                                    saveInlineTasks(projectList, pastedText);
+                                    setPasteConfirmation({
+                                      target: event.currentTarget,
+                                      list: projectList,
+                                      listName: group.list,
+                                      text: pastedText,
+                                      count: titles.length
+                                    });
                                   }}
                                 />
                               </InputGroup>
+                              <Overlay
+                                show={String(pasteConfirmation?.list?.id) === group.key}
+                                target={pasteConfirmation?.target}
+                                placement="bottom-start"
+                                flip={false}
+                                container={typeof document !== 'undefined' ? document.body : null}
+                                containerPadding={8}
+                                rootClose
+                                onHide={() => setPasteConfirmation(null)}
+                              >
+                                {({ ref, style, placement }) => (
+                                  <div
+                                    ref={ref}
+                                    role="tooltip"
+                                    className="task-paste-confirm-tooltip"
+                                    data-popper-placement={placement}
+                                    style={style}
+                                  >
+                                    <button
+                                      type="button"
+                                      className="task-paste-confirm-close"
+                                      aria-label="Close paste confirmation"
+                                      onClick={() => setPasteConfirmation(null)}
+                                    >
+                                      <i className="ti ti-x" />
+                                    </button>
+                                    <strong>{pasteConfirmation?.count || 0} row akan dibuat</strong>
+                                    <span>Tambahkan sebagai task ke {pasteConfirmation?.listName}?</span>
+                                    <div className="task-paste-confirm-actions">
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="link"
+                                        className="task-paste-confirm-create"
+                                        onClick={() => {
+                                          const pending = pasteConfirmation;
+                                          setPasteConfirmation(null);
+                                          if (pending) saveInlineTasks(pending.list, pending.text);
+                                        }}
+                                      >
+                                        Create
+                                      </Button>
+                                    </div>
+                                  </div>
+                                )}
+                              </Overlay>
                             </td>
                           </tr>
                         ) : null}
