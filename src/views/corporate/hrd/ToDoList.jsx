@@ -290,6 +290,7 @@ export default function ToDoList() {
   const [savingBulkUpdate, setSavingBulkUpdate] = useState(false);
   const [bulkUpdateForm, setBulkUpdateForm] = useState({ statusId: '', assigneeIds: [], dueDate: '' });
   const [collapsedTaskListIds, setCollapsedTaskListIds] = useState([]);
+  const [expandedTaskFolderIds, setExpandedTaskFolderIds] = useState([]);
   const [loadedTaskListIds, setLoadedTaskListIds] = useState([]);
   const [loadingTaskListIds, setLoadingTaskListIds] = useState([]);
   const initializedCollapsedListsRef = useRef(false);
@@ -566,6 +567,7 @@ export default function ToDoList() {
         {
           key: String(list.id),
           list: entityName(list, 'Without List'),
+          folderId: String(list.folder_id || list.folder?.id || ''),
           folder: entityName(list.folder, list.folder_name),
           department: entityName(list.department || list.space?.department, list.department_name || '-'),
           tasks: []
@@ -578,6 +580,7 @@ export default function ToDoList() {
         groups.set(key, {
           key,
           list: task.list || 'Without List',
+          folderId: String(task.folder_id || ''),
           folder: task.folder || '-',
           department: task.department || '-',
           tasks: []
@@ -593,6 +596,32 @@ export default function ToDoList() {
     ? masters.spaces.find((item) => spaceMatchesDepartment(item, quickListDepartment))
     : null;
   const quickListFolders = quickListSpace ? spaceHierarchy[String(quickListSpace.id)]?.folders || [] : [];
+  const taskTreeRows = useMemo(() => {
+    if (!quickListForm.departmentId || quickListForm.folderId) {
+      return groupedListTasks.map((group) => ({ type: 'list', key: `list-${group.key}`, group }));
+    }
+
+    const knownFolderIds = new Set(quickListFolders.map((folder) => String(folder.id)));
+    const rows = quickListFolders.flatMap((folder) => {
+      const folderId = String(folder.id);
+      const folderGroups = groupedListTasks.filter((group) => group.folderId === folderId);
+      const folderTasks = folderGroups.flatMap((group) => group.tasks);
+      const folderRow = {
+        type: 'folder',
+        key: `folder-${folderId}`,
+        folderId,
+        name: entityName(folder),
+        listCount: folderGroups.length,
+        taskCount: folderTasks.length
+      };
+
+      if (!expandedTaskFolderIds.includes(folderId)) return [folderRow];
+      return [folderRow, ...folderGroups.map((group) => ({ type: 'list', key: `list-${group.key}`, group }))];
+    });
+    const groupsWithoutKnownFolder = groupedListTasks.filter((group) => !knownFolderIds.has(group.folderId));
+
+    return [...rows, ...groupsWithoutKnownFolder.map((group) => ({ type: 'list', key: `list-${group.key}`, group }))];
+  }, [expandedTaskFolderIds, groupedListTasks, quickListFolders, quickListForm.departmentId, quickListForm.folderId]);
 
   useEffect(() => {
     if (initializedCollapsedListsRef.current || !allTaskListOptions.length) return;
@@ -991,6 +1020,7 @@ export default function ToDoList() {
   };
   const filterTasksByQuickDepartment = async (departmentId) => {
     setQuickListForm((current) => ({ ...current, departmentId, folderId: '' }));
+    setExpandedTaskFolderIds([]);
     setSelectedDepartmentIds(departmentId ? [String(departmentId)] : []);
     setTaskFilters((current) => ({ ...current, assigneeIds: [] }));
     if (!departmentId) {
@@ -1629,7 +1659,41 @@ export default function ToDoList() {
                     </tr>
                   </tbody>
                 ) : (
-                  groupedListTasks.map((group) => {
+                  taskTreeRows.map((node) => {
+                    if (node.type === 'folder') {
+                      const isExpanded = expandedTaskFolderIds.includes(node.folderId);
+                      return (
+                        <tbody key={node.key} className="task-folder-group-body">
+                          <tr className="task-folder-group-row">
+                            <td colSpan={7}>
+                              <button
+                                type="button"
+                                className="task-folder-group-toggle"
+                                aria-label={`${isExpanded ? 'Collapse' : 'Expand'} folder ${node.name}`}
+                                aria-expanded={isExpanded}
+                                onClick={() =>
+                                  setExpandedTaskFolderIds((current) =>
+                                    current.includes(node.folderId)
+                                      ? current.filter((id) => id !== node.folderId)
+                                      : [...current, node.folderId]
+                                  )
+                                }
+                              >
+                                <i className={`ti ${isExpanded ? 'ti-chevron-down' : 'ti-chevron-right'}`} />
+                                <i className={`ti ${isExpanded ? 'ti-folder-open' : 'ti-folder'}`} />
+                                <span>{node.name}</span>
+                              </button>
+                              <div className="task-folder-group-summary">
+                                <span>{node.listCount} List Project</span>
+                                <span>{node.taskCount} task</span>
+                              </div>
+                            </td>
+                          </tr>
+                        </tbody>
+                      );
+                    }
+
+                    const group = node.group;
                     const isCollapsed = collapsedTaskListIds.includes(group.key);
                     const projectList = allTaskListOptions.find((list) => String(list.id) === group.key);
                     const completedTasks = group.tasks.filter((task) =>
@@ -1640,7 +1704,10 @@ export default function ToDoList() {
                     const totalTasks = group.tasks.length;
                     const progress = totalTasks ? Math.round((completedTasks / totalTasks) * 100) : 0;
                     return (
-                      <tbody key={group.key} className="task-list-group-body">
+                      <tbody
+                        key={node.key}
+                        className={`task-list-group-body ${quickListForm.departmentId && !quickListForm.folderId ? 'task-list-group-body--nested' : ''}`}
+                      >
                         <tr className="task-list-group-row">
                           <td colSpan={7}>
                             <div className="task-list-group-heading">
@@ -1979,7 +2046,7 @@ export default function ToDoList() {
                 </div>
               </div>
             )}
-            {!loading && (view === 'board' ? !filteredTasks.length : !groupedListTasks.length) && (
+            {!loading && (view === 'board' ? !filteredTasks.length : !taskTreeRows.length) && (
               <div className="text-center py-5">
                 <i className="ti ti-clipboard-off text-muted f-32" />
                 <h6 className="mt-3">No tasks found</h6>

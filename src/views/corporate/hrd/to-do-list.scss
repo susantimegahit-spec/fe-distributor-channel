@@ -355,6 +355,63 @@
   background: #f1f5f9;
 }
 
+.todo-page .task-folder-group-row > td {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--todo-border);
+  background: #e8eef6;
+}
+
+.todo-page .task-folder-group-toggle {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  color: #243b53;
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+}
+
+.todo-page .task-folder-group-toggle:hover,
+.todo-page .task-folder-group-toggle:focus-visible {
+  color: #2563eb;
+  outline: none;
+}
+
+.todo-page .task-folder-group-toggle .ti-folder,
+.todo-page .task-folder-group-toggle .ti-folder-open {
+  color: #d79022;
+  font-size: 18px;
+}
+
+.todo-page .task-folder-group-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  color: var(--todo-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.todo-page .task-list-group-body--nested .task-list-group-row > td {
+  padding-left: 48px;
+}
+
+.todo-page .task-list-group-body--nested .task-list-inline-create-row > td {
+  padding-left: 96px;
+}
+
+.todo-page .task-list-group-body--nested .task-list-simple-row {
+  padding-left: 82px;
+}
+
 .todo-page .task-list-group-heading {
   display: flex;
   align-items: center;
@@ -1544,6 +1601,20 @@
 
   .todo-page .task-list-group-row > td {
     background: #174264;
+  }
+
+  .todo-page .task-folder-group-row > td {
+    border-color: #315b7d;
+    background: #123552;
+  }
+
+  .todo-page .task-folder-group-toggle {
+    color: #dceafa;
+  }
+
+  .todo-page .task-folder-group-toggle:hover,
+  .todo-page .task-folder-group-toggle:focus-visible {
+    color: #8fd2ff;
   }
 
   .todo-page .quick-list-create {
