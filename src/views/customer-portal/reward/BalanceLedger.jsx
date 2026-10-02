@@ -31,9 +31,21 @@ const customerSelectStyles = {
     ...provided,
     minHeight: 40
   }),
+  menuPortal: (provided) => ({
+    ...provided,
+    zIndex: 1090
+  }),
   menu: (provided) => ({
     ...provided,
-    zIndex: 1060
+    width: '100%',
+    minWidth: '100%'
+  }),
+  menuList: (provided) => ({ ...provided, maxHeight: 280 }),
+  option: (provided) => ({
+    ...provided,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
   })
 };
 
@@ -1427,10 +1439,16 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
             <Form.Group style={{ width: 420, maxWidth: '100%' }}>
               <Form.Label className="f-12 text-muted mb-1">Customer Code</Form.Label>
               <Select
+                className="reward-customer-select"
+                classNamePrefix="reward-customer-select"
                 isMulti
                 isClearable
                 closeMenuOnSelect={false}
+                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
                 menuPosition="fixed"
+                menuPlacement="bottom"
+                menuShouldScrollIntoView={false}
+                maxMenuHeight={280}
                 styles={customerSelectStyles}
                 value={selectedCustomers}
                 options={customerOptions}
@@ -1795,11 +1813,17 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
             <Form.Group>
               <Form.Label>Customer</Form.Label>
               <Select
+                className="reward-customer-select"
+                classNamePrefix="reward-customer-select"
                 value={adjustmentCustomer}
                 options={customerOptions}
                 onChange={setAdjustmentCustomer}
                 styles={customerSelectStyles}
+                menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
                 menuPosition="fixed"
+                menuPlacement="bottom"
+                menuShouldScrollIntoView={false}
+                maxMenuHeight={280}
                 placeholder="Search customer"
                 isClearable
                 isSearchable
@@ -2107,6 +2131,8 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
                       <tr key={rowIndex}>
                         <td>
                           <Select
+                            className="reward-customer-select"
+                            classNamePrefix="reward-customer-select"
                             value={row.claim}
                             options={withdrawClaimOptions}
                             onChange={(option) => handleSelectWithdrawClaim(rowIndex, option)}
@@ -2129,7 +2155,12 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
                             }}
                             isLoading={loadingWithdrawClaims}
                             isClearable
+                            styles={customerSelectStyles}
+                            menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
                             menuPosition="fixed"
+                            menuPlacement="bottom"
+                            menuShouldScrollIntoView={false}
+                            maxMenuHeight={280}
                             placeholder="Select claim batch"
                             noOptionsMessage={() =>
                               loadingWithdrawClaims ? 'Loading claim batches...' : 'No verified claim balance available'

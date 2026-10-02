@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import PropTypes from 'prop-types';
 import Badge from 'react-bootstrap/Badge';
 import Button from 'react-bootstrap/Button';
 import Card from 'react-bootstrap/Card';
@@ -13,7 +14,7 @@ import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
 import Tabs from 'react-bootstrap/Tabs';
 import Tab from 'react-bootstrap/Tab';
-import Select from 'react-select';
+import Select, { components } from 'react-select';
 
 import TaskManagementServices from '../../../services/corporate/TaskManagementServices';
 import DistributorServices from '../../../services/customer-portal/DistributorServices';
@@ -36,6 +37,34 @@ const colorMap = {
   Cancelled: '#dc2626'
 };
 const slaMap = { Urgent: '4 Jam', High: '24 Jam', Normal: '72 Jam', Low: '168 Jam' };
+
+const FolderMenuList = ({ children, selectProps, ...props }) => (
+  <components.MenuList {...props} selectProps={selectProps}>
+    <button
+      type="button"
+      className="quick-list-folder-create"
+      disabled={selectProps.createFolderDisabled}
+      onMouseDown={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        selectProps.onCreateFolder(event);
+      }}
+    >
+      <i className="ti ti-folder-plus" aria-hidden="true" />
+      <span>Create Folder</span>
+    </button>
+    <div className="quick-list-folder-divider" />
+    {children}
+  </components.MenuList>
+);
+
+FolderMenuList.propTypes = {
+  children: PropTypes.node,
+  selectProps: PropTypes.shape({
+    createFolderDisabled: PropTypes.bool,
+    onCreateFolder: PropTypes.func
+  }).isRequired
+};
 
 const initials = (name) =>
   name
@@ -1504,21 +1533,31 @@ export default function ToDoList() {
                     <span>{quickListDepartment?.name || 'Department dari akun'}</span>
                   </div>
                 )}
-                <Form.Select
-                  size="sm"
+                <Select
                   className="quick-list-folder"
+                  classNamePrefix="quick-list-folder-select"
                   aria-label="Folder List Project"
-                  value={quickListForm.folderId}
-                  disabled={!quickListSpace || quickListFoldersLoading || savingQuickList}
-                  onChange={(event) => filterTasksByQuickFolder(event.target.value)}
-                >
-                  <option value="">{quickListFoldersLoading ? 'Loading Folder...' : 'Select Folder...'}</option>
-                  {quickListFolders.map((folder) => (
-                    <option key={folder.id} value={folder.id}>
-                      {entityName(folder)}
-                    </option>
-                  ))}
-                </Form.Select>
+                  value={
+                    quickListFolders
+                      .filter((folder) => String(folder.id) === String(quickListForm.folderId))
+                      .map((folder) => ({ value: folder.id, label: entityName(folder) }))[0] || null
+                  }
+                  options={quickListFolders.map((folder) => ({ value: folder.id, label: entityName(folder) }))}
+                  isDisabled={!quickListSpace || quickListFoldersLoading || savingQuickList}
+                  isLoading={quickListFoldersLoading}
+                  isClearable
+                  placeholder="Select Folder..."
+                  components={{ MenuList: FolderMenuList }}
+                  onCreateFolder={(event) => openFolderModal(event, quickListDepartment)}
+                  createFolderDisabled={!quickListDepartment || !quickListSpace || savingFolder}
+                  onChange={(option) => filterTasksByQuickFolder(option?.value || '')}
+                  menuPortalTarget={document.body}
+                  menuPosition="fixed"
+                  styles={{
+                    menuPortal: (base) => ({ ...base, zIndex: 1090 }),
+                    control: (base) => ({ ...base, minHeight: 31, fontSize: 12 })
+                  }}
+                />
                 <Select
                   isMulti
                   isClearable

@@ -48,6 +48,18 @@ const rewardActionPopperConfig = {
   ]
 };
 
+const rewardCustomerSelectStyles = {
+  menuPortal: (base) => ({ ...base, zIndex: 1090 }),
+  menu: (base) => ({ ...base, width: '100%', minWidth: '100%' }),
+  menuList: (base) => ({ ...base, maxHeight: 280 }),
+  option: (base) => ({
+    ...base,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
+  })
+};
+
 const formatCurrency = (value) =>
   new Intl.NumberFormat('id-ID', {
     style: 'currency',
@@ -1003,9 +1015,16 @@ export default function RewardList() {
                     {showDistributorFilter ? (
                       <div style={{ width: 320, maxWidth: '100%' }}>
                         <Select
+                          className="reward-customer-select"
+                          classNamePrefix="reward-customer-select"
                           value={selectedDistributors}
                           options={listDistributor}
+                          styles={rewardCustomerSelectStyles}
+                          menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
                           menuPosition="fixed"
+                          menuPlacement="bottom"
+                          menuShouldScrollIntoView={false}
+                          maxMenuHeight={280}
                           onChange={(options) => {
                             setSelectedDistributors(options || []);
                             setClaims([]);

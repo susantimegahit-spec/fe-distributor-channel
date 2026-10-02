@@ -296,6 +296,60 @@
   white-space: nowrap;
 }
 
+.quick-list-folder-create {
+  display: flex;
+  align-items: center;
+  width: calc(100% - 16px);
+  gap: 8px;
+  margin: 4px 8px 8px;
+  padding: 8px 10px;
+  border: 1px solid #60a5fa;
+  border-radius: 7px;
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.08);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.quick-list-folder-create:hover:not(:disabled),
+.quick-list-folder-create:focus-visible:not(:disabled) {
+  color: #fff;
+  background: #2563eb;
+}
+
+.quick-list-folder-create:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.quick-list-folder-divider {
+  height: 1px;
+  margin-bottom: 4px;
+  background: #e2e8f0;
+}
+
+[data-pc-theme='dark'] .quick-list-folder-create,
+[data-bs-theme='dark'] .quick-list-folder-create {
+  color: #8fd2ff;
+  border-color: #47779d;
+  background: rgba(71, 119, 157, 0.18);
+}
+
+[data-pc-theme='dark'] .quick-list-folder-create:hover:not(:disabled),
+[data-pc-theme='dark'] .quick-list-folder-create:focus-visible:not(:disabled),
+[data-bs-theme='dark'] .quick-list-folder-create:hover:not(:disabled),
+[data-bs-theme='dark'] .quick-list-folder-create:focus-visible:not(:disabled) {
+  color: #fff;
+  border-color: #5eb9f4;
+  background: #237eb7;
+}
+
+[data-pc-theme='dark'] .quick-list-folder-divider,
+[data-bs-theme='dark'] .quick-list-folder-divider {
+  background: #315b7d;
+}
+
 .todo-page .task-list-group-row > td {
   padding: 9px 14px;
   background: #f1f5f9;
