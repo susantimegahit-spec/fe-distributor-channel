@@ -263,6 +263,21 @@
   border-bottom: 1px solid var(--todo-border);
 }
 
+.todo-page .task-panel-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.todo-page .task-folder-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+
 .todo-page .quick-list-create {
   display: grid;
   grid-template-columns:
@@ -356,10 +371,10 @@
 }
 
 .todo-page .task-folder-group-row > td {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 210px 30px;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   padding: 12px 14px;
   border-bottom: 1px solid var(--todo-border);
   background: #e8eef6;
@@ -379,6 +394,58 @@
   text-align: left;
 }
 
+.todo-page .task-folder-group-main {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 6px;
+}
+
+.todo-page .task-folder-delete {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #f43f5e;
+  border-radius: 6px;
+  color: #dc2626;
+  background: rgba(244, 63, 94, 0.06);
+  font-size: 14px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+
+.todo-page .task-folder-group-row:hover .task-folder-delete,
+.todo-page .task-folder-group-row:focus-within .task-folder-delete {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.todo-page .task-folder-delete:hover,
+.todo-page .task-folder-delete:focus-visible {
+  color: #fff;
+  background: #e11d48;
+  outline: none;
+}
+
+[data-pc-theme='dark'] .todo-page .task-folder-delete,
+[data-bs-theme='dark'] .todo-page .task-folder-delete {
+  color: #f87171;
+  border-color: #fb7185;
+  background: rgba(244, 63, 94, 0.1);
+}
+
+@media (hover: none) {
+  .todo-page .task-folder-delete {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
 .todo-page .task-folder-group-toggle:hover,
 .todo-page .task-folder-group-toggle:focus-visible {
   color: #2563eb;
@@ -387,17 +454,22 @@
 
 .todo-page .task-folder-group-toggle .ti-folder,
 .todo-page .task-folder-group-toggle .ti-folder-open {
-  color: #d79022;
   font-size: 18px;
 }
 
 .todo-page .task-folder-group-summary {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: 120px 74px;
   align-items: center;
-  gap: 16px;
+  justify-content: end;
+  gap: 12px;
   color: var(--todo-muted);
   font-size: 11px;
   white-space: nowrap;
+}
+
+.todo-page .task-folder-group-summary span {
+  text-align: right;
 }
 
 .todo-page .task-list-group-body--nested .task-list-group-row > td {

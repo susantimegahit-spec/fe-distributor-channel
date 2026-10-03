@@ -90,6 +90,9 @@ class TaskManagementServices {
   postCreateFolder(payload) {
     return DataService.post('/task-management/folders', payload);
   }
+  deleteTaskFolder(id) {
+    return DataService.delete(`/task-management/folders/${id}`);
+  }
   getLists(params) {
     return DataService.get(`/task-management/lists${query(params)}`);
   }

@@ -462,17 +462,24 @@ export default function ToDoList() {
         const workspaceId = workspaceRows[0]?.id || '';
         const spacesResponse = await TaskManagementServices.getSpaces({ workspace_id: workspaceId || 1 });
         const spaceRows = responseList(spacesResponse);
-        const listResponses = await Promise.allSettled(
-          spaceRows.map((space) => TaskManagementServices.getLists({ space_id: space.id }))
+        const hierarchyResponses = await Promise.allSettled(
+          spaceRows.map((space) =>
+            Promise.all([
+              TaskManagementServices.getFolders({ space_id: space.id }),
+              TaskManagementServices.getLists({ space_id: space.id })
+            ])
+          )
         );
         const initialSpaceHierarchy = spaceRows.reduce((result, space, index) => {
-          const response = listResponses[index];
+          const response = hierarchyResponses[index];
+          const [foldersResponse, listsResponse] = response.status === 'fulfilled' ? response.value : [];
           result[String(space.id)] = {
-            folders: [],
-            lists: response.status === 'fulfilled' && !apiError(response.value) ? responseList(response.value) : []
+            folders: foldersResponse && !apiError(foldersResponse) ? responseList(foldersResponse) : [],
+            lists: listsResponse && !apiError(listsResponse) ? responseList(listsResponse) : []
           };
           return result;
         }, {});
+        const initialFolders = Object.values(initialSpaceHierarchy).flatMap((hierarchy) => hierarchy.folders);
         const initialLists = Object.values(initialSpaceHierarchy).flatMap((hierarchy) => hierarchy.lists);
         setSelectedDepartmentIds([]);
         setExpandedDepartmentIds([]);
@@ -482,7 +489,7 @@ export default function ToDoList() {
         setMasters({
           workspaces: workspaceRows,
           spaces: spaceRows,
-          folders: [],
+          folders: initialFolders,
           lists: initialLists,
           statuses: responseList(statusesResponse),
           priorities: responseList(prioritiesResponse),
@@ -595,20 +602,22 @@ export default function ToDoList() {
   const quickListSpace = quickListDepartment
     ? masters.spaces.find((item) => spaceMatchesDepartment(item, quickListDepartment))
     : null;
-  const quickListFolders = quickListSpace ? spaceHierarchy[String(quickListSpace.id)]?.folders || [] : [];
+  const quickListFolders = quickListSpace
+    ? spaceHierarchy[String(quickListSpace.id)]?.folders || []
+    : Object.values(spaceHierarchy).flatMap((hierarchy) => hierarchy.folders || []);
   const taskTreeRows = useMemo(() => {
-    if (!quickListForm.departmentId || quickListForm.folderId) {
+    if (quickListForm.folderId) {
       return groupedListTasks.map((group) => ({ type: 'list', key: `list-${group.key}`, group }));
     }
 
-    const knownFolderIds = new Set(quickListFolders.map((folder) => String(folder.id)));
-    const rows = quickListFolders.flatMap((folder) => {
+    return quickListFolders.flatMap((folder) => {
       const folderId = String(folder.id);
       const folderGroups = groupedListTasks.filter((group) => group.folderId === folderId);
       const folderTasks = folderGroups.flatMap((group) => group.tasks);
       const folderRow = {
         type: 'folder',
         key: `folder-${folderId}`,
+        folder,
         folderId,
         name: entityName(folder),
         listCount: folderGroups.length,
@@ -616,12 +625,9 @@ export default function ToDoList() {
       };
 
       if (!expandedTaskFolderIds.includes(folderId)) return [folderRow];
-      return [folderRow, ...folderGroups.map((group) => ({ type: 'list', key: `list-${group.key}`, group }))];
+      return [folderRow, ...folderGroups.map((group) => ({ type: 'list', key: `list-${folderId}-${group.key}`, group }))];
     });
-    const groupsWithoutKnownFolder = groupedListTasks.filter((group) => !knownFolderIds.has(group.folderId));
-
-    return [...rows, ...groupsWithoutKnownFolder.map((group) => ({ type: 'list', key: `list-${group.key}`, group }))];
-  }, [expandedTaskFolderIds, groupedListTasks, quickListFolders, quickListForm.departmentId, quickListForm.folderId]);
+  }, [expandedTaskFolderIds, groupedListTasks, quickListFolders, quickListForm.folderId]);
 
   useEffect(() => {
     if (initializedCollapsedListsRef.current || !allTaskListOptions.length) return;
@@ -1439,6 +1445,27 @@ export default function ToDoList() {
       setSavingFolder(false);
     }
   };
+  const deleteTaskFolder = (event, folder) => {
+    event.stopPropagation();
+    const name = entityName(folder);
+
+    showConfirm({
+      title: 'Hapus folder?',
+      subTitle: `${name} akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.`,
+      skipCountdown: true,
+      onConfirm: async () => {
+        try {
+          const response = await TaskManagementServices.deleteTaskFolder(folder.id);
+          if (apiError(response)) throw new Error(response?.data?.message || 'Gagal menghapus folder.');
+
+          if (quickListDepartment) await selectDepartment(quickListDepartment);
+          showAlert(`Folder ${name} berhasil dihapus.`, 'success');
+        } catch (error) {
+          showAlert(error?.response?.data?.message || error?.message || 'Gagal menghapus folder.', 'danger');
+        }
+      }
+    });
+  };
   const createSpace = async () => {
     const department = departments.find((item) => String(item.id) === String(newSpaceDepartmentId || selectedDepartmentIds[0]));
     if (!newSpaceName.trim() || !department) return;
@@ -1514,9 +1541,31 @@ export default function ToDoList() {
 
           <div className="task-panel p-0 overflow-hidden">
             <div className="task-panel-toolbar">
-              <div>
-                <div className="text-muted f-10 text-uppercase fw-semibold">All Tasks</div>
-                <div className="fw-semibold">{filteredTasks.length} task</div>
+              <div className="task-panel-heading">
+                {view === 'list' && quickListForm.folderId ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline-secondary"
+                    className="task-folder-back"
+                    onClick={() => filterTasksByQuickFolder('')}
+                    disabled={loading}
+                    aria-label="Kembali ke daftar folder"
+                    title="Kembali ke daftar folder"
+                  >
+                    <i className="ti ti-arrow-left" aria-hidden="true" />
+                  </Button>
+                ) : null}
+                <div>
+                  <div className="text-muted f-10 text-uppercase fw-semibold">
+                    {view === 'list' && !quickListForm.folderId ? 'Folders' : 'All Tasks'}
+                  </div>
+                  <div className="fw-semibold">
+                    {view === 'list' && !quickListForm.folderId
+                      ? `${quickListFolders.length} folder`
+                      : `${filteredTasks.length} task`}
+                  </div>
+                </div>
               </div>
               <Stack direction="horizontal" gap={2}>
                 <div className="btn-group task-view-actions">
@@ -1573,7 +1622,7 @@ export default function ToDoList() {
                       .map((folder) => ({ value: folder.id, label: entityName(folder) }))[0] || null
                   }
                   options={quickListFolders.map((folder) => ({ value: folder.id, label: entityName(folder) }))}
-                  isDisabled={!quickListSpace || quickListFoldersLoading || savingQuickList}
+                  isDisabled={!quickListFolders.length || quickListFoldersLoading || savingQuickList}
                   isLoading={quickListFoldersLoading}
                   isClearable
                   placeholder="Select Folder..."
@@ -1666,27 +1715,42 @@ export default function ToDoList() {
                         <tbody key={node.key} className="task-folder-group-body">
                           <tr className="task-folder-group-row">
                             <td colSpan={7}>
-                              <button
-                                type="button"
-                                className="task-folder-group-toggle"
-                                aria-label={`${isExpanded ? 'Collapse' : 'Expand'} folder ${node.name}`}
-                                aria-expanded={isExpanded}
-                                onClick={() =>
-                                  setExpandedTaskFolderIds((current) =>
-                                    current.includes(node.folderId)
-                                      ? current.filter((id) => id !== node.folderId)
-                                      : [...current, node.folderId]
-                                  )
-                                }
-                              >
-                                <i className={`ti ${isExpanded ? 'ti-chevron-down' : 'ti-chevron-right'}`} />
-                                <i className={`ti ${isExpanded ? 'ti-folder-open' : 'ti-folder'}`} />
-                                <span>{node.name}</span>
-                              </button>
+                              <div className="task-folder-group-main">
+                                <button
+                                  type="button"
+                                  className="task-folder-group-toggle"
+                                  aria-label={`${isExpanded ? 'Tutup' : 'Buka'} folder ${node.name}`}
+                                  aria-expanded={isExpanded}
+                                  onClick={() =>
+                                    setExpandedTaskFolderIds((current) =>
+                                      current.includes(node.folderId)
+                                        ? current.filter((id) => id !== node.folderId)
+                                        : [...current, node.folderId]
+                                    )
+                                  }
+                                >
+                                  <i className={`ti ${isExpanded ? 'ti-chevron-down' : 'ti-chevron-right'}`} />
+                                  <i
+                                    className={`ti ${isExpanded ? 'ti-folder-open' : 'ti-folder'}`}
+                                    style={{ color: folderColor(node.folder?.color_hex || node.folder?.color) }}
+                                  />
+                                  <span>{node.name}</span>
+                                </button>
+                              </div>
                               <div className="task-folder-group-summary">
                                 <span>{node.listCount} List Project</span>
                                 <span>{node.taskCount} task</span>
                               </div>
+                              <button
+                                type="button"
+                                className="task-folder-delete"
+                                data-permission-action="none"
+                                aria-label={`Delete folder ${node.name}`}
+                                title="Delete folder"
+                                onClick={(event) => deleteTaskFolder(event, node.folder)}
+                              >
+                                <i className="ti ti-trash" aria-hidden="true" />
+                              </button>
                             </td>
                           </tr>
                         </tbody>
@@ -1706,7 +1770,7 @@ export default function ToDoList() {
                     return (
                       <tbody
                         key={node.key}
-                        className={`task-list-group-body ${quickListForm.departmentId && !quickListForm.folderId ? 'task-list-group-body--nested' : ''}`}
+                        className={`task-list-group-body ${!quickListForm.folderId ? 'task-list-group-body--nested' : ''}`}
                       >
                         <tr className="task-list-group-row">
                           <td colSpan={7}>
