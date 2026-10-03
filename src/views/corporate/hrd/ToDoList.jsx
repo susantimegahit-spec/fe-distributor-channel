@@ -115,7 +115,7 @@ const entityName = (item, fallback = '-') => {
 };
 const statusLabel = (item, fallback = '-') => statusById[item?.id] || entityName(item, fallback);
 const priorityLabel = (item, fallback = '-') => priorityById[item?.id] || entityName(item, fallback);
-const taskTypeLabel = (item, fallback = '-') => taskTypeById[item?.id] || entityName(item, fallback);
+const taskTypeLabel = (item, fallback = '-') => entityName(item, taskTypeById[item?.id] || fallback);
 const normalizeDepartment = (item, index) => ({
   id: item?.id ?? item?.ocr_code ?? `department-${index}`,
   code: String(item?.ocr_code ?? item?.ocrCode ?? item?.OcrCode ?? item?.code ?? '').trim(),
@@ -205,7 +205,7 @@ const normalizeApiTask = (task) => {
     priority: priorityById[priorityId] || entityName(priorityObject, displayText(safeTask.priority, 'Normal')),
     priorityId,
     typeId,
-    type: entityName(safeTask.task_type, displayText(safeTask.type, 'Task')),
+    type: entityName(taskTypeObject, displayText(safeTask.type, taskTypeById[typeId] || 'Task')),
     assignees,
     assigneeIds: explicitAssigneeIds.length
       ? explicitAssigneeIds
@@ -270,6 +270,16 @@ const StatusBadge = ({ status }) => (
 const priorityBadgeClass = { Urgent: 'urgent', High: 'high', Normal: 'normal', Low: 'low' };
 const PriorityBadge = ({ priority }) => (
   <span className={`todo-priority-badge todo-priority-badge--${priorityBadgeClass[priority] || 'default'}`}>{priority}</span>
+);
+const taskTypeBadgeClass = {
+  Task: 'task',
+  Bug: 'bug',
+  Feature: 'feature',
+  'Operational Routine': 'operational',
+  Milestone: 'milestone'
+};
+const TaskTypeBadge = ({ type }) => (
+  <span className={`task-list-simple-type task-list-simple-type--${taskTypeBadgeClass[type] || 'default'}`}>{type || 'Task'}</span>
 );
 const getInlineTaskTitles = (taskText = '') =>
   taskText
@@ -2008,7 +2018,16 @@ export default function ToDoList() {
                                   );
                                 }}
                               />
-                              <span className="task-list-simple-title">{task.title}</span>
+                              <div className="task-list-simple-title-info">
+                                <span className="task-list-simple-title">{task.title}</span>
+                                <TaskTypeBadge
+                                  type={taskTypeLabel(
+                                    masters.types.find((item) => String(item.id) === String(task.typeId)),
+                                    task.type
+                                  )}
+                                />
+                                <PriorityBadge priority={task.priority} />
+                              </div>
                               <div className="task-list-simple-meta">
                                 <div className="task-list-meta-item task-list-meta-assignee">
                                   <small>Assignee</small>
@@ -2019,7 +2038,7 @@ export default function ToDoList() {
                                   <StatusBadge status={task.status} />
                                 </div>
                                 <div className="task-list-meta-item task-list-meta-due-date">
-                                  <small>Due Date</small>
+                                  <small>Deadline</small>
                                   <span className={isOverdue(task) ? 'overdue' : ''}>{formatDate(task.dueDate)}</span>
                                 </div>
                               </div>
@@ -2270,7 +2289,7 @@ export default function ToDoList() {
                 </Form.Select>
               </Col>
               <Col xs={12} md={6}>
-                <Form.Label>Due Date</Form.Label>
+                <Form.Label>Deadline</Form.Label>
                 <Form.Control
                   type="date"
                   value={bulkUpdateForm.dueDate}
@@ -2455,12 +2474,10 @@ export default function ToDoList() {
                       isClearable
                       isDisabled={savingEdit}
                       placeholder="Select Type"
-                      options={masters.types
-                        .filter((item) => taskTypeById[item.id])
-                        .map((item) => ({ value: item.id, label: taskTypeLabel(item) }))}
+                      options={masters.types.map((item) => ({ value: item.id, label: taskTypeLabel(item) }))}
                       value={
                         masters.types
-                          .filter((item) => String(item.id) === String(editForm.typeId) && taskTypeById[item.id])
+                          .filter((item) => String(item.id) === String(editForm.typeId))
                           .map((item) => ({ value: item.id, label: taskTypeLabel(item) }))[0] || null
                       }
                       onChange={(option) => setEditForm((current) => ({ ...current, typeId: option?.value || '' }))}
@@ -2926,12 +2943,10 @@ export default function ToDoList() {
                   menuPosition="fixed"
                   isClearable
                   placeholder="Select Type"
-                  options={masters.types
-                    .filter((item) => taskTypeById[item.id])
-                    .map((item) => ({ value: item.id, label: taskTypeLabel(item) }))}
+                  options={masters.types.map((item) => ({ value: item.id, label: taskTypeLabel(item) }))}
                   value={
                     masters.types
-                      .filter((item) => String(item.id) === String(form.typeId) && taskTypeById[item.id])
+                      .filter((item) => String(item.id) === String(form.typeId))
                       .map((item) => ({ value: item.id, label: taskTypeLabel(item) }))[0] || null
                   }
                   onChange={(option) => setForm((current) => ({ ...current, typeId: option?.value || '' }))}

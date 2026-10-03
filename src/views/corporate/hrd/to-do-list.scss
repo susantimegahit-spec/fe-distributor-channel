@@ -785,12 +785,92 @@
   flex: 0 0 auto;
 }
 
-.todo-page .task-list-simple-title {
+.todo-page .task-list-simple-title-info {
   flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 7px;
+}
+
+.todo-page .task-list-simple-title {
   min-width: 0;
   overflow-wrap: anywhere;
   font-size: 13px;
   font-weight: 600;
+}
+
+.todo-page .task-list-simple-type {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border-radius: 5px;
+  color: #475569;
+  background: #e2e8f0;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.todo-page .task-list-simple-type--task {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.todo-page .task-list-simple-type--bug {
+  color: #be123c;
+  background: #ffe4e6;
+}
+
+.todo-page .task-list-simple-type--feature {
+  color: #047857;
+  background: #d1fae5;
+}
+
+.todo-page .task-list-simple-type--operational {
+  color: #a16207;
+  background: #fef3c7;
+}
+
+.todo-page .task-list-simple-type--milestone {
+  color: #7e22ce;
+  background: #f3e8ff;
+}
+
+[data-pc-theme='dark'] .todo-page .task-list-simple-type--task,
+[data-bs-theme='dark'] .todo-page .task-list-simple-type--task {
+  color: #93c5fd;
+  background: rgb(37 99 235 / 24%);
+}
+
+[data-pc-theme='dark'] .todo-page .task-list-simple-type--bug,
+[data-bs-theme='dark'] .todo-page .task-list-simple-type--bug {
+  color: #fda4af;
+  background: rgb(225 29 72 / 24%);
+}
+
+[data-pc-theme='dark'] .todo-page .task-list-simple-type--feature,
+[data-bs-theme='dark'] .todo-page .task-list-simple-type--feature {
+  color: #6ee7b7;
+  background: rgb(5 150 105 / 24%);
+}
+
+[data-pc-theme='dark'] .todo-page .task-list-simple-type--operational,
+[data-bs-theme='dark'] .todo-page .task-list-simple-type--operational {
+  color: #fcd34d;
+  background: rgb(217 119 6 / 24%);
+}
+
+[data-pc-theme='dark'] .todo-page .task-list-simple-type--milestone,
+[data-bs-theme='dark'] .todo-page .task-list-simple-type--milestone {
+  color: #d8b4fe;
+  background: rgb(147 51 234 / 24%);
+}
+
+.todo-page .task-list-simple-title-info .todo-priority-badge {
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  font-size: 9px;
+  line-height: 1.35;
 }
 
 .todo-page .task-list-simple-row .avatar-stack {
@@ -2010,8 +2090,9 @@
     padding-left: 34px;
   }
 
-  .todo-page .task-list-simple-title {
+  .todo-page .task-list-simple-title-info {
     flex-basis: calc(100% - 42px);
+    flex-wrap: wrap;
   }
 
   .todo-page .task-list-simple-meta {
