@@ -191,6 +191,8 @@ const normalizeApiTask = (task) => {
   const priorityObject = safeTask.priority && typeof safeTask.priority === 'object' ? safeTask.priority : null;
   const statusId = statusObject?.id || safeTask.status_id;
   const priorityId = priorityObject?.id || safeTask.priority_id;
+  const taskTypeObject = safeTask.task_type && typeof safeTask.task_type === 'object' ? safeTask.task_type : null;
+  const typeId = taskTypeObject?.id || safeTask.task_type_id;
   const rawSubtasks = Array.isArray(safeTask.subtasks) ? safeTask.subtasks : [];
   return {
     ...safeTask,
@@ -202,6 +204,7 @@ const normalizeApiTask = (task) => {
     statusId,
     priority: priorityById[priorityId] || entityName(priorityObject, displayText(safeTask.priority, 'Normal')),
     priorityId,
+    typeId,
     type: entityName(safeTask.task_type, displayText(safeTask.type, 'Task')),
     assignees,
     assigneeIds: explicitAssigneeIds.length
@@ -210,6 +213,9 @@ const normalizeApiTask = (task) => {
     startDate: safeTask.start_date || safeTask.startDate || '',
     dueDate: safeTask.due_date || safeTask.dueDate || '',
     estimatedHours: Number(safeTask.estimated_hours || 0),
+    spaceId: safeTask.space_id || safeTask.space?.id || safeTask.folder?.space_id || safeTask.list?.space_id || '',
+    folderId: safeTask.folder_id || safeTask.folder?.id || '',
+    listId: safeTask.list_id || safeTask.list?.id || '',
     slaHours: Number(prioritySlaById[priorityId] || safeTask.sla_hours || priorityObject?.sla_hours || 0),
     trackedMinutes: Number(safeTask.total_duration_minutes || safeTask.tracked_minutes || 0),
     progressPercentage: Number(safeTask.progress_percentage || 0),
@@ -358,14 +364,7 @@ export default function ToDoList() {
     estimatedHours: 8
   };
   const [form, setForm] = useState(emptyForm);
-  const [editForm, setEditForm] = useState({
-    title: '',
-    description: '',
-    priorityId: '',
-    startDate: '',
-    dueDate: '',
-    assigneeIds: []
-  });
+  const [editForm, setEditForm] = useState(emptyForm);
   const availableTaskLists = useMemo(() => {
     const rows = spaceHierarchy[String(scope.spaceId)]?.lists || masters.lists;
     if (!scope.folderId) return rows;
@@ -384,6 +383,17 @@ export default function ToDoList() {
         (item) => !form.folderId || String(item.folder_id || item.folder?.id || '') === String(form.folderId)
       ),
     [form.folderId, form.spaceId, spaceHierarchy]
+  );
+  const editFolders = useMemo(
+    () => spaceHierarchy[String(editForm.spaceId)]?.folders || [],
+    [editForm.spaceId, spaceHierarchy]
+  );
+  const editTaskLists = useMemo(
+    () =>
+      (spaceHierarchy[String(editForm.spaceId)]?.lists || masters.lists).filter(
+        (item) => !editForm.folderId || String(item.folder_id || item.folder?.id || '') === String(editForm.folderId)
+      ),
+    [editForm.folderId, editForm.spaceId, masters.lists, spaceHierarchy]
   );
 
   const loadTasks = useCallback(
@@ -693,11 +703,24 @@ export default function ToDoList() {
 
   const updateLocalTask = (id, changes) => setTasks((current) => current.map((task) => (task.id === id ? { ...task, ...changes } : task)));
   const taskEditValues = (task) => ({
+    ...emptyForm,
+    departmentId:
+      departments.find((department) =>
+        masters.spaces.some(
+          (space) => String(space.id) === String(task.spaceId) && spaceMatchesDepartment(space, department)
+        )
+      )?.id || '',
+    spaceId: task.spaceId || '',
+    folderId: task.folderId || '',
+    listId: task.listId || '',
     title: task.title || '',
     description: task.description || '',
+    statusId: task.statusId || '',
     priorityId: task.priorityId || '',
+    typeId: task.typeId || '',
     startDate: toDateInput(task.startDate),
     dueDate: toDateInput(task.dueDate),
+    estimatedHours: task.estimatedHours || 0,
     assigneeIds: task.assigneeIds || []
   });
   const openTask = async (task) => {
@@ -910,6 +933,10 @@ export default function ToDoList() {
   const editTask = async (event) => {
     event.preventDefault();
     if (!selectedTask) return;
+    if (!editForm.folderId || !editForm.listId) {
+      showAlert('Folder dan Target List wajib dipilih.', 'warning');
+      return;
+    }
     if (editForm.startDate && editForm.dueDate && new Date(editForm.startDate) > new Date(editForm.dueDate)) {
       showAlert('Start Date tidak boleh melewati Deadline.', 'warning');
       return;
@@ -917,11 +944,16 @@ export default function ToDoList() {
     setSavingEdit(true);
     try {
       const response = await TaskManagementServices.putEditTask(selectedTask.id, {
+        folder_id: editForm.folderId || undefined,
+        list_id: editForm.listId || undefined,
         title: editForm.title.trim(),
         description: editForm.description.trim(),
+        status_id: editForm.statusId ? Number(editForm.statusId) : undefined,
         priority_id: editForm.priorityId ? Number(editForm.priorityId) : undefined,
+        task_type_id: editForm.typeId ? Number(editForm.typeId) : undefined,
         start_date: editForm.startDate || null,
         due_date: editForm.dueDate || undefined,
+        estimated_hours: Number(editForm.estimatedHours) || 0,
         assignee_ids: editForm.assigneeIds.map(Number)
       });
       if (apiError(response)) throw new Error(response?.data?.message);
@@ -1622,7 +1654,7 @@ export default function ToDoList() {
                       .map((folder) => ({ value: folder.id, label: entityName(folder) }))[0] || null
                   }
                   options={quickListFolders.map((folder) => ({ value: folder.id, label: entityName(folder) }))}
-                  isDisabled={!quickListFolders.length || quickListFoldersLoading || savingQuickList}
+                  isDisabled={!quickListSpace || quickListFoldersLoading || savingQuickList}
                   isLoading={quickListFoldersLoading}
                   isClearable
                   placeholder="Select Folder..."
@@ -2303,34 +2335,140 @@ export default function ToDoList() {
             <Offcanvas.Body>
               <Form onSubmit={editTask}>
                 <Row className="g-3 mb-4">
+                  <Col sm={6}>
+                    <Form.Label>Department *</Form.Label>
+                    <Select
+                      classNamePrefix="task-form-select"
+                      menuPortalTarget={document.body}
+                      menuPosition="fixed"
+                      isDisabled
+                      options={departments.map((item) => ({
+                        value: item.id,
+                        label: `${item.code ? `${item.code} - ` : ''}${item.name}`
+                      }))}
+                      value={
+                        departments
+                          .filter((item) => String(item.id) === String(editForm.departmentId))
+                          .map((item) => ({ value: item.id, label: `${item.code ? `${item.code} - ` : ''}${item.name}` }))[0] || null
+                      }
+                      styles={{ menuPortal: (base) => ({ ...base, zIndex: 1090 }) }}
+                    />
+                  </Col>
+                  <Col sm={6}>
+                    <Form.Label>Folder *</Form.Label>
+                    <Select
+                      classNamePrefix="task-form-select"
+                      menuPortalTarget={document.body}
+                      menuPosition="fixed"
+                      isClearable
+                      isDisabled={savingEdit}
+                      placeholder="Select Folder"
+                      options={editFolders.map((item) => ({ value: item.id, label: entityName(item) }))}
+                      value={
+                        editFolders
+                          .filter((item) => String(item.id) === String(editForm.folderId))
+                          .map((item) => ({ value: item.id, label: entityName(item) }))[0] || null
+                      }
+                      onChange={(option) =>
+                        setEditForm((current) => ({ ...current, folderId: option?.value || '', listId: '' }))
+                      }
+                      styles={{ menuPortal: (base) => ({ ...base, zIndex: 1090 }) }}
+                    />
+                  </Col>
                   <Col xs={12}>
-                    <Form.Label>Title *</Form.Label>
+                    <Form.Label>Target List *</Form.Label>
+                    <Select
+                      classNamePrefix="task-form-select"
+                      menuPortalTarget={document.body}
+                      menuPosition="fixed"
+                      isClearable
+                      isDisabled={savingEdit || !editForm.folderId}
+                      placeholder="Select List"
+                      options={editTaskLists.map((item) => ({ value: item.id, label: entityName(item) }))}
+                      value={
+                        editTaskLists
+                          .filter((item) => String(item.id) === String(editForm.listId))
+                          .map((item) => ({ value: item.id, label: entityName(item) }))[0] || null
+                      }
+                      onChange={(option) => setEditForm((current) => ({ ...current, listId: option?.value || '' }))}
+                      styles={{ menuPortal: (base) => ({ ...base, zIndex: 1090 }) }}
+                    />
+                  </Col>
+                  <Col xs={12}>
+                    <Form.Label>Task Title *</Form.Label>
                     <Form.Control required disabled={savingEdit} value={editForm.title}
                       onChange={(event) => setEditForm((current) => ({ ...current, title: event.target.value }))} />
                   </Col>
                   <Col sm={6}>
                     <Form.Label>Status</Form.Label>
-                    <Form.Select size="sm" value={selectedTask.statusId || selectedTask.status}
-                      onChange={(event) => changeTaskStatus(selectedTask, event.target.value)}>
-                      {(masters.statuses.length ? masters.statuses : statuses).map((item) => (
-                        <option key={item.id || item} value={item.id || item}>
-                          {typeof item === 'object' ? statusLabel(item) : item}
-                        </option>
-                      ))}
-                    </Form.Select>
+                    <Select
+                      classNamePrefix="task-form-select"
+                      menuPortalTarget={document.body}
+                      menuPosition="fixed"
+                      isClearable
+                      isDisabled={savingEdit}
+                      placeholder="Default Status"
+                      options={masters.statuses
+                        .filter((item) => statusById[item.id])
+                        .map((item) => ({ value: item.id, label: statusLabel(item) }))}
+                      value={
+                        masters.statuses
+                          .filter((item) => String(item.id) === String(editForm.statusId))
+                          .map((item) => ({ value: item.id, label: statusLabel(item) }))[0] || null
+                      }
+                      onChange={(option) => setEditForm((current) => ({ ...current, statusId: option?.value || '' }))}
+                      styles={{ menuPortal: (base) => ({ ...base, zIndex: 1090 }) }}
+                    />
+                  </Col>
+                  <Col sm={6}>
+                    <Form.Label>Description</Form.Label>
+                    <Form.Control as="textarea" rows={3} disabled={savingEdit} value={editForm.description}
+                      onChange={(event) => setEditForm((current) => ({ ...current, description: event.target.value }))} />
                   </Col>
                   <Col sm={6}>
                     <Form.Label>Priority</Form.Label>
-                    <Form.Select disabled={savingEdit} value={editForm.priorityId}
-                      onChange={(event) => setEditForm((current) => ({ ...current, priorityId: event.target.value }))}>
-                      <option value="">Select Priority</option>
-                      {masters.priorities.map((item) => (
-                        <option key={item.id} value={item.id}>{priorityLabel(item)}</option>
-                      ))}
-                    </Form.Select>
+                    <Select
+                      classNamePrefix="task-form-select"
+                      menuPortalTarget={document.body}
+                      menuPosition="fixed"
+                      isClearable
+                      isDisabled={savingEdit}
+                      placeholder="Select Priority"
+                      options={masters.priorities
+                        .filter((item) => priorityById[item.id])
+                        .map((item) => ({ value: item.id, label: priorityLabel(item) }))}
+                      value={
+                        masters.priorities
+                          .filter((item) => String(item.id) === String(editForm.priorityId))
+                          .map((item) => ({ value: item.id, label: priorityLabel(item) }))[0] || null
+                      }
+                      onChange={(option) => setEditForm((current) => ({ ...current, priorityId: option?.value || '' }))}
+                      styles={{ menuPortal: (base) => ({ ...base, zIndex: 1090 }) }}
+                    />
                   </Col>
-                  <Col xs={12}>
-                    <Form.Label>Assignees</Form.Label>
+                  <Col sm={6}>
+                    <Form.Label>Task Type</Form.Label>
+                    <Select
+                      classNamePrefix="task-form-select"
+                      menuPortalTarget={document.body}
+                      menuPosition="fixed"
+                      isClearable
+                      isDisabled={savingEdit}
+                      placeholder="Select Type"
+                      options={masters.types
+                        .filter((item) => taskTypeById[item.id])
+                        .map((item) => ({ value: item.id, label: taskTypeLabel(item) }))}
+                      value={
+                        masters.types
+                          .filter((item) => String(item.id) === String(editForm.typeId) && taskTypeById[item.id])
+                          .map((item) => ({ value: item.id, label: taskTypeLabel(item) }))[0] || null
+                      }
+                      onChange={(option) => setEditForm((current) => ({ ...current, typeId: option?.value || '' }))}
+                      styles={{ menuPortal: (base) => ({ ...base, zIndex: 1090 }) }}
+                    />
+                  </Col>
+                  <Col sm={6}>
+                    <Form.Label>Assignee</Form.Label>
                     <Select isMulti isDisabled={savingEdit || loadingEditEmployees || editEmployeesError}
                       isLoading={loadingEditEmployees} closeMenuOnSelect={false}
                       classNamePrefix="task-assignee-select" menuPortalTarget={document.body} menuPosition="fixed"
@@ -2348,19 +2486,24 @@ export default function ToDoList() {
                       placeholder={loadingEditEmployees ? 'Loading employees...' : 'Select assignees...'} />
                   </Col>
                   <Col sm={6}>
+                    <Form.Label>Deadline *</Form.Label>
+                    <Form.Control type="date" disabled={savingEdit} value={editForm.dueDate}
+                      onChange={(event) => setEditForm((current) => ({ ...current, dueDate: event.target.value }))} />
+                  </Col>
+                  <Col sm={6}>
                     <Form.Label>Start Date</Form.Label>
                     <Form.Control type="date" disabled={savingEdit} value={editForm.startDate}
                       onChange={(event) => setEditForm((current) => ({ ...current, startDate: event.target.value }))} />
                   </Col>
                   <Col sm={6}>
-                    <Form.Label>Deadline</Form.Label>
-                    <Form.Control type="date" disabled={savingEdit} value={editForm.dueDate}
-                      onChange={(event) => setEditForm((current) => ({ ...current, dueDate: event.target.value }))} />
-                  </Col>
-                  <Col xs={12}>
-                    <Form.Label>Description</Form.Label>
-                    <Form.Control as="textarea" rows={3} disabled={savingEdit} value={editForm.description}
-                      onChange={(event) => setEditForm((current) => ({ ...current, description: event.target.value }))} />
+                    <Form.Label>Estimated Hours</Form.Label>
+                    <Form.Control
+                      type="number"
+                      min="0"
+                      disabled={savingEdit}
+                      value={editForm.estimatedHours}
+                      onChange={(event) => setEditForm((current) => ({ ...current, estimatedHours: event.target.value }))}
+                    />
                   </Col>
                 </Row>
                 <div className="d-flex justify-content-end gap-2 mb-4">
@@ -2369,7 +2512,7 @@ export default function ToDoList() {
                     Delete Task
                   </Button>
                   <Button type="submit" data-permission-action="none"
-                    disabled={savingEdit || !editForm.title.trim()}>
+                    disabled={savingEdit || !editForm.folderId || !editForm.listId || !editForm.title.trim()}>
                     {savingEdit ? <span className="spinner-border spinner-border-sm me-2" /> : <i className="ti ti-device-floppy me-1" />}
                     {savingEdit ? 'Updating...' : 'Update Task'}
                   </Button>
