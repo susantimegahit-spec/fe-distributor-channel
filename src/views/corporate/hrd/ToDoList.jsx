@@ -14,7 +14,7 @@ import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
 import Tabs from 'react-bootstrap/Tabs';
 import Tab from 'react-bootstrap/Tab';
-import Select, { components } from 'react-select';
+import Select from 'react-select';
 
 import TaskManagementServices from '../../../services/corporate/TaskManagementServices';
 import DistributorServices from '../../../services/customer-portal/DistributorServices';
@@ -37,34 +37,6 @@ const colorMap = {
   Cancelled: '#dc2626'
 };
 const slaMap = { Urgent: '4 Jam', High: '24 Jam', Normal: '72 Jam', Low: '168 Jam' };
-
-const FolderMenuList = ({ children, selectProps, ...props }) => (
-  <components.MenuList {...props} selectProps={selectProps}>
-    <button
-      type="button"
-      className="quick-list-folder-create"
-      disabled={selectProps.createFolderDisabled}
-      onMouseDown={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        selectProps.onCreateFolder(event);
-      }}
-    >
-      <i className="ti ti-folder-plus" aria-hidden="true" />
-      <span>Create Folder</span>
-    </button>
-    <div className="quick-list-folder-divider" />
-    {children}
-  </components.MenuList>
-);
-
-FolderMenuList.propTypes = {
-  children: PropTypes.node,
-  selectProps: PropTypes.shape({
-    createFolderDisabled: PropTypes.bool,
-    onCreateFolder: PropTypes.func
-  }).isRequired
-};
 
 const initials = (name) =>
   name
@@ -345,9 +317,12 @@ export default function ToDoList() {
   const [savingFolder, setSavingFolder] = useState(false);
   const [folderDepartment, setFolderDepartment] = useState(null);
   const [folderForm, setFolderForm] = useState({ folderName: '', description: '', colorHex: '#4f46e5' });
+  const [quickFolderName, setQuickFolderName] = useState('');
+  const [folderDepartmentWarningTarget, setFolderDepartmentWarningTarget] = useState(null);
   const [savingList, setSavingList] = useState(false);
   const [listForm, setListForm] = useState({ listName: '', description: '', colorHex: '#2563eb', defaultView: 'LIST' });
   const [quickListForm, setQuickListForm] = useState({ departmentId: '', folderId: '', listName: '' });
+  const [inlineListFolderId, setInlineListFolderId] = useState('');
   const [quickListFoldersLoading, setQuickListFoldersLoading] = useState(false);
   const [quickListLoadedSpaceIds, setQuickListLoadedSpaceIds] = useState([]);
   const [savingQuickList, setSavingQuickList] = useState(false);
@@ -1039,36 +1014,44 @@ export default function ToDoList() {
       setSavingList(false);
     }
   };
-  const createQuickTaskList = async () => {
+  const createQuickTaskList = async (folder = null) => {
     const listName = quickListForm.listName.trim();
-    if (!quickListSpace?.id || !quickListForm.folderId || !listName || savingQuickList) {
-      if (!quickListSpace?.id || !quickListForm.folderId) showAlert('Pilih Department dan Folder terlebih dahulu.', 'warning');
+    const targetFolderId = folder?.id || inlineListFolderId || quickListForm.folderId;
+    const targetSpaceId =
+      folder?.space_id ||
+      folder?.space?.id ||
+      quickListSpace?.id ||
+      Object.entries(spaceHierarchy).find(([, hierarchy]) =>
+        (hierarchy.folders || []).some((item) => String(item.id) === String(targetFolderId))
+      )?.[0];
+    if (!targetSpaceId || !targetFolderId || !listName || savingQuickList) {
+      if (!targetSpaceId || !targetFolderId) showAlert('Space atau Folder tujuan tidak dapat ditentukan.', 'warning');
       return;
     }
     setSavingQuickList(true);
     try {
       const response = await TaskManagementServices.postListTask({
-        space_id: quickListSpace.id,
-        folder_id: quickListForm.folderId,
+        space_id: targetSpaceId,
+        folder_id: targetFolderId,
         list_name: listName,
         color_hex: '#2563eb',
         default_view: 'LIST'
       });
       if (apiError(response)) throw new Error(response?.data?.message);
-      const listsResponse = await TaskManagementServices.getLists({ space_id: quickListSpace.id });
+      const listsResponse = await TaskManagementServices.getLists({ space_id: targetSpaceId });
       if (apiError(listsResponse)) throw new Error(listsResponse?.data?.message);
       const listRows = responseList(listsResponse);
       setSpaceHierarchy((current) => ({
         ...current,
-        [String(quickListSpace.id)]: {
-          folders: current[String(quickListSpace.id)]?.folders || [],
+        [String(targetSpaceId)]: {
+          folders: current[String(targetSpaceId)]?.folders || [],
           lists: listRows
         }
       }));
       setMasters((current) => ({
         ...current,
         lists: [
-          ...current.lists.filter((item) => String(item.space_id || item.space?.id || '') !== String(quickListSpace.id)),
+          ...current.lists.filter((item) => String(item.space_id || item.space?.id || '') !== String(targetSpaceId)),
           ...listRows
         ]
       }));
@@ -1081,7 +1064,9 @@ export default function ToDoList() {
     }
   };
   const filterTasksByQuickDepartment = async (departmentId) => {
+    setFolderDepartmentWarningTarget(null);
     setQuickListForm((current) => ({ ...current, departmentId, folderId: '' }));
+    setInlineListFolderId('');
     setExpandedTaskFolderIds([]);
     setSelectedDepartmentIds(departmentId ? [String(departmentId)] : []);
     setTaskFilters((current) => ({ ...current, assigneeIds: [] }));
@@ -1474,11 +1459,22 @@ export default function ToDoList() {
       showAlert(error?.response?.data?.message || 'Gagal memuat Space.', 'danger');
     }
   };
-  const openFolderModal = (event, department) => {
-    event.stopPropagation();
+  const openFolderModal = (event, department, folderName = '') => {
+    event?.stopPropagation();
     setFolderDepartment(department);
-    setFolderForm({ folderName: '', description: '', colorHex: '#4f46e5' });
+    setFolderForm({ folderName, description: '', colorHex: '#4f46e5' });
+    setFolderDepartmentWarningTarget(null);
     setShowFolderModal(true);
+  };
+  const submitQuickFolder = (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    if (!quickListDepartment) {
+      setFolderDepartmentWarningTarget(event.currentTarget);
+      return;
+    }
+    if (!quickFolderName.trim()) return;
+    openFolderModal(event, quickListDepartment, quickFolderName.trim());
   };
   const createDepartmentFolder = async (event) => {
     event.preventDefault();
@@ -1493,6 +1489,7 @@ export default function ToDoList() {
       });
       if (apiError(response)) throw new Error(response?.data?.message);
       setShowFolderModal(false);
+      setQuickFolderName('');
       await selectDepartment(folderDepartment);
       showAlert(`Folder ${folderForm.folderName.trim()} berhasil dibuat.`, 'success');
     } catch (error) {
@@ -1682,9 +1679,6 @@ export default function ToDoList() {
                   isLoading={quickListFoldersLoading}
                   isClearable
                   placeholder="Select Folder..."
-                  components={{ MenuList: FolderMenuList }}
-                  onCreateFolder={(event) => openFolderModal(event, quickListDepartment)}
-                  createFolderDisabled={!quickListDepartment || !quickListSpace || savingFolder}
                   onChange={(option) => filterTasksByQuickFolder(option?.value || '')}
                   menuPortalTarget={document.body}
                   menuPosition="fixed"
@@ -1732,24 +1726,50 @@ export default function ToDoList() {
                     </option>
                   ))}
                 </Form.Select>
-                <InputGroup size="sm" className="quick-list-name">
+              </div>
+            ) : null}
+            {view === 'list' ? (
+              <div className="quick-folder-create-row">
+                <InputGroup size="sm" className="quick-folder-create-input">
                   <InputGroup.Text>
-                    {savingQuickList ? <span className="spinner-border spinner-border-sm" /> : <i className="ti ti-plus" />}
+                    <i className="ti ti-folder-plus" aria-hidden="true" />
                   </InputGroup.Text>
                   <Form.Control
                     type="text"
-                    value={quickListForm.listName}
-                    disabled={!quickListForm.folderId || savingQuickList}
-                    placeholder="Add new List Project, lalu tekan Enter..."
-                    aria-label="Nama List Project baru"
-                    onChange={(event) => setQuickListForm((current) => ({ ...current, listName: event.target.value }))}
-                    onKeyDown={(event) => {
-                      if (event.key !== 'Enter') return;
-                      event.preventDefault();
-                      createQuickTaskList();
+                    value={quickFolderName}
+                    disabled={savingFolder}
+                    placeholder="Add folder, then press Enter..."
+                    aria-label="Add folder"
+                    aria-describedby={folderDepartmentWarningTarget ? 'folder-department-warning' : undefined}
+                    onChange={(event) => {
+                      setQuickFolderName(event.target.value);
+                      setFolderDepartmentWarningTarget(null);
                     }}
+                    onKeyDown={submitQuickFolder}
                   />
                 </InputGroup>
+                <Overlay
+                  show={Boolean(folderDepartmentWarningTarget)}
+                  target={folderDepartmentWarningTarget}
+                  placement="bottom-start"
+                  container={typeof document !== 'undefined' ? document.body : null}
+                  containerPadding={8}
+                  rootClose
+                  onHide={() => setFolderDepartmentWarningTarget(null)}
+                >
+                  {({ ref, style, placement }) => (
+                    <div
+                      ref={ref}
+                      id="folder-department-warning"
+                      role="tooltip"
+                      className="quick-folder-warning-tooltip"
+                      data-popper-placement={placement}
+                      style={style}
+                    >
+                      Please select a department before creating a folder.
+                    </div>
+                  )}
+                </Overlay>
               </div>
             ) : null}
             {view === 'list' ? (
@@ -1792,6 +1812,38 @@ export default function ToDoList() {
                                   />
                                   <span>{node.name}</span>
                                 </button>
+                                {isExpanded ? (
+                                  <InputGroup size="sm" className="task-folder-inline-create">
+                                    <InputGroup.Text>
+                                      {savingQuickList && String(inlineListFolderId) === node.folderId ? (
+                                        <span className="spinner-border spinner-border-sm" />
+                                      ) : (
+                                        <i className="ti ti-plus" />
+                                      )}
+                                    </InputGroup.Text>
+                                    <Form.Control
+                                      type="text"
+                                      value={String(inlineListFolderId) === node.folderId ? quickListForm.listName : ''}
+                                      disabled={savingQuickList}
+                                      placeholder="Add new List Project, lalu tekan Enter..."
+                                      aria-label={`Tambah List Project ke folder ${node.name}`}
+                                      onFocus={() => {
+                                        if (String(inlineListFolderId) === node.folderId) return;
+                                        setInlineListFolderId(node.folderId);
+                                        setQuickListForm((current) => ({ ...current, listName: '' }));
+                                      }}
+                                      onChange={(event) => {
+                                        setInlineListFolderId(node.folderId);
+                                        setQuickListForm((current) => ({ ...current, listName: event.target.value }));
+                                      }}
+                                      onKeyDown={(event) => {
+                                        if (event.key !== 'Enter') return;
+                                        event.preventDefault();
+                                        createQuickTaskList(node.folder);
+                                      }}
+                                    />
+                                  </InputGroup>
+                                ) : null}
                               </div>
                               <div className="task-folder-group-summary">
                                 <span>{node.listCount} List Project</span>
@@ -2034,13 +2086,15 @@ export default function ToDoList() {
                               />
                               <div className="task-list-simple-title-info">
                                 <span className="task-list-simple-title">{task.title}</span>
-                                <TaskTypeBadge
-                                  type={taskTypeLabel(
-                                    masters.types.find((item) => String(item.id) === String(task.typeId)),
-                                    task.type
-                                  )}
-                                />
-                                <PriorityBadge priority={task.priority} />
+                                <span className="task-list-simple-badges">
+                                  <TaskTypeBadge
+                                    type={taskTypeLabel(
+                                      masters.types.find((item) => String(item.id) === String(task.typeId)),
+                                      task.type
+                                    )}
+                                  />
+                                  <PriorityBadge priority={task.priority} />
+                                </span>
                               </div>
                               <div className="task-list-simple-meta">
                                 <div className="task-list-meta-item task-list-meta-assignee">

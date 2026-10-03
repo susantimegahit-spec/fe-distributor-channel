@@ -284,8 +284,7 @@
     minmax(140px, 0.8fr)
     minmax(150px, 0.9fr)
     minmax(150px, 0.8fr)
-    minmax(130px, 0.7fr)
-    minmax(240px, 1.4fr);
+    minmax(130px, 0.7fr);
   gap: 10px;
   padding: 12px 14px;
   border-bottom: 1px solid var(--todo-border);
@@ -311,44 +310,42 @@
   white-space: nowrap;
 }
 
-.quick-list-folder-create {
+.todo-page .quick-folder-create-row {
   display: flex;
   align-items: center;
-  width: calc(100% - 16px);
-  gap: 8px;
-  margin: 4px 8px 8px;
+  padding: 0 14px 12px;
+  border-bottom: 1px solid var(--todo-border);
+  background: #f8fafc;
+}
+
+.todo-page .quick-folder-create-input {
+  max-width: 480px;
+}
+
+.quick-folder-warning-tooltip {
+  z-index: 1095;
+  max-width: 300px;
   padding: 8px 10px;
-  border: 1px solid #60a5fa;
-  border-radius: 7px;
-  color: #2563eb;
-  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid #93c5fd;
+  border-radius: 6px;
+  color: #1e3a5f;
+  background: #eff6ff;
+  box-shadow: 0 8px 20px rgb(15 23 42 / 18%);
   font-size: 12px;
-  font-weight: 700;
-  text-align: left;
+  font-weight: 600;
 }
 
-.quick-list-folder-create:hover:not(:disabled),
-.quick-list-folder-create:focus-visible:not(:disabled) {
-  color: #fff;
-  background: #2563eb;
-}
-
-.quick-list-folder-create:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.quick-list-folder-divider {
-  height: 1px;
-  margin-bottom: 4px;
-  background: #e2e8f0;
-}
-
-[data-pc-theme='dark'] .quick-list-folder-create,
-[data-bs-theme='dark'] .quick-list-folder-create {
-  color: #8fd2ff;
+[data-pc-theme='dark'] .quick-folder-warning-tooltip,
+[data-bs-theme='dark'] .quick-folder-warning-tooltip {
   border-color: #47779d;
-  background: rgba(71, 119, 157, 0.18);
+  color: #e7f3ff;
+  background: #183b5c;
+  box-shadow: 0 8px 24px rgb(2 12 27 / 35%);
+}
+
+[data-pc-theme='dark'] .todo-page .quick-folder-create-row,
+[data-bs-theme='dark'] .todo-page .quick-folder-create-row {
+  background: #102d49;
 }
 
 [data-pc-theme='dark'] .quick-list-folder-create:hover:not(:disabled),
@@ -395,10 +392,11 @@
 }
 
 .todo-page .task-folder-group-main {
-  display: inline-flex;
-  align-items: center;
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
   min-width: 0;
-  gap: 6px;
+  gap: 8px;
 }
 
 .todo-page .task-folder-delete {
@@ -470,6 +468,15 @@
 
 .todo-page .task-folder-group-summary span {
   text-align: right;
+}
+
+.todo-page .task-folder-inline-create {
+  width: min(520px, 100%);
+  margin-left: 48px;
+}
+
+.todo-page .task-folder-inline-create .form-control {
+  font-size: 12px;
 }
 
 .todo-page .task-list-group-body--nested .task-list-group-row > td {
@@ -789,15 +796,24 @@
   flex: 1;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   min-width: 0;
   gap: 7px;
 }
 
 .todo-page .task-list-simple-title {
+  flex: 1 1 360px;
   min-width: 0;
   overflow-wrap: anywhere;
   font-size: 13px;
   font-weight: 600;
+}
+
+.todo-page .task-list-simple-badges {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 7px;
 }
 
 .todo-page .task-list-simple-type {
