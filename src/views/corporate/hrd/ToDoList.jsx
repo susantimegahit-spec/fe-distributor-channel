@@ -405,6 +405,20 @@ export default function ToDoList() {
       ),
     [editForm.folderId, editForm.spaceId, masters.lists, spaceHierarchy]
   );
+  const allTaskFolderOptions = useMemo(() => {
+    const folders = [...masters.folders, ...Object.values(spaceHierarchy).flatMap((hierarchy) => hierarchy.folders || [])];
+    return [...new Map(folders.map((folder) => [String(folder.id), folder])).values()];
+  }, [masters.folders, spaceHierarchy]);
+  const destinationListOption = (list) => {
+    const folder =
+      (list.folder && typeof list.folder === 'object' ? list.folder : null) ||
+      allTaskFolderOptions.find((item) => String(item.id) === String(list.folder_id || list.folderId));
+    const folderName = entityName(folder, list.folder_name || list.folder);
+    return {
+      value: list.id,
+      label: `${folderName !== '-' ? `${folderName} / ` : ''}${entityName(list)}`
+    };
+  };
 
   const loadTasks = useCallback(
     async (activeScope = scope) => {
@@ -2177,21 +2191,27 @@ export default function ToDoList() {
               <span className="task-bulk-selection-count">
                 <strong>{selectedTaskIds.length}</strong> selected
               </span>
-              <Form.Select
-                size="sm"
+              <Select
                 className="task-bulk-list-select"
+                classNamePrefix="task-form-select"
+                menuPortalTarget={document.body}
+                menuPosition="fixed"
                 aria-label="Select destination List Project for Move or Copy"
-                value={moveTargetListId}
-                disabled={movingSelectedTasks || copyingSelectedTasks || deletingSelectedTasks}
-                onChange={(event) => setMoveTargetListId(event.target.value)}
-              >
-                <option value="">Select destination List Project...</option>
-                {allTaskListOptions.map((list) => (
-                  <option key={list.id} value={list.id}>
-                    {entityName(list)}{entityName(list.folder, list.folder_name) !== '-' ? ` — ${entityName(list.folder, list.folder_name)}` : ''}
-                  </option>
-                ))}
-              </Form.Select>
+                isClearable
+                isDisabled={movingSelectedTasks || copyingSelectedTasks || deletingSelectedTasks}
+                placeholder="Select destination List Project..."
+                options={allTaskListOptions.map(destinationListOption)}
+                value={
+                  allTaskListOptions
+                    .filter((list) => String(list.id) === String(moveTargetListId))
+                    .map(destinationListOption)[0] || null
+                }
+                onChange={(option) => setMoveTargetListId(option?.value || '')}
+                styles={{
+                  menuPortal: (base) => ({ ...base, zIndex: 1090 }),
+                  control: (base) => ({ ...base, minHeight: 31, fontSize: 12 })
+                }}
+              />
               <Button
                 type="button"
                 size="sm"
