@@ -13,7 +13,8 @@ export const masterDataModules = [
     title: 'Corporate',
     icon: 'ti ti-building-skyscraper',
     items: [
-      { id: 'enterprise-master-data-department', title: 'Department', icon: 'ti ti-building-community', url: '/corporate/master-data/department' }
+      { id: 'enterprise-master-data-department', title: 'Department', icon: 'ti ti-building-community', url: '/corporate/master-data/department' },
+      { id: 'enterprise-master-data-staff', title: 'Staff', icon: 'ti ti-users', url: '/system-setting/master-data/enterprise/enterprise-master-data-staff' }
     ]
   },
   {

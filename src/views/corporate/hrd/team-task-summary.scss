@@ -1,0 +1,264 @@
+.team-view-heading {
+  padding: 4px 2px 0;
+}
+
+.team-view-heading h5 {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.team-view-heading p {
+  max-width: 620px;
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.team-progress-grid {
+  padding: 18px;
+  border-radius: 18px;
+  background: #f6f7f9;
+}
+
+.team-progress-card {
+  overflow: hidden;
+  border: 1px solid #d9dee7;
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgb(15 23 42 / 5%);
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.team-progress-card:hover,
+.team-progress-card:focus-visible {
+  border-color: #60a5fa;
+  box-shadow: 0 10px 24px rgb(37 99 235 / 13%);
+  outline: none;
+  transform: translateY(-2px);
+}
+
+.team-progress-card .card-body {
+  padding: 24px;
+}
+
+.team-progress-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.team-progress-main {
+  min-width: 0;
+}
+
+.team-progress-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.team-progress-identity h6 {
+  overflow: hidden;
+  margin: 0 0 3px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-progress-identity small {
+  color: #64748b;
+}
+
+.team-progress-avatar {
+  display: inline-flex;
+  flex: 0 0 42px;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.team-progress-counts {
+  display: flex;
+  gap: 28px;
+  margin-top: 18px;
+}
+
+.team-progress-counts div {
+  display: grid;
+  gap: 2px;
+}
+
+.team-progress-counts strong {
+  font-size: 19px;
+  line-height: 1;
+}
+
+.team-progress-counts span {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.team-progress-ring {
+  display: grid;
+  flex: 0 0 88px;
+  width: 88px;
+  height: 88px;
+  place-items: center;
+  border-radius: 50%;
+  background: conic-gradient(#58c642 var(--team-progress), #e7eaf0 0);
+}
+
+.team-progress-ring::before {
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  background: var(--bs-body-bg, #fff);
+  content: '';
+  grid-area: 1 / 1;
+}
+
+.team-progress-ring span {
+  z-index: 1;
+  grid-area: 1 / 1;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.team-progress-status-bar {
+  display: flex;
+  width: 100%;
+  height: 10px;
+  margin: 22px 0 14px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e7eaf0;
+}
+
+.team-progress-status-bar > span {
+  min-width: 4px;
+}
+
+.team-progress-status-bar > .is-empty {
+  flex: 1;
+  background: #e7eaf0;
+}
+
+.team-progress-status-list {
+  border-top: 1px solid #edf0f4;
+}
+
+.team-progress-status-row {
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+  gap: 9px;
+  border-bottom: 1px solid #edf0f4;
+  font-size: 12px;
+}
+
+.team-progress-status-row > .ti {
+  color: #a3adbd;
+}
+
+.team-progress-status-row small {
+  margin-left: 2px;
+  color: #94a3b8;
+}
+
+.team-progress-status-row.is-empty {
+  justify-content: center;
+  color: #94a3b8;
+}
+
+.team-progress-status-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+
+.team-detail-drawer {
+  width: min(680px, 100vw) !important;
+}
+
+.team-detail-profile {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 12px;
+  background: var(--bs-tertiary-bg);
+}
+
+.team-detail-profile .team-progress-avatar {
+  flex-basis: 52px;
+  width: 52px;
+  height: 52px;
+}
+
+.team-detail-profile .team-progress-ring {
+  flex-basis: 70px;
+  width: 70px;
+  height: 70px;
+}
+
+.team-detail-profile .team-progress-ring::before {
+  width: 52px;
+  height: 52px;
+}
+
+.team-detail-profile .team-progress-ring span {
+  font-size: 14px;
+}
+
+[data-pc-theme='dark'] .team-progress-card,
+[data-bs-theme='dark'] .team-progress-card {
+  border-color: #315979;
+  background: #123451;
+  box-shadow: 0 8px 20px rgb(2 12 27 / 20%);
+}
+
+[data-pc-theme='dark'] .team-progress-grid,
+[data-bs-theme='dark'] .team-progress-grid {
+  background: #0e2942;
+}
+
+[data-pc-theme='dark'] .team-view-heading p,
+[data-bs-theme='dark'] .team-view-heading p {
+  color: #9ab2c8;
+}
+
+[data-pc-theme='dark'] .team-progress-status-list,
+[data-pc-theme='dark'] .team-progress-status-row,
+[data-bs-theme='dark'] .team-progress-status-list,
+[data-bs-theme='dark'] .team-progress-status-row {
+  border-color: #31516d;
+}
+
+[data-pc-theme='dark'] .team-progress-ring,
+[data-bs-theme='dark'] .team-progress-ring {
+  background: conic-gradient(#67d64f var(--team-progress), #31516d 0);
+}
+
+@media (max-width: 575.98px) {
+  .team-progress-card .card-body {
+    padding: 18px;
+  }
+
+  .team-progress-ring {
+    flex-basis: 76px;
+    width: 76px;
+    height: 76px;
+  }
+
+  .team-progress-ring::before {
+    width: 56px;
+    height: 56px;
+  }
+}

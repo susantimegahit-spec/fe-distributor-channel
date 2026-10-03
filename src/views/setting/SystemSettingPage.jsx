@@ -21,6 +21,7 @@ import './system-setting-page.scss';
 const MasterDistributor = Loadable(lazy(() => import('views/customer-portal/master/MasterDistributor')));
 const MasterProduct = Loadable(lazy(() => import('views/customer-portal/master/MasterProduct')));
 const DepartmentList = Loadable(lazy(() => import('views/setting/department/DepartmentList')));
+const StaffList = Loadable(lazy(() => import('views/setting/staff/StaffList')));
 const MasterOrigin = Loadable(lazy(() => import('views/logistics/master/MasterOrigin')));
 const MasterDestination = Loadable(lazy(() => import('views/logistics/master/MasterDestination')));
 const Rates = Loadable(lazy(() => import('views/logistics/master/Rates')));
@@ -41,6 +42,7 @@ const masterDataComponents = {
   'master-distributor': MasterDistributor,
   'master-product': MasterProduct,
   'enterprise-master-data-department': DepartmentList,
+  'enterprise-master-data-staff': StaffList,
   'logistics-origin': MasterOrigin,
   'logistics-destination': MasterDestination,
   'logistics-rates': Rates,

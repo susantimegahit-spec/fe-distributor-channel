@@ -41,6 +41,28 @@ class TaskManagementServices {
     };
     return DataService.get(`/task-management/dashboard/summary${query(params)}`);
   }
+  getTaskStaffSummary(payload = {}) {
+    const params = {
+      space_id: payload.space_id,
+      department_id: payload.department_id,
+      employee_id: payload.employee_id,
+      search: payload.search,
+      include_tasks: payload.include_tasks,
+      date_from: payload.date_from,
+      date_to: payload.date_to
+    };
+    return DataService.get(`/task-management/dashboard/team-view${query(params)}`);
+  }
+  getDetailStatsTask(employeeId, payload = {}) {
+    const params = {
+      space_id: payload.space_id,
+      department_id: payload.department_id,
+      include_tasks: payload.include_tasks,
+      date_from: payload.date_from,
+      date_to: payload.date_to
+    };
+    return DataService.get(`/task-management/dashboard/team-view/${employeeId}${query(params)}`);
+  }
   createTask(payload) {
     return DataService.post('/task-management/tasks', payload);
   }
@@ -161,11 +183,20 @@ class TaskManagementServices {
   getDepartments() {
     return DataService.get('/task-management/master/departments');
   }
-  getEmployee(params) {
+  getStaff(params) {
     return DataService.get(`/task-management/master/employees${query(params)}`);
   }
+  getStaffPositions(params) {
+    return DataService.get(`/task-management/master/positions${query(params)}`);
+  }
+  addStaff(payload) {
+    return DataService.post('/task-management/employees', payload);
+  }
+  getEmployee(params) {
+    return this.getStaff(params);
+  }
   getEmployees(params) {
-    return this.getEmployee(params);
+    return this.getStaff(params);
   }
 }
 

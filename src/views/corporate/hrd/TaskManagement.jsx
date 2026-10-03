@@ -11,11 +11,14 @@ import Modal from 'react-bootstrap/Modal';
 import Row from 'react-bootstrap/Row';
 import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
+import Tab from 'react-bootstrap/Tab';
+import Tabs from 'react-bootstrap/Tabs';
 
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
 import ReportingServices from '../../../services/corporate/ReportingServices';
 import { useAlert } from '../../../utils/alertContext';
+import TeamTaskSummary from './TeamTaskSummary';
 
 const pageSize = 10;
 const selectStyles = {
@@ -198,6 +201,7 @@ export default function TaskManagement() {
   const [loadingDetailId, setLoadingDetailId] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [activeTab, setActiveTab] = useState('tasks');
 
   const fetchTasks = useCallback(
     async (activeFilters) => {
@@ -378,7 +382,7 @@ export default function TaskManagement() {
           <span className="text-muted f-12">Monitor and filter tasks synchronized from ClickUp.</span>
         </Stack>
       }
-      secondary={
+      secondary={activeTab === 'tasks' ? (
         <Stack direction="horizontal" gap={2}>
           <Button variant="primary" size="sm" disabled={syncing || loading} onClick={handleSyncTasks}>
             {syncing ? <span className="spinner-border spinner-border-sm me-1" role="status" /> : <i className="ti ti-refresh me-1" />}
@@ -389,8 +393,10 @@ export default function TaskManagement() {
             {showFilters ? 'Tutup Filter' : 'Filter'}
           </Button>
         </Stack>
-      }
+      ) : null}
     >
+      <Tabs activeKey={activeTab} onSelect={(key) => setActiveTab(key || 'tasks')} className="mb-3">
+        <Tab eventKey="tasks" title={<><i className="ti ti-list-check me-1" /> Tasks</>}>
       {showFilters ? (
         <Card className="border mb-3">
           <Card.Body className="p-3">
@@ -692,6 +698,11 @@ export default function TaskManagement() {
           </Button>
         </Modal.Footer>
       </Modal>
+        </Tab>
+        <Tab eventKey="staff-progress" title={<><i className="ti ti-users me-1" /> Staff Progress</>}>
+          <TeamTaskSummary active={activeTab === 'staff-progress'} />
+        </Tab>
+      </Tabs>
     </MainCard>
   );
 }

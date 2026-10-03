@@ -22,6 +22,7 @@ import { isAdministratorRole } from '../../../systems';
 import { useAlert } from '../../../utils/alertContext';
 import { useConfirm } from '../../../utils/confirmContext';
 import { getCookies, getOrganizationAssignment } from '../../../utils/cookies';
+import TeamTaskSummary from './TeamTaskSummary';
 import './to-do-list.scss';
 
 const statusById = { 1: 'To Do', 2: 'In Progress', 3: 'In Review', 4: 'Done', 5: 'Cancelled' };
@@ -265,6 +266,7 @@ export default function ToDoList() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [taskSectionTab, setTaskSectionTab] = useState('tasks');
   const [view, setView] = useState('list');
   const [draggingTaskId, setDraggingTaskId] = useState(null);
   const [dragOverStatus, setDragOverStatus] = useState('');
@@ -1576,22 +1578,22 @@ export default function ToDoList() {
                 <div className="text-muted f-12">Manage departmental work in one place.</div>
               </div>
             </div>
-            <Stack direction="horizontal" gap={2} className="task-page-actions">
-              <Button
-                variant="outline-secondary"
-                onClick={() => loadTasks()}
-                disabled={loading}
-              >
-                <i className={`ti ti-refresh me-1 ${loading ? 'spin' : ''}`} />
-                Refresh
-              </Button>
-              <Button data-permission-action="none" onClick={openCreateTask} disabled={loading}>
-                <i className="ti ti-plus me-1" />
-                New Task
-              </Button>
-            </Stack>
+            {taskSectionTab === 'tasks' ? (
+              <Stack direction="horizontal" gap={2} className="task-page-actions">
+                <Button variant="outline-secondary" onClick={() => loadTasks()} disabled={loading}>
+                  <i className={`ti ti-refresh me-1 ${loading ? 'spin' : ''}`} />
+                  Refresh
+                </Button>
+                <Button data-permission-action="none" onClick={openCreateTask} disabled={loading}>
+                  <i className="ti ti-plus me-1" />
+                  New Task
+                </Button>
+              </Stack>
+            ) : null}
           </Stack>
 
+          <Tabs activeKey={taskSectionTab} onSelect={(key) => setTaskSectionTab(key || 'tasks')} className="task-management-tabs mb-3">
+            <Tab eventKey="tasks" title={<><i className="ti ti-list-check me-1" /> Tasks</>}>
           <div className="task-panel p-0 overflow-hidden">
             <div className="task-panel-toolbar">
               <div className="task-panel-heading">
@@ -2331,6 +2333,11 @@ export default function ToDoList() {
               </Button>
             </div>
           ) : null}
+            </Tab>
+            <Tab eventKey="staff-progress" title={<><i className="ti ti-users me-1" /> Staff Progress</>}>
+              <TeamTaskSummary active={taskSectionTab === 'staff-progress'} />
+            </Tab>
+          </Tabs>
         </main>
       </div>
 
