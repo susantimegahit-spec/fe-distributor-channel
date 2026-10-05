@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import FormDatePicker from 'components/FormDatePicker';
 import { Button, Form, Modal } from 'react-bootstrap';
 import * as XLSX from 'xlsx';
 
@@ -495,7 +496,7 @@ export default function ExpeditionDashboard() {
             <div className="d-grid gap-3">
               <Form.Group controlId="rate-period">
                 <Form.Label>Rate period</Form.Label>
-                <Form.Control
+                <FormDatePicker
                   type="date"
                   value={ratePeriod}
                   onChange={(event) => setRatePeriod(event.target.value)}

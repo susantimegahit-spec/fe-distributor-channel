@@ -429,7 +429,7 @@ export default function MasterPrice() {
                 <i className="ti ti-plus me-1" />
                 Add Price
               </Button>
-              <Button onClick={fetchData} variant="light-primary" disabled={loadingData}>
+              <Button onClick={fetchData} variant="primary" disabled={loadingData}>
                 <i className="ti ti-refresh me-1" />
                 Refresh
               </Button>

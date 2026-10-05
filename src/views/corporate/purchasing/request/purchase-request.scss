@@ -1,0 +1,63 @@
+.purchase-request-dialog.modal-dialog {
+  width: calc(100vw - 48px);
+  max-width: 1600px;
+}
+
+.purchase-request-dialog.modal-dialog-scrollable .modal-content {
+  height: calc(100dvh - 64px);
+  max-height: 1100px;
+}
+
+.purchase-request-dialog .modal-footer .btn {
+  min-width: 120px;
+}
+
+[data-pc-theme='dark'] .purchase-request-new-button,
+[data-bs-theme='dark'] .purchase-request-new-button {
+  color: #eaf6ff;
+  border-color: #4da7e8;
+  background: #21618e;
+  box-shadow: none;
+}
+
+[data-pc-theme='dark'] .purchase-request-new-button:hover,
+[data-pc-theme='dark'] .purchase-request-new-button:focus-visible,
+[data-bs-theme='dark'] .purchase-request-new-button:hover,
+[data-bs-theme='dark'] .purchase-request-new-button:focus-visible {
+  color: #fff;
+  border-color: #69c2ff;
+  background: #2876aa;
+}
+
+[data-pc-theme='dark'] .purchase-request-dialog .purchase-request-cancel,
+[data-bs-theme='dark'] .purchase-request-dialog .purchase-request-cancel {
+  color: #dceafa;
+  border-color: #47779d;
+  background: transparent;
+}
+
+[data-pc-theme='dark'] .purchase-request-dialog .purchase-request-cancel:hover,
+[data-pc-theme='dark'] .purchase-request-dialog .purchase-request-cancel:focus-visible,
+[data-bs-theme='dark'] .purchase-request-dialog .purchase-request-cancel:hover,
+[data-bs-theme='dark'] .purchase-request-dialog .purchase-request-cancel:focus-visible {
+  color: #fff;
+  border-color: #69c2ff;
+  background: rgb(69 151 221 / 16%);
+}
+
+@media (max-width: 575.98px) {
+  .purchase-request-dialog.modal-dialog {
+    width: calc(100vw - 16px);
+    margin-right: auto;
+    margin-left: auto;
+  }
+
+  .purchase-request-dialog.modal-dialog-scrollable .modal-content {
+    height: calc(100dvh - 24px);
+  }
+
+  .purchase-request-dialog .modal-footer .btn {
+    flex: 1;
+    min-width: 0;
+  }
+}

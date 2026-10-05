@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import FormDatePicker from 'components/FormDatePicker';
 import Select from 'react-select';
 import * as XLSX from 'xlsx';
 
@@ -1261,13 +1262,13 @@ export default function Rates() {
               <Col md={6}>
                 <Form.Group>
                   <Form.Label>Valid From</Form.Label>
-                  <Form.Control type="date" value={editForm.valid_from} onChange={handleEditChange('valid_from')} required />
+                  <FormDatePicker type="date" value={editForm.valid_from} onChange={handleEditChange('valid_from')} required />
                 </Form.Group>
               </Col>
               <Col md={6}>
                 <Form.Group>
                   <Form.Label>Valid Until</Form.Label>
-                  <Form.Control type="date" value={editForm.valid_until} onChange={handleEditChange('valid_until')} required />
+                  <FormDatePicker type="date" value={editForm.valid_until} onChange={handleEditChange('valid_until')} required />
                 </Form.Group>
               </Col>
               <Col md={4}>

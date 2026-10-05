@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import FormDatePicker from 'components/FormDatePicker';
 import Select from 'react-select';
 
 import Badge from 'react-bootstrap/Badge';
@@ -23,6 +24,29 @@ import './issue-production.scss';
 
 const pageSize = 10;
 const numberFormatter = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 6 });
+const formatNumber = (value) => {
+  if (value === '' || value === null || value === undefined) return '';
+  const number = Number(value);
+  return Number.isFinite(number) ? numberFormatter.format(number) : '';
+};
+const formatNumberInput = (value) => {
+  const sanitized = String(value ?? '').replace(/[^\d,]/g, '');
+  if (!sanitized) return '';
+
+  const [integerPart = '', ...decimalParts] = sanitized.split(',');
+  const groupedInteger = (integerPart.replace(/^0+(?=\d)/, '') || '0').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  if (!decimalParts.length) return groupedInteger;
+
+  return `${groupedInteger},${decimalParts.join('').slice(0, 6)}`;
+};
+const parseNumberInput = (value) => {
+  if (typeof value === 'number') return value;
+  const normalized = String(value ?? '')
+    .replace(/\./g, '')
+    .replace(',', '.');
+  const number = Number(normalized);
+  return Number.isFinite(number) ? number : 0;
+};
 const shiftOptions = [
   { value: 'X', label: 'All' },
   { value: 'A', label: '1' },
@@ -864,7 +888,7 @@ export default function IssueProduction() {
           BaseType: Number(line.BaseType),
           BaseEntry: Number(line.BaseEntry),
           BaseLine: Number(line.BaseLine),
-          Quantity: Number(line.Quantity),
+          Quantity: parseNumberInput(line.Quantity),
           UoMEntry: Number(line.UoMEntry || 0),
           WhsCode: issueForm.WhsCode || line.WhsCode,
           OcrCode: issueForm.OcrCode || line.OcrCode,
@@ -925,7 +949,7 @@ export default function IssueProduction() {
             <Row className="g-3 align-items-end">
               <Col md={4}>
                 <Form.Label>From</Form.Label>
-                <Form.Control
+                <FormDatePicker
                   type="date"
                   value={filters.from}
                   onChange={(event) => setFilters((old) => ({ ...old, from: event.target.value }))}
@@ -933,7 +957,7 @@ export default function IssueProduction() {
               </Col>
               <Col md={4}>
                 <Form.Label>To</Form.Label>
-                <Form.Control
+                <FormDatePicker
                   type="date"
                   value={filters.to}
                   onChange={(event) => setFilters((old) => ({ ...old, to: event.target.value }))}
@@ -1079,7 +1103,7 @@ export default function IssueProduction() {
           <Row className="g-3 mb-4">
             <Col md={3}>
               <Form.Label>Posting Date *</Form.Label>
-              <Form.Control
+              <FormDatePicker
                 type="date"
                 value={issueForm.DocDate}
                 max={issueForm.DocDueDate || undefined}
@@ -1092,7 +1116,7 @@ export default function IssueProduction() {
             </Col>
             <Col md={3}>
               <Form.Label>Due Date *</Form.Label>
-              <Form.Control type="date" value={issueForm.DocDueDate} readOnly />
+              <FormDatePicker type="date" value={issueForm.DocDueDate} readOnly />
             </Col>
             <Col md={2}>
               <Form.Label>Series *</Form.Label>
@@ -1241,10 +1265,10 @@ export default function IssueProduction() {
                       <div className="f-12 issue-item-name">{line.ItemName || '-'}</div>
                     </td>
                     <td style={{ minWidth: 120 }}>
-                      <Form.Control size="sm" type="number" value={line.PlannedQty} disabled />
+                      <Form.Control size="sm" type="text" value={formatNumber(line.PlannedQty)} disabled />
                     </td>
                     <td style={{ minWidth: 120 }}>
-                      <Form.Control size="sm" type="number" value={line.IssuedQty} disabled />
+                      <Form.Control size="sm" type="text" value={formatNumber(line.IssuedQty)} disabled />
                     </td>
                     <td style={{ minWidth: 120 }}>
                       <Form.Control
@@ -1252,7 +1276,7 @@ export default function IssueProduction() {
                         value={
                           loadingItemStocks
                             ? 'Loading...'
-                            : (itemStocks[getStockKey(line.ItemCode, line.WhsCode || issueForm.WhsCode)] ?? '-')
+                            : formatNumber(itemStocks[getStockKey(line.ItemCode, line.WhsCode || issueForm.WhsCode)] ?? '') || '-'
                         }
                         disabled
                       />
@@ -1262,15 +1286,12 @@ export default function IssueProduction() {
                         data-issue-quantity-input
                         data-issue-quantity-index={index}
                         size="sm"
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
                         className="issue-quantity-no-spinner"
-                        step="any"
                         value={line.Quantity}
-                        onWheel={(event) => event.currentTarget.blur()}
                         onChange={(event) => {
-                          const value = event.target.value;
-                          const quantity = value === '' ? '' : Number(value);
-                          updateIssueLine(index, { Quantity: quantity });
+                          updateIssueLine(index, { Quantity: formatNumberInput(event.target.value) });
                         }}
                         onKeyDownCapture={(event) => {
                           if (event.key !== 'Enter' && event.code !== 'NumpadEnter') return;
@@ -1393,7 +1414,7 @@ export default function IssueProduction() {
             <Row className="g-3 align-items-end">
               <Col md={3}>
                 <Form.Label>Start Date</Form.Label>
-                <Form.Control
+                <FormDatePicker
                   type="date"
                   value={orderFilters.from}
                   onChange={(event) => setOrderFilters((current) => ({ ...current, from: event.target.value }))}
@@ -1401,7 +1422,7 @@ export default function IssueProduction() {
               </Col>
               <Col md={3}>
                 <Form.Label>End Date</Form.Label>
-                <Form.Control
+                <FormDatePicker
                   type="date"
                   value={orderFilters.to}
                   onChange={(event) => setOrderFilters((current) => ({ ...current, to: event.target.value }))}
@@ -1434,7 +1455,7 @@ export default function IssueProduction() {
               </Col>
             </Row>
           </Form>
-          <Table responsive hover className="mb-0 align-middle">
+          <Table responsive hover className="mb-0 align-middle issue-pdo-selection-table">
             <thead>
               <tr>
                 <th className="text-center" style={{ width: 52 }}>

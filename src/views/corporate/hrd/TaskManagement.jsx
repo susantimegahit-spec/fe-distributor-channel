@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import FormDatePicker from 'components/FormDatePicker';
 import Select from 'react-select';
 
 import Badge from 'react-bootstrap/Badge';
@@ -463,7 +464,7 @@ export default function TaskManagement() {
                 ))}
                 <Col md={6} xl={3}>
                   <Form.Label className="f-12 mb-1">Start Date Dari</Form.Label>
-                  <Form.Control
+                  <FormDatePicker
                     size="sm"
                     type="date"
                     value={filters.start_date_from}
@@ -472,7 +473,7 @@ export default function TaskManagement() {
                 </Col>
                 <Col md={6} xl={3}>
                   <Form.Label className="f-12 mb-1">Due Date Sampai</Form.Label>
-                  <Form.Control
+                  <FormDatePicker
                     size="sm"
                     type="date"
                     value={filters.due_date_to}

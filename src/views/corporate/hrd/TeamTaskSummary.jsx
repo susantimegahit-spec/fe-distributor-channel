@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import FormDatePicker from 'components/FormDatePicker';
 import Select from 'react-select';
 
 import Button from 'react-bootstrap/Button';
@@ -288,11 +289,11 @@ export default function TeamTaskSummary({ active }) {
               ))}
               <Col md={6} xl={3}>
                 <Form.Label className="f-12 mb-1">Date From</Form.Label>
-                <Form.Control size="sm" type="date" value={filters.date_from} onChange={(event) => updateFilter('date_from', event.target.value)} />
+                <FormDatePicker size="sm" type="date" value={filters.date_from} onChange={(event) => updateFilter('date_from', event.target.value)} />
               </Col>
               <Col md={6} xl={3}>
                 <Form.Label className="f-12 mb-1">Date To</Form.Label>
-                <Form.Control size="sm" type="date" value={filters.date_to} onChange={(event) => updateFilter('date_to', event.target.value)} />
+                <FormDatePicker size="sm" type="date" value={filters.date_to} onChange={(event) => updateFilter('date_to', event.target.value)} />
               </Col>
               <Col md={6} xl={3}>
                 <Form.Check

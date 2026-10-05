@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import FormDatePicker from 'components/FormDatePicker';
 
 import Badge from 'react-bootstrap/Badge';
 import Button from 'react-bootstrap/Button';
@@ -455,7 +456,7 @@ export default function StaffList() {
               </Col>
               <Col md={6}>
                 <Form.Label>Join Date *</Form.Label>
-                <Form.Control
+                <FormDatePicker
                   type="date"
                   required
                   value={staffForm.joinDate}

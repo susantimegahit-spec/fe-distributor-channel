@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import FormDatePicker from 'components/FormDatePicker';
 import Select from 'react-select';
 import RescheduleLogModal from '../../customer-portal/dashboard/RescheduleLogModal';
 import AsyncSelect from 'react-select/async';
@@ -1304,7 +1305,7 @@ export default function LogisticsDashboard() {
             <Form.Label>
               Proposed ETA Date <span className="text-muted">(Optional)</span>
             </Form.Label>
-            <Form.Control
+            <FormDatePicker
               type="date"
               value={closeOrderForm.etaDate}
               disabled={reschedulingOrderId !== null || loadingRescheduleLeadTime}
@@ -1321,7 +1322,7 @@ export default function LogisticsDashboard() {
             <Form.Label>
               Proposed Loading Date <span className="text-danger">*</span>
             </Form.Label>
-            <Form.Control
+            <FormDatePicker
               type="date"
               required
               value={closeOrderForm.loadingDate}

@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import FormDatePicker from 'components/FormDatePicker';
 import moment from 'moment';
 import { Link, useNavigate } from 'react-router-dom';
 import Select from 'react-select';
@@ -1818,11 +1819,11 @@ export default function OrderList({ showOnlyCommitment = false }) {
               </Col>
               <Col lg={2} md={3} sm={6}>
                 <Form.Label className="f-12 text-muted">Start Date</Form.Label>
-                <Form.Control type="date" value={commitmentStartDate} onChange={(event) => setCommitmentStartDate(event.target.value)} />
+                <FormDatePicker type="date" value={commitmentStartDate} onChange={(event) => setCommitmentStartDate(event.target.value)} />
               </Col>
               <Col lg={2} md={3} sm={6}>
                 <Form.Label className="f-12 text-muted">End Date</Form.Label>
-                <Form.Control
+                <FormDatePicker
                   type="date"
                   value={commitmentEndDate}
                   min={commitmentStartDate || undefined}
@@ -2240,7 +2241,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                 </Col>
                 <Col lg={3} md={6}>
                   <Form.Label className="f-12 text-muted">Date</Form.Label>
-                  <Form.Control value={date} onChange={(event) => setDate(event.target.value)} type="date" />
+                  <FormDatePicker value={date} onChange={(event) => setDate(event.target.value)} type="date" />
                 </Col>
                 <Col lg={1} md={12} className="text-lg-end">
                   <Button className="w-100" variant="light-primary" onClick={resetFilters}>
@@ -2959,11 +2960,11 @@ export default function OrderList({ showOnlyCommitment = false }) {
                     </Col>
                     <Col md={6}>
                       <Form.Label className="f-12 text-muted">Document Date</Form.Label>
-                      <Form.Control type="date" value={duplicateCmoForm.docDate} onChange={handleDuplicateCmoChange('docDate')} />
+                      <FormDatePicker type="date" value={duplicateCmoForm.docDate} onChange={handleDuplicateCmoChange('docDate')} />
                     </Col>
                     <Col md={6}>
                       <Form.Label className="f-12 text-muted">ETA Date</Form.Label>
-                      <Form.Control
+                      <FormDatePicker
                         type="date"
                         min={duplicateCmoForm.docDate || undefined}
                         value={duplicateCmoForm.etaDate}
@@ -3078,7 +3079,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
             <Modal.Body>
               <Form.Group>
                 <Form.Label>Delivery Date</Form.Label>
-                <Form.Control
+                <FormDatePicker
                   type="date"
                   value={commitmentDeliveryDate}
                   min={moment().format('YYYY-MM-DD')}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import FormDatePicker from 'components/FormDatePicker';
 
 import Button from 'react-bootstrap/Button';
 import Badge from 'react-bootstrap/Badge';
@@ -31,7 +32,30 @@ import { getCookies, getOrganizationAssignmentDefault } from '../../../../utils/
 import './receipt-production.scss';
 
 const pageSize = 10;
-const numberFormatter = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 });
+const numberFormatter = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 6 });
+const formatNumber = (value) => {
+  if (value === '' || value === null || value === undefined) return '';
+  const number = Number(value);
+  return Number.isFinite(number) ? numberFormatter.format(number) : '';
+};
+const formatNumberInput = (value) => {
+  const sanitized = String(value ?? '').replace(/[^\d,]/g, '');
+  if (!sanitized) return '';
+
+  const [integerPart = '', ...decimalParts] = sanitized.split(',');
+  const groupedInteger = (integerPart.replace(/^0+(?=\d)/, '') || '0').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  if (!decimalParts.length) return groupedInteger;
+
+  return `${groupedInteger},${decimalParts.join('').slice(0, 6)}`;
+};
+const parseNumberInput = (value) => {
+  if (typeof value === 'number') return value;
+  const normalized = String(value ?? '')
+    .replace(/\./g, '')
+    .replace(',', '.');
+  const number = Number(normalized);
+  return Number.isFinite(number) ? number : 0;
+};
 const shiftOptions = [
   { value: 'X', label: 'All' },
   { value: 'A', label: '1' },
@@ -235,7 +259,7 @@ const createReceiptLineFromOrder = (order) => {
     BaseLine: order.baseLine ?? -1,
     PlannedQty: order.plannedQuantity,
     CmpltQty: order.completedQuantity,
-    Quantity: remainingQuantity,
+    Quantity: formatNumberInput(remainingQuantity),
     WhsCode: order.warehouse,
     UomCode: order.uom,
     UoMEntry: order.uomEntry,
@@ -925,13 +949,13 @@ export default function ReceiptProduction() {
     }
 
     const invalidLine = receiptForm.Lines.some(
-      (line) => line.BaseEntry === '' || line.BaseLine === '' || !(Number(line.Quantity) > 0) || !line.WhsCode
+      (line) => line.BaseEntry === '' || line.BaseLine === '' || !(parseNumberInput(line.Quantity) > 0) || !line.WhsCode
     );
     if (!receiptForm.DocDate || !receiptForm.DocDueDate || !receiptForm.Series || !receiptForm.Lines.length || invalidLine) {
       showAlert('Complete document dates, Series, Base Entry, Base Line, Quantity, and Warehouse for every line', 'warning');
       return;
     }
-    const exceedsRemainingQuantity = receiptForm.Lines.some((line) => Number(line.Quantity) > getRemainingReceiptQuantity(line));
+    const exceedsRemainingQuantity = receiptForm.Lines.some((line) => parseNumberInput(line.Quantity) > getRemainingReceiptQuantity(line));
     if (exceedsRemainingQuantity) {
       showAlert('Quantity cannot exceed Planned Qty minus Complete Qty', 'warning');
       return;
@@ -951,7 +975,7 @@ export default function ReceiptProduction() {
         BaseType: Number(line.BaseType),
         BaseEntry: Number(line.BaseEntry),
         BaseLine: normalizeBaseLine(line.BaseLine),
-        Quantity: Number(line.Quantity),
+        Quantity: parseNumberInput(line.Quantity),
         WhsCode: receiptForm.WhsCode || line.WhsCode,
         UoMEntry: line.UoMEntry === '' ? 0 : Number(line.UoMEntry),
         OcrCode: receiptForm.OcrCode || line.OcrCode,
@@ -1010,7 +1034,7 @@ export default function ReceiptProduction() {
             <Row className="g-3 align-items-end">
               <Col md={4}>
                 <Form.Label>From</Form.Label>
-                <Form.Control
+                <FormDatePicker
                   type="date"
                   value={filters.from}
                   onChange={(event) => setFilters((current) => ({ ...current, from: event.target.value }))}
@@ -1018,7 +1042,7 @@ export default function ReceiptProduction() {
               </Col>
               <Col md={4}>
                 <Form.Label>To</Form.Label>
-                <Form.Control
+                <FormDatePicker
                   type="date"
                   value={filters.to}
                   onChange={(event) => setFilters((current) => ({ ...current, to: event.target.value }))}
@@ -1118,7 +1142,7 @@ export default function ReceiptProduction() {
           <Row className="g-3 mb-4">
             <Col md={3}>
               <Form.Label>Posting Date *</Form.Label>
-              <Form.Control
+              <FormDatePicker
                 type="date"
                 value={receiptForm.DocDate}
                 max={receiptForm.DocDueDate || undefined}
@@ -1131,7 +1155,7 @@ export default function ReceiptProduction() {
             </Col>
             <Col md={3}>
               <Form.Label>Due Date *</Form.Label>
-              <Form.Control type="date" value={receiptForm.DocDueDate} readOnly />
+              <FormDatePicker type="date" value={receiptForm.DocDueDate} readOnly />
             </Col>
             <Col md={2}>
               <Form.Label>Series *</Form.Label>
@@ -1271,10 +1295,16 @@ export default function ReceiptProduction() {
                     </td>
                     <td style={{ minWidth: 100 }}>{line.UomCode || '-'}</td>
                     <td style={{ minWidth: 120 }}>
-                      <Form.Control size="sm" type="number" value={line.PlannedQty} readOnly />
+                      <Form.Control size="sm" type="text" value={formatNumber(line.PlannedQty)} readOnly />
                     </td>
                     <td style={{ minWidth: 120 }}>
-                      <Form.Control size="sm" type="number" value={line.CmpltQty} readOnly isInvalid={cannotPostReceiptLine(line)} />
+                      <Form.Control
+                        size="sm"
+                        type="text"
+                        value={formatNumber(line.CmpltQty)}
+                        readOnly
+                        isInvalid={cannotPostReceiptLine(line)}
+                      />
                       {cannotPostReceiptLine(line) ? (
                         <Form.Text className="text-danger">Complete Qty must be less than Plan Qty.</Form.Text>
                       ) : null}
@@ -1285,7 +1315,7 @@ export default function ReceiptProduction() {
                         value={
                           loadingItemStocks
                             ? 'Loading...'
-                            : (itemStocks[getStockKey(line.ItemCode, line.WhsCode || receiptForm.WhsCode)] ?? '-')
+                            : formatNumber(itemStocks[getStockKey(line.ItemCode, line.WhsCode || receiptForm.WhsCode)] ?? '') || '-'
                         }
                         readOnly
                       />
@@ -1293,15 +1323,12 @@ export default function ReceiptProduction() {
                     <td style={{ minWidth: 120 }}>
                       <Form.Control
                         size="sm"
-                        type="number"
+                        type="text"
+                        inputMode="decimal"
                         className="receipt-quantity-no-spinner"
-                        step="any"
-                        value={line.Quantity}
-                        onWheel={(event) => event.currentTarget.blur()}
+                        value={formatNumberInput(line.Quantity)}
                         onChange={(event) => {
-                          const value = event.target.value;
-                          const quantity = value === '' ? '' : Number(value);
-                          updateReceiptLine(index, { Quantity: quantity });
+                          updateReceiptLine(index, { Quantity: formatNumberInput(event.target.value) });
                         }}
                       />
                     </td>
@@ -1311,7 +1338,7 @@ export default function ReceiptProduction() {
                         className="btn-icon avatar-s"
                         size="sm"
                         variant="outline-danger"
-                        data-permission-action="create"
+                        data-permission-action="none"
                         aria-label={`Delete ${line.ItemCode || 'item'}`}
                         onClick={() => handleDeleteReceiptLine(index)}
                       >
@@ -1422,7 +1449,7 @@ export default function ReceiptProduction() {
             <Row className="g-3 align-items-end">
               <Col md={3}>
                 <Form.Label>Start Date</Form.Label>
-                <Form.Control
+                <FormDatePicker
                   type="date"
                   value={pdoFilters.from}
                   onChange={(event) => dispatch(setReceiptPdoFilters({ ...pdoFilters, from: event.target.value }))}
@@ -1430,7 +1457,7 @@ export default function ReceiptProduction() {
               </Col>
               <Col md={3}>
                 <Form.Label>End Date</Form.Label>
-                <Form.Control
+                <FormDatePicker
                   type="date"
                   value={pdoFilters.to}
                   onChange={(event) => dispatch(setReceiptPdoFilters({ ...pdoFilters, to: event.target.value }))}

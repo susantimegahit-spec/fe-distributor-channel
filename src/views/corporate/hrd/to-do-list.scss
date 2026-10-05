@@ -781,7 +781,8 @@
 }
 
 .todo-page .task-list-simple-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 14px;
   min-height: 42px;
@@ -793,18 +794,18 @@
 }
 
 .todo-page .task-list-simple-title-info {
-  flex: 1;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  flex-wrap: wrap;
   min-width: 0;
   gap: 7px;
 }
 
 .todo-page .task-list-simple-title {
-  flex: 1 1 360px;
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 13px;
   font-weight: 600;
 }
@@ -2097,6 +2098,7 @@
   }
 
   .todo-page .task-list-simple-row {
+    display: flex;
     align-items: flex-start;
     flex-wrap: wrap;
     padding-left: 20px;
@@ -2108,7 +2110,6 @@
 
   .todo-page .task-list-simple-title-info {
     flex-basis: calc(100% - 42px);
-    flex-wrap: wrap;
   }
 
   .todo-page .task-list-simple-meta {

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import FormDatePicker from 'components/FormDatePicker';
 import { useDispatch, useSelector } from 'react-redux';
 import Select from 'react-select';
 
@@ -1587,7 +1588,7 @@ export default function ProductionOrder() {
             <Row className="g-3 align-items-end">
               <Col md={6} lg={2}>
                 <Form.Label>From</Form.Label>
-                <Form.Control
+                <FormDatePicker
                   type="date"
                   value={orderFilters.from}
                   onChange={(event) => setOrderFilters((current) => ({ ...current, from: event.target.value }))}
@@ -1595,7 +1596,7 @@ export default function ProductionOrder() {
               </Col>
               <Col md={6} lg={2}>
                 <Form.Label>To</Form.Label>
-                <Form.Control
+                <FormDatePicker
                   type="date"
                   value={orderFilters.to}
                   onChange={(event) => setOrderFilters((current) => ({ ...current, to: event.target.value }))}
@@ -2378,7 +2379,7 @@ export default function ProductionOrder() {
                     <Col md={4}>
                       <Form.Group>
                         <Form.Label>Posting Date</Form.Label>
-                        <Form.Control
+                        <FormDatePicker
                           type="date"
                           value={form.orderDate}
                           onChange={(event) => {
@@ -2398,7 +2399,7 @@ export default function ProductionOrder() {
                     <Col md={4}>
                       <Form.Group>
                         <Form.Label>Start Date</Form.Label>
-                        <Form.Control
+                        <FormDatePicker
                           type="date"
                           value={form.startDate}
                           onChange={(event) => setForm((current) => ({ ...current, startDate: event.target.value }))}
@@ -2408,7 +2409,7 @@ export default function ProductionOrder() {
                     <Col md={4}>
                       <Form.Group>
                         <Form.Label>Due Date</Form.Label>
-                        <Form.Control
+                        <FormDatePicker
                           type="date"
                           min={form.startDate || undefined}
                           value={form.dueDate}

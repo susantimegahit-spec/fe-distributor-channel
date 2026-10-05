@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import FormDatePicker from 'components/FormDatePicker';
 import Select from 'react-select';
 import { Alert, Badge, Button, Col, Form, Modal, Row, Stack, Table } from 'react-bootstrap';
 import PicklistRecommendations from './PicklistRecommendations';
@@ -856,7 +857,7 @@ export default function CreatePicklistModal({ onClose, onSuccess }) {
           <Row className="g-3 mb-4">
             <Col md={4}>
               <Form.Label>Posting Date *</Form.Label>
-              <Form.Control
+              <FormDatePicker
                 type="date"
                 value={form.postingDate}
                 onChange={(event) => setForm({ ...form, postingDate: event.target.value, series: '' })}

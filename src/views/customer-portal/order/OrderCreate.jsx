@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useState } from 'react';
+import FormDatePicker from 'components/FormDatePicker';
 import Col from 'react-bootstrap/Col';
 import Row from 'react-bootstrap/Row';
 
@@ -2497,13 +2498,13 @@ export default function OrderPost({ cmoMode = false }) {
                             <Form.Label className="small text-muted">
                               <RequiredLabel>Document Date</RequiredLabel>
                             </Form.Label>
-                            <Form.Control onChange={handleSetDocDate} value={orderInput.docDate} type="date" min={todayDate} size="sm" />
+                            <FormDatePicker onChange={handleSetDocDate} value={orderInput.docDate} type="date" min={todayDate} size="sm" />
                           </Form.Group>
                         </Col>
                         <Col md={6} xl={4}>
                           <Form.Group>
                             <Form.Label className="small text-muted">Estimate Time Arrival</Form.Label>
-                            <Form.Control
+                            <FormDatePicker
                               onChange={handleSetEtaDate}
                               value={orderInput.etaDate}
                               type="date"

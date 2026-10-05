@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import FormDatePicker from 'components/FormDatePicker';
 
 // react-bootstrap
 import Badge from 'react-bootstrap/Badge';
@@ -1755,7 +1756,7 @@ export default function RewardList() {
 
             <Form.Group>
               <Form.Label>Transfer Date</Form.Label>
-              <Form.Control
+              <FormDatePicker
                 type="date"
                 value={withdrawTransferDate}
                 min={todayDate}

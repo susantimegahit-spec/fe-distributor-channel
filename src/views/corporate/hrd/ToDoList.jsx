@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import FormDatePicker from 'components/FormDatePicker';
 import PropTypes from 'prop-types';
 import Badge from 'react-bootstrap/Badge';
 import Button from 'react-bootstrap/Button';
@@ -1503,6 +1504,13 @@ export default function ToDoList() {
   const deleteTaskFolder = (event, folder) => {
     event.stopPropagation();
     const name = entityName(folder);
+    const deletedFolderId = String(folder.id);
+    const targetSpaceId = folder.space_id || folder.space?.id || quickListSpace?.id || scope.spaceId;
+    const deletedListIds = new Set(
+      allTaskListOptions
+        .filter((list) => String(list.folder_id || list.folder?.id || '') === deletedFolderId)
+        .map((list) => String(list.id))
+    );
 
     showConfirm({
       title: 'Hapus folder?',
@@ -1513,7 +1521,49 @@ export default function ToDoList() {
           const response = await TaskManagementServices.deleteTaskFolder(folder.id);
           if (apiError(response)) throw new Error(response?.data?.message || 'Gagal menghapus folder.');
 
-          if (quickListDepartment) await selectDepartment(quickListDepartment);
+          const [foldersResponse, listsResponse] = await Promise.all([
+            TaskManagementServices.getFolders({ space_id: targetSpaceId }),
+            TaskManagementServices.getLists({ space_id: targetSpaceId })
+          ]);
+          if (apiError(foldersResponse) || apiError(listsResponse)) {
+            throw new Error('Folder berhasil dihapus, tetapi daftar terbaru gagal dimuat.');
+          }
+
+          const folderRows = responseList(foldersResponse);
+          const listRows = responseList(listsResponse);
+          setSpaceHierarchy((current) => ({
+            ...current,
+            [String(targetSpaceId)]: { folders: folderRows, lists: listRows }
+          }));
+          setMasters((current) => ({
+            ...current,
+            folders: [
+              ...current.folders.filter(
+                (item) => String(item.space_id || item.space?.id || '') !== String(targetSpaceId)
+              ),
+              ...folderRows
+            ],
+            lists: [
+              ...current.lists.filter(
+                (item) => String(item.space_id || item.space?.id || '') !== String(targetSpaceId)
+              ),
+              ...listRows
+            ]
+          }));
+          setExpandedTaskFolderIds((current) => current.filter((id) => String(id) !== deletedFolderId));
+          setQuickListForm((current) => ({
+            ...current,
+            folderId: String(current.folderId) === deletedFolderId ? '' : current.folderId
+          }));
+
+          const deletedActiveFolder = String(scope.folderId) === deletedFolderId;
+          const deletedActiveList = scope.listId && deletedListIds.has(String(scope.listId));
+          const nextScope =
+            deletedActiveFolder || deletedActiveList
+              ? { ...scope, spaceId: targetSpaceId, folderId: '', listId: '' }
+              : scope;
+          if (nextScope !== scope) setScope(nextScope);
+          await loadTasks(nextScope);
           showAlert(`Folder ${name} berhasil dihapus.`, 'success');
         } catch (error) {
           showAlert(error?.response?.data?.message || error?.message || 'Gagal menghapus folder.', 'danger');
@@ -1646,21 +1696,27 @@ export default function ToDoList() {
             {view === 'list' ? (
               <div className="quick-list-create">
                 {isAdministrator ? (
-                  <Form.Select
-                    size="sm"
+                  <Select
                     className="quick-list-department"
+                    classNamePrefix="department-select-control"
                     aria-label="Department List Project"
-                    value={quickListForm.departmentId}
-                    disabled={savingQuickList}
-                    onChange={(event) => filterTasksByQuickDepartment(event.target.value)}
-                  >
-                    <option value="">Select Department...</option>
-                    {departments.map((department) => (
-                      <option key={department.id} value={department.id}>
-                        {department.name}
-                      </option>
-                    ))}
-                  </Form.Select>
+                    value={
+                      departments
+                        .filter((department) => String(department.id) === String(quickListForm.departmentId))
+                        .map((department) => ({ value: department.id, label: department.name }))[0] || null
+                    }
+                    options={departments.map((department) => ({ value: department.id, label: department.name }))}
+                    isDisabled={savingQuickList}
+                    isClearable
+                    placeholder="Select Department..."
+                    onChange={(option) => filterTasksByQuickDepartment(option?.value || '')}
+                    menuPortalTarget={document.body}
+                    menuPosition="fixed"
+                    styles={{
+                      menuPortal: (base) => ({ ...base, zIndex: 1090 }),
+                      control: (base) => ({ ...base, minHeight: 31, fontSize: 12 })
+                    }}
+                  />
                 ) : (
                   <div className="quick-list-department-label" title={quickListDepartment?.name || 'Department'}>
                     <i className="ti ti-building" />
@@ -2087,7 +2143,9 @@ export default function ToDoList() {
                                 }}
                               />
                               <div className="task-list-simple-title-info">
-                                <span className="task-list-simple-title">{task.title}</span>
+                                <span className="task-list-simple-title" title={task.title}>
+                                  {task.title}
+                                </span>
                                 <span className="task-list-simple-badges">
                                   <TaskTypeBadge
                                     type={taskTypeLabel(
@@ -2371,7 +2429,7 @@ export default function ToDoList() {
               </Col>
               <Col xs={12} md={6}>
                 <Form.Label>Deadline</Form.Label>
-                <Form.Control
+                <FormDatePicker
                   type="date"
                   value={bulkUpdateForm.dueDate}
                   disabled={savingBulkUpdate}
@@ -2585,12 +2643,12 @@ export default function ToDoList() {
                   </Col>
                   <Col sm={6}>
                     <Form.Label>Deadline *</Form.Label>
-                    <Form.Control type="date" disabled={savingEdit} value={editForm.dueDate}
+                    <FormDatePicker type="date" disabled={savingEdit} value={editForm.dueDate}
                       onChange={(event) => setEditForm((current) => ({ ...current, dueDate: event.target.value }))} />
                   </Col>
                   <Col sm={6}>
                     <Form.Label>Start Date</Form.Label>
-                    <Form.Control type="date" disabled={savingEdit} value={editForm.startDate}
+                    <FormDatePicker type="date" disabled={savingEdit} value={editForm.startDate}
                       onChange={(event) => setEditForm((current) => ({ ...current, startDate: event.target.value }))} />
                   </Col>
                   <Col sm={6}>
@@ -3061,11 +3119,11 @@ export default function ToDoList() {
               </Col>
               <Col sm={6}>
                 <Form.Label>Deadline *</Form.Label>
-                <Form.Control type="date" value={form.dueDate} onChange={(event) => setForm({ ...form, dueDate: event.target.value })} />
+                <FormDatePicker type="date" value={form.dueDate} onChange={(event) => setForm({ ...form, dueDate: event.target.value })} />
               </Col>
               <Col sm={6}>
                 <Form.Label>Start Date</Form.Label>
-                <Form.Control
+                <FormDatePicker
                   type="date"
                   value={form.startDate}
                   onChange={(event) => setForm({ ...form, startDate: event.target.value })}

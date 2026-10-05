@@ -3,6 +3,20 @@
   max-width: 1320px;
 }
 
+[data-pc-theme='dark'] .issue-pdo-selection-table .table-primary,
+[data-bs-theme='dark'] .issue-pdo-selection-table .table-primary {
+  --bs-table-bg: #1d4f73;
+  --bs-table-color: #eaf4ff;
+  --bs-table-border-color: #326789;
+  --bs-table-hover-bg: #245c82;
+  --bs-table-hover-color: #fff;
+}
+
+[data-pc-theme='dark'] .issue-pdo-selection-table .table-primary .text-muted,
+[data-bs-theme='dark'] .issue-pdo-selection-table .table-primary .text-muted {
+  color: #bdd3e6 !important;
+}
+
 .issue-quantity-no-spinner {
   appearance: textfield;
   font-weight: 700;

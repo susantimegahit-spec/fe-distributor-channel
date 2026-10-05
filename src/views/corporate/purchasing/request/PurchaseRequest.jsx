@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import FormDatePicker from 'components/FormDatePicker';
 
 import Button from 'react-bootstrap/Button';
 import Col from 'react-bootstrap/Col';
@@ -12,6 +13,7 @@ import PurchasingServices from '../../../../services/corporate/PurchasingService
 import { getCookies } from '../../../../utils/cookies';
 import { useAlert } from '../../../../utils/alertContext';
 import EnterpriseWorkspace from '../../components/EnterpriseWorkspace';
+import './purchase-request.scss';
 
 const metrics = [
   { label: 'Draft Requests', value: 0, variant: 'secondary', icon: 'ti ti-file-pencil' },
@@ -165,13 +167,21 @@ export default function PurchaseRequest() {
         description="Create, review, and monitor internal purchasing requests through the approval workflow."
         icon="ti ti-file-description"
         actionLabel="New Request"
+        actionClassName="purchase-request-new-button"
         onAction={openNewRequest}
         metrics={metrics}
         columns={['Request No.', 'Request Date', 'Department', 'Requester', 'Amount', 'Status', 'Action']}
         emptyMessage="Purchase requests will appear here after they are created."
       />
 
-      <Modal show={showForm} onHide={closeForm} backdrop="static" size="xl" centered scrollable>
+      <Modal
+        show={showForm}
+        onHide={closeForm}
+        backdrop="static"
+        dialogClassName="purchase-request-dialog"
+        centered
+        scrollable
+      >
         <Modal.Header closeButton={!saving}>
           <Modal.Title>New Purchase Request</Modal.Title>
         </Modal.Header>
@@ -201,11 +211,11 @@ export default function PurchaseRequest() {
               </Col>
               <Col md={4}>
                 <Form.Label>Document Date</Form.Label>
-                <Form.Control type="date" value={form.DocDate} onChange={(event) => updateHeader('DocDate', event.target.value)} required />
+                <FormDatePicker type="date" value={form.DocDate} onChange={(event) => updateHeader('DocDate', event.target.value)} required />
               </Col>
               <Col md={4}>
                 <Form.Label>Required Date</Form.Label>
-                <Form.Control
+                <FormDatePicker
                   type="date"
                   min={form.DocDate}
                   value={form.DocDueDate}
@@ -255,7 +265,7 @@ export default function PurchaseRequest() {
                   </Col>
                   <Col md={4}>
                     <Form.Label>Required Date</Form.Label>
-                    <Form.Control
+                    <FormDatePicker
                       type="date"
                       value={line.PQTReqDate}
                       onChange={(event) => updateLine(index, 'PQTReqDate', event.target.value)}
@@ -316,10 +326,16 @@ export default function PurchaseRequest() {
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button type="button" variant="light-secondary" onClick={closeForm} disabled={saving}>
+          <Button type="button" variant="outline-secondary" className="purchase-request-cancel" onClick={closeForm} disabled={saving}>
             Cancel
           </Button>
-          <Button type="submit" form="purchase-request-form" variant="primary" disabled={saving}>
+          <Button
+            type="submit"
+            form="purchase-request-form"
+            variant="primary"
+            className="purchase-request-save"
+            disabled={saving}
+          >
             {saving ? <Spinner animation="border" size="sm" className="me-2" /> : <i className="ti ti-device-floppy me-1" />}
             Save Request
           </Button>

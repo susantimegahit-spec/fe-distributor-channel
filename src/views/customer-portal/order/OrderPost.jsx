@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import FormDatePicker from 'components/FormDatePicker';
 import Col from 'react-bootstrap/Col';
 import Row from 'react-bootstrap/Row';
 
@@ -806,13 +807,13 @@ export default function OrderCreate() {
                         <Col md={6} xl={4}>
                           <Form.Group>
                             <Form.Label className="small text-muted">Date</Form.Label>
-                            <Form.Control onChange={(e) => handleSetInput(e, 'docDate')} value={orderInput.docDate} type="date" size="sm" />
+                            <FormDatePicker onChange={(e) => handleSetInput(e, 'docDate')} value={orderInput.docDate} type="date" size="sm" />
                           </Form.Group>
                         </Col>
                         <Col md={6} xl={4}>
                           <Form.Group>
                             <Form.Label className="small text-muted">Due Date</Form.Label>
-                            <Form.Control
+                            <FormDatePicker
                               onChange={(e) => handleSetInput(e, 'docDueDate')}
                               value={orderInput.docDueDate}
                               type="date"

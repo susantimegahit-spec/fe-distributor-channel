@@ -10,7 +10,17 @@ import Table from 'react-bootstrap/Table';
 
 import MainCard from 'components/MainCard';
 
-export default function EnterpriseWorkspace({ title, description, icon, actionLabel, onAction, metrics, columns, emptyMessage }) {
+export default function EnterpriseWorkspace({
+  title,
+  description,
+  icon,
+  actionLabel,
+  actionClassName,
+  onAction,
+  metrics,
+  columns,
+  emptyMessage
+}) {
   return (
     <MainCard
       className="claim-transaction-card"
@@ -25,7 +35,7 @@ export default function EnterpriseWorkspace({ title, description, icon, actionLa
             </Stack>
             <span className="text-muted f-12">{description}</span>
           </Stack>
-          <Button variant="primary" size="sm" onClick={onAction}>
+          <Button variant="primary" size="sm" className={actionClassName} onClick={onAction}>
             <i className="ti ti-plus me-1" />
             {actionLabel}
           </Button>
@@ -94,6 +104,7 @@ EnterpriseWorkspace.propTypes = {
   description: PropTypes.string.isRequired,
   icon: PropTypes.string.isRequired,
   actionLabel: PropTypes.string.isRequired,
+  actionClassName: PropTypes.string,
   onAction: PropTypes.func,
   metrics: PropTypes.arrayOf(
     PropTypes.shape({
@@ -108,5 +119,6 @@ EnterpriseWorkspace.propTypes = {
 };
 
 EnterpriseWorkspace.defaultProps = {
+  actionClassName: undefined,
   onAction: undefined
 };

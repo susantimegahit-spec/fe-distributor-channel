@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import FormDatePicker from 'components/FormDatePicker';
 
 // react-bootstrap
 import Badge from 'react-bootstrap/Badge';
@@ -940,7 +941,7 @@ export default function InventoryTransfer() {
             <Row className="g-3 align-items-end">
               <Col md={4}>
                 <Form.Label>From</Form.Label>
-                <Form.Control
+                <FormDatePicker
                   type="date"
                   value={transferFilters.From}
                   onChange={(event) => setTransferFilters((current) => ({ ...current, From: event.target.value }))}
@@ -948,7 +949,7 @@ export default function InventoryTransfer() {
               </Col>
               <Col md={4}>
                 <Form.Label>To</Form.Label>
-                <Form.Control
+                <FormDatePicker
                   type="date"
                   value={transferFilters.To}
                   onChange={(event) => setTransferFilters((current) => ({ ...current, To: event.target.value }))}
@@ -1257,7 +1258,7 @@ export default function InventoryTransfer() {
                       <Row className="g-3">
                         <Col md={6}>
                           <Form.Label>Posting Date</Form.Label>
-                          <Form.Control
+                          <FormDatePicker
                             type="date"
                             value={form.postingDate}
                             onChange={(event) => setForm((current) => ({ ...current, postingDate: event.target.value }))}
@@ -1265,7 +1266,7 @@ export default function InventoryTransfer() {
                         </Col>
                         <Col md={6}>
                           <Form.Label>Due Date</Form.Label>
-                          <Form.Control
+                          <FormDatePicker
                             type="date"
                             value={form.documentDate}
                             onChange={(event) => {
@@ -1571,7 +1572,7 @@ export default function InventoryTransfer() {
                           >
                             <Button
                               type="button"
-                              data-permission-action="create"
+                              data-permission-action="none"
                               className="inventory-transfer-remove-button"
                               variant="outline-danger"
                               size="sm"

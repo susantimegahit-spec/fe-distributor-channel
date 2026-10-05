@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import FormDatePicker from 'components/FormDatePicker';
 import PropTypes from 'prop-types';
 import Select from 'react-select';
 
@@ -1398,7 +1399,7 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
           <Stack direction="horizontal" gap={2} className="flex-wrap align-items-end">
             <Form.Group style={{ width: 160 }}>
               <Form.Label className="f-12 text-muted mb-1">Start Date</Form.Label>
-              <Form.Control
+              <FormDatePicker
                 type="date"
                 value={ledgerStartDate}
                 max={ledgerEndDate || undefined}
@@ -1410,7 +1411,7 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
             </Form.Group>
             <Form.Group style={{ width: 160 }}>
               <Form.Label className="f-12 text-muted mb-1">End Date</Form.Label>
-              <Form.Control
+              <FormDatePicker
                 type="date"
                 value={ledgerEndDate}
                 min={ledgerStartDate || undefined}
@@ -1892,7 +1893,7 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
                 <Col md={4}>
                   <Form.Group>
                     <Form.Label>Start Date</Form.Label>
-                    <Form.Control
+                    <FormDatePicker
                       type="date"
                       value={claimStartDate}
                       onChange={(event) => {
@@ -1906,7 +1907,7 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
                 <Col md={4}>
                   <Form.Group>
                     <Form.Label>End Date</Form.Label>
-                    <Form.Control
+                    <FormDatePicker
                       type="date"
                       min={claimStartDate || undefined}
                       value={claimEndDate}
@@ -2095,7 +2096,7 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
 
             <Form.Group>
               <Form.Label>Withdrawal Date</Form.Label>
-              <Form.Control type="date" value={withdrawDate} onChange={(event) => setWithdrawDate(event.target.value)} />
+              <FormDatePicker type="date" value={withdrawDate} onChange={(event) => setWithdrawDate(event.target.value)} />
               <Form.Text className="text-muted">The selected date will be used as both the start date and end date.</Form.Text>
             </Form.Group>
 
@@ -2277,7 +2278,7 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
 
             <Form.Group>
               <Form.Label>Transfer Date</Form.Label>
-              <Form.Control
+              <FormDatePicker
                 type="date"
                 value={withdrawTransferDate}
                 min={getTodayDate()}
