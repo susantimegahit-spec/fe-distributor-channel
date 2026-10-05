@@ -330,11 +330,12 @@ export default function CreatePicklistModal({ onClose, onSuccess }) {
     }
     return line.binsLoaded && Number(line.directBinQuantity) !== quantity;
   });
+  const selectedSeries = seriesOptions.find((option) => String(option.value) === String(form.series));
   const saveDisabled =
     saving ||
     !shippingType ||
     !form.postingDate ||
-    !form.series ||
+    !selectedSeries ||
     !lines.length ||
     invalidLines ||
     (shippingType === 'internal' && !licensePlate) ||
@@ -372,7 +373,7 @@ export default function CreatePicklistModal({ onClose, onSuccess }) {
       expedition_name: expedition.name,
       posting_date: form.postingDate,
       due_date: form.postingDate,
-      series: Number(form.series) || form.series,
+      series: selectedSeries.value,
       total_weight_limit: Number(capacity) || 0,
       comments: form.comments.trim(),
       to_whs_code: '',
@@ -869,7 +870,7 @@ export default function CreatePicklistModal({ onClose, onSuccess }) {
                 inputId="picklist-series"
                 classNamePrefix="react-select"
                 options={seriesOptions}
-                value={seriesOptions.find((option) => String(option.value) === String(form.series)) || null}
+                value={selectedSeries || null}
                 onChange={(option) => setForm((current) => ({ ...current, series: option?.value ?? '' }))}
                 placeholder={loadingSeries ? 'Loading series...' : 'Select series'}
                 isLoading={loadingSeries}
