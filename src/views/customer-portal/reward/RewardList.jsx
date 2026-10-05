@@ -573,7 +573,7 @@ export default function RewardList() {
     getMenuNumber(SYSTEM_KEYS.CUSTOMER_PORTAL, 'finance-reward')
   ];
   const canVerifySellOut = canUseMenuAction(rewardPermissionMenuKeys, 'approve');
-  const canManageReward = canUseMenuAction(rewardPermissionMenuKeys, 'create');
+  const canManageReward = canUseMenuAction(rewardPermissionMenuKeys, 'add');
   const canDeleteClaim = canUseMenuAction(rewardPermissionMenuKeys, 'delete');
   const distributorByCode = useMemo(() => {
     const entries = listDistributor.map((distributor) => [distributor.value, distributor]);

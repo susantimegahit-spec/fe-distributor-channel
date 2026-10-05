@@ -519,8 +519,8 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
     .split(',')
     .map((code) => code.trim())
     .filter(Boolean);
-  const canCreateAdjustment = canUseMenuAction(rewardPermissionMenuKeys, 'create') && isDistributor;
-  const canCreateWithdrawal = canUseMenuAction(rewardPermissionMenuKeys, 'create') && Boolean(adjustmentCustomerCode);
+  const canCreateAdjustment = canUseMenuAction(rewardPermissionMenuKeys, 'add') && isDistributor;
+  const canCreateWithdrawal = canUseMenuAction(rewardPermissionMenuKeys, 'add') && Boolean(adjustmentCustomerCode);
 
   const fetchCustomerOptions = useCallback(async () => {
     if (!showCustomerFilter && !embedded) {
