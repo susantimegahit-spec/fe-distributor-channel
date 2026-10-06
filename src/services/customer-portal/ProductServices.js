@@ -1,9 +1,22 @@
 import { DataService } from '../../config/dataService';
 
-
 class ProductServices {
-  getAllProduct(payload) {
-    return DataService.get(`/items?search=${payload ?? ''}`);
+  getAllProduct(payload, salesItemStatus, purchaseItemStatus, inventoryItemStatus) {
+    const params = new URLSearchParams({ search: payload ?? '' });
+
+    if (salesItemStatus) {
+      params.set('sales_item_status', salesItemStatus);
+    }
+
+    if (purchaseItemStatus) {
+      params.set('purchase_item_status', purchaseItemStatus);
+    }
+
+    if (inventoryItemStatus) {
+      params.set('inventory_item_status', inventoryItemStatus);
+    }
+
+    return DataService.get(`/items?${params.toString()}`);
   }
 
   getProductCustomer(payload) {

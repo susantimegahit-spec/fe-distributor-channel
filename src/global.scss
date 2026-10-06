@@ -1855,7 +1855,7 @@ body {
   color: var(--saltech-blue);
 }
 
-@media (max-width: 1199.98px) {
+@media (max-width: 767.98px) {
   .sm-auth-shell {
     grid-template-columns: minmax(0, 1fr) minmax(460px, 44vw);
   }
@@ -4978,6 +4978,34 @@ body {
 .order-create-page .card,
 .order-create-page .card:hover {
   transform: none !important;
+}
+
+// Firefox keeps the min-content width of nested flex stacks unless it is
+// explicitly reset, which can push the CMO actions outside the card header.
+.order-create-page .order-create-header > .hstack {
+  min-width: 0;
+}
+
+.order-create-page .order-create-header > .hstack > * {
+  min-width: 0;
+}
+
+.order-create-page .order-create-header-actions {
+  flex: 0 1 auto;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.order-create-page .order-create-header-actions .btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+@media (max-width: 1199.98px) {
+  .order-create-page .order-create-header-actions {
+    width: 100%;
+    justify-content: flex-end !important;
+  }
 }
 
 .order-create-page .btn.order-cancel-button {

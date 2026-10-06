@@ -192,7 +192,7 @@ export default function MasterPrice() {
 
     try {
       const [productResponse, distributorResponse] = await Promise.all([
-        ProductServices.getAllProduct(''),
+        ProductServices.getAllProduct('', 'Y'),
         DistributorServices.getAllDistributor('')
       ]);
 

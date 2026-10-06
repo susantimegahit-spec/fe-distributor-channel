@@ -12,6 +12,7 @@ import Stack from 'react-bootstrap/Stack';
 
 import PurchasingServices from '../../../../services/corporate/PurchasingServices';
 import DistributorServices from '../../../../services/customer-portal/DistributorServices';
+import ProductServices from '../../../../services/customer-portal/ProductServices';
 import WarehouseServices from '../../../../services/customer-portal/WarehouseServices';
 import { getCookies } from '../../../../utils/cookies';
 import { useAlert } from '../../../../utils/alertContext';
@@ -68,9 +69,25 @@ const normalizeWarehouse = (item = {}) => {
   return value ? { value: String(value), label: [value, name].filter(Boolean).join(' - ') } : null;
 };
 
+const normalizeItem = (item = {}) => {
+  const value = item.item_code ?? item.itemCode ?? item.code_item ?? item.code ?? item.value ?? '';
+  const name = item.item_name ?? item.itemName ?? item.name ?? item.label ?? '';
+
+  return value
+    ? {
+        value: String(value),
+        label: [value, name].filter(Boolean).join(' - '),
+        name: String(name),
+        uomEntry: item.puom_entry ?? '',
+        unitMsr: item.pur_pack_mrs ?? ''
+      }
+    : null;
+};
+
 const createLine = () => ({
   key: `${Date.now()}-${Math.random()}`,
   ItemCode: '',
+  ItemName: '',
   PQTReqDate: today(),
   Quantity: 1,
   UomEntry: '',
@@ -106,6 +123,8 @@ export default function PurchaseRequest() {
   const [loadingSeries, setLoadingSeries] = useState(false);
   const [seriesOptions, setSeriesOptions] = useState([]);
   const [loadingLineMasters, setLoadingLineMasters] = useState(false);
+  const [loadingItems, setLoadingItems] = useState(false);
+  const [itemOptions, setItemOptions] = useState([]);
   const [warehouseOptions, setWarehouseOptions] = useState([]);
   const [ocrOptions, setOcrOptions] = useState({ branch: [], businessUnit: [], department: [] });
   const [form, setForm] = useState(createInitialForm);
@@ -143,6 +162,32 @@ export default function PurchaseRequest() {
       active = false;
     };
   }, [form.DocDate, showForm, showAlert]);
+
+  useEffect(() => {
+    if (!showForm) return undefined;
+
+    let active = true;
+    const fetchItems = async () => {
+      setLoadingItems(true);
+      try {
+        const response = await ProductServices.getAllProduct('', undefined, 'Y');
+        if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to load item data');
+        if (active) setItemOptions(getResponseList(response).map(normalizeItem).filter(Boolean));
+      } catch (error) {
+        if (active) {
+          setItemOptions([]);
+          showAlert(error?.response?.data?.message || error?.message || 'Failed to load item data', 'danger');
+        }
+      } finally {
+        if (active) setLoadingItems(false);
+      }
+    };
+
+    fetchItems();
+    return () => {
+      active = false;
+    };
+  }, [showAlert, showForm]);
 
   useEffect(() => {
     if (!showForm || (userBranch && userBusinessUnit && userDepartment && userWarehouse)) return undefined;
@@ -197,6 +242,23 @@ export default function PurchaseRequest() {
     setForm((current) => ({
       ...current,
       Lines: current.Lines.map((line, lineIndex) => (lineIndex === index ? { ...line, [field]: value } : line))
+    }));
+  };
+
+  const selectLineItem = (index, option) => {
+    setForm((current) => ({
+      ...current,
+      Lines: current.Lines.map((line, lineIndex) =>
+        lineIndex === index
+          ? {
+              ...line,
+              ItemCode: option?.value ?? '',
+              ItemName: option?.name ?? '',
+              UomEntry: option?.uomEntry ?? '',
+              UnitMsr: option?.unitMsr ?? ''
+            }
+          : line
+      )
     }));
   };
 
@@ -256,6 +318,7 @@ export default function PurchaseRequest() {
       Lines: form.Lines.map(({ key, ...line }) => ({
         ...line,
         ItemCode: line.ItemCode.trim(),
+        ItemName: line.ItemName.trim(),
         Quantity: Number(line.Quantity),
         FreeTxt: line.FreeTxt.trim()
       }))
@@ -403,11 +466,28 @@ export default function PurchaseRequest() {
                   </Button>
                 </Stack>
                 <Row className="g-3">
-                  <Col md={4}>
+                  <Col md={3}>
                     <Form.Label>Item Code</Form.Label>
-                    <Form.Control value={line.ItemCode} onChange={(event) => updateLine(index, 'ItemCode', event.target.value)} required />
+                    <Select
+                      inputId={`purchase-request-item-${index}`}
+                      options={itemOptions}
+                      value={itemOptions.find((option) => option.value === line.ItemCode) || null}
+                      onChange={(option) => selectLineItem(index, option)}
+                      isLoading={loadingItems}
+                      isDisabled={loadingItems}
+                      placeholder={loadingItems ? 'Loading items...' : 'Select item'}
+                      noOptionsMessage={() => (loadingItems ? 'Loading items...' : 'Item not found')}
+                    />
                   </Col>
-                  <Col md={4}>
+                  <Col md={3}>
+                    <Form.Label>Item Name</Form.Label>
+                    <Form.Control
+                      value={line.ItemName}
+                      onChange={(event) => updateLine(index, 'ItemName', event.target.value)}
+                      readOnly={!line.ItemCode.toUpperCase().startsWith('JS')}
+                    />
+                  </Col>
+                  <Col md={3}>
                     <Form.Label>Required Date</Form.Label>
                     <FormDatePicker
                       type="date"
@@ -416,7 +496,7 @@ export default function PurchaseRequest() {
                       required
                     />
                   </Col>
-                  <Col md={4}>
+                  <Col md={3}>
                     <Form.Label>Quantity</Form.Label>
                     <Form.Control
                       type="number"

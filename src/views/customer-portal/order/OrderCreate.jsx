@@ -2332,6 +2332,7 @@ export default function OrderPost({ cmoMode = false }) {
       <Stack gap={3} className="order-create-page">
         <>
           <MainCard
+            headerClassName="order-create-header"
             title={
               <Stack gap={1}>
                 <h5 className="mb-0">
@@ -2354,7 +2355,7 @@ export default function OrderPost({ cmoMode = false }) {
               </Stack>
             }
             secondary={
-              <Stack direction="horizontal" gap={2} className="flex-wrap">
+              <Stack direction="horizontal" gap={2} className="order-create-header-actions flex-wrap justify-content-end">
                 <Button
                   variant="outline-danger"
                   className="order-cancel-button"

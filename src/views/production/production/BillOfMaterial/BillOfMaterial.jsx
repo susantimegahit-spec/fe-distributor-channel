@@ -201,12 +201,12 @@ export default function BillOfMaterial() {
     return () => window.clearTimeout(delayTimer);
   }, [fetchBoms, search]);
 
-  const fetchFormOptions = async () => {
+  const fetchFormOptions = async (inventoryItemStatus = '') => {
     setLoadingOptions(true);
 
     try {
       const [productResponse, warehouseResponse, distributionRuleResponse, businessUnitResponse, departmentResponse] = await Promise.all([
-        ProductServices.getAllProduct(''),
+        ProductServices.getAllProduct('', undefined, undefined, inventoryItemStatus),
         WarehouseServices.getAllWarehouse(''),
         DistributorServices.getOcrByType(1),
         DistributorServices.getOcrByType(2),
@@ -286,7 +286,7 @@ export default function BillOfMaterial() {
     setEditingBomId(null);
     setForm(createInitialForm());
     setShowCreateModal(true);
-    const options = await fetchFormOptions();
+    const options = await fetchFormOptions('Y');
     if (!options) return;
 
     const findDefaultOption = (items, assignmentKey) => {
