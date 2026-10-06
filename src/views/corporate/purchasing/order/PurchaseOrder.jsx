@@ -15,6 +15,7 @@ export default function PurchaseOrder() {
       icon="ti ti-file-invoice"
       actionLabel="New Order"
       metrics={metrics}
+      compactMetrics
       columns={['Order No.', 'Order Date', 'Supplier', 'Request Ref.', 'Amount', 'Status', 'Action']}
       emptyMessage="Purchase orders will appear here after they are created."
     />

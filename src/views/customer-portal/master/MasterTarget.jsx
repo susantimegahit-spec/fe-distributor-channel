@@ -19,6 +19,7 @@ import DashboardServices from '../../../services/customer-portal/DashboardServic
 import DistributorServices from '../../../services/customer-portal/DistributorServices';
 import ProductServices from '../../../services/customer-portal/ProductServices';
 import { useAlert } from '../../../utils/alertContext';
+import './master-target.scss';
 
 const monthNames = [
   'Januari',
@@ -406,7 +407,7 @@ export default function MasterTarget() {
                   <div className="flex-grow-1">
                     <h6>Download Template</h6>
                     <p className="text-muted f-12 mb-3">Use the provided column format before uploading target data.</p>
-                    <Button variant="success" onClick={() => setShowDownloadModal(true)}>
+                    <Button variant="outline-success" className="master-target-download" onClick={() => setShowDownloadModal(true)}>
                       <i className="ti ti-download me-1" />
                       Download Template
                     </Button>
@@ -484,7 +485,7 @@ export default function MasterTarget() {
             </Button>
           </Col>
           <Col lg={2} md={6}>
-            <Button variant="light-secondary" className="w-100" disabled={loadingTarget} onClick={resetFilters}>
+            <Button variant="primary" className="w-100" disabled={loadingTarget} onClick={resetFilters}>
               <i className="ti ti-refresh me-1" />
               Reset Filter
             </Button>

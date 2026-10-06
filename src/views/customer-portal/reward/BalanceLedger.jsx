@@ -24,6 +24,7 @@ import { useAlert } from '../../../utils/alertContext';
 import { getAssignedCustomerCodes, getCookies } from '../../../utils/cookies';
 import { canUseMenuAction } from '../../../utils/actionPermissions';
 import { getMenuNumber, SYSTEM_KEYS } from '../../../systems';
+import './reward-actions.scss';
 
 const pageSize = 10;
 
@@ -1306,6 +1307,7 @@ export default function BalanceLedger({ embedded = false, openWithdrawSignal = 0
                     <Button
                       variant="success"
                       size="sm"
+                      className="reward-add-withdraw"
                       onClick={handleOpenWithdrawModal}
                       disabled={loading || submittingWithdraw}
                     >

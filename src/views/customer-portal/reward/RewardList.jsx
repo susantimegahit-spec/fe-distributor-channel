@@ -30,6 +30,7 @@ import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
 import LoaderData from '../../../components/LoaderData';
 import BalanceLedger from './BalanceLedger';
+import './reward-actions.scss';
 
 const pageSize = 10;
 const rewardActionPopperConfig = {
@@ -900,6 +901,7 @@ export default function RewardList() {
             canManageReward ? (
               <Button
                 variant="success"
+                className="reward-add-withdraw"
                 disabled={!canCreateWithdrawal}
                 onClick={() => {
                   setActiveRewardTab('history');

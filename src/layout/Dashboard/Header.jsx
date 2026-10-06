@@ -253,6 +253,11 @@ export default function Header({ showSidebar = true }) {
       Cookies.remove('isLoggedIn');
       Cookies.remove('accessToken');
       Cookies.remove('id');
+      Cookies.remove('userId');
+      Cookies.remove('userBranch');
+      Cookies.remove('userBusinessUnit');
+      Cookies.remove('userDepartment');
+      Cookies.remove('userWarehouse');
       Cookies.remove('name');
       Cookies.remove('email');
       Cookies.remove('role');

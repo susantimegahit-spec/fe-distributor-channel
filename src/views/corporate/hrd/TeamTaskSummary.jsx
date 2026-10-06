@@ -8,6 +8,7 @@ import Col from 'react-bootstrap/Col';
 import Collapse from 'react-bootstrap/Collapse';
 import Form from 'react-bootstrap/Form';
 import InputGroup from 'react-bootstrap/InputGroup';
+import Modal from 'react-bootstrap/Modal';
 import Offcanvas from 'react-bootstrap/Offcanvas';
 import Row from 'react-bootstrap/Row';
 import Spinner from 'react-bootstrap/Spinner';
@@ -143,6 +144,7 @@ export default function TeamTaskSummary({ active }) {
   const [mastersLoading, setMastersLoading] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
   const [loadingDetailId, setLoadingDetailId] = useState(null);
+  const [showFilter, setShowFilter] = useState(false);
 
   const fetchSummary = useCallback(
     async (nextFilters) => {
@@ -247,20 +249,30 @@ export default function TeamTaskSummary({ active }) {
 
   return (
     <Stack gap={3}>
-      <div className="team-view-heading">
-        <h5>Team View</h5>
-        <p>View everyone's tasks, track their goals, and visually manage their capacity.</p>
+      <div className="team-view-heading d-flex align-items-start justify-content-between gap-3">
+        <div>
+          <h5>Team View</h5>
+          <p>View everyone's tasks, track their goals, and visually manage their capacity.</p>
+        </div>
+        <Button variant="outline-primary" size="sm" className="team-view-filter-button" onClick={() => setShowFilter(true)}>
+          <i className="ti ti-filter me-1" /> Filter
+        </Button>
       </div>
-      <Card className="border">
-        <Card.Body className="p-3">
+
+      <Modal show={showFilter} onHide={() => setShowFilter(false)} centered dialogClassName="team-view-filter-dialog">
+        <Modal.Header closeButton>
+          <Modal.Title>Filter Team View</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
           <Form
             onSubmit={(event) => {
               event.preventDefault();
               fetchSummary();
+              setShowFilter(false);
             }}
           >
-            <Row className="g-2 align-items-end">
-              <Col md={6} xl={3}>
+            <Row className="g-3 align-items-end">
+              <Col md={12}>
                 <Form.Label className="f-12 mb-1">Search Staff</Form.Label>
                 <InputGroup size="sm">
                   <InputGroup.Text><i className="ti ti-search" /></InputGroup.Text>
@@ -272,7 +284,7 @@ export default function TeamTaskSummary({ active }) {
                 ['department_id', 'Department', options.departments],
                 ['employee_id', 'Staff', options.employees]
               ].map(([field, label, fieldOptions]) => (
-                <Col md={6} xl={3} key={field}>
+                <Col md={6} key={field}>
                   <Form.Label className="f-12 mb-1">{label}</Form.Label>
                   <Select
                     styles={selectStyles}
@@ -287,15 +299,15 @@ export default function TeamTaskSummary({ active }) {
                   />
                 </Col>
               ))}
-              <Col md={6} xl={3}>
+              <Col md={6}>
                 <Form.Label className="f-12 mb-1">Date From</Form.Label>
                 <FormDatePicker size="sm" type="date" value={filters.date_from} onChange={(event) => updateFilter('date_from', event.target.value)} />
               </Col>
-              <Col md={6} xl={3}>
+              <Col md={6}>
                 <Form.Label className="f-12 mb-1">Date To</Form.Label>
                 <FormDatePicker size="sm" type="date" value={filters.date_to} onChange={(event) => updateFilter('date_to', event.target.value)} />
               </Col>
-              <Col md={6} xl={3}>
+              <Col md={12}>
                 <Form.Check
                   type="switch"
                   id="include-team-tasks"
@@ -305,21 +317,21 @@ export default function TeamTaskSummary({ active }) {
                   className="mb-1"
                 />
               </Col>
-              <Col md={6} xl={3}>
-                <Stack direction="horizontal" gap={2}>
+              <Col md={12}>
+                <Stack direction="horizontal" gap={2} className="justify-content-end">
+                  <Button type="button" size="sm" variant="outline-primary" disabled={loading} onClick={resetFilters}>
+                    <i className="ti ti-refresh me-1" /> Reset
+                  </Button>
                   <Button type="submit" size="sm" className="flex-grow-1" disabled={loading}>
                     {loading ? <Spinner animation="border" size="sm" className="me-1" /> : <i className="ti ti-search me-1" />}
                     Apply Filter
-                  </Button>
-                  <Button type="button" size="sm" variant="light-secondary" disabled={loading} onClick={resetFilters}>
-                    <i className="ti ti-refresh" />
                   </Button>
                 </Stack>
               </Col>
             </Row>
           </Form>
-        </Card.Body>
-      </Card>
+        </Modal.Body>
+      </Modal>
 
       {loading ? (
         <div className="text-center py-5"><Spinner animation="border" variant="primary" /><p className="text-muted mt-2">Loading staff progress...</p></div>

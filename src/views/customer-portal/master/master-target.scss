@@ -1,0 +1,30 @@
+.master-target-download {
+  border-color: rgba(25, 135, 84, 0.55) !important;
+  background: rgba(25, 135, 84, 0.1) !important;
+  color: #198754 !important;
+  box-shadow: 0 0 12px rgba(25, 135, 84, 0.08) !important;
+}
+
+.master-target-download:hover,
+.master-target-download:focus-visible {
+  border-color: #198754 !important;
+  background: rgba(25, 135, 84, 0.18) !important;
+  color: #126c43 !important;
+}
+
+[data-pc-theme='dark'] .master-target-download,
+[data-bs-theme='dark'] .master-target-download {
+  border-color: rgba(63, 210, 160, 0.7) !important;
+  background: rgba(34, 177, 126, 0.16) !important;
+  color: #55dfad !important;
+  box-shadow: 0 0 14px rgba(63, 210, 160, 0.12) !important;
+}
+
+[data-pc-theme='dark'] .master-target-download:hover,
+[data-pc-theme='dark'] .master-target-download:focus-visible,
+[data-bs-theme='dark'] .master-target-download:hover,
+[data-bs-theme='dark'] .master-target-download:focus-visible {
+  border-color: #55dfad !important;
+  background: rgba(34, 177, 126, 0.28) !important;
+  color: #8debc8 !important;
+}

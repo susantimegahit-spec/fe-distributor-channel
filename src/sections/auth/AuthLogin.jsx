@@ -275,6 +275,10 @@ export default function AuthLoginForm({ className }) {
               ['ocr_code3', 'ocrCode3', 'departments', 'department_codes'],
               ['ocr_code3', 'ocrCode3', 'ocr_code', 'code', 'value']
             );
+        const userBranch = normalizeAssignmentValues(userData.ocr_code ?? userData.ocrCode)[0] || '';
+        const userBusinessUnit = normalizeAssignmentValues(userData.ocr_code2 ?? userData.ocrCode2)[0] || '';
+        const userDepartment = normalizeAssignmentValues(userData.ocr_code3 ?? userData.ocrCode3)[0] || '';
+        const userWarehouse = normalizeAssignmentValues(userData.whs_code ?? userData.whsCode)[0] || '';
         const organizationUnits = normalizeAssignmentValues(organizationAssignment.units, [
           'unit_code',
           'unitCode',
@@ -300,6 +304,13 @@ export default function AuthLoginForm({ className }) {
         Cookies.set('isLoggedIn', true);
         Cookies.set('accessToken', loginData.access_token);
         Cookies.set('id', userData.id);
+        Cookies.set('userId', userData.userId ?? userData.user_id ?? userData.id);
+        [
+          ['userBranch', userBranch],
+          ['userBusinessUnit', userBusinessUnit],
+          ['userDepartment', userDepartment],
+          ['userWarehouse', userWarehouse]
+        ].forEach(([key, value]) => (value ? Cookies.set(key, value) : Cookies.remove(key)));
         Cookies.set('name', userData.name);
         Cookies.set('email', userData.email);
         Cookies.set('role', userData.role_id);

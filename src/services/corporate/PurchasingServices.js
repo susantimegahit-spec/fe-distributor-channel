@@ -1,6 +1,12 @@
 import { DataService } from '../../config/dataService';
 
 class PurchasingServices {
+  getSeries(date, cardCode = '') {
+    const query = new URLSearchParams({ CustomQuery: date || '', CardCode: cardCode || '' }).toString();
+
+    return DataService.get(`/sales-orders/series?${query}`);
+  }
+
   getPurchasing(department = '', cost_center = '', status = '', search = '') {
     return DataService.get('/purchasing-request/requests', {
       department,

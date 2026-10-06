@@ -1,0 +1,83 @@
+.enterprise-compact-metrics {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  align-items: center;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.enterprise-compact-metric {
+  flex: 1 1 0;
+  min-width: 140px;
+}
+
+.enterprise-compact-metric .card-body {
+  padding: 8px 10px;
+}
+
+.enterprise-compact-label {
+  margin-bottom: 1px;
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.enterprise-compact-value {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.enterprise-compact-icon {
+  padding: 6px;
+  font-size: 11px;
+}
+
+.enterprise-compact-filter {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 4px 9px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.enterprise-compact-action,
+.enterprise-compact-filter {
+  border-color: rgba(49, 95, 180, 0.28) !important;
+  background: rgba(49, 95, 180, 0.08) !important;
+  color: #315fb4 !important;
+  box-shadow: none !important;
+}
+
+.enterprise-compact-action:hover,
+.enterprise-compact-action:focus-visible,
+.enterprise-compact-filter:hover,
+.enterprise-compact-filter:focus-visible {
+  border-color: rgba(49, 95, 180, 0.46) !important;
+  background: rgba(49, 95, 180, 0.15) !important;
+  color: #244b94 !important;
+}
+
+[data-pc-theme='dark'] .enterprise-compact-action,
+[data-pc-theme='dark'] .enterprise-compact-filter,
+[data-bs-theme='dark'] .enterprise-compact-action,
+[data-bs-theme='dark'] .enterprise-compact-filter {
+  border-color: rgba(74, 174, 255, 0.72) !important;
+  background: rgba(31, 130, 218, 0.28) !important;
+  color: #72c4ff !important;
+  box-shadow: 0 0 16px rgba(48, 156, 240, 0.16) !important;
+}
+
+[data-pc-theme='dark'] .enterprise-compact-action:hover,
+[data-pc-theme='dark'] .enterprise-compact-action:focus-visible,
+[data-pc-theme='dark'] .enterprise-compact-filter:hover,
+[data-pc-theme='dark'] .enterprise-compact-filter:focus-visible,
+[data-bs-theme='dark'] .enterprise-compact-action:hover,
+[data-bs-theme='dark'] .enterprise-compact-action:focus-visible,
+[data-bs-theme='dark'] .enterprise-compact-filter:hover,
+[data-bs-theme='dark'] .enterprise-compact-filter:focus-visible {
+  border-color: #69c2ff !important;
+  background: rgba(31, 130, 218, 0.4) !important;
+  color: #9bd5ff !important;
+}

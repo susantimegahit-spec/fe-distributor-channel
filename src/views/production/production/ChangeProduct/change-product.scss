@@ -1,0 +1,47 @@
+.change-product-line {
+  border-color: #d7e0ea !important;
+  background: #f7f9fc;
+  color: #26364a;
+}
+
+.change-product-delete-line {
+  display: inline-flex !important;
+  width: 32px;
+  height: 32px;
+  padding: 0 !important;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(220, 53, 69, 0.45) !important;
+  background: rgba(220, 53, 69, 0.1) !important;
+  color: #c92f40 !important;
+}
+
+.change-product-delete-line:hover,
+.change-product-delete-line:focus-visible {
+  border-color: #dc3545 !important;
+  background: rgba(220, 53, 69, 0.2) !important;
+  color: #a91f30 !important;
+}
+
+[data-pc-theme='dark'] .change-product-line,
+[data-bs-theme='dark'] .change-product-line {
+  border-color: #315b7d !important;
+  background: #163b5b;
+  color: #e4f0fb;
+}
+
+[data-pc-theme='dark'] .change-product-delete-line,
+[data-bs-theme='dark'] .change-product-delete-line {
+  border-color: rgba(255, 76, 91, 0.72) !important;
+  background: rgba(214, 35, 52, 0.18) !important;
+  color: #ff6673 !important;
+}
+
+[data-pc-theme='dark'] .change-product-delete-line:hover,
+[data-pc-theme='dark'] .change-product-delete-line:focus-visible,
+[data-bs-theme='dark'] .change-product-delete-line:hover,
+[data-bs-theme='dark'] .change-product-delete-line:focus-visible {
+  border-color: #ff6b77 !important;
+  background: rgba(231, 45, 61, 0.32) !important;
+  color: #fff !important;
+}

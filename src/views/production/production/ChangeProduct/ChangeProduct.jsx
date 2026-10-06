@@ -14,6 +14,7 @@ import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
 
 import LoaderData from 'components/LoaderData';
+import FormDatePicker from 'components/FormDatePicker';
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
 import DistributorServices from '../../../../services/customer-portal/DistributorServices';
@@ -23,6 +24,7 @@ import ProductionServices from '../../../../services/production/ProductionServic
 import { canUseMenuAction } from '../../../../utils/actionPermissions';
 import { useAlert } from '../../../../utils/alertContext';
 import { getCookies, getOrganizationAssignmentDefault } from '../../../../utils/cookies';
+import './change-product.scss';
 
 const pageSize = 10;
 const changeProductPermissionKey = 'production-change-product';
@@ -78,10 +80,9 @@ const actionPopperConfig = {
     { name: 'flip', options: { fallbackPlacements: ['top-end', 'bottom-end'] } }
   ]
 };
-const toLocalDateTime = (date = new Date()) => {
-  const timezoneOffset = date.getTimezoneOffset() * 60000;
-  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
-};
+const toLocalDate = (date = new Date()) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+const toPayloadDate = (value) => new Date(`${value}T00:00:00`).toISOString();
 const createBaseLine = () => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
   itemCode: '',
@@ -90,8 +91,8 @@ const createBaseLine = () => ({
 const createOldLine = () => createBaseLine();
 const createNewLine = () => createBaseLine();
 const createInitialForm = () => ({
-  docDate: toLocalDateTime(),
-  docDueDate: toLocalDateTime(),
+  docDate: toLocalDate(),
+  docDueDate: toLocalDate(),
   comments: '',
   shift: 'All',
   unit: getOrganizationAssignmentDefault('units'),
@@ -162,10 +163,12 @@ const getDetailLines = (detail, type) => {
   return Array.isArray(lines) ? lines : [];
 };
 
-const toFormDateTime = (value) => {
+const toFormDate = (value) => {
   if (!value) return '';
+  const datePart = String(value).match(/^\d{4}-\d{2}-\d{2}/)?.[0];
+  if (datePart) return datePart;
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '' : toLocalDateTime(date);
+  return Number.isNaN(date.getTime()) ? '' : toLocalDate(date);
 };
 
 const mapDetailToForm = (detail = {}) => {
@@ -181,8 +184,8 @@ const mapDetailToForm = (detail = {}) => {
 
   return {
     ...createInitialForm(),
-    docDate: toFormDateTime(getValue(header, ['docDate', 'doc_date', 'DocDate', 'date'], '')),
-    docDueDate: toFormDateTime(getValue(header, ['docDueDate', 'doc_due_date', 'DocDueDate'], '')),
+    docDate: toFormDate(getValue(header, ['docDate', 'doc_date', 'DocDate', 'date'], '')),
+    docDueDate: toFormDate(getValue(header, ['docDueDate', 'doc_due_date', 'DocDueDate'], '')),
     comments: getValue(header, ['comments', 'Comments', 'remarks'], ''),
     shift: getValue(header, ['shift', 'Shift'], 'All'),
     unit: String(getValue(header, ['unit', 'u_unit', 'U_Unit'], '')),
@@ -406,8 +409,8 @@ export default function ChangeProduct() {
     setSaving(true);
     try {
       const payload = {
-        docDate: new Date(form.docDate).toISOString(),
-        docDueDate: form.docDueDate ? new Date(form.docDueDate).toISOString() : null,
+        docDate: toPayloadDate(form.docDate),
+        docDueDate: form.docDueDate ? toPayloadDate(form.docDueDate) : null,
         comments: form.comments,
         shift: form.shift,
         unit: form.unit,
@@ -472,18 +475,18 @@ export default function ChangeProduct() {
       <Card.Body>
         <Stack gap={3}>
           {form[collection].map((line, index) => (
-            <div key={line.id} className="border rounded p-3 bg-light bg-opacity-25">
+            <div key={line.id} className="change-product-line border rounded p-3">
               <div className="d-flex align-items-center justify-content-between gap-3 mb-3">
                 <strong className="f-13">Item {index + 1}</strong>
                 <button
                   type="button"
-                  className="btn btn-danger btn-sm"
+                  className="btn btn-sm change-product-delete-line"
                   data-permission-action="none"
                   onClick={() => removeLine(collection, line.id)}
                   aria-label={`Delete ${title.toLowerCase()} row ${index + 1}`}
+                  title="Delete row"
                 >
-                  <i className="ti ti-trash me-1" />
-                  Delete Row
+                  <i className="ti ti-trash" />
                 </button>
               </div>
               <Row className="g-3">
@@ -812,16 +815,16 @@ export default function ChangeProduct() {
               <Row className="g-3">
                 <Col md={4}>
                   <Form.Label>Document Date *</Form.Label>
-                  <Form.Control
-                    type="datetime-local"
+                  <FormDatePicker
+                    type="date"
                     value={form.docDate}
                     onChange={(event) => setForm({ ...form, docDate: event.target.value })}
                   />
                 </Col>
                 <Col md={4}>
                   <Form.Label>Due Date</Form.Label>
-                  <Form.Control
-                    type="datetime-local"
+                  <FormDatePicker
+                    type="date"
                     value={form.docDueDate}
                     onChange={(event) => setForm({ ...form, docDueDate: event.target.value })}
                   />

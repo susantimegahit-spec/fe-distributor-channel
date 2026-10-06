@@ -15,6 +15,42 @@
   font-size: 13px;
 }
 
+.team-view-filter-button {
+  flex: 0 0 auto;
+  border-color: rgba(49, 95, 180, 0.28) !important;
+  background: rgba(49, 95, 180, 0.08) !important;
+  color: #315fb4 !important;
+}
+
+.team-view-filter-button:hover,
+.team-view-filter-button:focus-visible {
+  border-color: rgba(49, 95, 180, 0.46) !important;
+  background: rgba(49, 95, 180, 0.15) !important;
+  color: #244b94 !important;
+}
+
+.team-view-filter-dialog.modal-dialog {
+  width: calc(100vw - 32px);
+  max-width: 760px;
+}
+
+[data-pc-theme='dark'] .team-view-filter-button,
+[data-bs-theme='dark'] .team-view-filter-button {
+  border-color: rgba(74, 174, 255, 0.72) !important;
+  background: rgba(31, 130, 218, 0.28) !important;
+  color: #72c4ff !important;
+  box-shadow: 0 0 16px rgba(48, 156, 240, 0.16);
+}
+
+[data-pc-theme='dark'] .team-view-filter-button:hover,
+[data-pc-theme='dark'] .team-view-filter-button:focus-visible,
+[data-bs-theme='dark'] .team-view-filter-button:hover,
+[data-bs-theme='dark'] .team-view-filter-button:focus-visible {
+  border-color: #69c2ff !important;
+  background: rgba(31, 130, 218, 0.4) !important;
+  color: #9bd5ff !important;
+}
+
 .team-progress-grid {
   padding: 18px;
   border-radius: 18px;

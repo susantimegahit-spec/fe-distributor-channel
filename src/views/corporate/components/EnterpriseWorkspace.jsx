@@ -9,6 +9,7 @@ import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
 
 import MainCard from 'components/MainCard';
+import './enterprise-workspace.scss';
 
 export default function EnterpriseWorkspace({
   title,
@@ -18,6 +19,7 @@ export default function EnterpriseWorkspace({
   actionClassName,
   onAction,
   metrics,
+  compactMetrics,
   columns,
   emptyMessage
 }) {
@@ -35,41 +37,72 @@ export default function EnterpriseWorkspace({
             </Stack>
             <span className="text-muted f-12">{description}</span>
           </Stack>
-          <Button variant="primary" size="sm" className={actionClassName} onClick={onAction}>
+          <Button
+            variant="primary"
+            size="sm"
+            className={[actionClassName, compactMetrics ? 'enterprise-compact-action' : ''].filter(Boolean).join(' ')}
+            onClick={onAction}
+          >
             <i className="ti ti-plus me-1" />
             {actionLabel}
           </Button>
         </Stack>
       }
     >
-      <Row className="g-3 mb-4">
-        {metrics.map((metric) => (
-          <Col xl={3} md={6} key={metric.label}>
-            <Card className="border h-100 mb-0">
+      {compactMetrics ? (
+        <div className="enterprise-compact-metrics mb-3">
+          {metrics.map((metric) => (
+            <Card className="enterprise-compact-metric border mb-0" key={metric.label}>
               <Card.Body>
-                <Stack direction="horizontal" className="justify-content-between" gap={3}>
+                <Stack direction="horizontal" className="justify-content-between" gap={2}>
                   <div>
-                    <div className="text-muted f-12 mb-1">{metric.label}</div>
-                    <h4 className="mb-0">{metric.value}</h4>
+                    <div className="text-muted enterprise-compact-label">{metric.label}</div>
+                    <div className="enterprise-compact-value">{metric.value}</div>
                   </div>
-                  <Badge bg={`light-${metric.variant}`} text={metric.variant} className="p-2">
+                  <Badge bg={`light-${metric.variant}`} text={metric.variant} className="enterprise-compact-icon">
                     <i className={metric.icon} />
                   </Badge>
                 </Stack>
               </Card.Body>
             </Card>
-          </Col>
-        ))}
-      </Row>
+          ))}
+          <Button variant="light-secondary" size="sm" className="enterprise-compact-filter">
+            <i className="ti ti-filter me-1" />
+            Filter
+          </Button>
+        </div>
+      ) : (
+        <Row className="g-3 mb-4">
+          {metrics.map((metric) => (
+            <Col xl={3} md={6} key={metric.label}>
+              <Card className="border h-100 mb-0">
+                <Card.Body>
+                  <Stack direction="horizontal" className="justify-content-between" gap={3}>
+                    <div>
+                      <div className="text-muted f-12 mb-1">{metric.label}</div>
+                      <h4 className="mb-0">{metric.value}</h4>
+                    </div>
+                    <Badge bg={`light-${metric.variant}`} text={metric.variant} className="p-2">
+                      <i className={metric.icon} />
+                    </Badge>
+                  </Stack>
+                </Card.Body>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+      )}
 
       <Card className="border mb-0">
         <Card.Header className="bg-transparent">
           <Stack direction="horizontal" className="justify-content-between">
             <h6 className="mb-0">Recent Activity</h6>
-            <Button variant="light-secondary" size="sm">
-              <i className="ti ti-filter me-1" />
-              Filter
-            </Button>
+            {!compactMetrics && (
+              <Button variant="light-secondary" size="sm">
+                <i className="ti ti-filter me-1" />
+                Filter
+              </Button>
+            )}
           </Stack>
         </Card.Header>
         <div className="table-responsive">
@@ -114,11 +147,13 @@ EnterpriseWorkspace.propTypes = {
       icon: PropTypes.string.isRequired
     })
   ).isRequired,
+  compactMetrics: PropTypes.bool,
   columns: PropTypes.arrayOf(PropTypes.string).isRequired,
   emptyMessage: PropTypes.string.isRequired
 };
 
 EnterpriseWorkspace.defaultProps = {
   actionClassName: undefined,
-  onAction: undefined
+  onAction: undefined,
+  compactMetrics: false
 };

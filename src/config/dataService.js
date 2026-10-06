@@ -256,6 +256,11 @@ client.interceptors.response.use(
         Cookies.remove('accessToken');
         Cookies.remove('session-token');
         Cookies.remove('id');
+        Cookies.remove('userId');
+        Cookies.remove('userBranch');
+        Cookies.remove('userBusinessUnit');
+        Cookies.remove('userDepartment');
+        Cookies.remove('userWarehouse');
         Cookies.remove('name');
         Cookies.remove('email');
         Cookies.remove('role');

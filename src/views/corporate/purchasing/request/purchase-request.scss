@@ -3,6 +3,67 @@
   max-width: 1600px;
 }
 
+.enterprise-compact-metrics {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  align-items: center;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.enterprise-compact-metric {
+  flex: 1 1 0;
+  min-width: 140px;
+}
+
+.enterprise-compact-metric .card-body {
+  padding: 8px 10px;
+}
+
+.enterprise-compact-label {
+  margin-bottom: 1px;
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.enterprise-compact-value {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.enterprise-compact-icon {
+  padding: 6px;
+  font-size: 11px;
+}
+
+.enterprise-compact-filter {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 4px 9px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.purchase-request-new-button,
+.enterprise-compact-filter {
+  border-color: rgba(49, 95, 180, 0.28) !important;
+  background: rgba(49, 95, 180, 0.08) !important;
+  color: #315fb4 !important;
+  box-shadow: none !important;
+}
+
+.purchase-request-new-button:hover,
+.purchase-request-new-button:focus-visible,
+.enterprise-compact-filter:hover,
+.enterprise-compact-filter:focus-visible {
+  border-color: rgba(49, 95, 180, 0.46) !important;
+  background: rgba(49, 95, 180, 0.15) !important;
+  color: #244b94 !important;
+}
+
 .purchase-request-dialog.modal-dialog-scrollable .modal-content {
   height: calc(100dvh - 64px);
   max-height: 1100px;
@@ -12,21 +73,80 @@
   min-width: 120px;
 }
 
+.purchase-request-comments {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.purchase-request-quantity {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.purchase-request-quantity::-webkit-inner-spin-button,
+.purchase-request-quantity::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.purchase-request-line-card {
+  position: relative;
+}
+
+.purchase-request-remove-line.btn {
+  position: absolute;
+  z-index: 2;
+  top: 12px;
+  right: 12px;
+  display: inline-flex !important;
+  width: 32px;
+  height: 32px;
+  padding: 0 !important;
+  visibility: visible !important;
+  justify-content: center;
+  align-items: center;
+  opacity: 1 !important;
+  border-color: rgba(220, 53, 69, 0.72) !important;
+  background: rgba(220, 53, 69, 0.1) !important;
+  color: #dc3545 !important;
+}
+
+[data-pc-theme='dark'] .purchase-request-remove-line.btn,
+[data-bs-theme='dark'] .purchase-request-remove-line.btn {
+  border-color: rgba(255, 76, 91, 0.72) !important;
+  background: rgba(214, 35, 52, 0.2) !important;
+  color: #ff6673 !important;
+}
+
+.purchase-request-remove-line.btn:hover,
+.purchase-request-remove-line.btn:focus-visible {
+  border-color: #ff6b77 !important;
+  background: rgba(231, 45, 61, 0.34) !important;
+  color: #fff !important;
+}
+
 [data-pc-theme='dark'] .purchase-request-new-button,
-[data-bs-theme='dark'] .purchase-request-new-button {
-  color: #eaf6ff;
-  border-color: #4da7e8;
-  background: #21618e;
-  box-shadow: none;
+[data-pc-theme='dark'] .enterprise-compact-filter,
+[data-bs-theme='dark'] .purchase-request-new-button,
+[data-bs-theme='dark'] .enterprise-compact-filter {
+  color: #72c4ff !important;
+  border-color: rgba(74, 174, 255, 0.72) !important;
+  background: rgba(31, 130, 218, 0.28) !important;
+  box-shadow: 0 0 16px rgba(48, 156, 240, 0.16) !important;
 }
 
 [data-pc-theme='dark'] .purchase-request-new-button:hover,
 [data-pc-theme='dark'] .purchase-request-new-button:focus-visible,
+[data-pc-theme='dark'] .enterprise-compact-filter:hover,
+[data-pc-theme='dark'] .enterprise-compact-filter:focus-visible,
 [data-bs-theme='dark'] .purchase-request-new-button:hover,
-[data-bs-theme='dark'] .purchase-request-new-button:focus-visible {
-  color: #fff;
-  border-color: #69c2ff;
-  background: #2876aa;
+[data-bs-theme='dark'] .purchase-request-new-button:focus-visible,
+[data-bs-theme='dark'] .enterprise-compact-filter:hover,
+[data-bs-theme='dark'] .enterprise-compact-filter:focus-visible {
+  color: #9bd5ff !important;
+  border-color: #69c2ff !important;
+  background: rgba(31, 130, 218, 0.4) !important;
 }
 
 [data-pc-theme='dark'] .purchase-request-dialog .purchase-request-cancel,

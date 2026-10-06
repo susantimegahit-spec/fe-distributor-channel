@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import FormDatePicker from 'components/FormDatePicker';
+import Select from 'react-select';
 
 import Button from 'react-bootstrap/Button';
 import Col from 'react-bootstrap/Col';
@@ -10,6 +11,8 @@ import Spinner from 'react-bootstrap/Spinner';
 import Stack from 'react-bootstrap/Stack';
 
 import PurchasingServices from '../../../../services/corporate/PurchasingServices';
+import DistributorServices from '../../../../services/customer-portal/DistributorServices';
+import WarehouseServices from '../../../../services/customer-portal/WarehouseServices';
 import { getCookies } from '../../../../utils/cookies';
 import { useAlert } from '../../../../utils/alertContext';
 import EnterpriseWorkspace from '../../components/EnterpriseWorkspace';
@@ -23,41 +26,159 @@ const metrics = [
 ];
 
 const today = () => new Date().toISOString().slice(0, 10);
+const SERIES_CARD_CODE = '1470000113';
+
+const getSeriesList = (response) => {
+  const payload = response?.data?.data ?? response?.data ?? [];
+  if (Array.isArray(payload)) return payload;
+  for (const key of ['data', 'items', 'rows', 'series', 'value', 'results']) {
+    if (Array.isArray(payload?.[key])) return payload[key];
+  }
+  return [];
+};
+
+const normalizeSeries = (item = {}) => {
+  const value = typeof item === 'object' ? (item.series ?? item.Series ?? item.series_code ?? item.value ?? item.code ?? item.id) : item;
+  const label =
+    typeof item === 'object'
+      ? (item.series_name ?? item.seriesName ?? item.SeriesName ?? item.name ?? item.label ?? item.description ?? value)
+      : item;
+
+  return value === undefined || value === null || value === '' ? null : { value, label: String(label) };
+};
+
+const getResponseList = (response) => {
+  const payload = response?.data?.data ?? response?.data ?? [];
+  if (Array.isArray(payload)) return payload;
+  for (const key of ['data', 'items', 'rows', 'warehouses', 'results']) {
+    if (Array.isArray(payload?.[key])) return payload[key];
+  }
+  return [];
+};
+
+const normalizeOcr = (item = {}) => {
+  const value = item.ocr_code ?? item.ocrCode ?? item.OcrCode ?? item.code ?? item.value ?? '';
+  const name = item.ocr_name ?? item.ocrName ?? item.OcrName ?? item.name ?? item.label ?? '';
+  return value ? { value: String(value), label: [value, name].filter(Boolean).join(' - ') } : null;
+};
+
+const normalizeWarehouse = (item = {}) => {
+  const value = item.whs_code ?? item.warehouse_code ?? item.code ?? item.WhsCode ?? item.value ?? '';
+  const name = item.whs_name ?? item.warehouse_name ?? item.name ?? item.WhsName ?? item.label ?? '';
+  return value ? { value: String(value), label: [value, name].filter(Boolean).join(' - ') } : null;
+};
 
 const createLine = () => ({
   key: `${Date.now()}-${Math.random()}`,
   ItemCode: '',
   PQTReqDate: today(),
   Quantity: 1,
-  UomEntry: '-1',
-  UomCode: '-1',
-  WhsCode: '',
-  UnitMsr: 'Pcs',
+  UomEntry: '',
+  UomCode: '',
+  WhsCode: String(getCookies('userWarehouse') ?? ''),
+  UnitMsr: '',
   FreeTxt: '',
-  OcrCode: '',
-  OcrCode2: '',
-  OcrCode3: ''
+  OcrCode: String(getCookies('userBranch') ?? ''),
+  OcrCode2: String(getCookies('userBusinessUnit') ?? ''),
+  OcrCode3: String(getCookies('userDepartment') ?? '')
 });
 
-const createInitialForm = () => ({
-  Series: '',
-  ReqType: '12',
-  Requester: '',
-  RequesterName: '',
-  Department: '',
-  DocDate: today(),
-  DocDueDate: today(),
-  Comments: '',
-  UserId: String(getCookies('id') ?? ''),
-  AddonId: String(getCookies('addonId') ?? ''),
-  Lines: [createLine()]
-});
+const createInitialForm = () => {
+  const userId = String(getCookies('userId') ?? getCookies('id') ?? '');
+
+  return {
+    Series: '',
+    ReqType: '12',
+    RequesterName: String(getCookies('name') ?? ''),
+    Department: String(getCookies('userDepartment') ?? ''),
+    DocDate: today(),
+    DocDueDate: today(),
+    Comments: '',
+    UserId: userId,
+    Lines: [createLine()]
+  };
+};
 
 export default function PurchaseRequest() {
   const { showAlert } = useAlert();
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loadingSeries, setLoadingSeries] = useState(false);
+  const [seriesOptions, setSeriesOptions] = useState([]);
+  const [loadingLineMasters, setLoadingLineMasters] = useState(false);
+  const [warehouseOptions, setWarehouseOptions] = useState([]);
+  const [ocrOptions, setOcrOptions] = useState({ branch: [], businessUnit: [], department: [] });
   const [form, setForm] = useState(createInitialForm);
+  const userBranch = String(getCookies('userBranch') ?? '');
+  const userBusinessUnit = String(getCookies('userBusinessUnit') ?? '');
+  const userDepartment = String(getCookies('userDepartment') ?? '');
+  const userWarehouse = String(getCookies('userWarehouse') ?? '');
+
+  useEffect(() => {
+    if (!showForm || !form.DocDate) {
+      setSeriesOptions([]);
+      return undefined;
+    }
+
+    let active = true;
+    const fetchSeries = async () => {
+      setLoadingSeries(true);
+      try {
+        const date = String(form.DocDate).replace(/-/g, '');
+        const response = await PurchasingServices.getSeries(date, SERIES_CARD_CODE);
+        if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch series data');
+        if (active) setSeriesOptions(getSeriesList(response).map(normalizeSeries).filter(Boolean));
+      } catch (error) {
+        if (active) {
+          setSeriesOptions([]);
+          showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch series data', 'danger');
+        }
+      } finally {
+        if (active) setLoadingSeries(false);
+      }
+    };
+
+    fetchSeries();
+    return () => {
+      active = false;
+    };
+  }, [form.DocDate, showForm, showAlert]);
+
+  useEffect(() => {
+    if (!showForm || (userBranch && userBusinessUnit && userDepartment && userWarehouse)) return undefined;
+
+    let active = true;
+    const fetchLineMasters = async () => {
+      setLoadingLineMasters(true);
+      try {
+        const [branchResponse, businessUnitResponse, departmentResponse, warehouseResponse] = await Promise.all([
+          userBranch ? null : DistributorServices.getOcrByType(1),
+          userBusinessUnit ? null : DistributorServices.getOcrByType(2),
+          userDepartment ? null : DistributorServices.getOcrByType(3),
+          userWarehouse ? null : WarehouseServices.getAllWarehouse('')
+        ]);
+        const responses = [branchResponse, businessUnitResponse, departmentResponse, warehouseResponse].filter(Boolean);
+        if (responses.some((response) => response?.data?.success === false)) throw new Error('Failed to load line master data');
+        if (active) {
+          setOcrOptions({
+            branch: branchResponse ? getResponseList(branchResponse).map(normalizeOcr).filter(Boolean) : [],
+            businessUnit: businessUnitResponse ? getResponseList(businessUnitResponse).map(normalizeOcr).filter(Boolean) : [],
+            department: departmentResponse ? getResponseList(departmentResponse).map(normalizeOcr).filter(Boolean) : []
+          });
+          setWarehouseOptions(warehouseResponse ? getResponseList(warehouseResponse).map(normalizeWarehouse).filter(Boolean) : []);
+        }
+      } catch (error) {
+        if (active) showAlert(error?.response?.data?.message || error?.message || 'Failed to load line master data', 'danger');
+      } finally {
+        if (active) setLoadingLineMasters(false);
+      }
+    };
+
+    fetchLineMasters();
+    return () => {
+      active = false;
+    };
+  }, [showAlert, showForm, userBranch, userBusinessUnit, userDepartment, userWarehouse]);
 
   const openNewRequest = () => {
     setForm(createInitialForm());
@@ -94,13 +215,11 @@ export default function PurchaseRequest() {
     const requiredHeader = [
       ['Series', 'Series'],
       ['ReqType', 'Request type'],
-      ['Requester', 'Requester'],
       ['RequesterName', 'Requester name'],
       ['Department', 'Department'],
       ['DocDate', 'Document date'],
       ['DocDueDate', 'Required date'],
-      ['UserId', 'User ID'],
-      ['AddonId', 'Addon ID']
+      ['UserId', 'User ID']
     ];
     const missingHeader = requiredHeader.find(([field]) => !String(form[field] ?? '').trim());
     if (missingHeader) return `${missingHeader[1]} is required`;
@@ -126,16 +245,14 @@ export default function PurchaseRequest() {
     }
 
     const payload = {
-      Series: form.Series.trim(),
+      Series: form.Series,
       ReqType: form.ReqType.trim(),
-      Requester: form.Requester.trim(),
       RequesterName: form.RequesterName.trim(),
       Department: form.Department.trim(),
       DocDate: form.DocDate,
       DocDueDate: form.DocDueDate,
       Comments: form.Comments.trim(),
       UserId: form.UserId.trim(),
-      AddonId: form.AddonId.trim(),
       Lines: form.Lines.map(({ key, ...line }) => ({
         ...line,
         ItemCode: line.ItemCode.trim(),
@@ -170,6 +287,7 @@ export default function PurchaseRequest() {
         actionClassName="purchase-request-new-button"
         onAction={openNewRequest}
         metrics={metrics}
+        compactMetrics
         columns={['Request No.', 'Request Date', 'Department', 'Requester', 'Amount', 'Status', 'Action']}
         emptyMessage="Purchase requests will appear here after they are created."
       />
@@ -191,27 +309,53 @@ export default function PurchaseRequest() {
             <Row className="g-3">
               <Col md={3}>
                 <Form.Label>Series</Form.Label>
-                <Form.Control value={form.Series} onChange={(event) => updateHeader('Series', event.target.value)} required />
-              </Col>
-              <Col md={3}>
-                <Form.Label>Request Type</Form.Label>
-                <Form.Control value={form.ReqType} onChange={(event) => updateHeader('ReqType', event.target.value)} required />
-              </Col>
-              <Col md={3}>
-                <Form.Label>Requester</Form.Label>
-                <Form.Control value={form.Requester} onChange={(event) => updateHeader('Requester', event.target.value)} required />
+                <Select
+                  inputId="purchase-request-series"
+                  options={seriesOptions}
+                  value={seriesOptions.find((option) => String(option.value) === String(form.Series)) || null}
+                  onChange={(option) => updateHeader('Series', option?.value ?? '')}
+                  isLoading={loadingSeries}
+                  isDisabled={!form.DocDate || loadingSeries}
+                  placeholder={loadingSeries ? 'Loading series...' : 'Select series'}
+                  noOptionsMessage={() => (loadingSeries ? 'Loading series...' : 'Series not found')}
+                />
               </Col>
               <Col md={3}>
                 <Form.Label>Requester Name</Form.Label>
-                <Form.Control value={form.RequesterName} onChange={(event) => updateHeader('RequesterName', event.target.value)} required />
+                <Form.Control value={form.RequesterName} readOnly required />
               </Col>
               <Col md={4}>
                 <Form.Label>Department</Form.Label>
-                <Form.Control value={form.Department} onChange={(event) => updateHeader('Department', event.target.value)} required />
+                {userDepartment ? (
+                  <Form.Control value={form.Department} readOnly required />
+                ) : (
+                  <Select
+                    inputId="purchase-request-department"
+                    options={ocrOptions.department}
+                    value={ocrOptions.department.find((option) => option.value === form.Department) || null}
+                    onChange={(option) => updateHeader('Department', option?.value ?? '')}
+                    isLoading={loadingLineMasters}
+                    isDisabled={loadingLineMasters}
+                    placeholder={loadingLineMasters ? 'Loading departments...' : 'Select department'}
+                    noOptionsMessage={() => (loadingLineMasters ? 'Loading departments...' : 'Department not found')}
+                  />
+                )}
               </Col>
               <Col md={4}>
                 <Form.Label>Document Date</Form.Label>
-                <FormDatePicker type="date" value={form.DocDate} onChange={(event) => updateHeader('DocDate', event.target.value)} required />
+                <FormDatePicker
+                  type="date"
+                  value={form.DocDate}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      DocDate: event.target.value,
+                      Series: '',
+                      DocDueDate: current.DocDueDate < event.target.value ? event.target.value : current.DocDueDate
+                    }))
+                  }
+                  required
+                />
               </Col>
               <Col md={4}>
                 <Form.Label>Required Date</Form.Label>
@@ -223,17 +367,15 @@ export default function PurchaseRequest() {
                   required
                 />
               </Col>
-              <Col md={3}>
-                <Form.Label>User ID</Form.Label>
-                <Form.Control value={form.UserId} onChange={(event) => updateHeader('UserId', event.target.value)} required />
-              </Col>
-              <Col md={3}>
-                <Form.Label>Addon ID</Form.Label>
-                <Form.Control value={form.AddonId} onChange={(event) => updateHeader('AddonId', event.target.value)} required />
-              </Col>
-              <Col md={6}>
+              <Col xs={12}>
                 <Form.Label>Comments</Form.Label>
-                <Form.Control value={form.Comments} onChange={(event) => updateHeader('Comments', event.target.value)} />
+                <Form.Control
+                  as="textarea"
+                  rows={4}
+                  className="purchase-request-comments"
+                  value={form.Comments}
+                  onChange={(event) => updateHeader('Comments', event.target.value)}
+                />
               </Col>
             </Row>
 
@@ -245,14 +387,16 @@ export default function PurchaseRequest() {
             </Stack>
 
             {form.Lines.map((line, index) => (
-              <div className="border rounded p-3 mb-3" key={line.key}>
+              <div className="purchase-request-line-card border rounded p-3 mb-3" key={line.key}>
                 <Stack direction="horizontal" className="justify-content-between mb-3">
                   <span className="fw-semibold">Item {index + 1}</span>
                   <Button
                     type="button"
                     size="sm"
                     variant="outline-danger"
-                    disabled={form.Lines.length === 1}
+                    className="purchase-request-remove-line"
+                    aria-label={`Remove item ${index + 1}`}
+                    title="Remove line"
                     onClick={() => removeLine(index)}
                   >
                     <i className="ti ti-trash" />
@@ -278,8 +422,10 @@ export default function PurchaseRequest() {
                       type="number"
                       min="0.01"
                       step="any"
+                      className="purchase-request-quantity"
                       value={line.Quantity}
                       onChange={(event) => updateLine(index, 'Quantity', event.target.value)}
+                      onWheel={(event) => event.currentTarget.blur()}
                       required
                     />
                   </Col>
@@ -297,19 +443,67 @@ export default function PurchaseRequest() {
                   </Col>
                   <Col md={3}>
                     <Form.Label>Warehouse</Form.Label>
-                    <Form.Control value={line.WhsCode} onChange={(event) => updateLine(index, 'WhsCode', event.target.value)} required />
+                    {userWarehouse ? (
+                      <Form.Control value={line.WhsCode} readOnly required />
+                    ) : (
+                      <Select
+                        inputId={`purchase-request-warehouse-${index}`}
+                        options={warehouseOptions}
+                        value={warehouseOptions.find((option) => option.value === line.WhsCode) || null}
+                        onChange={(option) => updateLine(index, 'WhsCode', option?.value ?? '')}
+                        isLoading={loadingLineMasters}
+                        isDisabled={loadingLineMasters}
+                        placeholder="Select warehouse"
+                      />
+                    )}
                   </Col>
                   <Col md={4}>
-                    <Form.Label>Branch (OcrCode)</Form.Label>
-                    <Form.Control value={line.OcrCode} onChange={(event) => updateLine(index, 'OcrCode', event.target.value)} />
+                    <Form.Label>Branch</Form.Label>
+                    {userBranch ? (
+                      <Form.Control value={line.OcrCode} readOnly />
+                    ) : (
+                      <Select
+                        inputId={`purchase-request-branch-${index}`}
+                        options={ocrOptions.branch}
+                        value={ocrOptions.branch.find((option) => option.value === line.OcrCode) || null}
+                        onChange={(option) => updateLine(index, 'OcrCode', option?.value ?? '')}
+                        isLoading={loadingLineMasters}
+                        isDisabled={loadingLineMasters}
+                        placeholder="Select branch"
+                      />
+                    )}
                   </Col>
                   <Col md={4}>
-                    <Form.Label>Unit (OcrCode2)</Form.Label>
-                    <Form.Control value={line.OcrCode2} onChange={(event) => updateLine(index, 'OcrCode2', event.target.value)} />
+                    <Form.Label>Unit</Form.Label>
+                    {userBusinessUnit ? (
+                      <Form.Control value={line.OcrCode2} readOnly />
+                    ) : (
+                      <Select
+                        inputId={`purchase-request-business-unit-${index}`}
+                        options={ocrOptions.businessUnit}
+                        value={ocrOptions.businessUnit.find((option) => option.value === line.OcrCode2) || null}
+                        onChange={(option) => updateLine(index, 'OcrCode2', option?.value ?? '')}
+                        isLoading={loadingLineMasters}
+                        isDisabled={loadingLineMasters}
+                        placeholder="Select unit"
+                      />
+                    )}
                   </Col>
                   <Col md={4}>
-                    <Form.Label>Department (OcrCode3)</Form.Label>
-                    <Form.Control value={line.OcrCode3} onChange={(event) => updateLine(index, 'OcrCode3', event.target.value)} />
+                    <Form.Label>Department</Form.Label>
+                    {userDepartment ? (
+                      <Form.Control value={line.OcrCode3} readOnly />
+                    ) : (
+                      <Select
+                        inputId={`purchase-request-line-department-${index}`}
+                        options={ocrOptions.department}
+                        value={ocrOptions.department.find((option) => option.value === line.OcrCode3) || null}
+                        onChange={(option) => updateLine(index, 'OcrCode3', option?.value ?? '')}
+                        isLoading={loadingLineMasters}
+                        isDisabled={loadingLineMasters}
+                        placeholder="Select department"
+                      />
+                    )}
                   </Col>
                   <Col xs={12}>
                     <Form.Label>Line Remarks</Form.Label>

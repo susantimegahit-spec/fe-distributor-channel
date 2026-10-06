@@ -1,0 +1,52 @@
+.master-promo-dialog.modal-dialog {
+  width: calc(100vw - 48px);
+  max-width: 1800px;
+}
+
+.master-promo-dialog.modal-dialog-scrollable .modal-content {
+  height: calc(100dvh - 64px);
+  max-height: 1100px;
+}
+
+.master-promo-add-row {
+  border-color: rgba(49, 95, 180, 0.28) !important;
+  background: rgba(49, 95, 180, 0.08) !important;
+  color: #315fb4 !important;
+  box-shadow: none !important;
+}
+
+.master-promo-add-row:hover,
+.master-promo-add-row:focus-visible {
+  border-color: rgba(49, 95, 180, 0.46) !important;
+  background: rgba(49, 95, 180, 0.15) !important;
+  color: #244b94 !important;
+}
+
+[data-pc-theme='dark'] .master-promo-add-row,
+[data-bs-theme='dark'] .master-promo-add-row {
+  border-color: rgba(74, 174, 255, 0.72) !important;
+  background: rgba(31, 130, 218, 0.28) !important;
+  color: #72c4ff !important;
+  box-shadow: 0 0 16px rgba(48, 156, 240, 0.16) !important;
+}
+
+[data-pc-theme='dark'] .master-promo-add-row:hover,
+[data-pc-theme='dark'] .master-promo-add-row:focus-visible,
+[data-bs-theme='dark'] .master-promo-add-row:hover,
+[data-bs-theme='dark'] .master-promo-add-row:focus-visible {
+  border-color: #69c2ff !important;
+  background: rgba(31, 130, 218, 0.4) !important;
+  color: #9bd5ff !important;
+}
+
+@media (max-width: 575.98px) {
+  .master-promo-dialog.modal-dialog {
+    width: calc(100vw - 16px);
+    margin-right: auto;
+    margin-left: auto;
+  }
+
+  .master-promo-dialog.modal-dialog-scrollable .modal-content {
+    height: calc(100dvh - 24px);
+  }
+}

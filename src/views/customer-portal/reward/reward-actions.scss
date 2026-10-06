@@ -1,0 +1,30 @@
+.reward-add-withdraw.btn {
+  border-color: rgba(25, 135, 84, 0.55) !important;
+  background: rgba(25, 135, 84, 0.1) !important;
+  color: #198754 !important;
+  box-shadow: 0 0 12px rgba(25, 135, 84, 0.08) !important;
+}
+
+.reward-add-withdraw.btn:hover:not(:disabled),
+.reward-add-withdraw.btn:focus-visible:not(:disabled) {
+  border-color: #198754 !important;
+  background: rgba(25, 135, 84, 0.18) !important;
+  color: #126c43 !important;
+}
+
+[data-pc-theme='dark'] .reward-add-withdraw.btn,
+[data-bs-theme='dark'] .reward-add-withdraw.btn {
+  border-color: rgba(63, 210, 160, 0.7) !important;
+  background: rgba(34, 177, 126, 0.16) !important;
+  color: #55dfad !important;
+  box-shadow: 0 0 14px rgba(63, 210, 160, 0.12) !important;
+}
+
+[data-pc-theme='dark'] .reward-add-withdraw.btn:hover:not(:disabled),
+[data-pc-theme='dark'] .reward-add-withdraw.btn:focus-visible:not(:disabled),
+[data-bs-theme='dark'] .reward-add-withdraw.btn:hover:not(:disabled),
+[data-bs-theme='dark'] .reward-add-withdraw.btn:focus-visible:not(:disabled) {
+  border-color: #55dfad !important;
+  background: rgba(34, 177, 126, 0.28) !important;
+  color: #8debc8 !important;
+}

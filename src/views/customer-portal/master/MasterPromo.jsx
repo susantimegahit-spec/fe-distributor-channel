@@ -24,6 +24,7 @@ import ProductServices from '../../../services/customer-portal/ProductServices';
 import PromoServices from '../../../services/customer-portal/PromoServices';
 import { useAlert } from '../../../utils/alertContext';
 import { useConfirm } from '../../../utils/confirmContext';
+import './master-promo.scss';
 
 const pageSize = 10;
 const promoActionPopperConfig = {
@@ -925,7 +926,7 @@ export default function MasterPromo() {
         }}
       </Overlay>
 
-      <Modal show={showAddModal} onHide={handleCloseModal} size="xl" centered fullscreen="lg-down">
+      <Modal show={showAddModal} onHide={handleCloseModal} dialogClassName="master-promo-dialog" centered scrollable>
         <Modal.Header closeButton>
           <Modal.Title>
             {editingPromoId ? 'Edit Program Promo' : duplicatingPromoId ? 'Duplicate Program Promo' : 'Add Program Promo'}
@@ -1007,7 +1008,7 @@ export default function MasterPromo() {
                     <h6 className="mb-0">Promo Rule Details</h6>
                     <small className="text-muted">Set quantity ranges and promo price values per customer type.</small>
                   </div>
-                  <Button variant="light-primary" onClick={addRule}>
+                  <Button variant="outline-primary" className="master-promo-add-row" onClick={addRule}>
                     <i className="ti ti-plus me-1" />
                     Add Row
                   </Button>
