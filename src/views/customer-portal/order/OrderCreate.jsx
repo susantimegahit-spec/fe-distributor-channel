@@ -40,7 +40,7 @@ export default function OrderPost({ cmoMode = false }) {
   const canSelectSales = roleNumber === 2 || roleNumber === 5;
   const orderMenuId = cmoMode ? 'order-cmo' : 'order-list';
   const orderMenuKey = [orderMenuId, getMenuNumber(SYSTEM_KEYS.CUSTOMER_PORTAL, orderMenuId)];
-  const canSaveDraft = canUseMenuAction(orderMenuKey, 'create');
+  const canSaveDraft = canUseMenuAction(orderMenuKey, 'add');
   const shouldShowSeriesSalesOrder = !isCustomerRole;
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
