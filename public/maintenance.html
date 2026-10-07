@@ -1,25 +1,25 @@
 <!doctype html>
-<html lang="id">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#081b31" />
     <meta name="robots" content="noindex, nofollow" />
-    <title>SMESTA | Pemeliharaan Sistem</title>
+    <title>SMESTA | System Maintenance</title>
     <link rel="icon" type="image/png" href="/smesta-favicon.png" />
     <style>
       :root {
-        color-scheme: dark;
+        color-scheme: light;
         font-family: Inter, Montserrat, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         font-synthesis: none;
-        --background: #07182c;
-        --surface: rgba(16, 48, 78, 0.88);
-        --surface-border: rgba(100, 183, 240, 0.26);
-        --primary: #55b8f3;
-        --primary-soft: rgba(85, 184, 243, 0.14);
-        --success: #35d6a0;
-        --text: #eef7ff;
-        --muted: #a8bfd3;
+        --background: #ffffff;
+        --surface: #ffffff;
+        --surface-border: #dce8f2;
+        --primary: #168bd1;
+        --primary-soft: #eaf7ff;
+        --success: #17a976;
+        --text: #102c48;
+        --muted: #607b92;
       }
 
       * {
@@ -28,8 +28,10 @@
 
       html,
       body {
-        min-height: 100%;
+        width: 100%;
+        height: 100%;
         margin: 0;
+        overflow: hidden;
       }
 
       body {
@@ -37,12 +39,12 @@
         min-height: 100vh;
         min-height: 100dvh;
         place-items: center;
-        overflow-x: hidden;
+        overflow: hidden;
         color: var(--text);
         background:
-          radial-gradient(circle at 12% 14%, rgba(35, 148, 219, 0.22), transparent 34%),
-          radial-gradient(circle at 88% 88%, rgba(36, 196, 156, 0.13), transparent 32%),
-          linear-gradient(145deg, #061528 0%, var(--background) 48%, #0a2742 100%);
+          radial-gradient(circle at 12% 14%, rgba(35, 148, 219, 0.09), transparent 34%),
+          radial-gradient(circle at 88% 88%, rgba(36, 196, 156, 0.07), transparent 32%),
+          var(--background);
       }
 
       body::before {
@@ -50,10 +52,10 @@
         inset: 0;
         pointer-events: none;
         content: "";
-        opacity: 0.22;
+        opacity: 0.55;
         background-image:
-          linear-gradient(rgba(116, 194, 241, 0.08) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(116, 194, 241, 0.08) 1px, transparent 1px);
+          linear-gradient(rgba(36, 124, 181, 0.06) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(36, 124, 181, 0.06) 1px, transparent 1px);
         background-size: 48px 48px;
         mask-image: linear-gradient(to bottom, black, transparent 82%);
       }
@@ -61,14 +63,15 @@
       main {
         position: relative;
         width: min(720px, calc(100% - 32px));
-        margin: 32px auto;
+        max-height: calc(100dvh - 32px);
+        margin: 16px auto;
         padding: clamp(32px, 6vw, 64px);
         overflow: hidden;
         text-align: center;
         border: 1px solid var(--surface-border);
         border-radius: 24px;
-        background: linear-gradient(145deg, rgba(13, 40, 67, 0.96), var(--surface));
-        box-shadow: 0 28px 80px rgba(0, 8, 22, 0.48), inset 0 1px rgba(255, 255, 255, 0.06);
+        background: var(--surface);
+        box-shadow: 0 24px 70px rgba(26, 73, 108, 0.14);
         backdrop-filter: blur(16px);
       }
 
@@ -80,7 +83,7 @@
         height: 260px;
         content: "";
         border-radius: 50%;
-        background: rgba(56, 166, 232, 0.08);
+        background: rgba(56, 166, 232, 0.06);
         filter: blur(2px);
       }
 
@@ -94,17 +97,11 @@
         margin-bottom: 40px;
       }
 
-      .brand-name {
-        color: #f2f8ff;
-        font-size: clamp(28px, 6vw, 42px);
-        font-weight: 700;
-        letter-spacing: 0.22em;
-        line-height: 1;
-        text-shadow: 0 0 28px rgba(85, 184, 243, 0.2);
-      }
-
-      .brand-name span {
-        color: var(--primary);
+      .brand img {
+        display: block;
+        width: min(190px, 52vw);
+        height: auto;
+        object-fit: contain;
       }
 
       .maintenance-icon {
@@ -154,12 +151,12 @@
         align-items: center;
         margin-top: 28px;
         padding: 10px 16px;
-        color: #bff9e5;
+        color: #087451;
         font-size: 14px;
         font-weight: 600;
         border: 1px solid rgba(53, 214, 160, 0.28);
         border-radius: 999px;
-        background: rgba(53, 214, 160, 0.1);
+        background: #ecfbf5;
       }
 
       .status-dot {
@@ -186,7 +183,7 @@
         min-height: 48px;
         padding: 0 24px;
         cursor: pointer;
-        color: #06192b;
+        color: #ffffff;
         font: inherit;
         font-weight: 700;
         border: 1px solid #70c9ff;
@@ -215,7 +212,7 @@
         position: relative;
         z-index: 1;
         margin-top: 40px;
-        color: #7693ab;
+        color: #7890a4;
         font-size: 13px;
       }
 
@@ -253,12 +250,56 @@
           border-radius: 22px;
         }
       }
+
+      @media (max-height: 720px) {
+        main {
+          padding-top: 24px;
+          padding-bottom: 24px;
+        }
+
+        .brand {
+          margin-bottom: 18px;
+        }
+
+        .brand img {
+          width: 130px;
+        }
+
+        .maintenance-icon {
+          width: 68px;
+          height: 68px;
+          margin-bottom: 18px;
+          border-radius: 20px;
+        }
+
+        .maintenance-icon svg {
+          width: 34px;
+          height: 34px;
+        }
+
+        .description {
+          margin-top: 12px;
+          line-height: 1.5;
+        }
+
+        .status {
+          margin-top: 18px;
+        }
+
+        .actions {
+          margin-top: 20px;
+        }
+
+        footer {
+          margin-top: 22px;
+        }
+      }
     </style>
   </head>
   <body>
     <main>
       <div class="brand">
-        <div class="brand-name" aria-label="SMESTA">SM<span>E</span>STA</div>
+        <img src="/smesta-pwa-512.png" alt="SMESTA" />
       </div>
 
       <div class="maintenance-icon" aria-hidden="true">
@@ -267,14 +308,14 @@
         </svg>
       </div>
 
-      <h1>Sistem Sedang Dalam Pemeliharaan</h1>
+      <h1>System Maintenance in Progress</h1>
       <p class="description">
-        Kami sedang melakukan peningkatan layanan untuk memberikan pengalaman yang lebih baik. Silakan coba kembali beberapa saat lagi.
+        We are currently improving our services to provide you with a better experience. Please try again in a few moments.
       </p>
 
       <div class="status" role="status">
         <span class="status-dot" aria-hidden="true"></span>
-        Proses pemeliharaan sedang berlangsung
+        Maintenance is currently in progress
       </div>
 
       <div class="actions">
@@ -283,11 +324,11 @@
             <path d="M20 11a8.1 8.1 0 1 0 2 5.3" />
             <path d="M20 4v7h-7" />
           </svg>
-          Coba Lagi
+          Try Again
         </button>
       </div>
 
-      <footer>&copy; <span id="year"></span> PT Susanti Megah. Seluruh hak dilindungi.</footer>
+      <footer>&copy; <span id="year"></span> PT Susanti Megah. All rights reserved.</footer>
     </main>
 
     <script>
