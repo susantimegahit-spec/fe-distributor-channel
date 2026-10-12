@@ -34,6 +34,7 @@ import {
 import { DataService } from '../../config/dataService';
 import { destroyAuthState } from '../../redux/authReducer';
 import { getThemePreference, saveThemePreference, THEME_CHANGED_EVENT } from '../../utils/themePreference';
+import { navigateWithFreshAssets } from '../../utils/chunkLoadRecovery';
 import { isAdministratorRole } from '../../systems';
 // =============================|| MAIN LAYOUT - HEADER ||============================== //
 
@@ -279,7 +280,7 @@ export default function Header({ showSidebar = true }) {
       Cookies.remove('customerCode');
       Cookies.remove('distributorName');
       Cookies.remove('distributorId');
-      window.location.replace('/');
+      await navigateWithFreshAssets('/');
     }
   };
 

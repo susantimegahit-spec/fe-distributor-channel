@@ -1,4 +1,5 @@
 const CHUNK_RELOAD_KEY = 'distributor-channel:chunk-reload';
+const APP_CACHE_PREFIX = 'distributor-channel-';
 const RELOAD_COOLDOWN_MS = 10000;
 
 const CHUNK_ERROR_PATTERNS = [
@@ -12,6 +13,28 @@ const CHUNK_ERROR_PATTERNS = [
 const getErrorMessage = (error) => error?.message || error?.reason?.message || String(error || '');
 
 export const isChunkLoadError = (error) => CHUNK_ERROR_PATTERNS.some((pattern) => pattern.test(getErrorMessage(error)));
+
+const clearAppShellCache = async () => {
+  if (!('caches' in window)) return;
+
+  const cacheNames = await window.caches.keys();
+  await Promise.all(cacheNames.filter((cacheName) => cacheName.startsWith(APP_CACHE_PREFIX)).map((cacheName) => window.caches.delete(cacheName)));
+};
+
+export const navigateWithFreshAssets = async (target) => {
+  const targetUrl = new URL(target, window.location.origin);
+  targetUrl.searchParams.set('__app_refresh', Date.now().toString());
+
+  try {
+    await clearAppShellCache();
+    const registration = await navigator.serviceWorker?.getRegistration();
+    await registration?.update();
+  } catch {
+    // Continue to the cache-busted URL when Cache Storage or the service worker is unavailable.
+  }
+
+  window.location.replace(targetUrl.toString());
+};
 
 export const reloadForChunkError = (error) => {
   if (!isChunkLoadError(error) || typeof window === 'undefined') return false;
@@ -31,7 +54,7 @@ export const reloadForChunkError = (error) => {
     // sessionStorage can be unavailable in restricted browser modes; reloading is still safe.
   }
 
-  window.location.reload();
+  void navigateWithFreshAssets(window.location.href);
   return true;
 };
 

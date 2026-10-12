@@ -1,11 +1,11 @@
-const CACHE_NAME = 'distributor-channel-v43';
+const CACHE_NAME = 'distributor-channel-v44';
 const APP_SHELL = ['./', './manifest.webmanifest', './customer-portal-favicon.png', './customer-portal-logo.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL))
+      .then((cache) => cache.addAll(APP_SHELL.map((url) => new Request(url, { cache: 'reload' }))))
       .then(() => self.skipWaiting())
   );
 });
@@ -34,9 +34,9 @@ const putCache = async (request, response) => {
   await cache.put(request, response.clone());
 };
 
-const networkFirst = async (request, fallbackRequest = request) => {
+const networkFirst = async (request, fallbackRequest = request, fetchOptions) => {
   try {
-    const response = await fetch(request);
+    const response = await fetch(request, fetchOptions);
     await putCache(fallbackRequest, response);
 
     return response;
@@ -68,7 +68,9 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     event.respondWith(
-      networkFirst(request, './').catch(() => caches.match(request).then((cachedResponse) => cachedResponse || caches.match('./')))
+      networkFirst(request, './', { cache: 'no-store' }).catch(() =>
+        caches.match(request).then((cachedResponse) => cachedResponse || caches.match('./'))
+      )
     );
     return;
   }

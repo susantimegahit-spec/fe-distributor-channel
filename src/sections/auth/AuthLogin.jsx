@@ -30,6 +30,7 @@ import {
 import { setAccessibleSystem } from '../../redux/authReducer';
 import { removeActionsCookie, setActionsCookie } from '../../utils/cookies';
 import { compactActionsForCookie } from '../../utils/actionPermissions';
+import { navigateWithFreshAssets } from '../../utils/chunkLoadRecovery';
 import widgetActionRegistry from '../../data-widget-action.json';
 
 // ==============================|| AUTH LOGIN FORM ||============================== //
@@ -383,7 +384,7 @@ export default function AuthLoginForm({ className }) {
           showAlert('Login berhasil', 'success');
         }, 150);
         const baseName = (import.meta.env.VITE_APP_BASE_NAME || '').replace(/\/$/, '');
-        window.location.replace(`${baseName}${firstAccessiblePath}`);
+        await navigateWithFreshAssets(`${baseName}${firstAccessiblePath}`);
       } else if (
         response.data.active_session === true ||
         response.data.message === 'This account is active on another device. Please log out from that device first.'
