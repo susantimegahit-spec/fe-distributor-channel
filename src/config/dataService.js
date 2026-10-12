@@ -264,6 +264,8 @@ client.interceptors.response.use(
         Cookies.remove('name');
         Cookies.remove('email');
         Cookies.remove('role');
+        Cookies.remove('approval_stage');
+        Cookies.remove('approval_originator');
         Cookies.remove('menu');
         removeActionsCookie();
         Cookies.remove('widget_actions');

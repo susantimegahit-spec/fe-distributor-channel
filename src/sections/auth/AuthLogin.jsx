@@ -222,8 +222,7 @@ export default function AuthLoginForm({ className }) {
             )
           : [];
         const widgetActions = explicitWidgetActions.length ? explicitWidgetActions : embeddedWidgetActions;
-        const hasWidgetActionSource =
-          widgetActionSources.some((value) => value !== undefined && value !== null) || Array.isArray(actions);
+        const hasWidgetActionSource = widgetActionSources.some((value) => value !== undefined && value !== null) || Array.isArray(actions);
         const organizationDistributors = normalizeAssignmentValues(organizationAssignment.distributors);
         const customerCode =
           userData.customer_code ||
@@ -314,6 +313,11 @@ export default function AuthLoginForm({ className }) {
         Cookies.set('name', userData.name);
         Cookies.set('email', userData.email);
         Cookies.set('role', userData.role_id);
+        if (userData.stage !== undefined && userData.stage !== null) Cookies.set('approval_stage', JSON.stringify(userData.stage));
+        else Cookies.remove('approval_stage');
+        if (userData.originator !== undefined && userData.originator !== null)
+          Cookies.set('approval_originator', JSON.stringify(userData.originator));
+        else Cookies.remove('approval_originator');
         const employeeId =
           userData.employee?.id || loginData.employee?.id || userData.employee_id || loginData.employee_id || response.data.employee?.id;
         if (employeeId !== undefined && employeeId !== null && employeeId !== '') {

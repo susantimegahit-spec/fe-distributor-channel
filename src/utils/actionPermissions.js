@@ -340,8 +340,9 @@ export const detectElementAction = (element) => {
 export const detectWidgetElementAction = (element) => {
   const permissionAction = normalizeKey(element.dataset.permissionAction || element.dataset.action);
   if (['none', 'ignore', 'utility'].includes(permissionAction)) return null;
-  const explicitAction = element.dataset.widgetAction;
-  if (explicitAction) return ACTION_ALIASES[normalizeKey(explicitAction)] || normalizeKey(explicitAction);
+  const explicitAction = normalizeKey(element.dataset.widgetAction);
+  if (['none', 'ignore', 'utility'].includes(explicitAction)) return null;
+  if (explicitAction) return ACTION_ALIASES[explicitAction] || explicitAction;
   if (permissionAction) return ACTION_ALIASES[permissionAction] || permissionAction;
 
   const iconClasses = [...element.querySelectorAll('i, svg')].map((icon) => icon.getAttribute('class') || '').join(' ');

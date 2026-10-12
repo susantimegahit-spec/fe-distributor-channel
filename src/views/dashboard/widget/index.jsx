@@ -22,8 +22,10 @@ import VendorPendingWidget from './VendorPendingWidget';
 import VendorRegistrationListWidget from './VendorRegistrationListWidget';
 import VendorRegistrationsWidget from './VendorRegistrationsWidget';
 import TaskManagementWidget from './TaskManagementWidget';
+import ApprovalCenterWidget from './ApprovalCenterWidget';
 const item = (id, title, group, component, icon, size = 'standard') => ({ id, title, group, component, icon, size });
 export const widgetRegistry = [
+  item('approval-center', 'Approval Center', 'Corporate', ApprovalCenterWidget, 'ti ti-clipboard-check', 'full'),
   item('customer-orders', 'Total Orders', 'Customer Portal', CustomerOrdersWidget, 'ti ti-shopping-cart'),
   item('customer-revenue', 'Revenue', 'Customer Portal', CustomerRevenueWidget, 'ti ti-cash'),
   item('customer-items', 'Total Items', 'Customer Portal', CustomerItemsWidget, 'ti ti-package'),

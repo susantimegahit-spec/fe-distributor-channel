@@ -41,6 +41,7 @@ export default function OrderPost({ cmoMode = false }) {
   const orderMenuId = cmoMode ? 'order-cmo' : 'order-list';
   const orderMenuKey = [orderMenuId, getMenuNumber(SYSTEM_KEYS.CUSTOMER_PORTAL, orderMenuId)];
   const canSaveDraft = canUseMenuAction(orderMenuKey, 'add');
+  const canRejectOrder = !cmoMode && canUseMenuAction(orderMenuKey, 'reject');
   const shouldShowSeriesSalesOrder = !isCustomerRole;
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -80,6 +81,8 @@ export default function OrderPost({ cmoMode = false }) {
   const [orderDetail, setOrderDetail] = useState(null);
   const [statusType, setStatusType] = useState('');
   const [confirmSubmit, setConfirmSubmit] = useState(false);
+  const [confirmReject, setConfirmReject] = useState(false);
+  const [loadingReject, setLoadingReject] = useState(false);
   const [closeAfterSubmit, setCloseAfterSubmit] = useState(false);
   const [documents, setDocuments] = useState([]);
   const [documentInputKey, setDocumentInputKey] = useState(0);
@@ -1874,6 +1877,27 @@ export default function OrderPost({ cmoMode = false }) {
     }
   };
 
+  const handleRejectOrder = async () => {
+    if (!id || !canRejectOrder || loadingReject) return;
+
+    setLoadingReject(true);
+    try {
+      const response = await OrderServices.postRejectOrder(id);
+      if (!response?.data?.success) {
+        showAlert(response?.data?.message || 'Failed to reject order', 'danger');
+        return;
+      }
+
+      setConfirmReject(false);
+      showAlert(response.data.message || 'Order rejected successfully', 'success');
+      navigate('/customer-portal/order/order-list');
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to reject order', 'danger');
+    } finally {
+      setLoadingReject(false);
+    }
+  };
+
   const handlePostingData = async (type) => {
     setLoadingSubmit(true);
     const payload = buildOrderRequestPayload(createOrderPayload(type));
@@ -2357,7 +2381,7 @@ export default function OrderPost({ cmoMode = false }) {
             secondary={
               <Stack direction="horizontal" gap={2} className="order-create-header-actions flex-wrap justify-content-end">
                 <Button
-                  variant="outline-danger"
+                  variant="outline-primary"
                   className="order-cancel-button"
                   onClick={() => (cmoMode ? navigate('/customer-portal/order/cmo') : navigate(-1))}
                 >
@@ -2374,7 +2398,7 @@ export default function OrderPost({ cmoMode = false }) {
 
                 {canSaveDraft ? (
                   <>
-                    <Button onClick={() => handleShowConfirm('DRAFT')} variant="warning">
+                    <Button onClick={() => handleShowConfirm('DRAFT')} variant="outline-warning" className="order-save-draft-button">
                       <i className="ti ti-device-floppy me-1" />
                       {isDuplicateCmo ? 'Save as New CMO' : cmoMode ? 'Save CMO' : 'Save Draft'}
                     </Button>
@@ -2392,6 +2416,20 @@ export default function OrderPost({ cmoMode = false }) {
                     Submit
                   </Button>
                 )}
+                {isDetailMode &&
+                canRejectOrder &&
+                orderDetail &&
+                !['DRAFT', 'COMPLETED'].includes(String(orderDetail.status || '').toUpperCase()) ? (
+                  <Button
+                    variant="outline-danger"
+                    className="order-reject-button"
+                    onClick={() => setConfirmReject(true)}
+                    disabled={loadingSubmit || loadingReject}
+                  >
+                    <i className="ti ti-x me-1" />
+                    Reject
+                  </Button>
+                ) : null}
                 {/* {canSelectSales ? (
                   <Button onClick={() => handlePostingData('APPROVED')} variant="success">
                     <i className="ti ti-checks" />
@@ -3198,6 +3236,15 @@ export default function OrderPost({ cmoMode = false }) {
         onSubmit={handleSubmitOrder}
         title={`Submit ${cmoMode ? 'CMO' : 'Order'}`}
         subTitle="Are you sure you want to process this data"
+      />
+      <ConfirmDialog
+        show={confirmReject}
+        loading={loadingReject}
+        onCancel={() => !loadingReject && setConfirmReject(false)}
+        onSubmit={handleRejectOrder}
+        title="Reject Order"
+        subTitle="Are you sure you want to reject this order?"
+        skipCountdown
       />
     </>
   );

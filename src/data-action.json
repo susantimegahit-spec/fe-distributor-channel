@@ -104,7 +104,7 @@
         "add": ["Create Order", "Save Draft"],
         "edit": ["Edit Order"],
         "delete": ["Delete"],
-        "approve": ["Approve"],
+        "approve": ["Approve", "Reject"],
         "download": ["Download"]
       }
     },

@@ -4,6 +4,7 @@ import { Navigate, useParams } from 'react-router-dom';
 // project-imports
 import Loadable from 'components/Loadable';
 import DashboardLayout from 'layout/Dashboard';
+import { RouteErrorBoundary } from 'views/ErrorBoundary';
 
 const SettingPage = Loadable(lazy(() => import('views/setting/SettingPage')));
 const SystemSettingPage = Loadable(lazy(() => import('views/setting/SystemSettingPage')));
@@ -17,6 +18,7 @@ function LegacySettingRedirect() {
 const SettingRoutes = {
   path: '/',
   element: <DashboardLayout />,
+  errorElement: <RouteErrorBoundary />,
   children: [
     {
       path: 'setting',

@@ -2,6 +2,7 @@ import * as React from 'react';
 import { isRouteErrorResponse, useRouteError } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import ErrorPage from './errors/ErrorPage';
+import { reloadForChunkError } from 'utils/chunkLoadRecovery';
 
 function ErrorFallback({ status = 500, title, message }) {
   return <ErrorPage status={status} title={title} description={message} />;
@@ -9,6 +10,10 @@ function ErrorFallback({ status = 500, title, message }) {
 
 export function RouteErrorBoundary() {
   const error = useRouteError();
+
+  React.useEffect(() => {
+    reloadForChunkError(error);
+  }, [error]);
 
   if (isRouteErrorResponse(error)) {
     return <ErrorFallback status={error.status} message={error.data?.message} />;
@@ -34,6 +39,7 @@ class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, info) {
     console.error('Application error:', error, info.componentStack);
+    reloadForChunkError(error);
   }
   render() {
     if (this.state.hasError) {

@@ -9,8 +9,10 @@ import App from './App';
 import store from './redux/store';
 
 import '@fontsource/montserrat/500.css';
+import { registerChunkLoadRecovery } from './utils/chunkLoadRecovery';
 import { applyThemePreference, getThemePreference } from './utils/themePreference';
 
+registerChunkLoadRecovery();
 applyThemePreference(getThemePreference());
 
 const container = document.getElementById('root');

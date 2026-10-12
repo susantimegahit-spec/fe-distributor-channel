@@ -2,6 +2,17 @@
   "version": 1,
   "widgets": [
     {
+      "widget_key": "approval-center",
+      "system_key": "corporate",
+      "title": "Approval Center",
+      "group": "Corporate",
+      "actions": ["view", "sync"],
+      "buttons": {
+        "view": ["View Approval", "View My Documents"],
+        "sync": ["Refresh"]
+      }
+    },
+    {
       "widget_key": "request-reschedule-order",
       "system_key": "customer-portal",
       "title": "Request Reschedule Order",

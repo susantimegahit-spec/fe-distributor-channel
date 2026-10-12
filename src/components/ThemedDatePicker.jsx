@@ -26,7 +26,7 @@ const sameDay = (left, right) =>
   left.getMonth() === right.getMonth() &&
   left.getDate() === right.getDate();
 
-export default function ThemedDatePicker({ value, onChange, min, max, disabled = false, className = '' }) {
+export default function ThemedDatePicker({ value, onChange, min, max, disabled = false, clearable = true, className = '' }) {
   const selectedDate = toDate(value);
   const [open, setOpen] = useState(false);
   const [visibleMonth, setVisibleMonth] = useState(() => selectedDate || new Date());
@@ -134,7 +134,7 @@ export default function ThemedDatePicker({ value, onChange, min, max, disabled =
         })}
       </div>
       <div className="sm-date-picker-actions">
-        <button type="button" onClick={() => { onChange?.(''); setOpen(false); }}>Clear</button>
+        {clearable ? <button type="button" onClick={() => { onChange?.(''); setOpen(false); }}>Clear</button> : <span />}
         <button type="button" disabled={isDisabledDate(today)} onClick={() => selectDate(today)}>Today</button>
       </div>
     </div>,

@@ -121,6 +121,10 @@ class OrderServices {
     return DataService.post(`/sales-orders/${id}`, payload);
   }
 
+  postRejectOrder(id, payload = {}) {
+    return DataService.post(`/sales-orders/${id}/reject`, payload);
+  }
+
   postOrderPosting(id, payload) {
     if (id) {
       return DataService.post(`/sales-orders/${id}/post-sap`, payload);

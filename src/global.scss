@@ -4997,8 +4997,20 @@ body {
 }
 
 .order-create-page .order-create-header-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
   flex: 0 0 auto;
   white-space: nowrap;
+}
+
+.order-create-page .order-create-header-actions .btn .ti {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  margin-right: 0 !important;
 }
 
 @media (max-width: 1199.98px) {
@@ -5009,6 +5021,21 @@ body {
 }
 
 .order-create-page .btn.order-cancel-button {
+  border-color: rgba(49, 95, 180, 0.55);
+  background: rgba(49, 95, 180, 0.08);
+  color: #315fb4;
+  box-shadow: none;
+
+  &:hover,
+  &:focus-visible {
+    border-color: rgba(49, 95, 180, 0.8);
+    background: rgba(49, 95, 180, 0.16);
+    color: #315fb4;
+    box-shadow: none;
+  }
+}
+
+.order-create-page .btn.order-reject-button {
   border-color: rgba(240, 82, 82, 0.4);
   background: rgba(240, 82, 82, 0.08);
   color: #d94141;
@@ -5023,8 +5050,38 @@ body {
   }
 }
 
+.order-create-page .btn.order-save-draft-button {
+  border-color: rgba(204, 151, 0, 0.7);
+  background: rgba(255, 197, 37, 0.1);
+  color: #9b7100;
+  box-shadow: 0 0 14px rgba(255, 197, 37, 0.1);
+
+  &:hover,
+  &:focus-visible {
+    border-color: #d9a300;
+    background: rgba(255, 197, 37, 0.2);
+    color: #805d00;
+    box-shadow: 0 0 18px rgba(255, 197, 37, 0.2);
+  }
+}
+
 [data-pc-theme='dark'] .order-create-page .btn.order-cancel-button,
 [data-bs-theme='dark'] .order-create-page .btn.order-cancel-button {
+  border-color: rgba(73, 156, 255, 0.72);
+  background: rgba(49, 95, 180, 0.12);
+  color: #71b8ff;
+  box-shadow: 0 0 16px rgba(73, 156, 255, 0.1);
+
+  &:hover,
+  &:focus-visible {
+    border-color: #79c3ff;
+    background: rgba(49, 95, 180, 0.25);
+    color: #a4d5ff;
+  }
+}
+
+[data-pc-theme='dark'] .order-create-page .btn.order-reject-button,
+[data-bs-theme='dark'] .order-create-page .btn.order-reject-button {
   border-color: rgba(255, 76, 91, 0.72);
   background: rgba(214, 35, 52, 0.2);
   color: #ff6673;
@@ -5035,6 +5092,22 @@ body {
     border-color: #ff6b77;
     background: rgba(231, 45, 61, 0.34);
     color: #ff8b94;
+  }
+}
+
+[data-pc-theme='dark'] .order-create-page .btn.order-save-draft-button,
+[data-bs-theme='dark'] .order-create-page .btn.order-save-draft-button {
+  border-color: rgba(255, 205, 50, 0.9);
+  background: rgba(255, 197, 37, 0.12);
+  color: #ffdc67;
+  box-shadow: 0 0 18px rgba(255, 197, 37, 0.18);
+
+  &:hover,
+  &:focus-visible {
+    border-color: #ffe075;
+    background: rgba(255, 197, 37, 0.24);
+    color: #fff0b2;
+    box-shadow: 0 0 24px rgba(255, 197, 37, 0.3);
   }
 }
 
@@ -7085,17 +7158,20 @@ body {
 
 .sm-account-logout.btn {
   min-height: 44px;
-  border: 0;
+  border: 1px solid #d82f43;
   border-radius: 12px;
-  background: #d82f43;
-  color: #fff;
+  background: rgba(216, 47, 67, 0.08);
+  color: #c3263c;
   font-weight: 800;
+  box-shadow: 0 0 16px rgba(216, 47, 67, 0.1);
 }
 
 .sm-account-logout.btn:hover,
 .sm-account-logout.btn:focus {
-  background: #c32437;
-  color: #fff;
+  border-color: #e43d51;
+  background: rgba(216, 47, 67, 0.16);
+  color: #b51d33;
+  box-shadow: 0 0 22px rgba(216, 47, 67, 0.2);
 }
 
 @media (max-width: 1024px) {
@@ -8343,14 +8419,17 @@ body {
 
   .pc-header .sm-account-menu .sm-account-logout.btn {
     border: 1px solid #ff6877;
-    background: linear-gradient(135deg, #c92f42, #e04455) !important;
-    color: #fff !important;
+    background: rgba(231, 45, 61, 0.12) !important;
+    color: #ff7885 !important;
+    box-shadow: 0 0 18px rgba(255, 76, 91, 0.2), inset 0 0 12px rgba(255, 76, 91, 0.08);
   }
 
   .pc-header .sm-account-menu .sm-account-logout.btn:hover,
   .pc-header .sm-account-menu .sm-account-logout.btn:focus {
     border-color: #ff8994;
-    background: linear-gradient(135deg, #df3b4e, #ef5665) !important;
+    background: rgba(231, 45, 61, 0.24) !important;
+    color: #ffacb4 !important;
+    box-shadow: 0 0 26px rgba(255, 76, 91, 0.34), inset 0 0 16px rgba(255, 76, 91, 0.12);
   }
 
   .sm-global-dashboard-empty > span,
