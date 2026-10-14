@@ -7,7 +7,7 @@ import SmestaLogo from 'assets/images/smesta_text_tagline_transparent.png';
 import { setDocumentTitle } from '../../../utils/documentTitle';
 import { applyThemePreference, getThemePreference } from '../../../utils/themePreference';
 
-// ===========================|| AUTH - LOGIN PAGE ||=========================== //
+// ===========================|| AUTH - LOGIN PAGE ||=========================== // 
 
 
 export default function LoginPage() {
