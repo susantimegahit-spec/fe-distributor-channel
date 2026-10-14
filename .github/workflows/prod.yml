@@ -34,7 +34,7 @@ jobs:
         uses: wlixcc/SFTP-Deploy-Action@v1.2.4
         with:
           username: 'susantimegah'
-          server: '103.89.4.98' # 👈 Diubah dari 'host' menjadi 'server'
+          server: '163.61.58.29' # 👈 Diubah dari 'host' menjadi 'server'
           port: 22
           ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }} # 👈 Diubah dari 'key' menjadi 'ssh_private_key'
           local_path: 'dist/*'
