@@ -9,6 +9,7 @@ import { applyThemePreference, getThemePreference } from '../../../utils/themePr
 
 // ===========================|| AUTH - LOGIN PAGE ||=========================== //
 
+
 export default function LoginPage() {
   const [showSplash, setShowSplash] = useState(true);
   const hideSplash = useCallback(() => setShowSplash(false), []);
