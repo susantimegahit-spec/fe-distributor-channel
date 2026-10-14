@@ -297,7 +297,7 @@ export default function Picklist() {
             <button
               type="button"
               className="dropdown-item"
-              data-permission-action="edit"
+              data-permission-action="load-goods"
               onClick={() => {
                 const item = actionMenu?.item;
                 setActionMenu(null);

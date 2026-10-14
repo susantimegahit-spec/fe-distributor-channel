@@ -23,7 +23,10 @@ export const ACTION_ALIASES = {
   export: 'export',
   sync: 'sync',
   synchronize: 'sync',
-  'shipping-schedule': 'shipping-schedule'
+  'shipping-schedule': 'shipping-schedule',
+  'weigh-in': 'weigh-in',
+  'load-goods': 'load-goods',
+  'weigh-out': 'weigh-out'
 };
 
 const normalizeKey = (value) =>
@@ -144,12 +147,15 @@ const ACTION_BITS = {
   sync: 64,
   'shipping-schedule': 128,
   add: 256,
-  upload: 512
+  upload: 512,
+  'weigh-in': 1024,
+  'load-goods': 2048,
+  'weigh-out': 4096
 };
 
 const ROW_ACTION_KEYS = [
   'create', 'add', 'upload', 'read', 'view', 'detail', 'update', 'edit', 'delete', 'remove', 'approve',
-  'export', 'download', 'sync', 'synchronize', 'shipping-schedule'
+  'export', 'download', 'sync', 'synchronize', 'shipping-schedule', 'weigh-in', 'load-goods', 'weigh-out'
 ];
 
 const isAllowedValue = (value) => {
@@ -206,7 +212,10 @@ const getActionValue = (actions, action) => {
   });
 };
 
-const COOKIE_ACTIONS = ['add', 'upload', 'read', 'update', 'delete', 'approve', 'export', 'sync', 'shipping-schedule'];
+const COOKIE_ACTIONS = [
+  'add', 'upload', 'read', 'update', 'delete', 'approve', 'export', 'sync', 'shipping-schedule',
+  'weigh-in', 'load-goods', 'weigh-out'
+];
 
 export const compactActionsForCookie = (rawActions, rawWidgetActions = []) => ({
   menu: normalizeEntries(rawActions).flatMap((entry) => {

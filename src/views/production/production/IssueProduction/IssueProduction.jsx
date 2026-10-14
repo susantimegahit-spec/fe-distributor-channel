@@ -1312,7 +1312,8 @@ export default function IssueProduction() {
                         className="btn-icon avatar-s"
                         size="sm"
                         variant="outline-danger"
-                        data-permission-action="create"
+                        data-permission-action="add"
+                        data-permission-menu-key="production-issue"
                         aria-label={`Delete ${line.ItemCode || 'item'}`}
                         onClick={() => handleDeleteIssueLine(index)}
                       >
@@ -1484,7 +1485,7 @@ export default function IssueProduction() {
                   return (
                     <tr
                       key={order.id}
-                      className={isSelected ? 'table-primary' : ''}
+                      className={isSelected ? 'production-pdo-selected-row' : ''}
                       role="checkbox"
                       aria-checked={isSelected}
                       tabIndex={0}

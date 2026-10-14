@@ -1253,7 +1253,7 @@ export default function ReceiptProduction() {
               </Button>
             </Stack>
           </Stack>
-          <Table responsive bordered className="align-middle mb-0">
+          <Table responsive bordered className="receipt-items-table align-middle mb-0">
             <thead>
               <tr>
                 <th>Item</th>
@@ -1277,7 +1277,7 @@ export default function ReceiptProduction() {
                           type="button"
                           bg="light"
                           text="primary"
-                          className="border fw-normal"
+                          className="receipt-pdo-badge fw-normal"
                           disabled={String(loadingPdoDetailId) === String(line.BaseEntry)}
                           onClick={() => handleOpenPdoDetail(line)}
                         >
@@ -1338,7 +1338,8 @@ export default function ReceiptProduction() {
                         className="btn-icon avatar-s"
                         size="sm"
                         variant="outline-danger"
-                        data-permission-action="none"
+                        data-permission-action="add"
+                        data-permission-menu-key="production-receipt"
                         aria-label={`Delete ${line.ItemCode || 'item'}`}
                         onClick={() => handleDeleteReceiptLine(index)}
                       >
@@ -1523,7 +1524,7 @@ export default function ReceiptProduction() {
                   return (
                     <tr
                       key={bom.id}
-                      className={cannotSelect ? 'receipt-pdo-unpostable-row' : isSelected ? 'table-primary' : ''}
+                      className={cannotSelect ? 'receipt-pdo-unpostable-row' : isSelected ? 'production-pdo-selected-row' : ''}
                       role="checkbox"
                       aria-checked={isSelected}
                       aria-disabled={cannotSelect}

@@ -10,7 +10,10 @@
     { "value": "download", "label": "Download", "permission": "export" },
     { "value": "upload", "label": "Upload", "permission": "create" },
     { "value": "sync", "label": "Sync", "permission": "sync" },
-    { "value": "shipping-schedule", "label": "Shipping Schedule", "permission": "shipping-schedule" }
+    { "value": "shipping-schedule", "label": "Shipping Schedule", "permission": "shipping-schedule" },
+    { "value": "weigh-in", "label": "Weigh In", "permission": "weigh-in" },
+    { "value": "load-goods", "label": "Loading", "permission": "load-goods" },
+    { "value": "weigh-out", "label": "Weigh Out", "permission": "weigh-out" }
   ],
   "menus": [
     {
@@ -213,8 +216,14 @@
       "menu_id": "logistics-picklists",
       "route": "/logistics/picklists",
       "source": "src/views/logistics/picklist/Picklist.jsx",
-      "actions": ["view", "add", "edit"],
-      "buttons": { "view": ["View"], "add": ["Create Picklist"], "edit": ["Load"] }
+      "actions": ["view", "add", "weigh-in", "load-goods", "weigh-out"],
+      "buttons": {
+        "view": ["View"],
+        "add": ["Create Picklist"],
+        "weigh-in": ["Weigh In"],
+        "load-goods": ["Loading"],
+        "weigh-out": ["Weigh Out"]
+      }
     },
     {
       "menu_key": 33,

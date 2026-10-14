@@ -115,7 +115,10 @@ const actionBitValues = {
   download: 32,
   upload: 512,
   sync: 64,
-  'shipping-schedule': 128
+  'shipping-schedule': 128,
+  'weigh-in': 1024,
+  'load-goods': 2048,
+  'weigh-out': 4096
 };
 const decodeActionBitmask = (value, registeredActions) => {
   if (typeof value !== 'number' && !(typeof value === 'string' && /^\d+$/.test(value.trim()))) return null;
@@ -1229,7 +1232,10 @@ export default function UserList() {
             approve: selectedActions.includes('approve'),
             export: selectedActions.includes('download'),
             sync: selectedActions.includes('sync'),
-            'shipping-schedule': selectedActions.includes('shipping-schedule')
+            'shipping-schedule': selectedActions.includes('shipping-schedule'),
+            'weigh-in': selectedActions.includes('weigh-in'),
+            'load-goods': selectedActions.includes('load-goods'),
+            'weigh-out': selectedActions.includes('weigh-out')
           }
         };
       });

@@ -12,3 +12,70 @@
     appearance: none;
   }
 }
+
+.receipt-pdo-badge {
+  border: 1px solid #9fc5df !important;
+  background-color: #e8f3fa !important;
+  color: #264d6a !important;
+  font-weight: 600 !important;
+
+  &:hover,
+  &:focus-visible {
+    border-color: #58aee5 !important;
+    background-color: #d5ebf8 !important;
+    color: #173b56 !important;
+  }
+}
+
+[data-pc-theme='dark'] .receipt-pdo-badge,
+[data-bs-theme='dark'] .receipt-pdo-badge {
+  border-color: #4d91bd !important;
+  background-color: #173f5e !important;
+  color: #bfe6ff !important;
+
+  &:hover,
+  &:focus-visible {
+    border-color: #6fc7ff !important;
+    background-color: #20597f !important;
+    color: #fff !important;
+  }
+}
+
+.receipt-pdo-selection-table .production-pdo-selected-row > * {
+  background-color: #dceffc !important;
+  color: #17344d !important;
+}
+
+[data-pc-theme='dark'] .receipt-pdo-selection-table .production-pdo-selected-row > *,
+[data-bs-theme='dark'] .receipt-pdo-selection-table .production-pdo-selected-row > * {
+  background-color: #1d4f73 !important;
+  color: #eaf4ff !important;
+  border-color: #326789;
+}
+
+[data-pc-theme='dark'] .receipt-pdo-selection-table .production-pdo-selected-row .text-muted,
+[data-bs-theme='dark'] .receipt-pdo-selection-table .production-pdo-selected-row .text-muted {
+  color: #bdd3e6 !important;
+}
+
+[data-pc-theme='dark'] .receipt-items-table,
+[data-bs-theme='dark'] .receipt-items-table {
+  td,
+  .fw-semibold,
+  .form-control,
+  .form-control:disabled,
+  .form-control[readonly] {
+    color: #eaf4ff;
+    -webkit-text-fill-color: #eaf4ff;
+    opacity: 1;
+  }
+
+  .text-muted,
+  .form-text {
+    color: #bdd3e6 !important;
+  }
+
+  .text-danger {
+    color: #ff9ca7 !important;
+  }
+}

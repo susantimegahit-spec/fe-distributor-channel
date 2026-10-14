@@ -17,6 +17,23 @@
   color: #bdd3e6 !important;
 }
 
+.issue-pdo-selection-table .production-pdo-selected-row > * {
+  background-color: #dceffc !important;
+  color: #17344d !important;
+}
+
+[data-pc-theme='dark'] .issue-pdo-selection-table .production-pdo-selected-row > *,
+[data-bs-theme='dark'] .issue-pdo-selection-table .production-pdo-selected-row > * {
+  background-color: #1d4f73 !important;
+  color: #eaf4ff !important;
+  border-color: #326789;
+}
+
+[data-pc-theme='dark'] .issue-pdo-selection-table .production-pdo-selected-row .text-muted,
+[data-bs-theme='dark'] .issue-pdo-selection-table .production-pdo-selected-row .text-muted {
+  color: #bdd3e6 !important;
+}
+
 .issue-quantity-no-spinner {
   appearance: textfield;
   font-weight: 700;
@@ -49,6 +66,27 @@
 .issue-items-table .issue-item-name {
   margin-top: 0.3rem;
   font-weight: 500;
+}
+
+[data-pc-theme='dark'] .issue-items-table,
+[data-bs-theme='dark'] .issue-items-table {
+  .issue-item-code,
+  .issue-item-name,
+  .form-control,
+  .form-control:disabled,
+  .form-control[readonly] {
+    color: #eaf4ff;
+    -webkit-text-fill-color: #eaf4ff;
+    opacity: 1;
+  }
+
+  .issue-item-name {
+    color: #bdd3e6;
+  }
+
+  .issue-out-of-stock-row > * {
+    background-color: #4a2028 !important;
+  }
 }
 
 .issue-product-badge {
@@ -101,4 +139,22 @@
 .issue-pdo-badge:hover,
 .issue-pdo-badge:focus {
   filter: brightness(0.96);
+}
+
+[data-pc-theme='dark'] .issue-items-table .issue-pdo-badge,
+[data-bs-theme='dark'] .issue-items-table .issue-pdo-badge {
+  border-color: #4d91bd !important;
+  background-color: #173f5e !important;
+  color: #bfe6ff !important;
+  filter: none;
+}
+
+[data-pc-theme='dark'] .issue-items-table .issue-pdo-badge:hover,
+[data-pc-theme='dark'] .issue-items-table .issue-pdo-badge:focus-visible,
+[data-bs-theme='dark'] .issue-items-table .issue-pdo-badge:hover,
+[data-bs-theme='dark'] .issue-items-table .issue-pdo-badge:focus-visible {
+  border-color: #6fc7ff !important;
+  background-color: #20597f !important;
+  color: #fff !important;
+  filter: none;
 }
