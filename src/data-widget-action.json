@@ -25,6 +25,19 @@
       }
     },
     {
+      "widget_key": "return-requests",
+      "system_key": "customer-portal",
+      "title": "Order Delivery",
+      "group": "Customer Portal",
+      "actions": ["view", "add", "approve", "sync"],
+      "buttons": {
+        "view": ["Show Delivery Order Details", "Detail", "Return Detail"],
+        "add": ["Request Return", "Return Remaining", "Submit Request Return"],
+        "approve": ["Complete Order"],
+        "sync": ["Refresh"]
+      }
+    },
+    {
       "widget_key": "order-ready",
       "system_key": "logistics",
       "title": "Order Ready",

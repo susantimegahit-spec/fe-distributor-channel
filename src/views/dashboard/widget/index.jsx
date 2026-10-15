@@ -16,6 +16,7 @@ import ProductionMaterialsWidget from './ProductionMaterialsWidget';
 import ProductionOrdersWidget from './ProductionOrdersWidget';
 import ProductionProgressWidget from './ProductionProgressWidget';
 import RequestRescheduleOrderWidget from './RequestRescheduleOrderWidget';
+import ReturnRequestsWidget from './ReturnRequestsWidget';
 import ProductionReceiptsWidget from './ProductionReceiptsWidget';
 import VendorApprovedWidget from './VendorApprovedWidget';
 import VendorPendingWidget from './VendorPendingWidget';
@@ -37,6 +38,7 @@ export const widgetRegistry = [
     'ti ti-calendar-time',
     'full'
   ),
+  item('return-requests', 'Order Delivery', 'Customer Portal', ReturnRequestsWidget, 'ti ti-package-export', 'full'),
   item('eta-warning', 'ETA Warning', 'Customer Portal', EtaWarningWidget, 'ti ti-alert-triangle', 'full'),
   item('order-comparison', 'Order Comparison', 'Customer Portal', OrderComparisonWidget, 'ti ti-chart-bar', 'full'),
   item('corporate-requests', 'Purchase Requests', 'Corporate', CorporateRequestsWidget, 'ti ti-file-invoice'),

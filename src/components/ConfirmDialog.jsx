@@ -4,7 +4,7 @@ import { Button, Modal, Stack } from 'react-bootstrap';
 
 // ==============================|| BASIC - TABS & PILLS ||============================== //
 
-export default function ConfirmDialog({ show, title, subTitle, onSubmit, onCancel, loading = false, skipCountdown = false }) {
+export default function ConfirmDialog({ show, title, subTitle, onSubmit, onCancel, loading = false, skipCountdown = false, widgetKey }) {
   const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
@@ -31,7 +31,7 @@ export default function ConfirmDialog({ show, title, subTitle, onSubmit, onCance
   const isSubmitDisabled = (!skipCountdown && countdown > 0) || loading;
 
   return (
-    <Modal show={show} onHide={onCancel} centered contentClassName="border-0 shadow-lg" backdrop="static">
+    <Modal show={show} onHide={onCancel} centered contentClassName="border-0 shadow-lg" backdrop="static" data-widget-key={widgetKey}>
       <Modal.Body className="p-4">
         <div className="text-center">
           <div className="avtar avtar-xl bg-light-danger text-danger mx-auto mb-3">
@@ -54,7 +54,13 @@ export default function ConfirmDialog({ show, title, subTitle, onSubmit, onCance
           <Button className="w-100" variant="light-secondary" onClick={onCancel} disabled={loading}>
             No
           </Button>
-          <Button className="w-100" variant="danger" onClick={onSubmit} disabled={isSubmitDisabled}>
+          <Button
+            className="w-100"
+            variant="danger"
+            onClick={onSubmit}
+            disabled={isSubmitDisabled}
+            data-widget-action={widgetKey ? 'approve' : undefined}
+          >
             {loading ? (
               <>
                 <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />
