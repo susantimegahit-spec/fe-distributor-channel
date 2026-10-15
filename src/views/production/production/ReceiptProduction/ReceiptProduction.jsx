@@ -28,7 +28,7 @@ import {
   toggleReceiptPdo
 } from '../../../../redux/production/receiptPdoReducer';
 import { useAlert } from '../../../../utils/alertContext';
-import { getCookies, getOrganizationAssignmentDefault } from '../../../../utils/cookies';
+import { getCookies } from '../../../../utils/cookies';
 import './receipt-production.scss';
 
 const pageSize = 10;
@@ -74,13 +74,13 @@ const createReceiptForm = () => ({
   DocDueDate: today,
   Series: '',
   Comments: '',
-  Shift: 'X',
+  Shift: '',
   Unit: '',
   Bomid: '',
-  WhsCode: getOrganizationAssignmentDefault('warehouses'),
-  OcrCode: getOrganizationAssignmentDefault('branches'),
-  OcrCode2: getOrganizationAssignmentDefault('business_units'),
-  OcrCode3: getOrganizationAssignmentDefault('departments'),
+  WhsCode: '',
+  OcrCode: '',
+  OcrCode2: '',
+  OcrCode3: '',
   Lines: []
 });
 
@@ -195,6 +195,12 @@ const getLines = (item = {}) => {
 const formatShift = (value) => {
   const shift = String(value || '').toUpperCase();
   return { A: '1', B: '2', C: '3', X: 'All' }[shift] || shift || '-';
+};
+const normalizeShiftValue = (value) => {
+  const shift = String(value || '')
+    .trim()
+    .toUpperCase();
+  return { ALL: 'X', 1: 'A', 2: 'B', 3: 'C' }[shift] || shift;
 };
 
 const normalizeReceipt = (item = {}, index = 0) => ({
@@ -905,16 +911,28 @@ export default function ReceiptProduction() {
       const matchingSeries = availableSeries.find(
         (option) =>
           (pdoSeriesName && normalizeSeriesName(option.name) === normalizeSeriesName(pdoSeriesName)) ||
-          (!pdoSeriesName && pdoSeries && String(option.value) === String(pdoSeries))
+          (pdoSeries && String(option.value) === String(pdoSeries))
       );
+      const selectedSeries = matchingSeries?.value || pdoSeries || '';
+      if (selectedSeries && !availableSeries.some((option) => String(option.value) === String(selectedSeries))) {
+        setSeriesOptions((current) => [
+          ...current,
+          {
+            value: selectedSeries,
+            label: String(pdoSeriesName || selectedSeries),
+            name: String(pdoSeriesName || selectedSeries),
+            raw: firstHeader
+          }
+        ]);
+      }
 
       setReceiptForm((current) => ({
         ...current,
         DocDate: postingDate,
         DocDueDate: dueDate,
-        Series: matchingSeries?.value || (postingDate !== current.DocDate ? '' : current.Series),
+        Series: selectedSeries,
         Comments: current.Comments || getValue(firstHeader, ['Comments', 'comments', 'remarks']),
-        Shift: getValue(firstHeader, ['U_Shift', 'Shift', 'shift'], current.Shift),
+        Shift: normalizeShiftValue(getValue(firstHeader, ['U_Shift', 'Shift', 'shift'])),
         Bomid: current.Bomid || String(receiptOrders[0]?.bomId || ''),
         Unit: getValue(firstHeader, ['U_Unit', 'Unit', 'unit', 'OcrCode2', 'ocr_code2'], current.Unit),
         WhsCode: pdoWarehouse || receiptOrders[0]?.warehouse || '',
@@ -1148,7 +1166,7 @@ export default function ReceiptProduction() {
                 max={receiptForm.DocDueDate || undefined}
                 onChange={(event) => {
                   const date = event.target.value;
-                  setReceiptForm((current) => ({ ...current, DocDate: date, Series: '' }));
+                  setReceiptForm((current) => ({ ...current, DocDate: date }));
                   fetchSeriesOptions(date);
                 }}
               />
@@ -1167,10 +1185,13 @@ export default function ReceiptProduction() {
                 maxMenuHeight={240}
                 menuShouldScrollIntoView={false}
                 options={seriesOptions}
-                value={seriesOptions.find((option) => String(option.value) === String(receiptForm.Series)) || null}
+                value={
+                  seriesOptions.find((option) => String(option.value) === String(receiptForm.Series)) ||
+                  (receiptForm.Series ? { value: receiptForm.Series, label: receiptForm.Series } : null)
+                }
                 isLoading={loadingSeries}
+                isDisabled
                 placeholder={loadingSeries ? 'Loading series...' : 'Select series'}
-                onChange={(option) => setReceiptForm((current) => ({ ...current, Series: option?.value || '' }))}
               />
             </Col>
             <Col md={2}>
@@ -1184,8 +1205,8 @@ export default function ReceiptProduction() {
                 menuShouldScrollIntoView={false}
                 options={shiftOptions}
                 value={shiftOptions.find((option) => option.value === receiptForm.Shift) || null}
+                isDisabled
                 placeholder="Select shift"
-                onChange={(option) => setReceiptForm((current) => ({ ...current, Shift: option?.value || '' }))}
               />
             </Col>
             <Col md={2}>
@@ -1203,8 +1224,8 @@ export default function ReceiptProduction() {
                   (receiptForm.Unit ? { value: receiptForm.Unit, label: receiptForm.Unit } : null)
                 }
                 isLoading={loadingUnits}
+                isDisabled
                 placeholder={loadingUnits ? 'Loading units...' : 'Select unit'}
-                onChange={(option) => setReceiptForm((current) => ({ ...current, Unit: option?.value || '' }))}
               />
             </Col>
             <Col xs={12}>
@@ -1235,8 +1256,8 @@ export default function ReceiptProduction() {
                     (receiptForm[field] ? { value: receiptForm[field], label: receiptForm[field] } : null)
                   }
                   isLoading={isLoading}
+                  isDisabled
                   placeholder={`Select ${label.toLowerCase()}`}
-                  onChange={(option) => setReceiptForm((current) => ({ ...current, [field]: option?.value || '' }))}
                 />
               </Col>
             ))}

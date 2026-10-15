@@ -19,7 +19,7 @@ import DistributorServices from '../../../../services/customer-portal/Distributo
 import WarehouseServices from '../../../../services/customer-portal/WarehouseServices';
 import ProductionServices from '../../../../services/production/ProductionServices';
 import { useAlert } from '../../../../utils/alertContext';
-import { getCookies, getOrganizationAssignmentDefault } from '../../../../utils/cookies';
+import { getCookies } from '../../../../utils/cookies';
 import './issue-production.scss';
 
 const pageSize = 10;
@@ -63,12 +63,12 @@ const createIssueForm = () => ({
   DocDueDate: today,
   Series: '',
   Comments: '',
-  Shift: 'X',
+  Shift: '',
   Unit: '',
-  WhsCode: getOrganizationAssignmentDefault('warehouses'),
-  OcrCode: getOrganizationAssignmentDefault('branches'),
-  OcrCode2: getOrganizationAssignmentDefault('business_units'),
-  OcrCode3: getOrganizationAssignmentDefault('departments'),
+  WhsCode: '',
+  OcrCode: '',
+  OcrCode2: '',
+  OcrCode3: '',
   Lines: []
 });
 const formatInputDate = (date) => {
@@ -179,6 +179,12 @@ const formatDate = (value) => {
     : date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 const formatShift = (value) => ({ A: '1', B: '2', C: '3', X: 'All' })[String(value || '').toUpperCase()] || value || '-';
+const normalizeShiftValue = (value) => {
+  const shift = String(value || '')
+    .trim()
+    .toUpperCase();
+  return { ALL: 'X', 1: 'A', 2: 'B', 3: 'C' }[shift] || shift;
+};
 const pdoProductBadgeClasses = [
   'issue-product-badge--blue',
   'issue-product-badge--sage',
@@ -263,18 +269,11 @@ const createIssueLine = (line = {}, header = {}, index = 0) => {
     PlannedQty: plannedQty,
     IssuedQty: issuedQty,
     Quantity: '',
-    WhsCode:
-      getOrganizationAssignmentDefault('warehouses') ||
-      getValue(line, ['WhsCode', 'whs_code', 'Warehouse', 'warehouse_code'], getValue(header, ['Warehouse', 'WhsCode', 'whs_code'])),
+    WhsCode: getValue(line, ['WhsCode', 'whs_code', 'Warehouse', 'warehouse_code'], getValue(header, ['Warehouse', 'WhsCode', 'whs_code'])),
     UoMEntry: Number(getValue(line, ['UoMEntry', 'UomEntry', 'uom_entry'], 0)),
-    OcrCode:
-      getOrganizationAssignmentDefault('branches') || getValue(line, ['OcrCode', 'ocr_code'], getValue(header, ['OcrCode', 'ocr_code'])),
-    OcrCode2:
-      getOrganizationAssignmentDefault('business_units') ||
-      getValue(line, ['OcrCode2', 'ocr_code2'], getValue(header, ['OcrCode2', 'ocr_code2'])),
-    OcrCode3:
-      getOrganizationAssignmentDefault('departments') ||
-      getValue(line, ['OcrCode3', 'ocr_code3'], getValue(header, ['OcrCode3', 'ocr_code3']))
+    OcrCode: getValue(line, ['OcrCode', 'ocr_code'], getValue(header, ['OcrCode', 'ocr_code'])),
+    OcrCode2: getValue(line, ['OcrCode2', 'ocr_code2'], getValue(header, ['OcrCode2', 'ocr_code2'])),
+    OcrCode3: getValue(line, ['OcrCode3', 'ocr_code3'], getValue(header, ['OcrCode3', 'ocr_code3']))
   };
 };
 const normalizeKey = (key) =>
@@ -758,29 +757,48 @@ export default function IssueProduction() {
         })
       );
       const firstHeader = orderDetails[0]?.header || {};
+      const firstLine = orderDetails[0]?.lines[0] || {};
       const dueDate = formatInputDateValue(getValue(firstHeader, ['PostDate'], issueForm.DocDueDate));
       const postingDate = issueForm.DocDate && issueForm.DocDate > dueDate ? dueDate : issueForm.DocDate;
       const pdoSeries = getValue(firstHeader, ['Series', 'series', 'series_code', 'seriesCode']);
       const pdoSeriesName = getValue(firstHeader, ['SeriesName', 'seriesName', 'series_name']);
+      const pdoShift = normalizeShiftValue(getValue(firstHeader, ['U_Shift', 'Shift', 'shift']));
+      const pdoUnit = getValue(firstHeader, ['U_Unit', 'Unit', 'unit', 'OcrCode2', 'ocr_code2']);
+      const pdoWarehouse = getValue(firstHeader, ['Warehouse', 'WhsCode', 'whs_code'], firstLine.WhsCode);
+      const pdoBranch = getValue(firstHeader, ['OcrCode', 'ocr_code'], firstLine.OcrCode);
+      const pdoBusinessUnit = getValue(firstHeader, ['OcrCode2', 'ocr_code2'], firstLine.OcrCode2);
+      const pdoDepartment = getValue(firstHeader, ['OcrCode3', 'ocr_code3'], firstLine.OcrCode3);
       const availableSeries = await fetchSeriesOptions(postingDate);
       const matchingSeries = availableSeries.find(
         (option) =>
           (pdoSeriesName && normalizeSeriesName(option.name) === normalizeSeriesName(pdoSeriesName)) ||
-          (!pdoSeriesName && pdoSeries && String(option.value) === String(pdoSeries))
+          (pdoSeries && String(option.value) === String(pdoSeries))
       );
+      const selectedSeries = matchingSeries?.value || pdoSeries || '';
+      if (selectedSeries && !availableSeries.some((option) => String(option.value) === String(selectedSeries))) {
+        setSeriesOptions((current) => [
+          ...current,
+          {
+            value: selectedSeries,
+            label: String(pdoSeriesName || selectedSeries),
+            name: String(pdoSeriesName || selectedSeries),
+            raw: firstHeader
+          }
+        ]);
+      }
 
       setIssueForm((current) => ({
         ...current,
         DocDate: postingDate,
         DocDueDate: dueDate,
-        Series: matchingSeries?.value || (postingDate !== current.DocDate ? '' : current.Series),
+        Series: selectedSeries,
         Comments: current.Comments || getValue(firstHeader, ['Comments', 'comments', 'remarks']),
-        Shift: getValue(firstHeader, ['U_Shift', 'Shift', 'shift'], current.Shift),
-        Unit: getValue(firstHeader, ['U_Unit', 'Unit', 'unit', 'OcrCode2', 'ocr_code2'], current.Unit),
-        WhsCode: current.WhsCode || orderDetails[0]?.lines[0]?.WhsCode || '',
-        OcrCode: current.OcrCode || orderDetails[0]?.lines[0]?.OcrCode || '',
-        OcrCode2: current.OcrCode2 || orderDetails[0]?.lines[0]?.OcrCode2 || '',
-        OcrCode3: current.OcrCode3 || orderDetails[0]?.lines[0]?.OcrCode3 || '',
+        Shift: pdoShift,
+        Unit: pdoUnit,
+        WhsCode: pdoWarehouse,
+        OcrCode: pdoBranch,
+        OcrCode2: pdoBusinessUnit,
+        OcrCode3: pdoDepartment,
         Lines: [
           ...current.Lines.filter((line) => selectedOrderIds.includes(String(line.BaseEntry))),
           ...orderDetails.flatMap((detail) => detail.lines)
@@ -788,10 +806,10 @@ export default function IssueProduction() {
           .filter((line) => Number(line.PlannedQty) >= 0)
           .map((line) => ({
             ...line,
-            WhsCode: current.WhsCode || line.WhsCode,
-            OcrCode: current.OcrCode || line.OcrCode,
-            OcrCode2: current.OcrCode2 || line.OcrCode2,
-            OcrCode3: current.OcrCode3 || line.OcrCode3
+            WhsCode: pdoWarehouse || line.WhsCode,
+            OcrCode: pdoBranch || line.OcrCode,
+            OcrCode2: pdoBusinessUnit || line.OcrCode2,
+            OcrCode3: pdoDepartment || line.OcrCode3
           }))
       }));
       setShowOrderModal(false);
@@ -1109,7 +1127,7 @@ export default function IssueProduction() {
                 max={issueForm.DocDueDate || undefined}
                 onChange={(event) => {
                   const date = event.target.value;
-                  setIssueForm((current) => ({ ...current, DocDate: date, Series: '' }));
+                  setIssueForm((current) => ({ ...current, DocDate: date }));
                   fetchSeriesOptions(date);
                 }}
               />
@@ -1128,10 +1146,13 @@ export default function IssueProduction() {
                 maxMenuHeight={240}
                 menuShouldScrollIntoView={false}
                 options={seriesOptions}
-                value={seriesOptions.find((option) => String(option.value) === String(issueForm.Series)) || null}
+                value={
+                  seriesOptions.find((option) => String(option.value) === String(issueForm.Series)) ||
+                  (issueForm.Series ? { value: issueForm.Series, label: issueForm.Series } : null)
+                }
                 isLoading={loadingSeries}
+                isDisabled
                 placeholder={loadingSeries ? 'Loading series...' : 'Select series'}
-                onChange={(option) => setIssueForm((current) => ({ ...current, Series: option?.value || '' }))}
               />
             </Col>
             <Col md={2}>
@@ -1145,8 +1166,8 @@ export default function IssueProduction() {
                 menuShouldScrollIntoView={false}
                 options={shiftOptions}
                 value={shiftOptions.find((option) => option.value === issueForm.Shift) || null}
+                isDisabled
                 placeholder="Select shift"
-                onChange={(option) => setIssueForm((current) => ({ ...current, Shift: option?.value || '' }))}
               />
             </Col>
             <Col md={2}>
@@ -1164,8 +1185,8 @@ export default function IssueProduction() {
                   (issueForm.Unit ? { value: issueForm.Unit, label: issueForm.Unit } : null)
                 }
                 isLoading={loadingUnits}
+                isDisabled
                 placeholder={loadingUnits ? 'Loading units...' : 'Select unit'}
-                onChange={(option) => setIssueForm((current) => ({ ...current, Unit: option?.value || '' }))}
               />
             </Col>
             <Col xs={12}>
@@ -1195,8 +1216,8 @@ export default function IssueProduction() {
                     (issueForm[field] ? { value: issueForm[field], label: issueForm[field] } : null)
                   }
                   isLoading={isLoading}
+                  isDisabled
                   placeholder={`Select ${label.toLowerCase()}`}
-                  onChange={(option) => setIssueForm((current) => ({ ...current, [field]: option?.value || '' }))}
                 />
               </Col>
             ))}

@@ -192,6 +192,13 @@ const normalizeUnitOption = (item = {}) => {
   return value ? { value, label: String(label), raw: item } : null;
 };
 
+const getCookieUnitValues = () => {
+  const cookieUnits = getCookies('units');
+  const values = Array.isArray(cookieUnits) ? cookieUnits : String(cookieUnits ?? '').split(',');
+
+  return [...new Set(values.map((unit) => String(unit).trim()).filter(Boolean))];
+};
+
 const getResponseList = (response) => {
   const payload = response?.data?.data ?? response?.data ?? [];
 
@@ -1012,40 +1019,15 @@ export default function ProductionOrder() {
     if (unitOptions.length) return;
     setLoadingUnits(true);
     try {
+      const cookieUnits = getCookieUnitValues();
+      if (cookieUnits.length) {
+        setUnitOptions(cookieUnits.map(normalizeUnitOption).filter(Boolean));
+        return;
+      }
+
       const response = await ProductionServices.getUnit();
       if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to fetch unit data');
-      const assignedUnits = new Set(organizationAssignments.units.map((unit) => String(unit).trim().toLowerCase()));
-      const options = getResponseList(response).map(normalizeUnitOption).filter(Boolean);
-
-      setUnitOptions(
-        assignedUnits.size
-          ? options.filter((option) => {
-              const unit = option.raw;
-              const aliases = [
-                option.value,
-                unit?.id,
-                unit?.master_unit_id,
-                unit?.masterUnitId,
-                unit?.value,
-                unit?.unit_code,
-                unit?.unitCode,
-                unit?.u_unit,
-                unit?.U_Unit,
-                unit?.unit,
-                unit?.Unit,
-                unit?.code
-              ]
-                .map((value) =>
-                  String(value ?? '')
-                    .trim()
-                    .toLowerCase()
-                )
-                .filter(Boolean);
-
-              return aliases.some((alias) => assignedUnits.has(alias));
-            })
-          : options
-      );
+      setUnitOptions(getResponseList(response).map(normalizeUnitOption).filter(Boolean));
     } catch (error) {
       setUnitOptions([]);
       showAlert(error?.response?.data?.message || error?.message || 'Failed to fetch unit data', 'danger');
@@ -1062,7 +1044,8 @@ export default function ProductionOrder() {
     setSearch('');
     setShowCreateModal(true);
     fetchSeries(today);
-    fetchWarehouses();
+    if (getCookieUnitValues().length) setWarehouseOptions([]);
+    else fetchWarehouses();
     fetchOcrOptions();
     fetchUnits();
   };
