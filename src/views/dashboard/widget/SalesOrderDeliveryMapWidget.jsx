@@ -15,6 +15,7 @@ import './sales-order-delivery-map-widget.scss';
 const INDONESIA_CENTER = { lat: -2.5489, lng: 118.0149 };
 const MAX_GEOCODE_ADDRESSES = 30;
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
+const PHOTON_URL = 'https://photon.komoot.io/api/';
 const WAREHOUSE_MARKER =
   'data:image/svg+xml;charset=UTF-8,' +
   encodeURIComponent(
@@ -75,17 +76,48 @@ const normalizeStatus = (value) =>
 const statusGroupOf = (status) => STATUS_GROUPS.find((group) => group.statuses.includes(status))?.key || 'WAITING';
 
 const distributorCodeOf = (item) =>
-  String(firstValue(item, ['code_customer', 'customer_code', 'customerCode', 'distributor_code', 'card_code', 'CardCode']) || '').trim();
+  String(
+    firstValue(item, [
+      'code_customer',
+      'customer_code',
+      'customerCode',
+      'distributor_code',
+      'distributorCode',
+      'card_code',
+      'CardCode',
+      'code'
+    ]) || ''
+  ).trim();
 
-const distributorAddressOf = (item) =>
-  String(firstValue(item, ['mail_address', 'address', 'street', 'Street', 'customer_address', 'alamat']) || '').trim();
+const joinAddress = (item) => {
+  if (!item) return '';
+  const parts = [
+    firstValue(item, ['Street', 'street', 'mail_address', 'customer_address', 'alamat']),
+    firstValue(item, ['Block', 'block', 'Address', 'address', 'Address2', 'address2']),
+    firstValue(item, ['City', 'city', 'district', 'kabupaten']),
+    firstValue(item, ['County', 'county', 'subdistrict', 'kecamatan']),
+    firstValue(item, ['State', 'state', 'province', 'provinsi']),
+    firstValue(item, ['ZipCode', 'zip_code', 'postal_code', 'postalCode']),
+    firstValue(item, ['Country', 'country'])
+  ]
+    .map((value) => String(value || '').trim())
+    .filter(Boolean);
+
+  return [...new Set(parts)].join(', ');
+};
+
+const coordinateOf = (item) => {
+  const lat = Number(firstValue(item, ['latitude', 'Latitude', 'lat', 'Lat', 'gps_latitude']));
+  const lng = Number(firstValue(item, ['longitude', 'Longitude', 'lng', 'Lng', 'lon', 'gps_longitude']));
+  return Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat, lng } : null;
+};
 
 const normalizeOrder = (item, distributorMap) => {
   const order = { ...item, ...(item?.sales_order || item?.order || {}) };
   const soNumber = firstValue(order, ['sap_doc_num', 'so_number', 'so_no', 'order_number', 'order_no', 'doc_num', 'DocNum']);
   const customerCode = distributorCodeOf(order) || distributorCodeOf(order?.distributor);
   const distributor = distributorMap.get(customerCode) || {};
-  const address = distributorAddressOf(distributor);
+  const address = joinAddress(distributor);
   const status = normalizeStatus(firstValue(order, ['logistic_status', 'delivery_status', 'shipping_status', 'status']));
 
   return {
@@ -102,6 +134,7 @@ const normalizeOrder = (item, distributorMap) => {
       firstValue(order, ['depo', 'depo_name', 'depot_name']) ||
       'Tujuan pengiriman',
     address: String(address || '').trim(),
+    coordinates: coordinateOf(distributor),
     status,
     statusGroup: statusGroupOf(status)
   };
@@ -115,17 +148,34 @@ const geocodeAddress = async (address, signal) => {
     countrycodes: 'id',
     'accept-language': 'id'
   });
-  const response = await fetch(`${NOMINATIM_URL}?${params}`, {
-    signal,
-    headers: { Accept: 'application/json' }
-  });
-  if (!response.ok) throw new Error('Geocoding OpenStreetMap gagal.');
-  const [result] = await response.json();
-  if (!result) return null;
+  try {
+    const response = await fetch(`${NOMINATIM_URL}?${params}`, {
+      signal,
+      headers: { Accept: 'application/json' }
+    });
+    if (response.ok) {
+      const [result] = await response.json();
+      if (result) {
+        return { lat: Number(result.lat), lng: Number(result.lon), formattedAddress: result.display_name };
+      }
+    }
+  } catch (error) {
+    if (error?.name === 'AbortError') throw error;
+  }
+
+  // Photon memakai data OpenStreetMap juga dan menjadi fallback ketika query
+  // alamat Indonesia tidak ditemukan oleh Nominatim.
+  const photonParams = new URLSearchParams({ q: `${address}, Indonesia`, limit: '1', lang: 'id' });
+  const photonResponse = await fetch(`${PHOTON_URL}?${photonParams}`, { signal, headers: { Accept: 'application/json' } });
+  if (!photonResponse.ok) return null;
+  const [feature] = (await photonResponse.json())?.features || [];
+  if (!feature?.geometry?.coordinates) return null;
+  const [lng, lat] = feature.geometry.coordinates;
+  const properties = feature.properties || {};
   return {
-    lat: Number(result.lat),
-    lng: Number(result.lon),
-    formattedAddress: result.display_name
+    lat: Number(lat),
+    lng: Number(lng),
+    formattedAddress: [properties.name, properties.street, properties.city, properties.state, properties.country].filter(Boolean).join(', ')
   };
 };
 
@@ -153,15 +203,15 @@ function FitMapToMarkers({ markers }) {
 }
 
 const getShippingAddress = async (customerCode) => {
-  if (!customerCode) return '';
+  if (!customerCode) return null;
   try {
     const response = await DistributorServices.getAddress(customerCode);
     const addresses = getRows(response, ['addresses']);
     const shippingAddress = addresses.find((item) => String(item?.AdresType || item?.address_type || '').toUpperCase() === 'S');
     const address = shippingAddress || addresses[0];
-    return String(firstValue(address, ['Street', 'street', 'Address', 'address']) || '').trim();
+    return address ? { address: joinAddress(address), coordinates: coordinateOf(address) } : null;
   } catch {
-    return '';
+    return null;
   }
 };
 
@@ -191,19 +241,20 @@ export default function SalesOrderDeliveryMapWidget() {
       let normalizedOrders = getRows(orderResponse, ['orders', 'sales_orders', 'salesOrders'])
         .map((order) => normalizeOrder(order, distributorMap))
         .filter((order) => order.soNumber);
-      const missingAddressCodes = [
-        ...new Set(
-          normalizedOrders
-            .filter((order) => !order.address)
-            .map((order) => order.customerCode)
-            .filter(Boolean)
-        )
-      ].slice(0, MAX_GEOCODE_ADDRESSES);
-      const resolvedAddresses = new Map(await Promise.all(missingAddressCodes.map(async (code) => [code, await getShippingAddress(code)])));
-      normalizedOrders = normalizedOrders.map((order) => ({
-        ...order,
-        address: order.address || resolvedAddresses.get(order.customerCode) || ''
-      }));
+      const customerCodes = [...new Set(normalizedOrders.map((order) => order.customerCode).filter(Boolean))].slice(
+        0,
+        MAX_GEOCODE_ADDRESSES
+      );
+      const resolvedAddresses = new Map(await Promise.all(customerCodes.map(async (code) => [code, await getShippingAddress(code)])));
+      normalizedOrders = normalizedOrders.map((order) => {
+        const shippingAddress = resolvedAddresses.get(order.customerCode);
+        return {
+          ...order,
+          // Alamat tipe Shipping biasanya lebih lengkap daripada alamat utama Master Distributor.
+          address: shippingAddress?.address || order.address || '',
+          coordinates: shippingAddress?.coordinates || order.coordinates
+        };
+      });
       setOrders(normalizedOrders);
     } catch (requestError) {
       setOrders([]);
@@ -234,7 +285,12 @@ export default function SalesOrderDeliveryMapWidget() {
     const loadLocations = async () => {
       setGeocoding(true);
       const nextLocations = {};
+      orders.forEach((order) => {
+        if (order.address && order.coordinates) nextLocations[order.address] = order.coordinates;
+      });
+      if (active && Object.keys(nextLocations).length) setLocations({ ...nextLocations });
       for (const [index, address] of uniqueAddresses.entries()) {
+        if (nextLocations[address]) continue;
         const cacheKey = `dc:so-osm-map:${address.toLowerCase()}`;
         try {
           const cached = JSON.parse(sessionStorage.getItem(cacheKey) || 'null');
@@ -268,7 +324,7 @@ export default function SalesOrderDeliveryMapWidget() {
       active = false;
       controller.abort();
     };
-  }, [uniqueAddresses]);
+  }, [orders, uniqueAddresses]);
 
   const counts = useMemo(
     () => Object.fromEntries(STATUS_GROUPS.map((group) => [group.key, orders.filter((order) => order.statusGroup === group.key).length])),

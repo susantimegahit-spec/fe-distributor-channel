@@ -47,6 +47,21 @@ const parseNumberInput = (value) => {
   const number = Number(normalized);
   return Number.isFinite(number) ? number : 0;
 };
+const handleQuantityKeyboardNavigation = (event, index) => {
+  const movesUp = event.key === 'ArrowUp';
+  const movesDown = event.key === 'ArrowDown' || event.key === 'Enter' || event.code === 'NumpadEnter';
+  if (!movesUp && !movesDown) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  const table = event.currentTarget.closest('table');
+  const targetIndex = index + (movesUp ? -1 : 1);
+  window.requestAnimationFrame(() => {
+    const target = table?.querySelector(`[data-issue-quantity-index="${targetIndex}"]`);
+    target?.focus();
+    target?.select();
+  });
+};
 const shiftOptions = [
   { value: 'X', label: 'All' },
   { value: 'A', label: '1' },
@@ -1314,17 +1329,7 @@ export default function IssueProduction() {
                         onChange={(event) => {
                           updateIssueLine(index, { Quantity: formatNumberInput(event.target.value) });
                         }}
-                        onKeyDownCapture={(event) => {
-                          if (event.key !== 'Enter' && event.code !== 'NumpadEnter') return;
-
-                          event.preventDefault();
-                          event.stopPropagation();
-                          const nextIndex = index + 1;
-                          window.requestAnimationFrame(() => {
-                            const nextInput = document.querySelector(`[data-issue-quantity-index="${nextIndex}"]`);
-                            nextInput?.focus();
-                          });
-                        }}
+                        onKeyDownCapture={(event) => handleQuantityKeyboardNavigation(event, index)}
                       />
                     </td>
                     <td className="text-center">

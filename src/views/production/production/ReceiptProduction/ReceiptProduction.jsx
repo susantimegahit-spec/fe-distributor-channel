@@ -56,6 +56,20 @@ const parseNumberInput = (value) => {
   const number = Number(normalized);
   return Number.isFinite(number) ? number : 0;
 };
+const handleQuantityKeyboardNavigation = (event) => {
+  const movesUp = event.key === 'ArrowUp';
+  const movesDown = event.key === 'ArrowDown' || event.key === 'Enter' || event.code === 'NumpadEnter';
+  if (!movesUp && !movesDown) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  const currentInput = event.currentTarget;
+  const inputs = [...document.querySelectorAll('[data-receipt-quantity-input]')].filter((input) => !input.disabled);
+  const currentIndex = inputs.indexOf(currentInput);
+  const target = inputs[currentIndex + (movesUp ? -1 : 1)];
+  target?.focus();
+  target?.select();
+};
 const shiftOptions = [
   { value: 'X', label: 'All' },
   { value: 'A', label: '1' },
@@ -256,7 +270,6 @@ const normalizeProductionOrder = (item = {}, index = 0) => ({
 });
 
 const createReceiptLineFromOrder = (order) => {
-  const remainingQuantity = Math.max(order.plannedQuantity - order.completedQuantity, 0);
   return {
     ItemCode: order.itemCode,
     ItemName: order.itemName,
@@ -265,7 +278,7 @@ const createReceiptLineFromOrder = (order) => {
     BaseLine: order.baseLine ?? -1,
     PlannedQty: order.plannedQuantity,
     CmpltQty: order.completedQuantity,
-    Quantity: formatNumberInput(remainingQuantity),
+    Quantity: '',
     WhsCode: order.warehouse,
     UomCode: order.uom,
     UoMEntry: order.uomEntry,
@@ -1343,6 +1356,8 @@ export default function ReceiptProduction() {
                     </td>
                     <td style={{ minWidth: 120 }}>
                       <Form.Control
+                        data-receipt-quantity-input
+                        data-receipt-quantity-index={index}
                         size="sm"
                         type="text"
                         inputMode="decimal"
@@ -1351,6 +1366,7 @@ export default function ReceiptProduction() {
                         onChange={(event) => {
                           updateReceiptLine(index, { Quantity: formatNumberInput(event.target.value) });
                         }}
+                        onKeyDown={(event) => handleQuantityKeyboardNavigation(event)}
                       />
                     </td>
                     <td className="text-center">
