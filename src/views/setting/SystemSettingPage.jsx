@@ -248,7 +248,7 @@ export default function SystemSettingPage() {
             data-permission-action="utility"
             title="Back to Dashboard"
             aria-label="Back to Dashboard"
-            onClick={() => navigate('/customer-portal/dashboard')}
+            onClick={() => navigate('/dashboard', { replace: true })}
           >
             <i className="ti ti-arrow-left" aria-hidden="true" />
           </Button>

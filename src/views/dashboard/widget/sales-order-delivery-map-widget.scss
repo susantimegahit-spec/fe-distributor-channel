@@ -1,0 +1,214 @@
+.sm-so-delivery-widget .card-body {
+  padding: 18px;
+}
+.sm-so-status-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.sm-so-status-card {
+  --tone: #1d77e8;
+  --soft: #eaf4ff;
+  appearance: none;
+  border: 3px solid #fff;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #fff, var(--soft));
+  box-shadow: 0 5px 18px rgba(32, 67, 118, 0.1);
+  color: #111a48;
+  display: flex;
+  align-items: center;
+  min-height: 112px;
+  padding: 14px 16px;
+  text-align: left;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+.sm-so-status-card:hover,
+.sm-so-status-card.is-active {
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 22px rgba(32, 67, 118, 0.16),
+    0 0 0 2px var(--tone);
+}
+.sm-so-status-card.is-amber {
+  --tone: #f59e0b;
+  --soft: #fff7df;
+}
+.sm-so-status-card.is-green {
+  --tone: #10b981;
+  --soft: #e7fbf3;
+}
+.sm-so-status-card.is-orange {
+  --tone: #f97316;
+  --soft: #fff0e8;
+}
+.sm-so-status-icon {
+  width: 58px;
+  height: 58px;
+  flex: 0 0 58px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--tone) 14%, #fff);
+  color: var(--tone);
+  display: grid;
+  place-items: center;
+  font-size: 30px;
+  margin-right: 14px;
+}
+.sm-so-status-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.sm-so-status-copy strong {
+  font-size: 14px;
+}
+.sm-so-status-copy b {
+  font-size: 30px;
+  line-height: 1.08;
+}
+.sm-so-status-copy small {
+  color: #60719c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sm-so-map-panel {
+  border: 1px solid #dce7f7;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #fff;
+}
+.sm-so-map-header {
+  min-height: 58px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.sm-so-map-header > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+.sm-so-map-header strong {
+  color: #101743;
+  font-size: 17px;
+}
+.sm-so-map-header small {
+  color: #72809e;
+  border-left: 1px solid #dfe5ee;
+  padding-left: 9px;
+}
+.sm-so-map-title-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: #eaf4ff;
+  color: #1677e8;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+}
+.sm-so-map-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.sm-so-map-actions .form-select {
+  min-width: 170px;
+}
+.sm-so-map-canvas {
+  height: 420px;
+  position: relative;
+  background: #eef5fb;
+}
+.sm-so-open-map {
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+.sm-so-map-state {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #63708c;
+}
+.sm-so-map-empty {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 2;
+  padding: 9px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 4px 14px rgba(20, 45, 80, 0.14);
+  color: #63708c;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sm-so-open-map .leaflet-popup-content-wrapper {
+  border-radius: 10px;
+}
+.sm-so-open-map .leaflet-popup-content {
+  margin: 13px 15px;
+}
+.sm-so-map-info {
+  min-width: 190px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: #18203f;
+}
+.sm-so-map-info strong {
+  color: #126fe5;
+}
+.sm-so-map-info small {
+  color: #687590;
+}
+@media (max-width: 991.98px) {
+  .sm-so-status-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .sm-so-map-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .sm-so-map-actions {
+    width: 100%;
+  }
+  .sm-so-map-actions .form-select {
+    flex: 1;
+  }
+}
+@media (max-width: 575.98px) {
+  .sm-so-status-grid {
+    grid-template-columns: 1fr;
+  }
+  .sm-so-map-header > div:first-child {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .sm-so-map-header small {
+    width: 100%;
+    border: 0;
+    padding-left: 41px;
+    margin-top: -8px;
+  }
+  .sm-so-map-canvas {
+    height: 340px;
+  }
+  .sm-so-map-empty {
+    max-width: calc(100% - 24px);
+    white-space: normal;
+    text-align: center;
+  }
+}
