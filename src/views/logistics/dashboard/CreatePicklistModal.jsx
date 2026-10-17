@@ -1144,11 +1144,6 @@ export default function CreatePicklistModal({ onClose, onSuccess }) {
                   {Number(capacity) > 0 && <> / {formatNumber(capacity)} kg</>}
                 </span>
               </div>
-              {Number(capacity) > 0 && totalWeight > Number(capacity) && (
-                <Alert variant="danger" className="mt-3">
-                  Total item weight exceeds the weight limit. Reduce the pick quantities.
-                </Alert>
-              )}
               {shippingType === 'external' && (
                 <PicklistRecommendations lines={lines} onSelectExpedition={setSelectedExpedition} />
               )}

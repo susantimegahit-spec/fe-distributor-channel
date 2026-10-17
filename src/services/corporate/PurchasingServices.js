@@ -16,7 +16,22 @@ class PurchasingServices {
     });
   }
 
+  getPurchaseRequest(department = '', costCenter = '', status = '', search = '', perPage = 15, page = 1) {
+    return DataService.get('/purchasing-request/requests', {
+      department,
+      cost_center: costCenter,
+      status,
+      search,
+      per_page: perPage,
+      page
+    });
+  }
+
   postPurchasing(payload) {
+    return DataService.post('/purchasing-request/requests', payload);
+  }
+
+  postPurchaseRequest(payload) {
     return DataService.post('/purchasing-request/requests', payload);
   }
 

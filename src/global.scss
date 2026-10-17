@@ -245,6 +245,25 @@ body {
   z-index: 1065;
 }
 
+.production-bom-selector-dialog.modal-dialog {
+  width: calc(100% - 3rem);
+  max-width: 1540px;
+}
+
+.production-bom-selector-dialog.modal-dialog-scrollable .modal-content {
+  min-height: min(720px, calc(100vh - 3.5rem));
+}
+
+@media (max-width: 767.98px) {
+  .production-bom-selector-dialog.modal-dialog {
+    width: auto;
+  }
+
+  .production-bom-selector-dialog.modal-dialog-scrollable .modal-content {
+    min-height: calc(100vh - 1rem);
+  }
+}
+
 .modal-backdrop.sap-connection-retry-backdrop {
   z-index: 1100;
 }

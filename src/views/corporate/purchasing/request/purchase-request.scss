@@ -78,6 +78,19 @@
   resize: vertical;
 }
 
+.purchase-request-list-filters {
+  display: grid;
+  width: min(100%, 820px);
+  grid-template-columns: minmax(160px, 1fr) minmax(150px, 1fr) minmax(180px, 1.4fr) auto auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.purchase-request-department-filter .select__control,
+.purchase-request-status-filter .select__control {
+  min-height: 31px;
+}
+
 .purchase-request-quantity {
   appearance: textfield;
   -moz-appearance: textfield;
@@ -166,6 +179,10 @@
 }
 
 @media (max-width: 575.98px) {
+  .purchase-request-list-filters {
+    grid-template-columns: 1fr;
+  }
+
   .purchase-request-dialog.modal-dialog {
     width: calc(100vw - 16px);
     margin-right: auto;

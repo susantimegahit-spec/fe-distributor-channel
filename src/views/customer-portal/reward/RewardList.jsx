@@ -222,15 +222,18 @@ const normalizeUploadResult = (item, index) => ({
   id: item.id || item.result_id || index,
   customerCode: item.customer_code || item.code_customer || item.distributor_code || '',
   customerName: item.customer_name || item.name_customer || item.distributor_name || '',
+  invoiceNo: item.invoice_no || '',
   itemCode: item.item_code || item.code_item || '',
   itemName: item.item_name || item.name_item || '',
-  qty: item?.qty_kg,
+  qty: Number(item.qty_kg ?? 0),
   customerType: item.customer_type || item.type_customer || '',
   date: item.transaction_date || item.transcation_date || item.sell_out_date || item.created_at || '',
-  amount1: Number(item?.harga_program_per_kg),
-  amount2: Number(item?.sell_price_per_kg),
-  rewardAmount: Number(item.diskon_per_kg),
-  status: String(item.status || '').replace('_', ' '),
+  sellPricePerKg: Number(item.sell_price_per_kg ?? 0),
+  programPricePerKg: Number(item.harga_program_per_kg ?? 0),
+  discountPerKg: Number(item.diskon_per_kg ?? 0),
+  totalDiscount: Number(item.total_diskon ?? 0),
+  status: String(item.status || '').replaceAll('_', ' '),
+  statusDescription: item.desc_status || item.status_description || '',
   verified: normalizeVerified(item)
 });
 
@@ -1574,25 +1577,30 @@ export default function RewardList() {
                     <thead>
                       <tr>
                         <th style={{ width: 70 }}>#</th>
-                        <th style={{ minWidth: 210 }}>Customer</th>
+                        <th style={{ minWidth: 150 }}>Customer Code</th>
+                        <th style={{ minWidth: 210 }}>Customer Name</th>
+                        <th style={{ minWidth: 160 }}>Invoice</th>
                         <th style={{ minWidth: 150 }}>Item Code</th>
                         <th style={{ minWidth: 220 }}>Item Name</th>
                         <th className="text-end" style={{ minWidth: 100 }}>
-                          Qty (Kg)
-                        </th>
-                        <th style={{ minWidth: 130 }}>Date</th>
-                        <th className="text-end" style={{ minWidth: 150 }}>
-                          Selling Price @Kg
+                          Qty Kg
                         </th>
                         <th className="text-end" style={{ minWidth: 150 }}>
-                          Sell-Out Price @Kg
+                          Sell Price/Kg
                         </th>
                         <th className="text-end" style={{ minWidth: 150 }}>
-                          Bonus
+                          Program Price/Kg
                         </th>
                         <th className="text-end" style={{ minWidth: 150 }}>
-                          Status
+                          Discount/Kg
                         </th>
+                        <th className="text-end" style={{ minWidth: 160 }}>
+                          Total Discount
+                        </th>
+                        <th style={{ minWidth: 130 }}>Transaction Date</th>
+                        <th style={{ minWidth: 130 }}>Customer Type</th>
+                        <th style={{ minWidth: 160 }}>Status</th>
+                        <th style={{ minWidth: 140 }}>Description</th>
                         <th className="text-center" style={{ width: 56 }} />
                         <th className="text-center" style={{ minWidth: 150 }}>
                           Verification Status
@@ -1606,21 +1614,23 @@ export default function RewardList() {
                             key={transaction.id || `${selectedClaim.claimNo}-${index}`}
                             className={transaction.verified ? 'table-success' : undefined}
                           >
-                            <td>{transaction.customerType}</td>
-                            <td>
-                              <div className="fw-semibold">{transaction.customerName || '-'}</div>
-                              <small className="text-muted">{transaction.customerCode || '-'}</small>
-                            </td>
+                            <td>{index + 1}</td>
+                            <td>{transaction.customerCode || '-'}</td>
+                            <td>{transaction.customerName || '-'}</td>
+                            <td>{transaction.invoiceNo || '-'}</td>
                             <td>{transaction.itemCode || '-'}</td>
                             <td>{transaction.itemName || '-'}</td>
-                            <td className="text-end">{Math.round(transaction.qty)}</td>
+                            <td className="text-end">{transaction.qty.toLocaleString('id-ID', { maximumFractionDigits: 2 })}</td>
+                            <td className="text-end">{formatCurrency(transaction.sellPricePerKg)}</td>
+                            <td className="text-end">{formatCurrency(transaction.programPricePerKg)}</td>
+                            <td className="text-end">{formatCurrency(transaction.discountPerKg)}</td>
+                            <td className="text-end">{formatCurrency(transaction.totalDiscount)}</td>
                             <td>{formatDate(transaction.date)}</td>
-                            <td className="text-end">{formatCurrency(transaction.amount1)}</td>
-                            <td className="text-end">{formatCurrency(transaction.amount2)}</td>
-                            <td className="text-end">{formatCurrency(transaction.rewardAmount)}</td>
-                            <td className="text-end">
+                            <td>{transaction.customerType || '-'}</td>
+                            <td>
                               <Badge bg={getSellOutStatusVariant(transaction.status)}>{getSellOutStatusLabel(transaction.status)}</Badge>
                             </td>
+                            <td>{transaction.statusDescription || '-'}</td>
                             <td className="text-center">
                               {getSellOutStatusKey(transaction.status) === 'VALID_PROGRAM' &&
                               canVerifySellOut &&
@@ -1644,7 +1654,7 @@ export default function RewardList() {
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={12}>
+                          <td colSpan={17}>
                             <div className="text-center py-4">
                               <div className="avtar avtar-lg bg-light-primary text-primary mx-auto mb-2">
                                 <i className="ti ti-table-import f-20" />

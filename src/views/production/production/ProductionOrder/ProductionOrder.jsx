@@ -2558,11 +2558,13 @@ export default function ProductionOrder() {
                       <td style={{ minWidth: 110 }}>
                         <Form.Control
                           size="sm"
-                          type="number"
-                          onWheel={(event) => event.currentTarget.blur()}
-                          step="any"
+                          type="text"
+                          inputMode="decimal"
                           value={detail.qty ?? detail.quantity ?? ''}
-                          onChange={(event) => updateBomDetail(index, { qty: event.target.value })}
+                          onChange={(event) => {
+                            const value = event.target.value.replace(',', '.');
+                            if (/^\d*\.?\d*$/.test(value)) updateBomDetail(index, { qty: value });
+                          }}
                         />
                       </td>
                       <td style={{ minWidth: 120 }}>
@@ -2702,9 +2704,10 @@ export default function ProductionOrder() {
           clearTimeout(bomSearchTimeoutRef.current);
           setShowBomModal(false);
         }}
-        size="lg"
+        size="xl"
         className="production-nested-modal production-selector-modal"
         backdropClassName="production-selector-modal-backdrop"
+        dialogClassName="production-bom-selector-dialog"
         centered
         scrollable
       >

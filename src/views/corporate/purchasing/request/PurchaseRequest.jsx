@@ -3,6 +3,7 @@ import FormDatePicker from 'components/FormDatePicker';
 import Select from 'react-select';
 
 import Button from 'react-bootstrap/Button';
+import Badge from 'react-bootstrap/Badge';
 import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
 import Modal from 'react-bootstrap/Modal';
@@ -28,6 +29,49 @@ const metrics = [
 
 const today = () => new Date().toISOString().slice(0, 10);
 const SERIES_CARD_CODE = '1470000113';
+const purchaseRequestStatusOptions = ['', 'DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'CANCELLED', 'COMPLETED'].map(
+  (value) => ({ value, label: value || 'All statuses' })
+);
+
+const getPurchaseRequestPage = (response) => {
+  const payload = response?.data?.data ?? response?.data ?? {};
+  const items = Array.isArray(payload)
+    ? payload
+    : payload.data ?? payload.items ?? payload.rows ?? payload.results ?? [];
+  const meta = payload.meta ?? payload.pagination ?? response?.data?.meta ?? response?.data?.pagination ?? payload;
+
+  return {
+    items: Array.isArray(items) ? items : [],
+    currentPage: Number(meta.current_page ?? meta.currentPage ?? 1) || 1,
+    lastPage: Number(meta.last_page ?? meta.lastPage ?? 1) || 1,
+    total: Number(meta.total ?? (Array.isArray(items) ? items.length : 0)) || 0
+  };
+};
+
+const getRequestValue = (request, keys, fallback = '') => {
+  for (const key of keys) {
+    if (request?.[key] !== undefined && request[key] !== null && request[key] !== '') return request[key];
+  }
+  return fallback;
+};
+
+const formatRequestDate = (value) => {
+  if (!value) return '-';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleDateString('id-ID');
+};
+
+const getStatusVariant = (status) => {
+  const variants = {
+    DRAFT: 'secondary',
+    SUBMITTED: 'warning',
+    APPROVED: 'success',
+    REJECTED: 'danger',
+    CANCELLED: 'dark',
+    COMPLETED: 'primary'
+  };
+  return variants[String(status || '').toUpperCase()] || 'secondary';
+};
 
 const getSeriesList = (response) => {
   const payload = response?.data?.data ?? response?.data ?? [];
@@ -106,18 +150,24 @@ const createInitialForm = () => {
   return {
     Series: '',
     ReqType: '12',
+    Requester: userId,
     RequesterName: String(getCookies('name') ?? ''),
     Department: String(getCookies('userDepartment') ?? ''),
     DocDate: today(),
     DocDueDate: today(),
     Comments: '',
     UserId: userId,
+    AddonId: String(getCookies('addonId') ?? ''),
     Lines: [createLine()]
   };
 };
 
 export default function PurchaseRequest() {
   const { showAlert } = useAlert();
+  const userBranch = String(getCookies('userBranch') ?? '');
+  const userBusinessUnit = String(getCookies('userBusinessUnit') ?? '');
+  const userDepartment = String(getCookies('userDepartment') ?? '');
+  const userWarehouse = String(getCookies('userWarehouse') ?? '');
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loadingSeries, setLoadingSeries] = useState(false);
@@ -125,13 +175,90 @@ export default function PurchaseRequest() {
   const [loadingLineMasters, setLoadingLineMasters] = useState(false);
   const [loadingItems, setLoadingItems] = useState(false);
   const [itemOptions, setItemOptions] = useState([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
+  const [requests, setRequests] = useState([]);
+  const [requestPage, setRequestPage] = useState({ currentPage: 1, lastPage: 1, total: 0 });
+  const [loadingDepartmentFilter, setLoadingDepartmentFilter] = useState(false);
+  const [departmentFilterOptions, setDepartmentFilterOptions] = useState([]);
+  const [requestFilters, setRequestFilters] = useState({
+    department: userDepartment,
+    costCenter: '',
+    status: '',
+    search: '',
+    perPage: 15
+  });
+  const [appliedRequestFilters, setAppliedRequestFilters] = useState({
+    department: userDepartment,
+    costCenter: '',
+    status: '',
+    search: '',
+    perPage: 15
+  });
+  const [requestRefresh, setRequestRefresh] = useState(0);
   const [warehouseOptions, setWarehouseOptions] = useState([]);
   const [ocrOptions, setOcrOptions] = useState({ branch: [], businessUnit: [], department: [] });
   const [form, setForm] = useState(createInitialForm);
-  const userBranch = String(getCookies('userBranch') ?? '');
-  const userBusinessUnit = String(getCookies('userBusinessUnit') ?? '');
-  const userDepartment = String(getCookies('userDepartment') ?? '');
-  const userWarehouse = String(getCookies('userWarehouse') ?? '');
+
+  useEffect(() => {
+    if (userDepartment) return undefined;
+
+    let active = true;
+    const fetchDepartmentFilterOptions = async () => {
+      setLoadingDepartmentFilter(true);
+      try {
+        const response = await DistributorServices.getOcrByType(3);
+        if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to load departments');
+        if (active) setDepartmentFilterOptions(getResponseList(response).map(normalizeOcr).filter(Boolean));
+      } catch (error) {
+        if (active) {
+          setDepartmentFilterOptions([]);
+          showAlert(error?.response?.data?.message || error?.message || 'Failed to load departments', 'danger');
+        }
+      } finally {
+        if (active) setLoadingDepartmentFilter(false);
+      }
+    };
+
+    fetchDepartmentFilterOptions();
+    return () => {
+      active = false;
+    };
+  }, [showAlert, userDepartment]);
+
+  useEffect(() => {
+    let active = true;
+    const fetchRequests = async () => {
+      setLoadingRequests(true);
+      try {
+        const response = await PurchasingServices.getPurchaseRequest(
+          appliedRequestFilters.department,
+          appliedRequestFilters.costCenter,
+          appliedRequestFilters.status,
+          appliedRequestFilters.search,
+          appliedRequestFilters.perPage,
+          requestPage.currentPage
+        );
+        if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to load purchase requests');
+        if (active) {
+          const result = getPurchaseRequestPage(response);
+          setRequests(result.items);
+          setRequestPage({ currentPage: result.currentPage, lastPage: result.lastPage, total: result.total });
+        }
+      } catch (error) {
+        if (active) {
+          setRequests([]);
+          showAlert(error?.response?.data?.message || error?.message || 'Failed to load purchase requests', 'danger');
+        }
+      } finally {
+        if (active) setLoadingRequests(false);
+      }
+    };
+
+    fetchRequests();
+    return () => {
+      active = false;
+    };
+  }, [appliedRequestFilters, requestPage.currentPage, requestRefresh, showAlert]);
 
   useEffect(() => {
     if (!showForm || !form.DocDate) {
@@ -234,6 +361,19 @@ export default function PurchaseRequest() {
     if (!saving) setShowForm(false);
   };
 
+  const applyRequestFilters = (event) => {
+    event?.preventDefault();
+    setRequestPage((current) => ({ ...current, currentPage: 1 }));
+    setAppliedRequestFilters({ ...requestFilters, search: requestFilters.search.trim() });
+  };
+
+  const resetRequestFilters = () => {
+    const filters = { department: userDepartment, costCenter: '', status: '', search: '', perPage: 15 };
+    setRequestFilters(filters);
+    setRequestPage((current) => ({ ...current, currentPage: 1 }));
+    setAppliedRequestFilters(filters);
+  };
+
   const updateHeader = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
   };
@@ -277,6 +417,7 @@ export default function PurchaseRequest() {
     const requiredHeader = [
       ['Series', 'Series'],
       ['ReqType', 'Request type'],
+      ['Requester', 'Requester'],
       ['RequesterName', 'Requester name'],
       ['Department', 'Department'],
       ['DocDate', 'Document date'],
@@ -307,32 +448,41 @@ export default function PurchaseRequest() {
     }
 
     const payload = {
-      Series: form.Series,
+      Series: String(form.Series),
       ReqType: form.ReqType.trim(),
+      Requester: form.Requester.trim(),
       RequesterName: form.RequesterName.trim(),
       Department: form.Department.trim(),
       DocDate: form.DocDate,
       DocDueDate: form.DocDueDate,
       Comments: form.Comments.trim(),
       UserId: form.UserId.trim(),
-      Lines: form.Lines.map(({ key, ...line }) => ({
-        ...line,
+      AddonId: form.AddonId.trim(),
+      Lines: form.Lines.map((line) => ({
         ItemCode: line.ItemCode.trim(),
-        ItemName: line.ItemName.trim(),
+        PQTReqDate: line.PQTReqDate,
         Quantity: Number(line.Quantity),
-        FreeTxt: line.FreeTxt.trim()
+        UomEntry: String(line.UomEntry ?? ''),
+        UomCode: String(line.UomCode ?? ''),
+        WhsCode: String(line.WhsCode ?? ''),
+        UnitMsr: String(line.UnitMsr ?? ''),
+        FreeTxt: line.FreeTxt.trim(),
+        OcrCode: String(line.OcrCode ?? ''),
+        OcrCode2: String(line.OcrCode2 ?? ''),
+        OcrCode3: String(line.OcrCode3 ?? '')
       }))
     };
 
     setSaving(true);
     try {
-      const response = await PurchasingServices.postPurchasing(payload);
+      const response = await PurchasingServices.postPurchaseRequest(payload);
       if (response?.data?.success === false) {
         throw new Error(response.data.message || 'Failed to create purchase request');
       }
       showAlert(response?.data?.message || 'Purchase request created successfully', 'success');
       setShowForm(false);
       setForm(createInitialForm());
+      setRequestRefresh((current) => current + 1);
     } catch (error) {
       showAlert(error?.response?.data?.message || error?.message || 'Failed to create purchase request', 'danger');
     } finally {
@@ -353,6 +503,115 @@ export default function PurchaseRequest() {
         compactMetrics
         columns={['Request No.', 'Request Date', 'Department', 'Requester', 'Amount', 'Status', 'Action']}
         emptyMessage="Purchase requests will appear here after they are created."
+        loading={loadingRequests}
+        tableToolbar={
+          <Form className="purchase-request-list-filters" onSubmit={applyRequestFilters}>
+            {userDepartment ? (
+              <Form.Control size="sm" aria-label="Department" value={userDepartment} readOnly />
+            ) : (
+              <Select
+                className="purchase-request-department-filter"
+                classNamePrefix="select"
+                options={departmentFilterOptions}
+                value={departmentFilterOptions.find((option) => option.value === requestFilters.department) || null}
+                onChange={(option) => setRequestFilters((current) => ({ ...current, department: option?.value ?? '' }))}
+                isLoading={loadingDepartmentFilter}
+                isDisabled={loadingDepartmentFilter}
+                placeholder={loadingDepartmentFilter ? 'Loading departments...' : 'All departments'}
+                noOptionsMessage={() => (loadingDepartmentFilter ? 'Loading departments...' : 'Department not found')}
+                aria-label="Filter department"
+              />
+            )}
+            <Select
+              className="purchase-request-status-filter"
+              classNamePrefix="select"
+              options={purchaseRequestStatusOptions}
+              value={purchaseRequestStatusOptions.find((option) => option.value === requestFilters.status)}
+              onChange={(option) => setRequestFilters((current) => ({ ...current, status: option?.value ?? '' }))}
+              aria-label="Filter status"
+            />
+            <Form.Control
+              size="sm"
+              aria-label="Search purchase requests"
+              placeholder="Search request..."
+              value={requestFilters.search}
+              onChange={(event) => setRequestFilters((current) => ({ ...current, search: event.target.value }))}
+            />
+            <Form.Select
+              size="sm"
+              aria-label="Items per page"
+              value={requestFilters.perPage}
+              onChange={(event) => setRequestFilters((current) => ({ ...current, perPage: Number(event.target.value) }))}
+            >
+              {[15, 25, 50, 100].map((value) => (
+                <option value={value} key={value}>
+                  {value} / page
+                </option>
+              ))}
+            </Form.Select>
+            <Button type="submit" size="sm" variant="primary">
+              <i className="ti ti-search" />
+            </Button>
+            <Button type="button" size="sm" variant="light-secondary" onClick={resetRequestFilters}>
+              Reset
+            </Button>
+          </Form>
+        }
+        tableBody={
+          requests.length
+            ? requests.map((request, index) => {
+                const requestNumber = getRequestValue(request, ['pr_number', 'request_number', 'doc_num', 'DocNum'], '-');
+                const requestDate = getRequestValue(request, ['request_date', 'doc_date', 'DocDate', 'created_at']);
+                const department = getRequestValue(request, ['department', 'department_name', 'Department'], '-');
+                const requester = getRequestValue(request, ['requester_name', 'RequesterName', 'requester'], '-');
+                const amount = Number(getRequestValue(request, ['amount', 'total_amount', 'doc_total', 'DocTotal'], 0));
+                const status = String(getRequestValue(request, ['status', 'Status'], 'DRAFT')).toUpperCase();
+                return (
+                  <tr key={getRequestValue(request, ['id', 'request_id', 'DocEntry'], `${requestNumber}-${index}`)}>
+                    <td>{requestNumber}</td>
+                    <td>{formatRequestDate(requestDate)}</td>
+                    <td>{department}</td>
+                    <td>{requester}</td>
+                    <td>{amount.toLocaleString('id-ID', { maximumFractionDigits: 2 })}</td>
+                    <td>
+                      <Badge bg={`light-${getStatusVariant(status)}`} text={getStatusVariant(status)}>
+                        {status}
+                      </Badge>
+                    </td>
+                    <td className="text-muted">-</td>
+                  </tr>
+                );
+              })
+            : undefined
+        }
+        tableFooter={
+          requestPage.total > 0 ? (
+            <Stack direction="horizontal" className="justify-content-between border-top px-3 py-2" gap={2}>
+              <small className="text-muted">{requestPage.total.toLocaleString('id-ID')} requests</small>
+              <Stack direction="horizontal" gap={2}>
+                <Button
+                  size="sm"
+                  variant="light-secondary"
+                  disabled={loadingRequests || requestPage.currentPage <= 1}
+                  onClick={() => setRequestPage((current) => ({ ...current, currentPage: current.currentPage - 1 }))}
+                >
+                  Previous
+                </Button>
+                <small className="text-muted">
+                  Page {requestPage.currentPage} / {requestPage.lastPage}
+                </small>
+                <Button
+                  size="sm"
+                  variant="light-secondary"
+                  disabled={loadingRequests || requestPage.currentPage >= requestPage.lastPage}
+                  onClick={() => setRequestPage((current) => ({ ...current, currentPage: current.currentPage + 1 }))}
+                >
+                  Next
+                </Button>
+              </Stack>
+            </Stack>
+          ) : undefined
+        }
       />
 
       <Modal

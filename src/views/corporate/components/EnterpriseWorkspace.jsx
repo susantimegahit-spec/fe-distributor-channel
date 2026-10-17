@@ -21,7 +21,11 @@ export default function EnterpriseWorkspace({
   metrics,
   compactMetrics,
   columns,
-  emptyMessage
+  emptyMessage,
+  tableToolbar,
+  tableBody,
+  tableFooter,
+  loading
 }) {
   return (
     <MainCard
@@ -66,10 +70,12 @@ export default function EnterpriseWorkspace({
               </Card.Body>
             </Card>
           ))}
-          <Button variant="light-secondary" size="sm" className="enterprise-compact-filter">
-            <i className="ti ti-filter me-1" />
-            Filter
-          </Button>
+          {!tableToolbar && (
+            <Button variant="light-secondary" size="sm" className="enterprise-compact-filter">
+              <i className="ti ti-filter me-1" />
+              Filter
+            </Button>
+          )}
         </div>
       ) : (
         <Row className="g-3 mb-4">
@@ -95,14 +101,15 @@ export default function EnterpriseWorkspace({
 
       <Card className="border mb-0">
         <Card.Header className="bg-transparent">
-          <Stack direction="horizontal" className="justify-content-between">
+          <Stack direction="horizontal" className="justify-content-between flex-wrap gap-2">
             <h6 className="mb-0">Recent Activity</h6>
-            {!compactMetrics && (
-              <Button variant="light-secondary" size="sm">
-                <i className="ti ti-filter me-1" />
-                Filter
-              </Button>
-            )}
+            {tableToolbar ||
+              (!compactMetrics && (
+                <Button variant="light-secondary" size="sm">
+                  <i className="ti ti-filter me-1" />
+                  Filter
+                </Button>
+              ))}
           </Stack>
         </Card.Header>
         <div className="table-responsive">
@@ -115,18 +122,30 @@ export default function EnterpriseWorkspace({
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td colSpan={columns.length} className="text-center py-5">
-                  <span className="avtar avtar-xl bg-light-primary text-primary mb-3">
-                    <i className={`${icon} f-24`} />
-                  </span>
-                  <h6 className="mb-1">No data available</h6>
-                  <p className="text-muted mb-0">{emptyMessage}</p>
-                </td>
-              </tr>
+              {loading ? (
+                <tr>
+                  <td colSpan={columns.length} className="text-center py-5 text-muted">
+                    <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />
+                    Loading data...
+                  </td>
+                </tr>
+              ) : (
+                tableBody || (
+                  <tr>
+                    <td colSpan={columns.length} className="text-center py-5">
+                      <span className="avtar avtar-xl bg-light-primary text-primary mb-3">
+                        <i className={`${icon} f-24`} />
+                      </span>
+                      <h6 className="mb-1">No data available</h6>
+                      <p className="text-muted mb-0">{emptyMessage}</p>
+                    </td>
+                  </tr>
+                )
+              )}
             </tbody>
           </Table>
         </div>
+        {tableFooter}
       </Card>
     </MainCard>
   );
@@ -149,11 +168,19 @@ EnterpriseWorkspace.propTypes = {
   ).isRequired,
   compactMetrics: PropTypes.bool,
   columns: PropTypes.arrayOf(PropTypes.string).isRequired,
-  emptyMessage: PropTypes.string.isRequired
+  emptyMessage: PropTypes.string.isRequired,
+  tableToolbar: PropTypes.node,
+  tableBody: PropTypes.node,
+  tableFooter: PropTypes.node,
+  loading: PropTypes.bool
 };
 
 EnterpriseWorkspace.defaultProps = {
   actionClassName: undefined,
   onAction: undefined,
-  compactMetrics: false
+  compactMetrics: false,
+  tableToolbar: undefined,
+  tableBody: undefined,
+  tableFooter: undefined,
+  loading: false
 };
