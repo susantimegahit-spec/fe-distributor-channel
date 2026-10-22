@@ -8521,6 +8521,15 @@ body {
     color: #e4f0ff !important;
   }
 
+  .custom-pagination.pagination .page-item.active .page-link {
+    border-color: #58d6ff !important;
+    background: linear-gradient(135deg, #1677d2 0%, #12bfd7 100%) !important;
+    color: #ffffff !important;
+    box-shadow:
+      0 0 0 2px rgba(88, 214, 255, 0.24),
+      0 6px 16px rgba(18, 191, 215, 0.3) !important;
+  }
+
   .form-control::placeholder {
     color: #7892b3;
   }

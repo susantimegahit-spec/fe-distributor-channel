@@ -24,7 +24,8 @@ const DepartmentList = Loadable(lazy(() => import('views/setting/department/Depa
 const StaffList = Loadable(lazy(() => import('views/setting/staff/StaffList')));
 const MasterOrigin = Loadable(lazy(() => import('views/logistics/master/MasterOrigin')));
 const MasterDestination = Loadable(lazy(() => import('views/logistics/master/MasterDestination')));
-const Rates = Loadable(lazy(() => import('views/logistics/master/Rates')));
+const MasterRateType = Loadable(lazy(() => import('views/logistics/master/MasterRateType')));
+const MasterLoadingRates = Loadable(lazy(() => import('views/logistics/master/MasterLoadingRates')));
 const MasterLeadTime = Loadable(lazy(() => import('views/logistics/master/MasterLeadTime')));
 const Material = Loadable(lazy(() => import('views/production/master/material/Material')));
 const Resource = Loadable(lazy(() => import('views/production/master/resource/Resource')));
@@ -45,7 +46,8 @@ const masterDataComponents = {
   'enterprise-master-data-staff': StaffList,
   'logistics-origin': MasterOrigin,
   'logistics-destination': MasterDestination,
-  'logistics-rates': Rates,
+  'logistics-rate-type': MasterRateType,
+  'logistics-loading-rates': MasterLoadingRates,
   'logistics-lead-time': MasterLeadTime,
   'production-material': Material,
   'production-resource': Resource,

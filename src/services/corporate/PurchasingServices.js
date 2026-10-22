@@ -1,6 +1,10 @@
 import { DataService } from '../../config/dataService';
 
 class PurchasingServices {
+  getDepartment() {
+    return DataService.get('/purchasing-request/departments');
+  }
+
   getSeries(date, cardCode = '') {
     const query = new URLSearchParams({ CustomQuery: date || '', CardCode: cardCode || '' }).toString();
 
@@ -41,6 +45,10 @@ class PurchasingServices {
 
   putPurchasing(id, payload) {
     return DataService.put(`/purchasing-request/requests/${id}`, payload);
+  }
+
+  updatePurchaseRequestStatus(id, status) {
+    return DataService.post(`/purchasing-request/requests/${id}/status`, { status });
   }
 
   deletePurchasing(id) {

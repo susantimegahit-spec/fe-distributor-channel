@@ -24,6 +24,8 @@ export const masterDataModules = [
     items: [
       { id: 'logistics-origin', title: 'Origin', icon: 'ti ti-building-warehouse', url: '/logistics/master/origin' },
       { id: 'logistics-destination', title: 'Destination', icon: 'ti ti-map-pin', url: '/logistics/master/destination' },
+      { id: 'logistics-rate-type', title: 'Loading Rate Type', icon: 'ti ti-category', url: '/logistics/master/rate-type' },
+      { id: 'logistics-loading-rates', title: 'Loading Rates', icon: 'ti ti-cash', url: '/logistics/master/loading-rates' },
       { id: 'logistics-lead-time', title: 'Lead Time', icon: 'ti ti-clock-hour-4', url: '/logistics/master/lead-time' }
     ]
   },

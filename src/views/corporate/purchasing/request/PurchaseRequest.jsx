@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import FormDatePicker from 'components/FormDatePicker';
+import TablePagination from 'components/TablePagination';
 import Select from 'react-select';
 
 import Button from 'react-bootstrap/Button';
@@ -7,6 +8,9 @@ import Badge from 'react-bootstrap/Badge';
 import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
 import Modal from 'react-bootstrap/Modal';
+import Nav from 'react-bootstrap/Nav';
+import Offcanvas from 'react-bootstrap/Offcanvas';
+import Overlay from 'react-bootstrap/Overlay';
 import Row from 'react-bootstrap/Row';
 import Spinner from 'react-bootstrap/Spinner';
 import Stack from 'react-bootstrap/Stack';
@@ -29,15 +33,15 @@ const metrics = [
 
 const today = () => new Date().toISOString().slice(0, 10);
 const SERIES_CARD_CODE = '1470000113';
-const purchaseRequestStatusOptions = ['', 'DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED', 'CANCELLED', 'COMPLETED'].map(
-  (value) => ({ value, label: value || 'All statuses' })
-);
+const REQUESTER_CODE = 'API';
+const purchaseRequestStatusOptions = ['SUBMITTED', 'APPROVED', 'REJECTED', 'CANCELLED', 'COMPLETED'].map((value) => ({
+  value,
+  label: value
+}));
 
 const getPurchaseRequestPage = (response) => {
   const payload = response?.data?.data ?? response?.data ?? {};
-  const items = Array.isArray(payload)
-    ? payload
-    : payload.data ?? payload.items ?? payload.rows ?? payload.results ?? [];
+  const items = Array.isArray(payload) ? payload : (payload.data ?? payload.items ?? payload.rows ?? payload.results ?? []);
   const meta = payload.meta ?? payload.pagination ?? response?.data?.meta ?? response?.data?.pagination ?? payload;
 
   return {
@@ -95,7 +99,7 @@ const normalizeSeries = (item = {}) => {
 const getResponseList = (response) => {
   const payload = response?.data?.data ?? response?.data ?? [];
   if (Array.isArray(payload)) return payload;
-  for (const key of ['data', 'items', 'rows', 'warehouses', 'results']) {
+  for (const key of ['data', 'items', 'rows', 'warehouses', 'departments', 'department', 'Department', 'results']) {
     if (Array.isArray(payload?.[key])) return payload[key];
   }
   return [];
@@ -104,6 +108,34 @@ const getResponseList = (response) => {
 const normalizeOcr = (item = {}) => {
   const value = item.ocr_code ?? item.ocrCode ?? item.OcrCode ?? item.code ?? item.value ?? '';
   const name = item.ocr_name ?? item.ocrName ?? item.OcrName ?? item.name ?? item.label ?? '';
+  return value ? { value: String(value), label: [value, name].filter(Boolean).join(' - ') } : null;
+};
+
+const normalizeDepartment = (item = {}) => {
+  const value =
+    item.department_code ??
+    item.departmentCode ??
+    item.DepartmentCode ??
+    item.dept_code ??
+    item.deptCode ??
+    item.PrcCode ??
+    item.Code ??
+    item.code ??
+    item.value ??
+    item.id ??
+    '';
+  const name =
+    item.department_name ??
+    item.departmentName ??
+    item.DepartmentName ??
+    item.dept_name ??
+    item.deptName ??
+    item.PrcName ??
+    item.Name ??
+    item.name ??
+    item.label ??
+    '';
+
   return value ? { value: String(value), label: [value, name].filter(Boolean).join(' - ') } : null;
 };
 
@@ -123,7 +155,7 @@ const normalizeItem = (item = {}) => {
         label: [value, name].filter(Boolean).join(' - '),
         name: String(name),
         uomEntry: item.puom_entry ?? '',
-        unitMsr: item.pur_pack_mrs ?? ''
+        unitMsr: [item.pur_pack_msr, item.pur_pack_mrs, item.PurPackMsr].map((value) => String(value ?? '').trim()).find(Boolean) ?? ''
       }
     : null;
 };
@@ -150,7 +182,7 @@ const createInitialForm = () => {
   return {
     Series: '',
     ReqType: '12',
-    Requester: userId,
+    Requester: REQUESTER_CODE,
     RequesterName: String(getCookies('name') ?? ''),
     Department: String(getCookies('userDepartment') ?? ''),
     DocDate: today(),
@@ -173,24 +205,31 @@ export default function PurchaseRequest() {
   const [loadingSeries, setLoadingSeries] = useState(false);
   const [seriesOptions, setSeriesOptions] = useState([]);
   const [loadingLineMasters, setLoadingLineMasters] = useState(false);
+  const [loadingHeaderDepartments, setLoadingHeaderDepartments] = useState(false);
+  const [headerDepartmentOptions, setHeaderDepartmentOptions] = useState([]);
   const [loadingItems, setLoadingItems] = useState(false);
   const [itemOptions, setItemOptions] = useState([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [requests, setRequests] = useState([]);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [editingRequest, setEditingRequest] = useState(null);
+  const [pendingAction, setPendingAction] = useState(null);
+  const [actionSaving, setActionSaving] = useState(false);
+  const [actionMenu, setActionMenu] = useState(null);
   const [requestPage, setRequestPage] = useState({ currentPage: 1, lastPage: 1, total: 0 });
   const [loadingDepartmentFilter, setLoadingDepartmentFilter] = useState(false);
   const [departmentFilterOptions, setDepartmentFilterOptions] = useState([]);
   const [requestFilters, setRequestFilters] = useState({
     department: userDepartment,
     costCenter: '',
-    status: '',
+    status: 'DRAFT',
     search: '',
     perPage: 15
   });
   const [appliedRequestFilters, setAppliedRequestFilters] = useState({
     department: userDepartment,
     costCenter: '',
-    status: '',
+    status: 'DRAFT',
     search: '',
     perPage: 15
   });
@@ -242,6 +281,7 @@ export default function PurchaseRequest() {
         if (active) {
           const result = getPurchaseRequestPage(response);
           setRequests(result.items);
+
           setRequestPage({ currentPage: result.currentPage, lastPage: result.lastPage, total: result.total });
         }
       } catch (error) {
@@ -289,6 +329,32 @@ export default function PurchaseRequest() {
       active = false;
     };
   }, [form.DocDate, showForm, showAlert]);
+
+  useEffect(() => {
+    if (!showForm || userDepartment) return undefined;
+
+    let active = true;
+    const fetchHeaderDepartments = async () => {
+      setLoadingHeaderDepartments(true);
+      try {
+        const response = await PurchasingServices.getDepartment();
+        if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to load departments');
+        if (active) setHeaderDepartmentOptions(getResponseList(response).map(normalizeDepartment).filter(Boolean));
+      } catch (error) {
+        if (active) {
+          setHeaderDepartmentOptions([]);
+          showAlert(error?.response?.data?.message || error?.message || 'Failed to load departments', 'danger');
+        }
+      } finally {
+        if (active) setLoadingHeaderDepartments(false);
+      }
+    };
+
+    fetchHeaderDepartments();
+    return () => {
+      active = false;
+    };
+  }, [showAlert, showForm, userDepartment]);
 
   useEffect(() => {
     if (!showForm) return undefined;
@@ -353,8 +419,73 @@ export default function PurchaseRequest() {
   }, [showAlert, showForm, userBranch, userBusinessUnit, userDepartment, userWarehouse]);
 
   const openNewRequest = () => {
+    setEditingRequest(null);
     setForm(createInitialForm());
     setShowForm(true);
+  };
+
+  const editRequest = (request) => {
+    const initial = createInitialForm();
+    const fields = {
+      Series: 'series',
+      ReqType: 'req_type',
+      RequesterName: 'requester_name',
+      Department: 'department',
+      DocDate: 'doc_date',
+      DocDueDate: 'doc_due_date',
+      Comments: 'comments',
+      UserId: 'user_id',
+      AddonId: 'addon_id'
+    };
+    for (const [field, key] of Object.entries(fields)) {
+      initial[field] = String(request[key] ?? request[field] ?? initial[field]);
+    }
+    initial.DocDate = initial.DocDate.slice(0, 10);
+    initial.DocDueDate = String(request.required_date ?? initial.DocDueDate).slice(0, 10);
+    initial.Lines = (Array.isArray(request.details) ? request.details : []).map((detail) => {
+      const line = { ...createLine(), original: detail };
+      const lineFields = {
+        ItemCode: 'item_code',
+        ItemName: 'item_description',
+        PQTReqDate: 'pqt_req_date',
+        Quantity: 'quantity',
+        UomEntry: 'uom_entry',
+        UomCode: 'uom_code',
+        WhsCode: 'whs_code',
+        UnitMsr: 'unit_msr',
+        FreeTxt: 'free_txt',
+        OcrCode: 'ocr_code',
+        OcrCode2: 'ocr_code2',
+        OcrCode3: 'ocr_code3'
+      };
+      for (const [field, key] of Object.entries(lineFields)) {
+        line[field] = String(detail[key] ?? detail[field] ?? line[field]);
+      }
+      line.PQTReqDate = line.PQTReqDate.slice(0, 10);
+      line.UnitMsr = String(detail.unit_msr ?? detail.uom ?? line.UnitMsr);
+      return line;
+    });
+    setEditingRequest(request);
+    setSelectedRequest(null);
+    setForm(initial);
+    setShowForm(true);
+  };
+
+  const confirmAction = async () => {
+    if (!pendingAction || actionSaving) return;
+    setActionSaving(true);
+    try {
+      const response = await PurchasingServices.updatePurchaseRequestStatus(pendingAction.request.id, pendingAction.status);
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to update request status');
+      showAlert(response?.data?.message || 'Request status updated', 'success');
+      setPendingAction(null);
+      setSelectedRequest(null);
+      setRequestRefresh((current) => current + 1);
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to update request status', 'danger');
+    } finally {
+      setActionSaving(false);
+    }
   };
 
   const closeForm = () => {
@@ -368,10 +499,25 @@ export default function PurchaseRequest() {
   };
 
   const resetRequestFilters = () => {
-    const filters = { department: userDepartment, costCenter: '', status: '', search: '', perPage: 15 };
+    const filters = {
+      department: userDepartment,
+      costCenter: '',
+      status: appliedRequestFilters.status === 'DRAFT' ? 'DRAFT' : 'SUBMITTED',
+      search: '',
+      perPage: 15
+    };
     setRequestFilters(filters);
     setRequestPage((current) => ({ ...current, currentPage: 1 }));
     setAppliedRequestFilters(filters);
+  };
+
+  const changeRequestTab = (tab) => {
+    const status = tab === 'draft' ? 'DRAFT' : 'SUBMITTED';
+    setRequests([]);
+    setLoadingRequests(true);
+    setRequestPage({ currentPage: 1, lastPage: 1, total: 0 });
+    setRequestFilters((current) => ({ ...current, status }));
+    setAppliedRequestFilters((current) => ({ ...current, status }));
   };
 
   const updateHeader = (field, value) => {
@@ -384,6 +530,22 @@ export default function PurchaseRequest() {
       Lines: current.Lines.map((line, lineIndex) => (lineIndex === index ? { ...line, [field]: value } : line))
     }));
   };
+
+  useEffect(() => {
+    if (!showForm || !itemOptions.length) return;
+
+    setForm((current) => {
+      let changed = false;
+      const Lines = current.Lines.map((line) => {
+        if (String(line.UnitMsr ?? '').trim()) return line;
+        const item = itemOptions.find((option) => option.value === line.ItemCode);
+        if (!item?.unitMsr) return line;
+        changed = true;
+        return { ...line, UnitMsr: item.unitMsr };
+      });
+      return changed ? { ...current, Lines } : current;
+    });
+  }, [showForm, itemOptions]);
 
   const selectLineItem = (index, option) => {
     setForm((current) => ({
@@ -450,11 +612,12 @@ export default function PurchaseRequest() {
     const payload = {
       Series: String(form.Series),
       ReqType: form.ReqType.trim(),
-      Requester: form.Requester.trim(),
+      Requester: REQUESTER_CODE,
       RequesterName: form.RequesterName.trim(),
       Department: form.Department.trim(),
       DocDate: form.DocDate,
       DocDueDate: form.DocDueDate,
+      ReqDate: form.DocDueDate,
       Comments: form.Comments.trim(),
       UserId: form.UserId.trim(),
       AddonId: form.AddonId.trim(),
@@ -475,13 +638,48 @@ export default function PurchaseRequest() {
 
     setSaving(true);
     try {
-      const response = await PurchasingServices.postPurchaseRequest(payload);
+      const response = editingRequest
+        ? await PurchasingServices.putPurchasing(editingRequest.id, {
+            series: payload.Series,
+            req_type: payload.ReqType,
+            requester: payload.Requester,
+            requester_name: payload.RequesterName,
+            department: payload.Department,
+            doc_date: payload.DocDate,
+            doc_due_date: payload.DocDueDate,
+            required_date: payload.ReqDate,
+            comments: payload.Comments,
+            user_id: payload.UserId,
+            addon_id: payload.AddonId,
+            details: payload.Lines.map((line, index) => ({
+              ...form.Lines[index].original,
+              item_code: line.ItemCode,
+              item_description: form.Lines[index].ItemName,
+              pqt_req_date: line.PQTReqDate,
+              quantity: line.Quantity,
+              uom_entry: line.UomEntry,
+              uom_code: line.UomCode,
+              unit_msr: line.UnitMsr,
+              uom: line.UnitMsr,
+              whs_code: line.WhsCode,
+              free_txt: line.FreeTxt,
+              ocr_code: line.OcrCode,
+              ocr_code2: line.OcrCode2,
+              ocr_code3: line.OcrCode3
+            }))
+          })
+        : await PurchasingServices.postPurchaseRequest(payload);
       if (response?.data?.success === false) {
         throw new Error(response.data.message || 'Failed to create purchase request');
       }
-      showAlert(response?.data?.message || 'Purchase request created successfully', 'success');
+      showAlert(
+        response?.data?.message || (editingRequest ? 'Purchase request updated successfully' : 'Purchase request created successfully'),
+        'success'
+      );
       setShowForm(false);
       setForm(createInitialForm());
+      if (!editingRequest) changeRequestTab('generated');
+      setEditingRequest(null);
       setRequestRefresh((current) => current + 1);
     } catch (error) {
       showAlert(error?.response?.data?.message || error?.message || 'Failed to create purchase request', 'danger');
@@ -501,84 +699,112 @@ export default function PurchaseRequest() {
         onAction={openNewRequest}
         metrics={metrics}
         compactMetrics
-        columns={['Request No.', 'Request Date', 'Department', 'Requester', 'Amount', 'Status', 'Action']}
+        columns={['Request No.', 'Request Date', 'Department', 'Requester', 'Status', 'Action']}
         emptyMessage="Purchase requests will appear here after they are created."
         loading={loadingRequests}
         tableToolbar={
-          <Form className="purchase-request-list-filters" onSubmit={applyRequestFilters}>
-            {userDepartment ? (
-              <Form.Control size="sm" aria-label="Department" value={userDepartment} readOnly />
-            ) : (
-              <Select
-                className="purchase-request-department-filter"
-                classNamePrefix="select"
-                options={departmentFilterOptions}
-                value={departmentFilterOptions.find((option) => option.value === requestFilters.department) || null}
-                onChange={(option) => setRequestFilters((current) => ({ ...current, department: option?.value ?? '' }))}
-                isLoading={loadingDepartmentFilter}
-                isDisabled={loadingDepartmentFilter}
-                placeholder={loadingDepartmentFilter ? 'Loading departments...' : 'All departments'}
-                noOptionsMessage={() => (loadingDepartmentFilter ? 'Loading departments...' : 'Department not found')}
-                aria-label="Filter department"
-              />
-            )}
-            <Select
-              className="purchase-request-status-filter"
-              classNamePrefix="select"
-              options={purchaseRequestStatusOptions}
-              value={purchaseRequestStatusOptions.find((option) => option.value === requestFilters.status)}
-              onChange={(option) => setRequestFilters((current) => ({ ...current, status: option?.value ?? '' }))}
-              aria-label="Filter status"
-            />
-            <Form.Control
-              size="sm"
-              aria-label="Search purchase requests"
-              placeholder="Search request..."
-              value={requestFilters.search}
-              onChange={(event) => setRequestFilters((current) => ({ ...current, search: event.target.value }))}
-            />
-            <Form.Select
-              size="sm"
-              aria-label="Items per page"
-              value={requestFilters.perPage}
-              onChange={(event) => setRequestFilters((current) => ({ ...current, perPage: Number(event.target.value) }))}
+          <div className="w-100">
+            <Nav
+              variant="tabs"
+              className="purchase-request-tabs mb-3"
+              aria-label="Purchase request categories"
+              activeKey={appliedRequestFilters.status === 'DRAFT' ? 'draft' : 'generated'}
+              onSelect={changeRequestTab}
             >
-              {[15, 25, 50, 100].map((value) => (
-                <option value={value} key={value}>
-                  {value} / page
-                </option>
-              ))}
-            </Form.Select>
-            <Button type="submit" size="sm" variant="primary">
-              <i className="ti ti-search" />
-            </Button>
-            <Button type="button" size="sm" variant="light-secondary" onClick={resetRequestFilters}>
-              Reset
-            </Button>
-          </Form>
+              <Nav.Item>
+                <Nav.Link eventKey="draft">Draft</Nav.Link>
+              </Nav.Item>
+              <Nav.Item>
+                <Nav.Link eventKey="generated">Generated</Nav.Link>
+              </Nav.Item>
+            </Nav>
+            <Form className="purchase-request-list-filters" onSubmit={applyRequestFilters}>
+              {userDepartment ? (
+                <Form.Control size="sm" aria-label="Department" value={userDepartment} readOnly />
+              ) : (
+                <Select
+                  className="purchase-request-department-filter"
+                  classNamePrefix="select"
+                  options={departmentFilterOptions}
+                  value={departmentFilterOptions.find((option) => option.value === requestFilters.department) || null}
+                  onChange={(option) => setRequestFilters((current) => ({ ...current, department: option?.value ?? '' }))}
+                  isLoading={loadingDepartmentFilter}
+                  isDisabled={loadingDepartmentFilter}
+                  placeholder={loadingDepartmentFilter ? 'Loading departments...' : 'All departments'}
+                  noOptionsMessage={() => (loadingDepartmentFilter ? 'Loading departments...' : 'Department not found')}
+                  aria-label="Filter department"
+                />
+              )}
+              {requestFilters.status !== 'DRAFT' && (
+                <Select
+                  className="purchase-request-status-filter"
+                  classNamePrefix="select"
+                  options={purchaseRequestStatusOptions}
+                  value={purchaseRequestStatusOptions.find((option) => option.value === requestFilters.status)}
+                  onChange={(option) => setRequestFilters((current) => ({ ...current, status: option?.value ?? 'SUBMITTED' }))}
+                  aria-label="Filter status"
+                />
+              )}
+              <Form.Control
+                size="sm"
+                aria-label="Search purchase requests"
+                placeholder="Search request..."
+                value={requestFilters.search}
+                onChange={(event) => setRequestFilters((current) => ({ ...current, search: event.target.value }))}
+              />
+              <Button type="submit" size="sm" variant="primary" className="purchase-request-filter-search">
+                <i className="ti ti-search" />
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="light-secondary"
+                className="purchase-request-filter-reset"
+                onClick={resetRequestFilters}
+              >
+                Reset
+              </Button>
+            </Form>
+          </div>
         }
         tableBody={
           requests.length
             ? requests.map((request, index) => {
-                const requestNumber = getRequestValue(request, ['pr_number', 'request_number', 'doc_num', 'DocNum'], '-');
-                const requestDate = getRequestValue(request, ['request_date', 'doc_date', 'DocDate', 'created_at']);
-                const department = getRequestValue(request, ['department', 'department_name', 'Department'], '-');
-                const requester = getRequestValue(request, ['requester_name', 'RequesterName', 'requester'], '-');
-                const amount = Number(getRequestValue(request, ['amount', 'total_amount', 'doc_total', 'DocTotal'], 0));
+                const requestNumber = getRequestValue(request, ['sap_doc_num'], '-');
                 const status = String(getRequestValue(request, ['status', 'Status'], 'DRAFT')).toUpperCase();
+                const requestId = getRequestValue(request, ['id', 'request_id', 'DocEntry']);
+                const requestForAction = { ...request, id: requestId };
+                const canChangeStatus = Boolean(requestId) && !['CANCELLED', 'COMPLETED'].includes(status);
                 return (
-                  <tr key={getRequestValue(request, ['id', 'request_id', 'DocEntry'], `${requestNumber}-${index}`)}>
+                  <tr key={requestId ?? index}>
                     <td>{requestNumber}</td>
-                    <td>{formatRequestDate(requestDate)}</td>
-                    <td>{department}</td>
-                    <td>{requester}</td>
-                    <td>{amount.toLocaleString('id-ID', { maximumFractionDigits: 2 })}</td>
+                    <td>{formatRequestDate(getRequestValue(request, ['request_date', 'doc_date', 'DocDate', 'created_at']))}</td>
+                    <td>{getRequestValue(request, ['department', 'department_name', 'Department'], '-')}</td>
+                    <td>{getRequestValue(request, ['requester_name', 'RequesterName', 'requester'], '-')}</td>
                     <td>
                       <Badge bg={`light-${getStatusVariant(status)}`} text={getStatusVariant(status)}>
                         {status}
                       </Badge>
                     </td>
-                    <td className="text-muted">-</td>
+                    <td className="text-end">
+                      <Button
+                        size="sm"
+                        variant={String(actionMenu?.request?.id) === String(requestId) ? 'primary' : 'outline-primary'}
+                        aria-label={`Open actions for request ${requestNumber}`}
+                        aria-expanded={String(actionMenu?.request?.id) === String(requestId)}
+                        onClick={(event) =>
+                          setActionMenu((current) =>
+                            String(current?.request?.id) === String(requestId)
+                              ? null
+                              : { request: requestForAction, canChangeStatus, target: event.currentTarget }
+                          )
+                        }
+                      >
+                        <i className="ti ti-dots-vertical me-1" />
+                        Actions
+                        <i className="ti ti-chevron-down ms-1" />
+                      </Button>
+                    </td>
                   </tr>
                 );
               })
@@ -586,44 +812,184 @@ export default function PurchaseRequest() {
         }
         tableFooter={
           requestPage.total > 0 ? (
-            <Stack direction="horizontal" className="justify-content-between border-top px-3 py-2" gap={2}>
-              <small className="text-muted">{requestPage.total.toLocaleString('id-ID')} requests</small>
-              <Stack direction="horizontal" gap={2}>
-                <Button
-                  size="sm"
-                  variant="light-secondary"
-                  disabled={loadingRequests || requestPage.currentPage <= 1}
-                  onClick={() => setRequestPage((current) => ({ ...current, currentPage: current.currentPage - 1 }))}
-                >
-                  Previous
-                </Button>
-                <small className="text-muted">
-                  Page {requestPage.currentPage} / {requestPage.lastPage}
-                </small>
-                <Button
-                  size="sm"
-                  variant="light-secondary"
-                  disabled={loadingRequests || requestPage.currentPage >= requestPage.lastPage}
-                  onClick={() => setRequestPage((current) => ({ ...current, currentPage: current.currentPage + 1 }))}
-                >
-                  Next
-                </Button>
-              </Stack>
-            </Stack>
+            <TablePagination
+              className="purchase-request-pagination border-top px-3 py-2 mt-0"
+              currentPage={requestPage.currentPage}
+              onPageChange={(currentPage) => setRequestPage((current) => ({ ...current, currentPage }))}
+              pageCount={requestPage.lastPage}
+              pageSize={appliedRequestFilters.perPage}
+              total={requestPage.total}
+              itemLabel="requests"
+            />
           ) : undefined
         }
       />
 
-      <Modal
-        show={showForm}
-        onHide={closeForm}
-        backdrop="static"
-        dialogClassName="purchase-request-dialog"
-        centered
-        scrollable
+      <Overlay
+        show={Boolean(actionMenu)}
+        target={actionMenu?.target}
+        placement="bottom-end"
+        container={typeof document !== 'undefined' ? document.body : null}
+        containerPadding={8}
+        rootClose
+        rootCloseEvent="mousedown"
+        onHide={() => setActionMenu(null)}
       >
+        {({ ref, style, placement }) => {
+          const request = actionMenu?.request;
+          const canChangeStatus = actionMenu?.canChangeStatus;
+          return (
+            <div
+              ref={ref}
+              className="dropdown-menu show purchase-request-action-menu"
+              data-popper-placement={placement}
+              style={{ ...style, zIndex: 1080, minWidth: 170 }}
+            >
+              <button
+                type="button"
+                className="dropdown-item"
+                onClick={() => {
+                  setActionMenu(null);
+                  if (request) setSelectedRequest(request);
+                }}
+              >
+                <i className="ti ti-eye text-primary me-2" />
+                View
+              </button>
+              <button
+                type="button"
+                className="dropdown-item"
+                disabled={!request?.id}
+                onClick={() => {
+                  setActionMenu(null);
+                  if (request) editRequest(request);
+                }}
+              >
+                <i className="ti ti-edit text-primary me-2" />
+                Edit
+              </button>
+              <button
+                type="button"
+                className="dropdown-item"
+                disabled={!canChangeStatus}
+                onClick={() => {
+                  setActionMenu(null);
+                  if (request) setPendingAction({ request, status: 'COMPLETED', label: 'Close' });
+                }}
+              >
+                <i className="ti ti-lock text-secondary me-2" />
+                Close
+              </button>
+              <div className="dropdown-divider" />
+              <button
+                type="button"
+                className="dropdown-item text-danger"
+                disabled={!canChangeStatus}
+                onClick={() => {
+                  setActionMenu(null);
+                  if (request) setPendingAction({ request, status: 'CANCELLED', label: 'Cancel' });
+                }}
+              >
+                <i className="ti ti-circle-x me-2" />
+                Cancel
+              </button>
+            </div>
+          );
+        }}
+      </Overlay>
+
+      <Offcanvas
+        show={Boolean(selectedRequest)}
+        onHide={() => setSelectedRequest(null)}
+        placement="end"
+        className="purchase-request-detail-panel"
+        aria-labelledby="purchase-request-detail-title"
+      >
+        <Offcanvas.Header closeButton>
+          <Offcanvas.Title id="purchase-request-detail-title">Purchase Request Details</Offcanvas.Title>
+        </Offcanvas.Header>
+        <Offcanvas.Body>
+          <div className="purchase-request-details">
+            <h6>Request Details · {getRequestValue(selectedRequest, ['sap_doc_num'], '-')}</h6>
+            {selectedRequest?.details?.length ? (
+              <div className="table-responsive">
+                <table className="table table-sm mb-0 align-middle">
+                  <thead>
+                    <tr>
+                      {[
+                        'Item Code',
+                        'Item Name',
+                        'Required Date',
+                        'Quantity',
+                        'Unit',
+                        'Warehouse',
+                        'Branch',
+                        'Business Unit',
+                        'Department',
+                        'Unit Price',
+                        'Total',
+                        'Remarks'
+                      ].map((label) => (
+                        <th key={label}>{label}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedRequest.details.map((detail, detailIndex) => (
+                      <tr key={detail.id ?? detailIndex}>
+                        <td>{getRequestValue(detail, ['item_code', 'ItemCode'], '-')}</td>
+                        <td>{getRequestValue(detail, ['item_description', 'item_name', 'ItemName'], '-')}</td>
+                        <td>{formatRequestDate(getRequestValue(detail, ['pqt_req_date', 'PQTReqDate']))}</td>
+                        <td>{getRequestValue(detail, ['quantity', 'Quantity'], '-')}</td>
+                        <td>{getRequestValue(detail, ['unit_msr', 'UnitMsr', 'uom'], '-')}</td>
+                        <td>{getRequestValue(detail, ['whs_code', 'WhsCode'], '-')}</td>
+                        <td>{getRequestValue(detail, ['ocr_code', 'OcrCode'], '-')}</td>
+                        <td>{getRequestValue(detail, ['ocr_code2', 'OcrCode2'], '-')}</td>
+                        <td>{getRequestValue(detail, ['ocr_code3', 'OcrCode3'], '-')}</td>
+                        <td>
+                          {Number(getRequestValue(detail, ['unit_price'], 0)).toLocaleString('id-ID', {
+                            maximumFractionDigits: 2
+                          })}
+                        </td>
+                        <td>
+                          {Number(getRequestValue(detail, ['line_total'], 0)).toLocaleString('id-ID', {
+                            maximumFractionDigits: 2
+                          })}
+                        </td>
+                        <td>{getRequestValue(detail, ['free_txt', 'FreeTxt', 'remarks'], '-')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-muted mb-0">No details available for this request.</p>
+            )}
+          </div>
+        </Offcanvas.Body>
+      </Offcanvas>
+
+      <Modal show={Boolean(pendingAction)} onHide={() => !actionSaving && setPendingAction(null)} centered backdrop="static">
+        <Modal.Header closeButton={!actionSaving}>
+          <Modal.Title>{pendingAction?.label} Purchase Request</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {pendingAction?.label} request {getRequestValue(pendingAction?.request, ['sap_doc_num'], '-')}? This will change its status to{' '}
+          {pendingAction?.status}.
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="outline-secondary" disabled={actionSaving} onClick={() => setPendingAction(null)}>
+            Back
+          </Button>
+          <Button variant={pendingAction?.status === 'CANCELLED' ? 'danger' : 'primary'} disabled={actionSaving} onClick={confirmAction}>
+            {actionSaving ? 'Saving...' : pendingAction?.label}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={showForm} onHide={closeForm} backdrop="static" dialogClassName="purchase-request-dialog" centered scrollable>
         <Modal.Header closeButton={!saving}>
-          <Modal.Title>New Purchase Request</Modal.Title>
+          <Modal.Title>{editingRequest ? 'Edit Purchase Request' : 'New Purchase Request'}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Form id="purchase-request-form" onSubmit={handleSubmit}>
@@ -642,10 +1008,6 @@ export default function PurchaseRequest() {
                   noOptionsMessage={() => (loadingSeries ? 'Loading series...' : 'Series not found')}
                 />
               </Col>
-              <Col md={3}>
-                <Form.Label>Requester Name</Form.Label>
-                <Form.Control value={form.RequesterName} readOnly required />
-              </Col>
               <Col md={4}>
                 <Form.Label>Department</Form.Label>
                 {userDepartment ? (
@@ -653,13 +1015,13 @@ export default function PurchaseRequest() {
                 ) : (
                   <Select
                     inputId="purchase-request-department"
-                    options={ocrOptions.department}
-                    value={ocrOptions.department.find((option) => option.value === form.Department) || null}
+                    options={headerDepartmentOptions}
+                    value={headerDepartmentOptions.find((option) => option.value === form.Department) || null}
                     onChange={(option) => updateHeader('Department', option?.value ?? '')}
-                    isLoading={loadingLineMasters}
-                    isDisabled={loadingLineMasters}
-                    placeholder={loadingLineMasters ? 'Loading departments...' : 'Select department'}
-                    noOptionsMessage={() => (loadingLineMasters ? 'Loading departments...' : 'Department not found')}
+                    isLoading={loadingHeaderDepartments}
+                    isDisabled={loadingHeaderDepartments}
+                    placeholder={loadingHeaderDepartments ? 'Loading departments...' : 'Select department'}
+                    noOptionsMessage={() => (loadingHeaderDepartments ? 'Loading departments...' : 'Department not found')}
                   />
                 )}
               </Col>
@@ -773,10 +1135,6 @@ export default function PurchaseRequest() {
                     <Form.Control value={line.UomEntry} onChange={(event) => updateLine(index, 'UomEntry', event.target.value)} />
                   </Col>
                   <Col md={3}>
-                    <Form.Label>UoM Code</Form.Label>
-                    <Form.Control value={line.UomCode} onChange={(event) => updateLine(index, 'UomCode', event.target.value)} />
-                  </Col>
-                  <Col md={3}>
                     <Form.Label>Unit</Form.Label>
                     <Form.Control value={line.UnitMsr} onChange={(event) => updateLine(index, 'UnitMsr', event.target.value)} />
                   </Col>
@@ -862,13 +1220,7 @@ export default function PurchaseRequest() {
           <Button type="button" variant="outline-secondary" className="purchase-request-cancel" onClick={closeForm} disabled={saving}>
             Cancel
           </Button>
-          <Button
-            type="submit"
-            form="purchase-request-form"
-            variant="primary"
-            className="purchase-request-save"
-            disabled={saving}
-          >
+          <Button type="submit" form="purchase-request-form" variant="primary" className="purchase-request-save" disabled={saving}>
             {saving ? <Spinner animation="border" size="sm" className="me-2" /> : <i className="ti ti-device-floppy me-1" />}
             Save Request
           </Button>

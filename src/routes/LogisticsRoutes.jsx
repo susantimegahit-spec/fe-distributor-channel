@@ -13,6 +13,8 @@ const MasterOrigin = Loadable(lazy(() => import('views/logistics/master/MasterOr
 const MasterDestination = Loadable(lazy(() => import('views/logistics/master/MasterDestination')));
 const MasterExpedition = Loadable(lazy(() => import('views/logistics/master/MasterExpedition')));
 const Rates = Loadable(lazy(() => import('views/logistics/master/Rates')));
+const MasterRateType = Loadable(lazy(() => import('views/logistics/master/MasterRateType')));
+const MasterLoadingRates = Loadable(lazy(() => import('views/logistics/master/MasterLoadingRates')));
 const MasterLeadTime = Loadable(lazy(() => import('views/logistics/master/MasterLeadTime')));
 
 export function LegacyExpeditionRedirect() {
@@ -48,6 +50,14 @@ const LogisticsRoutes = {
     {
       path: 'logistics/master/rates',
       element: <Rates />
+    },
+    {
+      path: 'logistics/master/rate-type',
+      element: <MasterRateType />
+    },
+    {
+      path: 'logistics/master/loading-rates',
+      element: <MasterLoadingRates />
     },
     {
       path: 'logistics/master/lead-time',
