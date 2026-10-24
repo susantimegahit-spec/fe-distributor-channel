@@ -341,6 +341,7 @@ const GanttView = ({ tasks, loading, onOpenTask, onExport }) => {
   const today = ganttDate(new Date().toISOString());
   const columnWidth = gantt.days.length > 90 ? 28 : gantt.days.length > 45 ? 34 : 42;
   const timelineWidth = gantt.days.length * columnWidth;
+  let nextGridRow = 2;
 
   return (
     <div className="gantt-wrap">
@@ -372,44 +373,49 @@ const GanttView = ({ tasks, loading, onOpenTask, onExport }) => {
           {ganttTree.map((folder) => {
             const folderCollapsed = collapsedFolders.includes(folder.key);
             const folderTaskCount = folder.lists.reduce((total, list) => total + list.rows.length, 0);
+            const folderGridRow = nextGridRow++;
             return (
               <Fragment key={`folder-${folder.key}`}>
                 <button
                   type="button"
                   className="gantt-tree-cell gantt-folder-cell"
+                  style={{ gridRow: folderGridRow }}
                   onClick={() => setCollapsedFolders((current) => current.includes(folder.key) ? current.filter((key) => key !== folder.key) : [...current, folder.key])}
                 >
                   <i className={`ti ${folderCollapsed ? 'ti-chevron-right' : 'ti-chevron-down'}`} />
                   <i className={`ti ${folderCollapsed ? 'ti-folder' : 'ti-folder-open'}`} />
                   <span>{folder.name}</span><small>{folderTaskCount}</small>
                 </button>
-                <div className="gantt-timeline gantt-group-grid" style={{ width: timelineWidth }} />
+                <div className="gantt-timeline gantt-group-grid" style={{ width: timelineWidth, gridRow: folderGridRow }} />
                 {!folderCollapsed && folder.lists.map((list) => {
                   const listRowKey = `${folder.key}:${list.key}`;
                   const listCollapsed = collapsedLists.includes(listRowKey);
+                  const listGridRow = nextGridRow++;
                   return (
                     <Fragment key={`list-${listRowKey}`}>
                       <button
                         type="button"
                         className="gantt-tree-cell gantt-list-cell"
+                        style={{ gridRow: listGridRow }}
                         onClick={() => setCollapsedLists((current) => current.includes(listRowKey) ? current.filter((key) => key !== listRowKey) : [...current, listRowKey])}
                       >
                         <i className={`ti ${listCollapsed ? 'ti-chevron-right' : 'ti-chevron-down'}`} />
                         <i className="ti ti-list-check" />
                         <span>{list.name}</span><small>{list.rows.length}</small>
                       </button>
-                      <div className="gantt-timeline gantt-group-grid gantt-list-grid" style={{ width: timelineWidth }} />
+                      <div className="gantt-timeline gantt-group-grid gantt-list-grid" style={{ width: timelineWidth, gridRow: listGridRow }} />
                       {!listCollapsed && list.rows.map(({ task, start, deadline }) => {
                         const offset = differenceInDays(start, gantt.rangeStart);
                         const duration = differenceInDays(deadline, start) + 1;
                         const statusColor = colorMap[task.status] || '#4f46e5';
+                        const taskGridRow = nextGridRow++;
                         return (
                           <Fragment key={`task-${task.id}`}>
-                            <button type="button" className="gantt-task-cell" onClick={() => onOpenTask(task)} title={task.title}>
+                            <button type="button" className="gantt-task-cell" style={{ gridRow: taskGridRow }} onClick={() => onOpenTask(task)} title={task.title}>
                               <span className="gantt-task-title"><i className="ti ti-subtask me-1" />{task.title}</span>
                               <small>{task.assignees.join(', ') || 'Tanpa assignee'}</small>
                             </button>
-                            <div className="gantt-timeline gantt-row-grid" style={{ width: timelineWidth }}>
+                            <div className="gantt-timeline gantt-row-grid" style={{ width: timelineWidth, gridRow: taskGridRow }}>
                               {gantt.days.map((day) => (
                                 <span className={`gantt-grid-cell ${day.getDay() === 0 || day.getDay() === 6 ? 'is-weekend' : ''} ${day.getTime() === today?.getTime() ? 'is-today' : ''}`} key={day.toISOString()} />
                               ))}

@@ -2310,6 +2310,7 @@
 .todo-page .gantt-task-header,
 .todo-page .gantt-date-header {
   position: sticky;
+  grid-row: 1;
   top: 0;
   z-index: 4;
   height: 62px;
