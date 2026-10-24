@@ -150,6 +150,18 @@ const listMenu = [
         icon: 'ti ti-package-export',
         url: '/order/retur',
         activeUrls: ['/order/retur', '/customer-portal/order/retur']
+      },
+      {
+        id: 'order-overload',
+        menu_key: 15,
+        title: 'Overload',
+        value: 'order-overload',
+        label: 'Overload',
+        type: 'item',
+        selected: true,
+        icon: 'ti ti-alert-triangle',
+        url: '/order/overload',
+        activeUrls: ['/order/overload', '/customer-portal/order/overload']
       }
     ]
   },

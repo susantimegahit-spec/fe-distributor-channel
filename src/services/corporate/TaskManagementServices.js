@@ -124,6 +124,9 @@ class TaskManagementServices {
   postListTask(payload) {
     return DataService.post('/task-management/lists', payload);
   }
+  deleteTaskList(id) {
+    return DataService.delete(`/task-management/lists/${id}`);
+  }
 
   createChecklist(payload) {
     return DataService.post('/task-management/checklists', payload);

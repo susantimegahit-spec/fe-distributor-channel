@@ -37,6 +37,54 @@ class LogisticsServices {
   getDetailPicklist(id) {
     return DataService.get(`logistic/picklists/${encodeURIComponent(id)}`);
   }
+
+  getOverload({
+    search = '',
+    status = '',
+    picklist_id = '',
+    picklist_no = '',
+    date_from = '',
+    date_to = '',
+    per_page = 15,
+    page = 1
+  } = {}) {
+    return DataService.get('logistic/picklists/overload', {
+      search,
+      status,
+      picklist_id,
+      picklist_no,
+      date_from,
+      date_to,
+      per_page,
+      page
+    });
+  }
+
+  getOverloadDetail(id) {
+    return DataService.get(`logistic/picklists/${encodeURIComponent(id)}/overload`);
+  }
+
+  getWorkerManagement({
+    status = '',
+    shipping_type = '',
+    rate_type = '',
+    search = '',
+    date_from = '',
+    date_to = '',
+    per_page = 15,
+    page = 1
+  } = {}) {
+    return DataService.get('logistic/worker-management/picklists', {
+      status,
+      shipping_type,
+      rate_type,
+      search,
+      date_from,
+      date_to,
+      per_page,
+      page
+    });
+  }
 }
 
 export default new LogisticsServices();

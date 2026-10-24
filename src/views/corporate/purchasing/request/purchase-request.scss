@@ -169,6 +169,36 @@
   align-items: center;
 }
 
+.purchase-request-list-filters-wide {
+  width: 100%;
+  grid-template-columns: minmax(150px, 1fr) minmax(190px, 1fr) minmax(190px, 1fr) minmax(180px, 1.2fr) auto auto;
+}
+
+.purchase-request-date-filter {
+  min-width: 190px;
+  flex-wrap: nowrap;
+}
+
+.purchase-request-date-filter .sm-date-picker {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+
+.purchase-request-date-filter .input-group-text {
+  min-height: 31px;
+  padding: 0.25rem 0.65rem;
+  white-space: nowrap;
+}
+
+.purchase-request-date-filter .sm-date-picker-control {
+  height: 31px;
+  min-height: 31px;
+  padding: 0.25rem 0.5rem;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
 .purchase-request-department-filter .select__control,
 .purchase-request-status-filter .select__control {
   min-height: 31px;

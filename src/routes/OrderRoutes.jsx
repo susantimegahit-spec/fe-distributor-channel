@@ -8,6 +8,7 @@ import { RouteErrorBoundary } from 'views/ErrorBoundary';
 
 const OrderList = Loadable(lazy(() => import('views/customer-portal/order/OrderList')));
 const OrderRetur = Loadable(lazy(() => import('views/customer-portal/order/OrderRetur')));
+const OrderOverload = Loadable(lazy(() => import('views/customer-portal/order/OrderOverload')));
 
 const OrderRoutes = {
   path: '/',
@@ -27,6 +28,10 @@ const OrderRoutes = {
       element: <OrderRetur />
     },
     {
+      path: 'customer-portal/order/overload',
+      element: <OrderOverload />
+    },
+    {
       path: 'order/cmo',
       element: <Navigate to="/customer-portal/order/cmo" replace />
     },
@@ -37,6 +42,10 @@ const OrderRoutes = {
     {
       path: 'order/retur',
       element: <Navigate to="/customer-portal/order/retur" replace />
+    },
+    {
+      path: 'order/overload',
+      element: <Navigate to="/customer-portal/order/overload" replace />
     }
   ]
 };

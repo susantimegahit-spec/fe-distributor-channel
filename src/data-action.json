@@ -121,6 +121,15 @@
       "buttons": { "view": ["View Return Detail", "Preview Attachment"], "approve": ["Approve", "Reject"] }
     },
     {
+      "menu_key": 15,
+      "system_key": "customer-portal",
+      "menu_id": "order-overload",
+      "route": "/customer-portal/order/overload",
+      "source": "src/views/customer-portal/order/OrderOverload.jsx",
+      "actions": ["view"],
+      "buttons": { "view": ["View Overload"] }
+    },
+    {
       "menu_key": 16,
       "system_key": "customer-portal",
       "menu_id": "finance-reward",
@@ -224,6 +233,15 @@
         "load-goods": ["Loading"],
         "weigh-out": ["Weigh Out"]
       }
+    },
+    {
+      "menu_key": 38,
+      "system_key": "logistics",
+      "menu_id": "logistics-workers",
+      "route": "/logistics/worker-management/picklists",
+      "source": "src/views/logistics/workers/WorkerManagement.jsx",
+      "actions": ["view"],
+      "buttons": { "view": ["View Workers"] }
     },
     {
       "menu_key": 33,

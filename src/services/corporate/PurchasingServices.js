@@ -31,6 +31,24 @@ class PurchasingServices {
     });
   }
 
+  getDraftPr({ CustomQuery = '', UserId = '', From = '', To = '', Status = '' } = {}) {
+    return DataService.get('/purchasing-request/draft-pr', {
+      CustomQuery,
+      UserId,
+      From,
+      To,
+      Status
+    });
+  }
+
+  getGeneratedPr({ CustomQuery = '', From = '', To = '' } = {}) {
+    return DataService.get('/purchasing-request/generated', {
+      CustomQuery,
+      From,
+      To
+    });
+  }
+
   postPurchasing(payload) {
     return DataService.post('/purchasing-request/requests', payload);
   }

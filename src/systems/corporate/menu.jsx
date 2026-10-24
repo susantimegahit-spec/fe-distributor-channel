@@ -174,6 +174,16 @@ const enterpriseMenu = [
             url: '/logistics/picklists'
           },
           {
+            id: 'logistics-workers',
+            title: 'Workers',
+            type: 'item',
+            value: 'logistics-workers',
+            label: 'Workers',
+            selected: true,
+            icon: 'ti ti-users-group',
+            url: '/logistics/worker-management/picklists'
+          },
+          {
             id: 'logistics-rates',
             menu_key: 36,
             title: 'Rates',

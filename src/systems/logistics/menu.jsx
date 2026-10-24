@@ -21,6 +21,16 @@ const logisticsMenu = [
         url: withBasePath('/picklists')
       },
       {
+        id: 'logistics-workers',
+        title: 'Workers',
+        type: 'item',
+        value: 'logistics-workers',
+        label: 'Workers',
+        selected: true,
+        icon: 'ti ti-users-group',
+        url: withBasePath('/worker-management/picklists')
+      },
+      {
         id: 'logistics-rates',
         menu_key: 36,
         title: 'Rates',

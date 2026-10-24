@@ -93,6 +93,18 @@ const customerPortalMenu = [
         icon: 'ti ti-package-export',
         url: withBasePath('/order/retur'),
         activeUrls: [withBasePath('/order/retur')]
+      },
+      {
+        id: 'order-overload',
+        menu_key: 15,
+        title: 'Overload',
+        value: 'order-overload',
+        label: 'Overload',
+        type: 'item',
+        selected: true,
+        icon: 'ti ti-alert-triangle',
+        url: withBasePath('/order/overload'),
+        activeUrls: [withBasePath('/order/overload')]
       }
     ]
   },

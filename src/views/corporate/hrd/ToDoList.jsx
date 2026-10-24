@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import FormDatePicker from 'components/FormDatePicker';
 import PropTypes from 'prop-types';
 import Badge from 'react-bootstrap/Badge';
@@ -261,6 +261,248 @@ const getInlineTaskTitles = (taskText = '') =>
     .map((title) => title.trim())
     .filter(Boolean);
 
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+const ganttDate = (value) => {
+  if (!value) return null;
+  const date = new Date(String(value).includes('T') ? value : `${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+};
+const addDays = (date, amount) => {
+  const result = new Date(date);
+  result.setDate(result.getDate() + amount);
+  return result;
+};
+const differenceInDays = (later, earlier) => Math.round((later.getTime() - earlier.getTime()) / DAY_IN_MS);
+
+const GanttView = ({ tasks, loading, onOpenTask, onExport }) => {
+  const [collapsedFolders, setCollapsedFolders] = useState([]);
+  const [collapsedLists, setCollapsedLists] = useState([]);
+  const gantt = useMemo(() => {
+    const rows = tasks
+      .map((task) => {
+        const start = ganttDate(task.startDate);
+        const deadline = ganttDate(task.dueDate);
+        if (!start || !deadline) return null;
+        return { task, start: start <= deadline ? start : deadline, deadline: deadline >= start ? deadline : start };
+      })
+      .filter(Boolean)
+      .sort((first, second) => first.start - second.start || first.deadline - second.deadline);
+
+    if (!rows.length) return { rows: [], days: [], missingDates: tasks.length };
+    const earliest = new Date(Math.min(...rows.map((row) => row.start.getTime())));
+    const latest = new Date(Math.max(...rows.map((row) => row.deadline.getTime())));
+    const rangeStart = addDays(earliest, -1);
+    const rangeEnd = addDays(latest, 1);
+    const days = Array.from({ length: differenceInDays(rangeEnd, rangeStart) + 1 }, (_, index) => addDays(rangeStart, index));
+    return { rows, days, rangeStart, missingDates: tasks.length - rows.length };
+  }, [tasks]);
+  const ganttTree = useMemo(() => {
+    const folders = new Map();
+    gantt.rows.forEach((row) => {
+      const folderKey = String(row.task.folderId || row.task.folder_id || row.task.folder || 'without-folder');
+      const listKey = String(row.task.listId || row.task.list_id || row.task.list || 'without-list');
+      if (!folders.has(folderKey)) {
+        folders.set(folderKey, { key: folderKey, name: row.task.folder || 'Tanpa Folder', lists: new Map() });
+      }
+      const folder = folders.get(folderKey);
+      if (!folder.lists.has(listKey)) {
+        folder.lists.set(listKey, { key: listKey, name: row.task.list || 'Tanpa List Project', rows: [] });
+      }
+      folder.lists.get(listKey).rows.push(row);
+    });
+    return [...folders.values()]
+      .map((folder) => ({ ...folder, lists: [...folder.lists.values()].sort((a, b) => a.name.localeCompare(b.name)) }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [gantt.rows]);
+
+  if (loading) {
+    return (
+      <div className="text-center py-5">
+        <span className="spinner-border spinner-border-sm me-2" /> Loading tasks...
+      </div>
+    );
+  }
+
+  if (!gantt.rows.length) {
+    return (
+      <div className="gantt-empty text-center py-5">
+        <i className="ti ti-calendar-off text-muted f-32" />
+        <h6 className="mt-3">Belum ada task dengan jadwal lengkap</h6>
+        <p className="text-muted f-12 mb-3">Isi Start Date dan Deadline untuk menampilkan task pada Gantt chart.</p>
+        <Button type="button" size="sm" variant="outline-success" data-permission-action="none" onClick={onExport}>
+          <i className="ti ti-file-spreadsheet me-1" />
+          Export Excel
+        </Button>
+      </div>
+    );
+  }
+
+  const today = ganttDate(new Date().toISOString());
+  const columnWidth = gantt.days.length > 90 ? 28 : gantt.days.length > 45 ? 34 : 42;
+  const timelineWidth = gantt.days.length * columnWidth;
+
+  return (
+    <div className="gantt-wrap">
+      <div className="gantt-help d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div>
+          <span><i className="ti ti-info-circle me-1" />Klik bar task untuk membuka detail.</span>
+          {gantt.missingDates ? <span className="ms-2">{gantt.missingDates} task tanpa Start Date/Deadline tidak ditampilkan.</span> : null}
+        </div>
+        <Button type="button" size="sm" variant="success" data-permission-action="none" onClick={onExport}>
+          <i className="ti ti-file-spreadsheet me-1" />
+          Export Excel
+        </Button>
+      </div>
+      <div className="gantt-scroll">
+        <div className="gantt-chart" style={{ '--gantt-days': gantt.days.length, '--gantt-day-width': `${columnWidth}px` }}>
+          <div className="gantt-task-header">Task</div>
+          <div className="gantt-timeline gantt-date-header" style={{ width: timelineWidth }}>
+            {gantt.days.map((day) => {
+              const isToday = day.getTime() === today?.getTime();
+              return (
+                <div className={`gantt-date-cell ${isToday ? 'is-today' : ''}`} key={day.toISOString()}>
+                  <span>{day.toLocaleDateString('id-ID', { weekday: 'short' })}</span>
+                  <strong>{day.getDate()}</strong>
+                  <small>{day.toLocaleDateString('id-ID', { month: 'short' })}</small>
+                </div>
+              );
+            })}
+          </div>
+          {ganttTree.map((folder) => {
+            const folderCollapsed = collapsedFolders.includes(folder.key);
+            const folderTaskCount = folder.lists.reduce((total, list) => total + list.rows.length, 0);
+            return (
+              <Fragment key={`folder-${folder.key}`}>
+                <button
+                  type="button"
+                  className="gantt-tree-cell gantt-folder-cell"
+                  onClick={() => setCollapsedFolders((current) => current.includes(folder.key) ? current.filter((key) => key !== folder.key) : [...current, folder.key])}
+                >
+                  <i className={`ti ${folderCollapsed ? 'ti-chevron-right' : 'ti-chevron-down'}`} />
+                  <i className={`ti ${folderCollapsed ? 'ti-folder' : 'ti-folder-open'}`} />
+                  <span>{folder.name}</span><small>{folderTaskCount}</small>
+                </button>
+                <div className="gantt-timeline gantt-group-grid" style={{ width: timelineWidth }} />
+                {!folderCollapsed && folder.lists.map((list) => {
+                  const listRowKey = `${folder.key}:${list.key}`;
+                  const listCollapsed = collapsedLists.includes(listRowKey);
+                  return (
+                    <Fragment key={`list-${listRowKey}`}>
+                      <button
+                        type="button"
+                        className="gantt-tree-cell gantt-list-cell"
+                        onClick={() => setCollapsedLists((current) => current.includes(listRowKey) ? current.filter((key) => key !== listRowKey) : [...current, listRowKey])}
+                      >
+                        <i className={`ti ${listCollapsed ? 'ti-chevron-right' : 'ti-chevron-down'}`} />
+                        <i className="ti ti-list-check" />
+                        <span>{list.name}</span><small>{list.rows.length}</small>
+                      </button>
+                      <div className="gantt-timeline gantt-group-grid gantt-list-grid" style={{ width: timelineWidth }} />
+                      {!listCollapsed && list.rows.map(({ task, start, deadline }) => {
+                        const offset = differenceInDays(start, gantt.rangeStart);
+                        const duration = differenceInDays(deadline, start) + 1;
+                        const statusColor = colorMap[task.status] || '#4f46e5';
+                        return (
+                          <Fragment key={`task-${task.id}`}>
+                            <button type="button" className="gantt-task-cell" onClick={() => onOpenTask(task)} title={task.title}>
+                              <span className="gantt-task-title"><i className="ti ti-subtask me-1" />{task.title}</span>
+                              <small>{task.assignees.join(', ') || 'Tanpa assignee'}</small>
+                            </button>
+                            <div className="gantt-timeline gantt-row-grid" style={{ width: timelineWidth }}>
+                              {gantt.days.map((day) => (
+                                <span className={`gantt-grid-cell ${day.getDay() === 0 || day.getDay() === 6 ? 'is-weekend' : ''} ${day.getTime() === today?.getTime() ? 'is-today' : ''}`} key={day.toISOString()} />
+                              ))}
+                              <button type="button" className="gantt-bar" onClick={() => onOpenTask(task)} title={`${task.title}: ${formatDate(task.startDate)} – ${formatDate(task.dueDate)}`} style={{ left: offset * columnWidth + 4, width: Math.max(duration * columnWidth - 8, 24), backgroundColor: statusColor }}>
+                                <span>{task.title}</span>
+                              </button>
+                            </div>
+                          </Fragment>
+                        );
+                      })}
+                    </Fragment>
+                  );
+                })}
+              </Fragment>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+GanttView.propTypes = {
+  tasks: PropTypes.arrayOf(PropTypes.object).isRequired,
+  loading: PropTypes.bool.isRequired,
+  onOpenTask: PropTypes.func.isRequired,
+  onExport: PropTypes.func.isRequired
+};
+
+const MoveDestinationTree = ({ groups, value, disabled, onChange }) => {
+  const treeRef = useRef(null);
+  const selectedNode = groups
+    .flatMap((group) => [group, ...group.lists])
+    .find((node) => node.value === value);
+  const selectNode = (nodeValue) => {
+    onChange(nodeValue);
+    if (treeRef.current) treeRef.current.open = false;
+  };
+
+  return (
+    <details className={`task-move-tree ${disabled ? 'is-disabled' : ''}`} ref={treeRef}>
+      <summary aria-label="Pilih tujuan Move" aria-disabled={disabled} onClick={(event) => disabled && event.preventDefault()}>
+        <span className={selectedNode ? '' : 'text-muted'}>
+          <i className={`ti ${selectedNode?.type === 'folder' ? 'ti-folder' : selectedNode ? 'ti-list-check' : 'ti-folders'} me-1`} />
+          {selectedNode?.displayLabel || 'Pilih Folder / List Project...'}
+        </span>
+        <i className="ti ti-chevron-down task-move-tree-chevron" />
+      </summary>
+      <div className="task-move-tree-menu">
+        <div className="task-move-tree-heading">Tujuan Move</div>
+        {groups.map((group) => (
+          <details className="task-move-tree-folder" key={group.value} open>
+            <summary>
+              <i className="ti ti-chevron-right task-move-tree-caret" />
+              <i className="ti ti-folder" />
+              <span>{group.label}</span>
+              <small>{group.lists.length}</small>
+            </summary>
+            {group.selectable ? (
+              <button
+                type="button"
+                className={`task-move-tree-node task-move-tree-folder-node ${value === group.value ? 'active' : ''}`}
+                onClick={() => selectNode(group.value)}
+              >
+                <i className="ti ti-folder-share" />
+                <span>Pindahkan langsung ke folder ini</span>
+              </button>
+            ) : null}
+            {group.lists.map((list) => (
+              <button
+                type="button"
+                className={`task-move-tree-node ${value === list.value ? 'active' : ''}`}
+                key={list.value}
+                onClick={() => selectNode(list.value)}
+              >
+                <i className="ti ti-list-check" />
+                <span>{list.label}</span>
+              </button>
+            ))}
+          </details>
+        ))}
+      </div>
+    </details>
+  );
+};
+
+MoveDestinationTree.propTypes = {
+  groups: PropTypes.arrayOf(PropTypes.object).isRequired,
+  value: PropTypes.string.isRequired,
+  disabled: PropTypes.bool.isRequired,
+  onChange: PropTypes.func.isRequired
+};
+
 export default function ToDoList() {
   const { showAlert } = useAlert();
   const { showConfirm } = useConfirm();
@@ -284,6 +526,7 @@ export default function ToDoList() {
   const [expandedTaskFolderIds, setExpandedTaskFolderIds] = useState([]);
   const [loadedTaskListIds, setLoadedTaskListIds] = useState([]);
   const [loadingTaskListIds, setLoadingTaskListIds] = useState([]);
+  const [deletingTaskListId, setDeletingTaskListId] = useState(null);
   const initializedCollapsedListsRef = useRef(false);
   const [showCreate, setShowCreate] = useState(false);
   const [createDataLoading, setCreateDataLoading] = useState(false);
@@ -387,17 +630,6 @@ export default function ToDoList() {
     const folders = [...masters.folders, ...Object.values(spaceHierarchy).flatMap((hierarchy) => hierarchy.folders || [])];
     return [...new Map(folders.map((folder) => [String(folder.id), folder])).values()];
   }, [masters.folders, spaceHierarchy]);
-  const destinationListOption = (list) => {
-    const folder =
-      (list.folder && typeof list.folder === 'object' ? list.folder : null) ||
-      allTaskFolderOptions.find((item) => String(item.id) === String(list.folder_id || list.folderId));
-    const folderName = entityName(folder, list.folder_name || list.folder);
-    return {
-      value: list.id,
-      label: `${folderName !== '-' ? `${folderName} / ` : ''}${entityName(list)}`
-    };
-  };
-
   const loadTasks = useCallback(
     async (activeScope = scope) => {
       setLoading(true);
@@ -572,6 +804,58 @@ export default function ToDoList() {
       entityName(first).localeCompare(entityName(second))
     );
   }, [masters.lists, spaceHierarchy, tasks]);
+  const destinationTree = useMemo(() => {
+    const foldersById = new Map(allTaskFolderOptions.map((folder) => [String(folder.id), folder]));
+    const groups = new Map(
+      allTaskFolderOptions
+        .filter((folder) => folder?.id !== undefined && folder?.id !== null)
+        .map((folder) => {
+          const folderId = String(folder.id);
+          const folderName = entityName(folder, 'Tanpa Nama Folder');
+          return [
+            folderId,
+            {
+              type: 'folder',
+              value: `folder:${folderId}`,
+              id: folderId,
+              label: folderName,
+              displayLabel: folderName,
+              selectable: true,
+              lists: []
+            }
+          ];
+        })
+    );
+
+    allTaskListOptions.forEach((list) => {
+      const folderId = String(list.folder_id || list.folderId || list.folder?.id || 'without-folder');
+      const folder = foldersById.get(folderId) || (list.folder && typeof list.folder === 'object' ? list.folder : null);
+      const folderName = entityName(folder, list.folder_name || list.folder || 'Tanpa Folder');
+      if (!groups.has(folderId)) {
+        groups.set(folderId, {
+          type: 'folder',
+          value: `folder:${folderId}`,
+          id: folderId,
+          label: folderName,
+          displayLabel: folderName,
+          selectable: folderId !== 'without-folder',
+          lists: []
+        });
+      }
+      groups.get(folderId).lists.push({
+        type: 'list',
+        value: `list:${list.id}`,
+        id: list.id,
+        label: entityName(list),
+        displayLabel: `${folderName} / ${entityName(list)}`,
+        raw: list
+      });
+    });
+
+    return [...groups.values()]
+      .map((group) => ({ ...group, lists: group.lists.sort((first, second) => first.label.localeCompare(second.label)) }))
+      .sort((first, second) => first.label.localeCompare(second.label));
+  }, [allTaskFolderOptions, allTaskListOptions]);
 
   const groupedListTasks = useMemo(() => {
     const visibleLists = allTaskListOptions.filter((list) => {
@@ -701,6 +985,113 @@ export default function ToDoList() {
     if (nextView !== 'list') return;
     setCollapsedTaskListIds(allTaskListOptions.map((list) => String(list.id)));
     loadTasks({ workspaceId: scope.workspaceId, spaceId: '', folderId: '', listId: '' });
+  };
+
+  const exportGanttExcel = () => {
+    const scheduledTasks = filteredTasks
+      .map((task) => ({ task, start: ganttDate(task.startDate), deadline: ganttDate(task.dueDate) }))
+      .filter((item) => item.start && item.deadline)
+      .map((item) => ({
+        ...item,
+        start: item.start <= item.deadline ? item.start : item.deadline,
+        deadline: item.deadline >= item.start ? item.deadline : item.start
+      }))
+      .sort(
+        (first, second) =>
+          String(first.task.folder).localeCompare(String(second.task.folder)) ||
+          String(first.task.list).localeCompare(String(second.task.list)) ||
+          first.start - second.start
+      );
+
+    if (!scheduledTasks.length) {
+      showAlert('Tidak ada task dengan Start Date dan Deadline untuk diexport.', 'warning');
+      return;
+    }
+
+    try {
+      const rangeStart = new Date(Math.min(...scheduledTasks.map((item) => item.start.getTime())));
+      const rangeEnd = new Date(Math.max(...scheduledTasks.map((item) => item.deadline.getTime())));
+      const timelineDates = Array.from(
+        { length: differenceInDays(rangeEnd, rangeStart) + 1 },
+        (_, index) => addDays(rangeStart, index)
+      );
+      const dateKey = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+      const escapeHtml = (value) =>
+        String(value ?? '')
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;');
+      const tree = new Map();
+      scheduledTasks.forEach((item) => {
+        const folderName = item.task.folder || 'Tanpa Folder';
+        const listName = item.task.list || 'Tanpa List Project';
+        if (!tree.has(folderName)) tree.set(folderName, new Map());
+        if (!tree.get(folderName).has(listName)) tree.get(folderName).set(listName, []);
+        tree.get(folderName).get(listName).push(item);
+      });
+      const timelineHeader = timelineDates
+        .map(
+          (date) =>
+            `<th class="date ${date.getDay() === 0 || date.getDay() === 6 ? 'weekend' : ''}"><span>${escapeHtml(date.toLocaleDateString('id-ID', { weekday: 'short' }))}</span><strong>${date.getDate()}</strong><small>${escapeHtml(date.toLocaleDateString('id-ID', { month: 'short' }))}</small></th>`
+        )
+        .join('');
+      const bodyRows = [...tree.entries()]
+        .sort(([first], [second]) => first.localeCompare(second))
+        .flatMap(([folderName, lists]) => {
+          const folderCount = [...lists.values()].reduce((total, items) => total + items.length, 0);
+          const folderRow = `<tr class="folder"><td>⌄ &nbsp;📁&nbsp; ${escapeHtml(folderName)} <b>${folderCount}</b></td><td colspan="${timelineDates.length}"></td></tr>`;
+          const listRows = [...lists.entries()]
+            .sort(([first], [second]) => first.localeCompare(second))
+            .flatMap(([listName, items]) => {
+              const listRow = `<tr class="list"><td>&nbsp;&nbsp;&nbsp;⌄ &nbsp;☷&nbsp; ${escapeHtml(listName)} <b>${items.length}</b></td><td colspan="${timelineDates.length}"></td></tr>`;
+              const taskRows = items.map(({ task, start, deadline }) => {
+                const barColor = colorMap[task.status] || '#4f46e5';
+                let barStarted = false;
+                const timeline = timelineDates
+                  .map((date) => {
+                    const active = date >= start && date <= deadline;
+                    const isFirst = active && !barStarted;
+                    if (active) barStarted = true;
+                    const cellClass = date.getDay() === 0 || date.getDay() === 6 ? 'weekend' : '';
+                    return active
+                      ? `<td class="bar" style="background:${barColor};color:#fff">${isFirst ? escapeHtml(task.title) : ''}</td>`
+                      : `<td class="day ${cellClass}"></td>`;
+                  })
+                  .join('');
+                return `<tr class="task"><td><strong>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↳ ${escapeHtml(task.title)}</strong><small>${escapeHtml(task.assignees.join(', ') || 'Tanpa assignee')} · ${escapeHtml(task.status)} · ${escapeHtml(formatDate(task.startDate))} – ${escapeHtml(formatDate(task.dueDate))}</small></td>${timeline}</tr>`;
+              });
+              return [listRow, ...taskRows];
+            });
+          return [folderRow, ...listRows];
+        })
+        .join('');
+      const html = `<!doctype html><html><head><meta charset="utf-8"><style>
+        body{font-family:Arial,sans-serif;color:#172033}table{border-collapse:collapse}td,th{border:1px solid #e7eaf0}
+        .title{height:44px;background:#ffffff;color:#172033;font-size:18px;text-align:left;padding-left:12px}.subtitle{height:28px;background:#f8fafc;color:#64748b;text-align:left;padding-left:12px;font-size:11px}
+        .task-head{min-width:310px;width:310px;background:#f8fafc;color:#475569;text-align:left;padding:10px;font-size:11px}
+        .date{min-width:44px;width:44px;height:54px;background:#f8fafc;color:#94a3b8;text-align:center;font-size:9px}.date span,.date strong,.date small{display:block}.date strong{color:#334155;font-size:14px}.weekend{background:#f1f5f9}
+        .folder td{height:32px;background:#f8fafc;color:#334155;font-size:11px;font-weight:bold}.folder td:first-child,.list td:first-child{padding-left:10px}.folder b,.list b{float:right;background:#e2e8f0;border-radius:10px;padding:2px 7px}
+        .list td{height:29px;background:#ffffff;color:#475569;font-size:11px;font-weight:bold}.task td{height:42px}.task td:first-child{padding:6px 10px;background:#fff;white-space:nowrap}.task td:first-child strong{display:block;font-size:11px}.task td:first-child small{display:block;color:#94a3b8;font-size:9px;margin-top:3px}.day{min-width:44px;width:44px;background:#fff}.bar{min-width:44px;width:44px;max-width:44px;overflow:hidden;white-space:nowrap;font-size:9px;font-weight:bold;padding:0 4px}
+      </style></head><body><table><tr><th class="title" colspan="${timelineDates.length + 1}">Task Management — Gantt Chart</th></tr><tr><td class="subtitle" colspan="${timelineDates.length + 1}">Diexport ${escapeHtml(new Date().toLocaleString('id-ID'))} · ${scheduledTasks.length} task</td></tr><tr><th class="task-head">TASK</th>${timelineHeader}</tr>${bodyRows}</table></body></html>`;
+      const blob = new Blob(['\ufeff', html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+      const downloadUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = downloadUrl;
+      anchor.download = `gantt-task-management-${dateKey(new Date())}.xls`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(downloadUrl);
+      showAlert(`${scheduledTasks.length} task berhasil diexport ke Excel.`, 'success');
+    } catch (error) {
+      showAlert(error?.message || 'Gagal membuat file Excel Gantt Chart.', 'danger');
+    }
   };
 
   const updateLocalTask = (id, changes) => setTasks((current) => current.map((task) => (task.id === id ? { ...task, ...changes } : task)));
@@ -1244,34 +1635,188 @@ export default function ToDoList() {
   };
   const moveSelectedTasks = () => {
     const selectedTasks = tasks.filter((task) => selectedTaskIds.includes(String(task.id)));
-    const targetList = allTaskListOptions.find((item) => String(item.id) === String(moveTargetListId));
-    if (!selectedTasks.length || !targetList || movingSelectedTasks) return;
+    const [targetType, targetId] = moveTargetListId.split(':');
+    const targetList = targetType === 'list' ? allTaskListOptions.find((item) => String(item.id) === targetId) : null;
+    const targetFolder = targetType === 'folder' ? allTaskFolderOptions.find((item) => String(item.id) === targetId) : null;
+    const targetName = targetList ? `List Project ${entityName(targetList)}` : targetFolder ? `Folder ${entityName(targetFolder)}` : '';
+    if (!selectedTasks.length || !targetName || movingSelectedTasks) return;
 
     showConfirm({
       title: `Pindahkan ${selectedTasks.length} task?`,
-      subTitle: `Task yang dipilih akan dipindahkan ke List Project ${entityName(targetList)}.`,
+      subTitle: targetFolder
+        ? `List Project asal akan dibuat otomatis di ${targetName}, lalu task dipindahkan ke list tersebut.`
+        : `Task yang dipilih akan dipindahkan ke ${targetName}.`,
       skipCountdown: true,
       onConfirm: async () => {
         setMovingSelectedTasks(true);
         try {
-          const folderId = targetList.folder_id || targetList.folder?.id;
+          const folderId = targetFolder?.id || targetList?.folder_id || targetList?.folder?.id;
+          const destinationLists = new Map();
+          let targetFolderSpaceId = '';
+
+          if (targetFolder) {
+            const targetSpaceId =
+              targetFolder.space_id ||
+              targetFolder.space?.id ||
+              Object.entries(spaceHierarchy).find(([, hierarchy]) =>
+                (hierarchy?.folders || []).some((folder) => String(folder.id) === String(targetFolder.id))
+              )?.[0];
+            if (!targetSpaceId) throw new Error('Space dari folder tujuan tidak dapat ditentukan.');
+            targetFolderSpaceId = targetSpaceId;
+
+            const sourceGroups = new Map();
+            selectedTasks.forEach((task) => {
+              const sourceKey = String(task.listId || task.list_id || task.list || 'without-list');
+              if (!sourceGroups.has(sourceKey)) sourceGroups.set(sourceKey, []);
+              sourceGroups.get(sourceKey).push(task);
+            });
+
+            const existingNames = allTaskListOptions
+              .filter((list) => String(list.folder_id || list.folder?.id || '') === String(folderId))
+              .map((list) => entityName(list).toLowerCase());
+
+            for (const [sourceKey, groupTasks] of sourceGroups) {
+              const sourceList = allTaskListOptions.find((list) => String(list.id) === sourceKey);
+              const baseName = entityName(sourceList, groupTasks[0]?.list || 'Moved Tasks');
+              let listName = baseName;
+              let suffix = 2;
+              while (existingNames.includes(listName.toLowerCase())) {
+                listName = `${baseName} (${suffix})`;
+                suffix += 1;
+              }
+
+              const createResponse = await TaskManagementServices.postListTask({
+                space_id: targetSpaceId,
+                folder_id: folderId,
+                list_name: listName,
+                description: displayText(sourceList?.description, ''),
+                color_hex: sourceList?.color_hex || sourceList?.color || '#2563eb',
+                default_view: sourceList?.default_view || 'LIST'
+              });
+              if (apiError(createResponse)) throw new Error(createResponse?.data?.message || `Gagal membuat List Project ${listName}.`);
+
+              const createdData = responseData(createResponse);
+              let createdListId = createdData?.id || createdData?.list_id || createdData?.data?.id;
+              if (!createdListId) {
+                const listsResponse = await TaskManagementServices.getLists({ space_id: targetSpaceId, folder_id: folderId });
+                if (apiError(listsResponse)) throw new Error(listsResponse?.data?.message || 'Gagal mengambil List Project tujuan.');
+                createdListId = responseList(listsResponse).find(
+                  (list) => entityName(list).toLowerCase() === listName.toLowerCase()
+                )?.id;
+              }
+              if (!createdListId) throw new Error(`List Project ${listName} berhasil dibuat tetapi ID tidak ditemukan.`);
+              destinationLists.set(sourceKey, createdListId);
+              existingNames.push(listName.toLowerCase());
+            }
+          }
+
           const results = await Promise.allSettled(
-            selectedTasks.map((task) =>
-              TaskManagementServices.putEditTask(task.id, {
-                list_id: targetList.id,
-                folder_id: folderId || undefined
-              })
-            )
+            selectedTasks.map((task) => {
+              const sourceKey = String(task.listId || task.list_id || task.list || 'without-list');
+              return TaskManagementServices.putEditTask(task.id, {
+                folder_id: folderId,
+                list_id: targetList?.id || destinationLists.get(sourceKey)
+              });
+            })
           );
           const failedIds = selectedTasks
             .filter((_, index) => results[index].status === 'rejected' || apiError(results[index].value))
             .map((task) => String(task.id));
           const movedCount = selectedTasks.length - failedIds.length;
+          const deletedSourceListNames = [];
+          const deletedSourceListIds = [];
+          const failedSourceListNames = [];
+
+          if (targetFolder && movedCount) {
+            const sourceListIds = [
+              ...new Set(
+                selectedTasks
+                  .filter((task) => !failedIds.includes(String(task.id)))
+                  .map((task) => task.listId || task.list_id)
+                  .filter(Boolean)
+                  .map(String)
+              )
+            ];
+
+            for (const sourceListId of sourceListIds) {
+              const hasFailedTaskFromList = selectedTasks.some(
+                (task) =>
+                  String(task.listId || task.list_id || '') === sourceListId && failedIds.includes(String(task.id))
+              );
+              if (hasFailedTaskFromList) continue;
+
+              const remainingResponse = await TaskManagementServices.getTask({
+                list_id: sourceListId,
+                include_subtasks: true,
+                per_page: 1
+              });
+              const sourceList = allTaskListOptions.find((list) => String(list.id) === sourceListId);
+              const sourceListName = entityName(sourceList, `List ${sourceListId}`);
+              if (apiError(remainingResponse) || responseList(remainingResponse).length) continue;
+
+              try {
+                const deleteResponse = await TaskManagementServices.deleteTaskList(sourceListId);
+                if (apiError(deleteResponse)) throw new Error(deleteResponse?.data?.message);
+                deletedSourceListNames.push(sourceListName);
+                deletedSourceListIds.push(sourceListId);
+              } catch {
+                failedSourceListNames.push(sourceListName);
+              }
+            }
+          }
+
+          if (deletedSourceListIds.length) {
+            const deletedIds = new Set(deletedSourceListIds);
+            setMasters((current) => ({
+              ...current,
+              lists: current.lists.filter((list) => !deletedIds.has(String(list.id)))
+            }));
+            setSpaceHierarchy((current) =>
+              Object.fromEntries(
+                Object.entries(current).map(([spaceId, hierarchy]) => [
+                  spaceId,
+                  {
+                    ...hierarchy,
+                    lists: (hierarchy?.lists || []).filter((list) => !deletedIds.has(String(list.id)))
+                  }
+                ])
+              )
+            );
+            setLoadedTaskListIds((current) => current.filter((listId) => !deletedIds.has(String(listId))));
+            setCollapsedTaskListIds((current) => current.filter((listId) => !deletedIds.has(String(listId))));
+          }
+
+          if (targetFolderSpaceId) {
+            const listsResponse = await TaskManagementServices.getLists({ space_id: targetFolderSpaceId });
+            if (!apiError(listsResponse)) {
+              const listRows = responseList(listsResponse);
+              setSpaceHierarchy((current) => ({
+                ...current,
+                [String(targetFolderSpaceId)]: {
+                  folders: current[String(targetFolderSpaceId)]?.folders || [],
+                  lists: listRows
+                }
+              }));
+              setMasters((current) => ({
+                ...current,
+                lists: [
+                  ...current.lists.filter((list) => String(list.space_id || list.space?.id || '') !== String(targetFolderSpaceId)),
+                  ...listRows
+                ]
+              }));
+            }
+          }
 
           await loadTasks({ workspaceId: scope.workspaceId, spaceId: '', folderId: '', listId: '' });
           setSelectedTaskIds(failedIds);
           if (!failedIds.length) setMoveTargetListId('');
-          if (movedCount) showAlert(`${movedCount} task berhasil dipindahkan ke ${entityName(targetList)}.`, 'success');
+          if (movedCount) showAlert(`${movedCount} task berhasil dipindahkan ke ${targetName}.`, 'success');
+          if (deletedSourceListNames.length) {
+            showAlert(`${deletedSourceListNames.length} List Project asal yang kosong berhasil dihapus.`, 'success');
+          }
+          if (failedSourceListNames.length) {
+            showAlert(`List Project asal gagal dihapus: ${failedSourceListNames.join(', ')}.`, 'warning');
+          }
           if (failedIds.length) showAlert(`${failedIds.length} task gagal dipindahkan.`, 'danger');
         } catch (error) {
           showAlert(error?.response?.data?.message || error?.message || 'Gagal memindahkan task.', 'danger');
@@ -1283,7 +1828,8 @@ export default function ToDoList() {
   };
   const copySelectedTasks = () => {
     const selectedTasks = tasks.filter((task) => selectedTaskIds.includes(String(task.id)));
-    const targetList = allTaskListOptions.find((item) => String(item.id) === String(moveTargetListId));
+    const [targetType, targetId] = moveTargetListId.split(':');
+    const targetList = targetType === 'list' ? allTaskListOptions.find((item) => String(item.id) === targetId) : null;
     if (!selectedTasks.length || !targetList || copyingSelectedTasks) return;
     const folderId = targetList.folder_id || targetList.folder?.id;
     const hierarchySpaceId = Object.entries(spaceHierarchy).find(([, hierarchy]) =>
@@ -1571,6 +2117,82 @@ export default function ToDoList() {
       }
     });
   };
+  const deleteTaskList = (event, list) => {
+    event.stopPropagation();
+    if (!list || deletingTaskListId !== null) return;
+    const listId = String(list.id);
+    const name = entityName(list);
+    const targetSpaceId =
+      list.space_id ||
+      list.space?.id ||
+      Object.entries(spaceHierarchy).find(([, hierarchy]) =>
+        (hierarchy?.lists || []).some((item) => String(item.id) === listId)
+      )?.[0] ||
+      scope.spaceId;
+
+    showConfirm({
+      title: 'Hapus List Project?',
+      subTitle: `${name} akan dihapus permanen beserta relasinya. Tindakan ini tidak dapat dibatalkan.`,
+      skipCountdown: true,
+      onConfirm: async () => {
+        setDeletingTaskListId(listId);
+        try {
+          const response = await TaskManagementServices.deleteTaskList(list.id);
+          if (apiError(response)) throw new Error(response?.data?.message || 'Gagal menghapus List Project.');
+
+          let listRows = [];
+          if (targetSpaceId) {
+            const listsResponse = await TaskManagementServices.getLists({ space_id: targetSpaceId });
+            if (apiError(listsResponse)) throw new Error('List Project berhasil dihapus, tetapi daftar terbaru gagal dimuat.');
+            listRows = responseList(listsResponse);
+          }
+          setMasters((current) => ({
+            ...current,
+            lists: targetSpaceId
+              ? [
+                  ...current.lists.filter(
+                    (item) => String(item.space_id || item.space?.id || '') !== String(targetSpaceId)
+                  ),
+                  ...listRows
+                ]
+              : current.lists.filter((item) => String(item.id) !== listId)
+          }));
+          setSpaceHierarchy((current) => {
+            if (!targetSpaceId) {
+              return Object.fromEntries(
+                Object.entries(current).map(([spaceId, hierarchy]) => [
+                  spaceId,
+                  { ...hierarchy, lists: (hierarchy?.lists || []).filter((item) => String(item.id) !== listId) }
+                ])
+              );
+            }
+            return {
+              ...current,
+              [String(targetSpaceId)]: {
+                folders: current[String(targetSpaceId)]?.folders || [],
+                lists: listRows
+              }
+            };
+          });
+          setLoadedTaskListIds((current) => current.filter((id) => String(id) !== listId));
+          setCollapsedTaskListIds((current) => current.filter((id) => String(id) !== listId));
+          setSelectedTaskIds((current) =>
+            current.filter((taskId) => !tasks.some((task) => String(task.id) === taskId && String(task.listId || task.list_id) === listId))
+          );
+
+          const deletedActiveList = String(scope.listId) === listId;
+          const nextScope = deletedActiveList ? { ...scope, listId: '' } : scope;
+          if (deletedActiveList) setScope(nextScope);
+          await loadTasks(nextScope);
+          showAlert(`List Project ${name} berhasil dihapus.`, 'success');
+        } catch (error) {
+          showAlert(error?.response?.data?.message || error?.message || 'Gagal menghapus List Project.', 'danger');
+        } finally {
+          setDeletingTaskListId(null);
+        }
+      }
+    });
+  };
   const createSpace = async () => {
     const department = departments.find((item) => String(item.id) === String(newSpaceDepartmentId || selectedDepartmentIds[0]));
     if (!newSpaceName.trim() || !department) return;
@@ -1689,6 +2311,15 @@ export default function ToDoList() {
                     title="Card"
                   >
                     <i className="ti ti-layout-kanban" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={view === 'gantt' ? 'primary' : 'outline-secondary'}
+                    onClick={() => changeTaskView('gantt')}
+                    title="Gantt"
+                    aria-label="Gantt view"
+                  >
+                    <i className="ti ti-chart-bar" />
                   </Button>
                 </div>
               </Stack>
@@ -2010,6 +2641,21 @@ export default function ToDoList() {
                                   <strong>{progress}%</strong>
                                 </div>
                               </div>
+                              <button
+                                type="button"
+                                className="task-list-delete"
+                                data-permission-action="none"
+                                disabled={!projectList || deletingTaskListId !== null}
+                                aria-label={`Delete List Project ${group.list}`}
+                                title="Delete List Project"
+                                onClick={(event) => projectList && deleteTaskList(event, projectList)}
+                              >
+                                {String(deletingTaskListId) === group.key ? (
+                                  <span className="spinner-border spinner-border-sm" />
+                                ) : (
+                                  <i className="ti ti-trash" aria-hidden="true" />
+                                )}
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -2194,7 +2840,7 @@ export default function ToDoList() {
                   })
                 )}
               </Table>
-            ) : (
+            ) : view === 'board' ? (
               <div className="kanban-scroll p-3">
                 <div className="kanban-board">
                   {statuses.map((status) => (
@@ -2288,8 +2934,10 @@ export default function ToDoList() {
                   ))}
                 </div>
               </div>
+            ) : (
+              <GanttView tasks={filteredTasks} loading={loading} onOpenTask={openTask} onExport={exportGanttExcel} />
             )}
-            {!loading && (view === 'board' ? !filteredTasks.length : !taskTreeRows.length) && (
+            {!loading && (view === 'list' ? !taskTreeRows.length : view === 'board' ? !filteredTasks.length : false) && (
               <div className="text-center py-5">
                 <i className="ti ti-clipboard-off text-muted f-32" />
                 <h6 className="mt-3">No tasks found</h6>
@@ -2305,26 +2953,11 @@ export default function ToDoList() {
               <span className="task-bulk-selection-count">
                 <strong>{selectedTaskIds.length}</strong> selected
               </span>
-              <Select
-                className="task-bulk-list-select"
-                classNamePrefix="task-form-select"
-                menuPortalTarget={document.body}
-                menuPosition="fixed"
-                aria-label="Select destination List Project for Move or Copy"
-                isClearable
-                isDisabled={movingSelectedTasks || copyingSelectedTasks || deletingSelectedTasks}
-                placeholder="Select destination List Project..."
-                options={allTaskListOptions.map(destinationListOption)}
-                value={
-                  allTaskListOptions
-                    .filter((list) => String(list.id) === String(moveTargetListId))
-                    .map(destinationListOption)[0] || null
-                }
-                onChange={(option) => setMoveTargetListId(option?.value || '')}
-                styles={{
-                  menuPortal: (base) => ({ ...base, zIndex: 1090 }),
-                  control: (base) => ({ ...base, minHeight: 31, fontSize: 12 })
-                }}
+              <MoveDestinationTree
+                groups={destinationTree}
+                value={moveTargetListId}
+                disabled={movingSelectedTasks || copyingSelectedTasks || deletingSelectedTasks}
+                onChange={setMoveTargetListId}
               />
               <Button
                 type="button"
@@ -2342,8 +2975,9 @@ export default function ToDoList() {
                 size="sm"
                 variant="outline-primary"
                 data-permission-action="none"
-                disabled={!moveTargetListId || movingSelectedTasks || copyingSelectedTasks || deletingSelectedTasks}
+                disabled={!moveTargetListId.startsWith('list:') || movingSelectedTasks || copyingSelectedTasks || deletingSelectedTasks}
                 onClick={copySelectedTasks}
+                title={moveTargetListId.startsWith('folder:') ? 'Copy membutuhkan tujuan List Project' : 'Copy task'}
               >
                 {copyingSelectedTasks ? <span className="spinner-border spinner-border-sm me-1" /> : <i className="ti ti-copy me-1" />}
                 Copy

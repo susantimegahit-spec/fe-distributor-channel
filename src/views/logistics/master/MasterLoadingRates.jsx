@@ -13,6 +13,7 @@ import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
 import LoadingRateServices from 'services/logistics/LoadingRateServices';
 import { useAlert } from 'utils/alertContext';
+import './master-loading-rates.scss';
 
 const initialForm = {
   itemCode: '',
@@ -201,7 +202,7 @@ export default function MasterLoadingRates() {
               <h5 className="mb-1">Loading Rates</h5>
               <span className="text-muted f-12">Manage loading costs by item and rate type.</span>
             </div>
-            <Stack direction="horizontal" gap={2} className="flex-wrap">
+            <Stack direction="horizontal" gap={2} className="loading-rates-actions flex-wrap">
               <Button variant="outline-secondary" disabled={loading} onClick={fetchLoadingRates}>
                 <i className={loading ? 'ti ti-loader-2 me-1' : 'ti ti-refresh me-1'} />
                 {loading ? 'Refreshing...' : 'Refresh'}

@@ -1,0 +1,31 @@
+.worker-management-total > * {
+  --bs-table-bg: #eaf4ff;
+  --bs-table-color: #17324d;
+  background-color: #eaf4ff;
+  color: #17324d;
+  border-top: 2px solid #4b9fea;
+}
+
+.worker-management-total-fee {
+  color: #087a4e !important;
+}
+
+.worker-rate-time {
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+[data-pc-theme='dark'] .worker-management-total > *,
+[data-bs-theme='dark'] .worker-management-total > * {
+  --bs-table-bg: #123b5d;
+  --bs-table-color: #e7f4ff;
+  background-color: #123b5d;
+  color: #e7f4ff;
+  border-top-color: #39aef2;
+}
+
+[data-pc-theme='dark'] .worker-management-total-fee,
+[data-bs-theme='dark'] .worker-management-total-fee {
+  color: #35e0a1 !important;
+}

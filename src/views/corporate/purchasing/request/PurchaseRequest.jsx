@@ -7,6 +7,7 @@ import Button from 'react-bootstrap/Button';
 import Badge from 'react-bootstrap/Badge';
 import Col from 'react-bootstrap/Col';
 import Form from 'react-bootstrap/Form';
+import InputGroup from 'react-bootstrap/InputGroup';
 import Modal from 'react-bootstrap/Modal';
 import Nav from 'react-bootstrap/Nav';
 import Offcanvas from 'react-bootstrap/Offcanvas';
@@ -34,22 +35,47 @@ const metrics = [
 const today = () => new Date().toISOString().slice(0, 10);
 const SERIES_CARD_CODE = '1470000113';
 const REQUESTER_CODE = 'API';
-const purchaseRequestStatusOptions = ['SUBMITTED', 'APPROVED', 'REJECTED', 'CANCELLED', 'COMPLETED'].map((value) => ({
-  value,
-  label: value
-}));
-
-const getPurchaseRequestPage = (response) => {
-  const payload = response?.data?.data ?? response?.data ?? {};
-  const items = Array.isArray(payload) ? payload : (payload.data ?? payload.items ?? payload.rows ?? payload.results ?? []);
+const getPurchaseRequestPage = (response, requestedPage = 1, perPage = 15) => {
+  const root = response?.data?.data ?? response?.data ?? {};
+  const payload = root.Result ?? root.result ?? root;
+  const collection = Array.isArray(payload) ? payload : (payload.data ?? payload.items ?? payload.rows ?? payload.results ?? []);
+  const allItems = Array.isArray(collection) ? collection : [];
   const meta = payload.meta ?? payload.pagination ?? response?.data?.meta ?? response?.data?.pagination ?? payload;
+  const hasServerPagination = !Array.isArray(payload) && Boolean(meta.current_page ?? meta.currentPage ?? meta.last_page ?? meta.lastPage);
+
+  if (!hasServerPagination) {
+    const total = Array.isArray(allItems) ? allItems.length : 0;
+    const lastPage = Math.max(1, Math.ceil(total / perPage));
+    const currentPage = Math.min(Math.max(1, requestedPage), lastPage);
+    const offset = (currentPage - 1) * perPage;
+
+    return {
+      items: allItems.slice(offset, offset + perPage),
+      currentPage,
+      lastPage,
+      total
+    };
+  }
 
   return {
-    items: Array.isArray(items) ? items : [],
+    items: Array.isArray(allItems) ? allItems : [],
     currentPage: Number(meta.current_page ?? meta.currentPage ?? 1) || 1,
     lastPage: Number(meta.last_page ?? meta.lastPage ?? 1) || 1,
-    total: Number(meta.total ?? (Array.isArray(items) ? items.length : 0)) || 0
+    total: Number(meta.total ?? (Array.isArray(allItems) ? allItems.length : 0)) || 0
   };
+};
+
+const getFirstId = (value) => {
+  if (Array.isArray(value)) return value.map(getFirstId).find(Boolean) ?? '';
+  if (value && typeof value === 'object') {
+    return getFirstId(value.USERID ?? value.userid ?? value.user_id ?? value.originator_id ?? value.id ?? value.code ?? value.value);
+  }
+  return (
+    String(value ?? '')
+      .split(',')
+      .map((item) => item.trim())
+      .find(Boolean) ?? ''
+  );
 };
 
 const getRequestValue = (request, keys, fallback = '') => {
@@ -68,6 +94,9 @@ const formatRequestDate = (value) => {
 const getStatusVariant = (status) => {
   const variants = {
     DRAFT: 'secondary',
+    OPEN: 'success',
+    CLOSED: 'secondary',
+    PENDING: 'warning',
     SUBMITTED: 'warning',
     APPROVED: 'success',
     REJECTED: 'danger',
@@ -75,6 +104,28 @@ const getStatusVariant = (status) => {
     COMPLETED: 'primary'
   };
   return variants[String(status || '').toUpperCase()] || 'secondary';
+};
+
+const getDocumentStatus = (request) => {
+  const value = String(getRequestValue(request, ['DocStatus', 'doc_status', 'status', 'Status'], 'DRAFT'))
+    .trim()
+    .toUpperCase();
+  const labels = {
+    O: 'OPEN',
+    BOST_OPEN: 'OPEN',
+    C: 'CLOSED',
+    BOST_CLOSE: 'CLOSED',
+    BOST_CLOSED: 'CLOSED',
+    D: 'DRAFT',
+    W: 'PENDING',
+    P: 'PENDING',
+    Y: 'APPROVED',
+    A: 'APPROVED',
+    N: 'REJECTED',
+    R: 'REJECTED'
+  };
+
+  return labels[value] ?? value;
 };
 
 const getSeriesList = (response) => {
@@ -200,6 +251,8 @@ export default function PurchaseRequest() {
   const userBusinessUnit = String(getCookies('userBusinessUnit') ?? '');
   const userDepartment = String(getCookies('userDepartment') ?? '');
   const userWarehouse = String(getCookies('userWarehouse') ?? '');
+  const loggedInUserId = String(getCookies('id') ?? getCookies('userId') ?? '');
+  const userOriginatorId = getFirstId(getCookies('approval_originator'));
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loadingSeries, setLoadingSeries] = useState(false);
@@ -223,6 +276,8 @@ export default function PurchaseRequest() {
     department: userDepartment,
     costCenter: '',
     status: 'DRAFT',
+    from: '',
+    to: '',
     search: '',
     perPage: 15
   });
@@ -230,6 +285,8 @@ export default function PurchaseRequest() {
     department: userDepartment,
     costCenter: '',
     status: 'DRAFT',
+    from: '',
+    to: '',
     search: '',
     perPage: 15
   });
@@ -269,17 +326,23 @@ export default function PurchaseRequest() {
     const fetchRequests = async () => {
       setLoadingRequests(true);
       try {
-        const response = await PurchasingServices.getPurchaseRequest(
-          appliedRequestFilters.department,
-          appliedRequestFilters.costCenter,
-          appliedRequestFilters.status,
-          appliedRequestFilters.search,
-          appliedRequestFilters.perPage,
-          requestPage.currentPage
-        );
+        const response =
+          appliedRequestFilters.status === 'DRAFT'
+            ? await PurchasingServices.getDraftPr({
+                CustomQuery: userOriginatorId,
+                UserId: loggedInUserId,
+                From: appliedRequestFilters.from.replaceAll('-', ''),
+                To: appliedRequestFilters.to.replaceAll('-', ''),
+                Status: appliedRequestFilters.status
+              })
+            : await PurchasingServices.getGeneratedPr({
+                CustomQuery: appliedRequestFilters.search || appliedRequestFilters.department,
+                From: appliedRequestFilters.from.replaceAll('-', ''),
+                To: appliedRequestFilters.to.replaceAll('-', '')
+              });
         if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to load purchase requests');
         if (active) {
-          const result = getPurchaseRequestPage(response);
+          const result = getPurchaseRequestPage(response, requestPage.currentPage, appliedRequestFilters.perPage);
           setRequests(result.items);
 
           setRequestPage({ currentPage: result.currentPage, lastPage: result.lastPage, total: result.total });
@@ -298,7 +361,7 @@ export default function PurchaseRequest() {
     return () => {
       active = false;
     };
-  }, [appliedRequestFilters, requestPage.currentPage, requestRefresh, showAlert]);
+  }, [appliedRequestFilters, loggedInUserId, requestPage.currentPage, requestRefresh, showAlert, userOriginatorId]);
 
   useEffect(() => {
     if (!showForm || !form.DocDate) {
@@ -494,6 +557,10 @@ export default function PurchaseRequest() {
 
   const applyRequestFilters = (event) => {
     event?.preventDefault();
+    if (requestFilters.from && requestFilters.to && requestFilters.from > requestFilters.to) {
+      showAlert('From date cannot be after To date.', 'warning');
+      return;
+    }
     setRequestPage((current) => ({ ...current, currentPage: 1 }));
     setAppliedRequestFilters({ ...requestFilters, search: requestFilters.search.trim() });
   };
@@ -503,6 +570,8 @@ export default function PurchaseRequest() {
       department: userDepartment,
       costCenter: '',
       status: appliedRequestFilters.status === 'DRAFT' ? 'DRAFT' : 'SUBMITTED',
+      from: '',
+      to: '',
       search: '',
       perPage: 15
     };
@@ -718,7 +787,7 @@ export default function PurchaseRequest() {
                 <Nav.Link eventKey="generated">Generated</Nav.Link>
               </Nav.Item>
             </Nav>
-            <Form className="purchase-request-list-filters" onSubmit={applyRequestFilters}>
+            <Form className="purchase-request-list-filters purchase-request-list-filters-wide" onSubmit={applyRequestFilters}>
               {userDepartment ? (
                 <Form.Control size="sm" aria-label="Department" value={userDepartment} readOnly />
               ) : (
@@ -735,16 +804,26 @@ export default function PurchaseRequest() {
                   aria-label="Filter department"
                 />
               )}
-              {requestFilters.status !== 'DRAFT' && (
-                <Select
-                  className="purchase-request-status-filter"
-                  classNamePrefix="select"
-                  options={purchaseRequestStatusOptions}
-                  value={purchaseRequestStatusOptions.find((option) => option.value === requestFilters.status)}
-                  onChange={(option) => setRequestFilters((current) => ({ ...current, status: option?.value ?? 'SUBMITTED' }))}
-                  aria-label="Filter status"
+              <InputGroup size="sm" className="purchase-request-date-filter">
+                <InputGroup.Text>From</InputGroup.Text>
+                <FormDatePicker
+                  type="date"
+                  aria-label="From date"
+                  value={requestFilters.from}
+                  max={requestFilters.to || undefined}
+                  onChange={(event) => setRequestFilters((current) => ({ ...current, from: event.target.value }))}
                 />
-              )}
+              </InputGroup>
+              <InputGroup size="sm" className="purchase-request-date-filter">
+                <InputGroup.Text>To</InputGroup.Text>
+                <FormDatePicker
+                  type="date"
+                  aria-label="To date"
+                  value={requestFilters.to}
+                  min={requestFilters.from || undefined}
+                  onChange={(event) => setRequestFilters((current) => ({ ...current, to: event.target.value }))}
+                />
+              </InputGroup>
               <Form.Control
                 size="sm"
                 aria-label="Search purchase requests"
@@ -770,8 +849,8 @@ export default function PurchaseRequest() {
         tableBody={
           requests.length
             ? requests.map((request, index) => {
-                const requestNumber = getRequestValue(request, ['sap_doc_num'], '-');
-                const status = String(getRequestValue(request, ['status', 'Status'], 'DRAFT')).toUpperCase();
+                const requestNumber = getRequestValue(request, ['sap_doc_num', 'DocNum', 'doc_num', 'DraftNum', 'draft_num'], '-');
+                const status = getDocumentStatus(request);
                 const requestId = getRequestValue(request, ['id', 'request_id', 'DocEntry']);
                 const requestForAction = { ...request, id: requestId };
                 const canChangeStatus = Boolean(requestId) && !['CANCELLED', 'COMPLETED'].includes(status);

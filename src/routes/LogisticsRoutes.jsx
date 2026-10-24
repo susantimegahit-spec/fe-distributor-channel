@@ -9,6 +9,7 @@ import { RouteErrorBoundary } from 'views/ErrorBoundary';
 
 const LogisticsDashboard = Loadable(lazy(() => import('views/logistics/dashboard/LogisticsDashboard')));
 const Picklist = Loadable(lazy(() => import('views/logistics/picklist/Picklist')));
+const WorkerManagement = Loadable(lazy(() => import('views/logistics/workers/WorkerManagement')));
 const MasterOrigin = Loadable(lazy(() => import('views/logistics/master/MasterOrigin')));
 const MasterDestination = Loadable(lazy(() => import('views/logistics/master/MasterDestination')));
 const MasterExpedition = Loadable(lazy(() => import('views/logistics/master/MasterExpedition')));
@@ -34,6 +35,10 @@ const LogisticsRoutes = {
     {
       path: 'logistics/picklists',
       element: <Picklist />
+    },
+    {
+      path: 'logistics/worker-management/picklists',
+      element: <WorkerManagement />
     },
     {
       path: 'logistics/master/origin',
