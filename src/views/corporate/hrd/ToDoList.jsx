@@ -274,8 +274,10 @@ const addDays = (date, amount) => {
   return result;
 };
 const differenceInDays = (later, earlier) => Math.round((later.getTime() - earlier.getTime()) / DAY_IN_MS);
+const getMonthWeekNumber = (date) => Math.ceil(date.getDate() / 7);
 
 const GanttView = ({ tasks, loading, onOpenTask, onExport }) => {
+  const [timelineScale, setTimelineScale] = useState('day');
   const [collapsedFolders, setCollapsedFolders] = useState([]);
   const [collapsedLists, setCollapsedLists] = useState([]);
   const gantt = useMemo(() => {
@@ -339,8 +341,52 @@ const GanttView = ({ tasks, loading, onOpenTask, onExport }) => {
   }
 
   const today = ganttDate(new Date().toISOString());
-  const columnWidth = gantt.days.length > 90 ? 28 : gantt.days.length > 45 ? 34 : 42;
-  const timelineWidth = gantt.days.length * columnWidth;
+  const startOfWeek = (date) => {
+    const result = new Date(date);
+    const day = result.getDay();
+    result.setDate(result.getDate() - (day === 0 ? 6 : day - 1));
+    return result;
+  };
+  const timelineUnits = timelineScale === 'month'
+    ? gantt.days.reduce((months, day) => {
+        const month = new Date(day.getFullYear(), day.getMonth(), 1);
+        if (!months.some((item) => item.getTime() === month.getTime())) months.push(month);
+        return months;
+      }, [])
+    : timelineScale === 'week'
+      ? (() => {
+          const weeks = [];
+          const cursor = startOfWeek(gantt.days[0]);
+          const last = startOfWeek(gantt.days[gantt.days.length - 1]);
+          while (cursor <= last) {
+            weeks.push(new Date(cursor));
+            cursor.setDate(cursor.getDate() + 7);
+          }
+          return weeks;
+        })()
+    : gantt.days;
+  const columnWidth = timelineScale === 'month' ? 120 : timelineScale === 'week' ? 96 : gantt.days.length > 90 ? 28 : gantt.days.length > 45 ? 34 : 42;
+  const timelineWidth = timelineUnits.length * columnWidth;
+  const dayWeekGroups = timelineScale === 'day'
+    ? timelineUnits.reduce((groups, day, index) => {
+        const week = getMonthWeekNumber(day);
+        const key = `${day.getFullYear()}-${day.getMonth()}-${week}`;
+        const previous = groups[groups.length - 1];
+        if (previous?.key === key) previous.length += 1;
+        else groups.push({ key, week, start: index + 1, length: 1 });
+        return groups;
+      }, [])
+    : [];
+  const getTimelineOffset = (date) => timelineScale === 'month'
+    ? (date.getFullYear() - timelineUnits[0].getFullYear()) * 12 + date.getMonth() - timelineUnits[0].getMonth()
+    : timelineScale === 'week'
+      ? Math.floor(differenceInDays(startOfWeek(date), timelineUnits[0]) / 7)
+    : differenceInDays(date, gantt.rangeStart);
+  const getTimelineDuration = (start, deadline) => timelineScale === 'month'
+    ? (deadline.getFullYear() - start.getFullYear()) * 12 + deadline.getMonth() - start.getMonth() + 1
+    : timelineScale === 'week'
+      ? Math.floor(differenceInDays(startOfWeek(deadline), startOfWeek(start)) / 7) + 1
+    : differenceInDays(deadline, start) + 1;
   let nextGridRow = 2;
 
   return (
@@ -350,25 +396,48 @@ const GanttView = ({ tasks, loading, onOpenTask, onExport }) => {
           <span><i className="ti ti-info-circle me-1" />Klik bar task untuk membuka detail.</span>
           {gantt.missingDates ? <span className="ms-2">{gantt.missingDates} task tanpa Start Date/Deadline tidak ditampilkan.</span> : null}
         </div>
-        <Button type="button" size="sm" variant="success" data-permission-action="none" onClick={onExport}>
-          <i className="ti ti-file-spreadsheet me-1" />
-          Export Excel
-        </Button>
+        <div className="d-flex align-items-center gap-2">
+          <div className="btn-group gantt-scale-switch" role="group" aria-label="Skala timeline Gantt">
+            <Button type="button" size="sm" variant={timelineScale === 'day' ? 'primary' : 'outline-secondary'} data-permission-action="none" onClick={() => setTimelineScale('day')}>Day</Button>
+            <Button type="button" size="sm" variant={timelineScale === 'week' ? 'primary' : 'outline-secondary'} data-permission-action="none" onClick={() => setTimelineScale('week')}>Week</Button>
+            <Button type="button" size="sm" variant={timelineScale === 'month' ? 'primary' : 'outline-secondary'} data-permission-action="none" onClick={() => setTimelineScale('month')}>Month</Button>
+          </div>
+          <Button type="button" size="sm" variant="success" data-permission-action="none" onClick={onExport}>
+            <i className="ti ti-file-spreadsheet me-1" />Export Excel
+          </Button>
+        </div>
       </div>
       <div className="gantt-scroll">
-        <div className="gantt-chart" style={{ '--gantt-days': gantt.days.length, '--gantt-day-width': `${columnWidth}px` }}>
+        <div className="gantt-chart" style={{ '--gantt-days': timelineUnits.length, '--gantt-day-width': `${columnWidth}px` }}>
           <div className="gantt-task-header">Task</div>
-          <div className="gantt-timeline gantt-date-header" style={{ width: timelineWidth }}>
-            {gantt.days.map((day) => {
-              const isToday = day.getTime() === today?.getTime();
+          <div className={`gantt-timeline gantt-date-header ${timelineScale === 'day' ? 'is-day' : ''}`} style={{ width: timelineWidth }}>
+            {timelineUnits.map((day) => {
+              const isToday = timelineScale === 'day' && day.getTime() === today?.getTime();
               return (
-                <div className={`gantt-date-cell ${isToday ? 'is-today' : ''}`} key={day.toISOString()}>
-                  <span>{day.toLocaleDateString('id-ID', { weekday: 'short' })}</span>
-                  <strong>{day.getDate()}</strong>
-                  <small>{day.toLocaleDateString('id-ID', { month: 'short' })}</small>
+                <div className={`gantt-date-cell ${timelineScale === 'day' ? 'gantt-date-cell--day' : ''} ${isToday ? 'is-today' : ''}`} key={day.toISOString()}>
+                  {timelineScale === 'month' ? (
+                    <><strong>{day.toLocaleDateString('id-ID', { month: 'long' })}</strong><small>{day.getFullYear()}</small></>
+                  ) : timelineScale === 'week' ? (
+                    <><strong>{day.getDate()} {day.toLocaleDateString('id-ID', { month: 'short' })}</strong><small>– {addDays(day, 6).getDate()} {addDays(day, 6).toLocaleDateString('id-ID', { month: 'short' })}</small></>
+                  ) : (
+                    <>
+                      <span>{day.toLocaleDateString('id-ID', { weekday: 'short' })}</span>
+                      <strong>{day.getDate()}</strong>
+                      <small>{day.toLocaleDateString('id-ID', { month: 'short' })}</small>
+                    </>
+                  )}
                 </div>
               );
             })}
+            {dayWeekGroups.map((group) => (
+              <div
+                className={`gantt-month-week-cell gantt-month-week-cell--${group.week}`}
+                key={group.key}
+                style={{ gridColumn: `${group.start} / span ${group.length}` }}
+              >
+                Week {group.week}
+              </div>
+            ))}
           </div>
           {ganttTree.map((folder) => {
             const folderCollapsed = collapsedFolders.includes(folder.key);
@@ -405,8 +474,8 @@ const GanttView = ({ tasks, loading, onOpenTask, onExport }) => {
                       </button>
                       <div className="gantt-timeline gantt-group-grid gantt-list-grid" style={{ width: timelineWidth, gridRow: listGridRow }} />
                       {!listCollapsed && list.rows.map(({ task, start, deadline }) => {
-                        const offset = differenceInDays(start, gantt.rangeStart);
-                        const duration = differenceInDays(deadline, start) + 1;
+                        const offset = getTimelineOffset(start);
+                        const duration = getTimelineDuration(start, deadline);
                         const statusColor = colorMap[task.status] || '#4f46e5';
                         const taskGridRow = nextGridRow++;
                         return (
@@ -416,8 +485,8 @@ const GanttView = ({ tasks, loading, onOpenTask, onExport }) => {
                               <small>{task.assignees.join(', ') || 'Tanpa assignee'}</small>
                             </button>
                             <div className="gantt-timeline gantt-row-grid" style={{ width: timelineWidth, gridRow: taskGridRow }}>
-                              {gantt.days.map((day) => (
-                                <span className={`gantt-grid-cell ${day.getDay() === 0 || day.getDay() === 6 ? 'is-weekend' : ''} ${day.getTime() === today?.getTime() ? 'is-today' : ''}`} key={day.toISOString()} />
+                              {timelineUnits.map((day) => (
+                                <span className={`gantt-grid-cell ${timelineScale === 'day' && day.getDay() === 0 ? 'is-weekend' : ''} ${timelineScale === 'day' && day.getTime() === today?.getTime() ? 'is-today' : ''}`} key={day.toISOString()} />
                               ))}
                               <button type="button" className="gantt-bar" onClick={() => onOpenTask(task)} title={`${task.title}: ${formatDate(task.startDate)} – ${formatDate(task.dueDate)}`} style={{ left: offset * columnWidth + 4, width: Math.max(duration * columnWidth - 8, 24), backgroundColor: statusColor }}>
                                 <span>{task.title}</span>
@@ -1044,7 +1113,7 @@ export default function ToDoList() {
       const timelineHeader = timelineDates
         .map(
           (date) =>
-            `<th class="date ${date.getDay() === 0 || date.getDay() === 6 ? 'weekend' : ''}"><strong>${date.getDate()} ${escapeHtml(date.toLocaleDateString('id-ID', { month: 'short' }))}</strong></th>`
+            `<th class="date ${date.getDay() === 0 ? 'weekend' : ''}"><strong>${date.getDate()} ${escapeHtml(date.toLocaleDateString('id-ID', { month: 'short' }))}</strong></th>`
         )
         .join('');
       const bodyRows = [...tree.entries()]
@@ -1064,7 +1133,7 @@ export default function ToDoList() {
                     const active = date >= start && date <= deadline;
                     const isFirst = active && !barStarted;
                     if (active) barStarted = true;
-                    const cellClass = date.getDay() === 0 || date.getDay() === 6 ? 'weekend' : '';
+                    const cellClass = date.getDay() === 0 ? 'weekend' : '';
                     return active
                       ? `<td class="bar" style="background:${barColor};color:#fff">${isFirst ? escapeHtml(task.title) : ''}</td>`
                       : `<td class="day ${cellClass}"></td>`;
