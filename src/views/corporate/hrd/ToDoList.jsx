@@ -1038,7 +1038,7 @@ export default function ToDoList() {
       const timelineHeader = timelineDates
         .map(
           (date) =>
-            `<th class="date ${date.getDay() === 0 || date.getDay() === 6 ? 'weekend' : ''}"><span>${escapeHtml(date.toLocaleDateString('id-ID', { weekday: 'short' }))}</span><strong>${date.getDate()}</strong><small>${escapeHtml(date.toLocaleDateString('id-ID', { month: 'short' }))}</small></th>`
+            `<th class="date ${date.getDay() === 0 || date.getDay() === 6 ? 'weekend' : ''}"><strong>${date.getDate()} ${escapeHtml(date.toLocaleDateString('id-ID', { month: 'short' }))}</strong></th>`
         )
         .join('');
       const bodyRows = [...tree.entries()]
@@ -1075,9 +1075,9 @@ export default function ToDoList() {
         body{font-family:Arial,sans-serif;color:#172033}table{border-collapse:collapse}td,th{border:1px solid #e7eaf0}
         .title{height:44px;background:#ffffff;color:#172033;font-size:18px;text-align:left;padding-left:12px}.subtitle{height:28px;background:#f8fafc;color:#64748b;text-align:left;padding-left:12px;font-size:11px}
         .task-head{min-width:310px;width:310px;background:#f8fafc;color:#475569;text-align:left;padding:10px;font-size:11px}
-        .date{min-width:44px;width:44px;height:54px;background:#f8fafc;color:#94a3b8;text-align:center;font-size:9px}.date span,.date strong,.date small{display:block}.date strong{color:#334155;font-size:14px}.weekend{background:#f1f5f9}
+        .date{min-width:54px;width:54px;height:44px;background:#f8fafc;color:#334155;text-align:center;font-size:11px}.date strong{display:block;white-space:nowrap}.weekend{background:#f1f5f9}
         .folder td{height:32px;background:#f8fafc;color:#334155;font-size:11px;font-weight:bold}.folder td:first-child,.list td:first-child{padding-left:10px}.folder b,.list b{float:right;background:#e2e8f0;border-radius:10px;padding:2px 7px}
-        .list td{height:29px;background:#ffffff;color:#475569;font-size:11px;font-weight:bold}.task td{height:42px}.task td:first-child{padding:6px 10px;background:#fff;white-space:nowrap}.task td:first-child strong{display:block;font-size:11px}.task td:first-child small{display:block;color:#94a3b8;font-size:9px;margin-top:3px}.day{min-width:44px;width:44px;background:#fff}.bar{min-width:44px;width:44px;max-width:44px;overflow:hidden;white-space:nowrap;font-size:9px;font-weight:bold;padding:0 4px}
+        .list td{height:29px;background:#ffffff;color:#475569;font-size:11px;font-weight:bold}.task td{height:42px}.task td:first-child{padding:6px 10px;background:#fff;white-space:nowrap}.task td:first-child strong{display:block;font-size:11px}.task td:first-child small{display:block;color:#94a3b8;font-size:9px;margin-top:3px}.day{min-width:54px;width:54px;background:#fff}.bar{min-width:54px;width:54px;max-width:54px;overflow:hidden;white-space:nowrap;font-size:9px;font-weight:bold;padding:0 4px}
       </style></head><body><table><tr><th class="title" colspan="${timelineDates.length + 1}">Task Management — Gantt Chart</th></tr><tr><td class="subtitle" colspan="${timelineDates.length + 1}">Diexport ${escapeHtml(new Date().toLocaleString('id-ID'))} · ${scheduledTasks.length} task</td></tr><tr><th class="task-head">TASK</th>${timelineHeader}</tr>${bodyRows}</table></body></html>`;
       const blob = new Blob(['\ufeff', html], { type: 'application/vnd.ms-excel;charset=utf-8' });
       const downloadUrl = URL.createObjectURL(blob);

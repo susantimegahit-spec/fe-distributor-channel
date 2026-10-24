@@ -2318,6 +2318,7 @@
 }
 
 .todo-page .gantt-task-header {
+  grid-column: 1;
   left: 0;
   z-index: 6;
   display: flex;
@@ -2334,6 +2335,7 @@
 .todo-page .gantt-timeline {
   position: relative;
   display: grid;
+  grid-column: 2;
   grid-template-columns: repeat(var(--gantt-days), var(--gantt-day-width));
 }
 
@@ -2369,6 +2371,7 @@
 
 .todo-page .gantt-tree-cell {
   position: sticky;
+  grid-column: 1;
   left: 0;
   z-index: 3;
   display: grid;
@@ -2430,6 +2433,7 @@
 
 .todo-page .gantt-task-cell {
   position: sticky;
+  grid-column: 1;
   left: 0;
   z-index: 3;
   min-width: 0;
