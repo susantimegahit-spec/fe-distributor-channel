@@ -14,10 +14,6 @@ export default function FormDatePicker({
   className = '',
   ...props
 }) {
-  const controlClassName = [size === 'sm' ? 'form-control-sm' : '', size === 'lg' ? 'form-control-lg' : '', className]
-    .filter(Boolean)
-    .join(' ');
-
   const emitChange = (nextValue) => {
     onChange?.({
       target: { value: nextValue, name, id },
@@ -33,7 +29,8 @@ export default function FormDatePicker({
       min={min}
       max={max}
       disabled={disabled || readOnly}
-      className={controlClassName}
+      size={size}
+      className={className}
       aria-required={required || undefined}
     />
   );

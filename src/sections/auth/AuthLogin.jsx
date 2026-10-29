@@ -161,21 +161,24 @@ export default function AuthLoginForm({ className }) {
         const accessibleSystemSource =
           loginData.accessible_system || loginData.accessible_systems || userData.accessible_system || userData.accessible_systems || [];
         const accessibleSystems = normalizeAccessibleSystems(accessibleSystemSource);
+        const actionContainers = [
+          loginData.actions,
+          loginData.action_assignments,
+          loginData.actionAssignments,
+          userData.actions,
+          userData.action_assignments,
+          userData.actionAssignments
+        ];
         const actionContainer =
-          [
-            loginData.actions,
-            loginData.action_assignments,
-            loginData.actionAssignments,
-            userData.actions,
-            userData.action_assignments,
-            userData.actionAssignments
-          ].find(
-            (value) =>
-              value &&
-              typeof value === 'object' &&
-              !Array.isArray(value) &&
-              (value.menu || value.menus || value.widget || value.widgets || value.menu_actions || value.widget_actions)
-          ) || {};
+          actionContainers
+            .flatMap((value) => (Array.isArray(value) ? value : [value]))
+            .find(
+              (value) =>
+                value &&
+                typeof value === 'object' &&
+                !Array.isArray(value) &&
+                (value.menu || value.menus || value.widget || value.widgets || value.menu_actions || value.widget_actions)
+            ) || {};
         const actionSources = [
           actionContainer.menu,
           actionContainer.menus,
@@ -222,7 +225,10 @@ export default function AuthLoginForm({ className }) {
               widgetKeys.has(String(assignment?.widget_key ?? assignment?.widgetKey ?? assignment?.menu_key ?? assignment?.menuKey ?? ''))
             )
           : [];
-        const widgetActions = explicitWidgetActions.length ? explicitWidgetActions : embeddedWidgetActions;
+        const hasExplicitWidgetActions = Array.isArray(explicitWidgetActions)
+          ? explicitWidgetActions.length > 0
+          : explicitWidgetActions && typeof explicitWidgetActions === 'object' && Object.keys(explicitWidgetActions).length > 0;
+        const widgetActions = hasExplicitWidgetActions ? explicitWidgetActions : embeddedWidgetActions;
         const hasWidgetActionSource = widgetActionSources.some((value) => value !== undefined && value !== null) || Array.isArray(actions);
         const organizationDistributors = normalizeAssignmentValues(organizationAssignment.distributors);
         const customerCode =

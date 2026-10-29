@@ -19,6 +19,12 @@ const getList = (response, keys = []) => {
 
 const firstValue = (item, keys) => keys.map((key) => item?.[key]).find((value) => String(value || '').trim()) || '';
 const approvalStatus = (item) => firstValue(item, ['approval_status', 'approvalStatus']) || '-';
+const numberFormatter = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 });
+const formatNumber = (value) => {
+  if (value === null || value === undefined || String(value).trim() === '') return '-';
+  const number = Number(value);
+  return Number.isFinite(number) ? numberFormatter.format(number) : value;
+};
 const statusBadgeClass = (status) => {
   const value = String(status || '').trim().toUpperCase();
   if (['ACTIVE', 'APPROVED'].includes(value)) return 'vp-service-badge vp-service-badge--success';
@@ -34,17 +40,32 @@ const formatWeight = (route) => {
   const hasMaximum = maximum !== null && maximum !== undefined && String(maximum).trim() !== '';
 
   if (!hasMinimum && !hasMaximum) return '-';
-  if (!hasMinimum) return maximum;
-  if (!hasMaximum || Number(minimum) === Number(maximum)) return minimum;
-  return `${minimum} - ${maximum}`;
+  if (!hasMinimum) return formatNumber(maximum);
+  if (!hasMaximum || Number(minimum) === Number(maximum)) return formatNumber(minimum);
+  return `${formatNumber(minimum)} - ${formatNumber(maximum)}`;
 };
 const transportModeLabels = { D: 'Darat', L: 'Laut', U: 'Udara' };
+const showDashboardTab = false;
 const formatTransportMode = (value) => transportModeLabels[String(value || '').toUpperCase()] || value || '-';
+const formatOriginCity = (route) => {
+  const city = firstValue(route, ['origin_city', 'originCity', 'city_origin', 'cityOrigin']);
+  if (city) return city;
+
+  const origin = firstValue(route, ['origin_name', 'originName', 'origin']);
+  if (!origin) return '-';
+
+  const segments = String(origin)
+    .split(/\s+-\s+/)
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+
+  return segments.at(-1) || origin;
+};
 const formatRate = (route) => {
   const rate = route?.rate ?? route?.amount;
   const serviceType = route?.service_type ?? route?.serviceType;
   if (rate === null || rate === undefined || String(rate).trim() === '') return '-';
-  return serviceType ? `${rate}/${serviceType}` : rate;
+  return serviceType ? `${formatNumber(rate)}/${serviceType}` : formatNumber(rate);
 };
 const formatLeadTime = (value) => (value === null || value === undefined || String(value).trim() === '' ? '-' : `${value} days`);
 const getOriginRow = (item) => {
@@ -140,7 +161,7 @@ const ongoingShipments = [
 
 export default function ExpeditionDashboard() {
   const { showAlert } = useAlert();
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('rates');
   const [showAddRates, setShowAddRates] = useState(false);
   const [ratePeriod, setRatePeriod] = useState('');
   const [ratesFile, setRatesFile] = useState(null);
@@ -335,9 +356,11 @@ export default function ExpeditionDashboard() {
           </p>
         </div>
         <nav className="vp-portal-tabs" aria-label="Expedition Vendor Portal navigation">
-          <button type="button" className={activeTab === 'dashboard' ? 'active' : ''} onClick={() => setActiveTab('dashboard')}>
-            <i className="ti ti-layout-dashboard" /> Dashboard
-          </button>
+          {showDashboardTab ? (
+            <button type="button" className={activeTab === 'dashboard' ? 'active' : ''} onClick={() => setActiveTab('dashboard')}>
+              <i className="ti ti-layout-dashboard" /> Dashboard
+            </button>
+          ) : null}
           <button type="button" className={activeTab === 'rates' ? 'active' : ''} onClick={() => setActiveTab('rates')}>
             <i className="ti ti-route" /> Rates <span>{rateHeaders.length}</span>
           </button>
@@ -564,7 +587,7 @@ export default function ExpeditionDashboard() {
                   {getList({ data: rateDetail }, ['details', 'routes', 'rates']).length ? (
                     getList({ data: rateDetail }, ['details', 'routes', 'rates']).map((route, index) => (
                       <tr key={firstValue(route, ['id', 'uuid', 'route_id', 'routeId']) || index}>
-                        <td>{firstValue(route, ['origin_name', 'originName', 'origin']) || '-'}</td>
+                        <td>{formatOriginCity(route)}</td>
                         <td>{firstValue(route, ['destination_name', 'destinationName', 'destination']) || '-'}</td>
                         <td>{route?.destination_city || '-'}</td>
                         <td>{formatTransportMode(route?.transport_mode ?? route?.transportMode)}</td>

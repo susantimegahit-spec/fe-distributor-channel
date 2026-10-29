@@ -204,6 +204,32 @@ body {
   opacity: 1;
 }
 
+.modal-backdrop.overload-discount-backdrop {
+  z-index: 1065;
+  background-color: rgba(31, 41, 55, 0.52);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.modal-backdrop.overload-discount-backdrop.show {
+  opacity: 1;
+}
+
+.modal.overload-discount-modal {
+  z-index: 1070;
+}
+
+.overload-qty-input {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.overload-qty-input::-webkit-inner-spin-button,
+.overload-qty-input::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
 // Bootstrap renders modal backdrops in a body-level portal. Keep the Production
 // workspace visible but blurred behind every modal, including stacked modals.
 [data-system-theme='production'] .modal-backdrop {
@@ -5003,6 +5029,131 @@ body {
 // explicitly reset, which can push the CMO actions outside the card header.
 .order-create-page .order-create-header > .hstack {
   min-width: 0;
+}
+
+// Detail Order deliberately uses the same plain Bootstrap card treatment as
+// the Adjust Overload fullscreen modal. The global dashboard card decoration
+// is reset here so both screens keep the same spacing, radius and elevation.
+:is(.pc-content, .sm-workspace-embedded-content) .order-detail-page {
+  gap: 1rem !important;
+}
+
+.sm-workspace-embedded-content .order-detail-page {
+  min-height: calc(100vh + 36px);
+  margin: -18px;
+}
+
+:is(.pc-content, .sm-workspace-embedded-content) .order-detail-page > .order-detail-main-card {
+  display: contents;
+}
+
+:is(.pc-content, .sm-workspace-embedded-content) .order-detail-page .order-detail-header {
+  min-height: 112px;
+  padding: 1.5rem 2rem;
+  border: 0;
+  border-bottom: 1px solid var(--bs-border-color);
+  border-radius: 0 !important;
+  background: var(--bs-body-bg) !important;
+  color: var(--bs-body-color);
+  box-shadow: none;
+}
+
+:is(.pc-content, .sm-workspace-embedded-content) .order-detail-page .order-detail-header h5,
+:is(.pc-content, .sm-workspace-embedded-content) .order-detail-page .order-detail-header .text-muted {
+  color: inherit !important;
+}
+
+:is(.pc-content, .sm-workspace-embedded-content) .order-detail-page .order-detail-header .text-muted {
+  opacity: 0.7;
+}
+
+:is(.pc-content, .sm-workspace-embedded-content) .order-detail-page .order-detail-main-body {
+  margin-top: -1rem;
+  padding: 1.5rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+:is(.pc-content, .sm-workspace-embedded-content)
+  .order-detail-page
+  :is(.order-detail-section-card, .order-detail-content-card, .order-detail-content-card .card),
+:is(.pc-content, .sm-workspace-embedded-content)
+  .order-detail-page
+  :is(.order-detail-section-card, .order-detail-content-card, .order-detail-content-card .card):hover {
+  --bs-card-border-radius: 0;
+  --bs-card-inner-border-radius: 0;
+  border: 1px solid var(--bs-border-color) !important;
+  border-radius: var(--bs-card-border-radius);
+  background: var(--bs-card-bg);
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+:is(.pc-content, .sm-workspace-embedded-content)
+  .order-detail-page
+  :is(.order-detail-section-card, .order-detail-content-card, .order-detail-content-card .card)
+  > .card-header {
+  padding: 1rem;
+  border-bottom: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-card-inner-border-radius) var(--bs-card-inner-border-radius) 0 0 !important;
+  background: transparent !important;
+  color: var(--bs-body-color);
+}
+
+:is(.pc-content, .sm-workspace-embedded-content)
+  .order-detail-page
+  :is(.order-detail-section-card, .order-detail-content-card, .order-detail-content-card .card)
+  > .card-header
+  :is(h5, h6, .text-muted) {
+  color: inherit !important;
+}
+
+:is(.pc-content, .sm-workspace-embedded-content)
+  .order-detail-page
+  :is(.order-detail-section-card, .order-detail-content-card)
+  > .card-body {
+  padding: 1rem;
+}
+
+:is(.pc-content, .sm-workspace-embedded-content) .order-detail-page .order-detail-summary-card .order-detail-grand-total {
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+:is(.pc-content, .sm-workspace-embedded-content) .order-detail-page .order-detail-summary-card .order-detail-grand-total h5 {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+@media (max-width: 767.98px) {
+  .sm-workspace-embedded-content .order-detail-page {
+    min-height: calc(100vh + 24px);
+    margin: -12px;
+  }
+
+  :is(.pc-content, .sm-workspace-embedded-content) .order-detail-page .order-detail-header > .hstack,
+  :is(.pc-content, .sm-workspace-embedded-content) .order-detail-page .order-create-header-actions {
+    align-items: stretch !important;
+  }
+
+  :is(.pc-content, .sm-workspace-embedded-content) .order-detail-page .order-create-header-actions,
+  :is(.pc-content, .sm-workspace-embedded-content) .order-detail-page .order-create-header-actions .btn {
+    width: 100%;
+  }
+}
+
+.order-create-page .order-create-header {
+  position: sticky;
+  top: 0;
+  z-index: 1025;
+  background: var(--bs-body-bg, #fff);
+  box-shadow: 0 8px 18px rgba(31, 41, 55, 0.08);
+}
+
+[data-pc-theme='dark'] .order-create-page .order-create-header,
+[data-bs-theme='dark'] .order-create-page .order-create-header {
+  background: var(--bs-body-bg, #0b2239);
 }
 
 .order-create-page .order-create-header > .hstack > * {

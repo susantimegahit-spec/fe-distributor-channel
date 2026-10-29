@@ -57,8 +57,12 @@ class PurchasingServices {
     return DataService.post('/purchasing-request/requests', payload);
   }
 
+  getPurchaseRequestDetail(id) {
+    return DataService.get(`/purchasing-request/requests/${encodeURIComponent(id)}`);
+  }
+
   getDetailPurchasing(id) {
-    return DataService.get(`/purchasing-request/requests/${id}`);
+    return this.getPurchaseRequestDetail(id);
   }
 
   putPurchasing(id, payload) {
