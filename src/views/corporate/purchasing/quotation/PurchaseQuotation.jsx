@@ -26,6 +26,22 @@ const getValue = (item, keys, fallback = '') => {
   return value ?? fallback;
 };
 
+const formatQuantity = (value) => {
+  if (value === undefined || value === null || value === '') return '-';
+  const quantity = Number(value);
+  return Number.isFinite(quantity) ? quantity.toLocaleString('id-ID', { maximumFractionDigits: 6 }) : '-';
+};
+
+const formatDisplayDate = (value) => {
+  if (!value) return '-';
+  const normalizedValue = String(value).trim();
+  const compactDate = normalizedValue.match(/^(\d{4})(\d{2})(\d{2})$/);
+  if (compactDate) return `${compactDate[3]}/${compactDate[2]}/${compactDate[1]}`;
+  const isoDate = normalizedValue.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoDate) return `${isoDate[3]}/${isoDate[2]}/${isoDate[1]}`;
+  return normalizedValue;
+};
+
 const getList = (response) => {
   const root = response?.data?.data ?? response?.data ?? response ?? [];
   const payload = root.Result ?? root.result ?? root;
@@ -35,13 +51,28 @@ const getList = (response) => {
 
 const getDetailPayload = (response) => {
   const payload = response?.data?.data ?? response?.data ?? response ?? {};
-  const request = payload.request ?? payload.purchase_request ?? payload.purchaseRequest ?? payload;
-  const lines = payload.details ?? payload.lines ?? payload.Lines ?? request.details ?? request.lines ?? request.Lines ?? [];
+  const request =
+    payload.header ??
+    (Array.isArray(payload.Table1) ? payload.Table1[0] : null) ??
+    payload.request ??
+    payload.purchase_request ??
+    payload.purchaseRequest ??
+    payload;
+  const lines =
+    payload.items ??
+    payload.Table2 ??
+    payload.details ??
+    payload.lines ??
+    payload.Lines ??
+    request.details ??
+    request.lines ??
+    request.Lines ??
+    [];
   return { request, lines: Array.isArray(lines) ? lines : [] };
 };
 
 const getRequestId = (request) =>
-  getValue(request, ['id', 'request_id', 'DocEntry', 'doc_entry', 'DraftEntry', 'draft_entry'], '');
+  getValue(request, ['DocEntry', 'doc_entry', 'id', 'request_id', 'DraftEntry', 'draft_entry'], '');
 
 const getRequestNumber = (request) =>
   getValue(request, ['sap_doc_num', 'DocNum', 'doc_num', 'DraftNum', 'draft_num'], '-');
@@ -128,7 +159,7 @@ export default function PurchaseQuotation() {
 
     setLoadingDetails((current) => ({ ...current, [requestId]: true }));
     try {
-      const response = await PurchasingServices.getPurchaseRequestDetail(requestId);
+      const response = await PurchasingServices.getDetailPR(requestId);
       if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to load request details');
       const detail = getDetailPayload(response);
       setRequestLines((current) => ({ ...current, [requestId]: detail.lines }));
@@ -200,6 +231,7 @@ export default function PurchaseQuotation() {
         fullscreen
         scrollable
         backdrop="static"
+        backdropClassName="purchase-quotation-blur-backdrop"
       >
         <Modal.Header closeButton>
           <Modal.Title>Create Request Quotation</Modal.Title>
@@ -278,7 +310,7 @@ export default function PurchaseQuotation() {
                             </Button>
                           </td>
                           <td className="fw-semibold">{getRequestNumber(request)}</td>
-                          <td>{getValue(request, ['request_date', 'doc_date', 'DocDate', 'created_at'], '-')}</td>
+                          <td>{formatDisplayDate(getValue(request, ['request_date', 'doc_date', 'DocDate', 'created_at']))}</td>
                           <td>{getValue(request, ['department', 'department_name', 'Department'], '-')}</td>
                           <td>{getValue(request, ['requester_name', 'RequesterName', 'requester'], '-')}</td>
                           <td>
@@ -330,10 +362,10 @@ export default function PurchaseQuotation() {
                                           </td>
                                           <td>{getValue(line, ['item_code', 'ItemCode'], '-')}</td>
                                           <td>{getValue(line, ['item_name', 'ItemName', 'description', 'Dscription'], '-')}</td>
-                                          <td>{getValue(line, ['quantity', 'Quantity'], '-')}</td>
+                                          <td>{formatQuantity(getValue(line, ['quantity', 'Quantity']))}</td>
                                           <td>{getValue(line, ['unit', 'UnitMsr', 'UomCode'], '-')}</td>
                                           <td>{getValue(line, ['warehouse', 'WhsCode', 'whs_code'], '-')}</td>
-                                          <td>{getValue(line, ['required_date', 'PQTReqDate', 'pqt_req_date'], '-')}</td>
+                                          <td>{formatDisplayDate(getValue(line, ['required_date', 'PQTReqDate', 'pqt_req_date']))}</td>
                                         </tr>
                                       );
                                     })}
@@ -374,7 +406,14 @@ export default function PurchaseQuotation() {
         </Modal.Footer>
       </Modal>
 
-      <Modal show={showSelectedModal} onHide={() => setShowSelectedModal(false)} size="xl" centered scrollable>
+      <Modal
+        show={showSelectedModal}
+        onHide={() => setShowSelectedModal(false)}
+        dialogClassName="purchase-quotation-selected-dialog"
+        backdropClassName="purchase-quotation-blur-backdrop"
+        centered
+        scrollable
+      >
         <Modal.Header closeButton>
           <Modal.Title>Selected Quotation Items</Modal.Title>
         </Modal.Header>
@@ -402,10 +441,10 @@ export default function PurchaseQuotation() {
                       <td className="fw-semibold">{selected.requestNumber}</td>
                       <td>{getValue(selected.line, ['item_code', 'ItemCode'], '-')}</td>
                       <td>{getValue(selected.line, ['item_name', 'ItemName', 'description', 'Dscription'], '-')}</td>
-                      <td>{getValue(selected.line, ['quantity', 'Quantity'], '-')}</td>
+                      <td>{formatQuantity(getValue(selected.line, ['quantity', 'Quantity']))}</td>
                       <td>{getValue(selected.line, ['unit', 'UnitMsr', 'UomCode'], '-')}</td>
                       <td>{getValue(selected.line, ['warehouse', 'WhsCode', 'whs_code'], '-')}</td>
-                      <td>{getValue(selected.line, ['required_date', 'PQTReqDate', 'pqt_req_date'], '-')}</td>
+                      <td>{formatDisplayDate(getValue(selected.line, ['required_date', 'PQTReqDate', 'pqt_req_date']))}</td>
                       <td className="text-center">
                         <Button
                           type="button"

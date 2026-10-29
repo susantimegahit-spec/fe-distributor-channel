@@ -61,6 +61,12 @@ class PurchasingServices {
     return DataService.get(`/purchasing-request/requests/${encodeURIComponent(id)}`);
   }
 
+  getDetailPR(docEntry) {
+    return DataService.get('/purchasing-request/detail-pr', {
+      CustomQuery: String(docEntry ?? '')
+    });
+  }
+
   getDetailPurchasing(id) {
     return this.getPurchaseRequestDetail(id);
   }

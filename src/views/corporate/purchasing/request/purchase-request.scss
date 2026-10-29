@@ -18,6 +18,36 @@
   }
 }
 
+.purchase-request-detail-header {
+  padding: 18px;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 10px;
+  background: var(--bs-body-bg);
+}
+
+.purchase-request-detail-field {
+  height: 100%;
+  min-height: 64px;
+  padding: 10px 12px;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 8px;
+  background: var(--bs-tertiary-bg);
+}
+
+.purchase-request-detail-items {
+  min-width: 1250px;
+
+  th,
+  td {
+    padding: 10px 12px;
+    white-space: nowrap;
+  }
+
+  th {
+    background: var(--bs-tertiary-bg);
+  }
+}
+
 [data-pc-theme='dark'],
 [data-bs-theme='dark'] {
   .purchase-request-details {

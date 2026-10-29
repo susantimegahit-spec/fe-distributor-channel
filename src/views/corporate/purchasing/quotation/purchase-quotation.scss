@@ -3,6 +3,22 @@
   max-width: 1700px;
 }
 
+.purchase-quotation-blur-backdrop.show {
+  background-color: rgba(11, 24, 43, 0.55);
+  opacity: 1;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.purchase-quotation-selected-dialog.modal-dialog {
+  width: calc(100vw - 64px);
+  max-width: 1600px;
+}
+
+.purchase-quotation-selected-dialog.modal-dialog-scrollable .modal-content {
+  max-height: calc(100dvh - 80px);
+}
+
 .purchase-quotation-dialog.modal-dialog-scrollable .modal-content {
   height: calc(100dvh - 64px);
   max-height: 1100px;
@@ -146,6 +162,12 @@
   }
 
   .purchase-quotation-dialog.modal-dialog {
+    width: calc(100vw - 16px);
+    margin-right: auto;
+    margin-left: auto;
+  }
+
+  .purchase-quotation-selected-dialog.modal-dialog {
     width: calc(100vw - 16px);
     margin-right: auto;
     margin-left: auto;
