@@ -1,0 +1,90 @@
+.quotation-offer-page {
+  min-height: 100vh;
+  padding: 40px 16px;
+  background: #eef2f7;
+  color: #172033;
+}
+.quotation-offer-container {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+.quotation-offer-header {
+  padding: 28px;
+  margin-bottom: 16px;
+  border-top: 7px solid #315fb4;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 4px 18px rgba(23, 32, 51, 0.06);
+}
+.quotation-offer-header span {
+  color: #315fb4;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+.quotation-offer-header h1 {
+  margin: 8px 0;
+  font-size: 30px;
+}
+.quotation-offer-header p {
+  margin: 0;
+  color: #64748b;
+}
+.quotation-offer-page .card {
+  border: 1px solid #dde4ee;
+  border-radius: 12px;
+  box-shadow: 0 3px 14px rgba(23, 32, 51, 0.04);
+}
+.quotation-offer-table {
+  min-width: 1050px;
+}
+.quotation-offer-table th,
+.quotation-offer-table td {
+  padding: 14px;
+}
+.quotation-offer-table td:nth-child(2) {
+  min-width: 230px;
+}
+.quotation-offer-table td:nth-child(2) small {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+}
+.quotation-offer-table td:nth-child(4) {
+  min-width: 180px;
+}
+.quotation-offer-table td:nth-child(5),
+.quotation-offer-table td:nth-child(6) {
+  min-width: 170px;
+}
+.quotation-offer-container footer {
+  padding: 28px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  text-align: center;
+}
+.quotation-offer-message {
+  max-width: 620px;
+  margin: 80px auto;
+  text-align: center;
+}
+.quotation-offer-message .card-body {
+  padding: 52px 24px;
+}
+.quotation-offer-message i {
+  display: block;
+  margin-bottom: 16px;
+  color: #64748b;
+  font-size: 64px;
+}
+@media (max-width: 575.98px) {
+  .quotation-offer-page {
+    padding: 16px 10px;
+  }
+  .quotation-offer-header {
+    padding: 20px;
+  }
+  .quotation-offer-header h1 {
+    font-size: 23px;
+  }
+}

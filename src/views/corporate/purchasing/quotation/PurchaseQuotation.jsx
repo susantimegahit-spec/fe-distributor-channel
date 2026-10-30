@@ -12,14 +12,8 @@ import PurchasingServices from '../../../../services/corporate/PurchasingService
 import FormDatePicker from '../../../../components/FormDatePicker';
 import { useAlert } from '../../../../utils/alertContext';
 import EnterpriseWorkspace from '../../components/EnterpriseWorkspace';
+import { createPublicQuotation, getPublicQuotations, getQuotationOffers } from '../../../../utils/publicQuotations';
 import './purchase-quotation.scss';
-
-const metrics = [
-  { label: 'Draft Quotations', value: 0, variant: 'secondary', icon: 'ti ti-file-pencil' },
-  { label: 'Open Quotations', value: 0, variant: 'primary', icon: 'ti ti-file-dollar' },
-  { label: 'Submitted', value: 0, variant: 'warning', icon: 'ti ti-send' },
-  { label: 'Completed', value: 0, variant: 'success', icon: 'ti ti-circle-check' }
-];
 
 const getValue = (item, keys, fallback = '') => {
   const value = keys.map((key) => item?.[key]).find((entry) => entry !== undefined && entry !== null && entry !== '');
@@ -71,14 +65,11 @@ const getDetailPayload = (response) => {
   return { request, lines: Array.isArray(lines) ? lines : [] };
 };
 
-const getRequestId = (request) =>
-  getValue(request, ['DocEntry', 'doc_entry', 'id', 'request_id', 'DraftEntry', 'draft_entry'], '');
+const getRequestId = (request) => getValue(request, ['DocEntry', 'doc_entry', 'id', 'request_id', 'DraftEntry', 'draft_entry'], '');
 
-const getRequestNumber = (request) =>
-  getValue(request, ['sap_doc_num', 'DocNum', 'doc_num', 'DraftNum', 'draft_num'], '-');
+const getRequestNumber = (request) => getValue(request, ['sap_doc_num', 'DocNum', 'doc_num', 'DraftNum', 'draft_num'], '-');
 
-const getLineKey = (requestId, line, index) =>
-  `${requestId}:${getValue(line, ['id', 'line_id', 'LineNum', 'line_num'], index)}`;
+const getLineKey = (requestId, line, index) => `${requestId}:${getValue(line, ['id', 'line_id', 'LineNum', 'line_num'], index)}`;
 
 const formatLocalDate = (date) => {
   const year = date.getFullYear();
@@ -106,6 +97,22 @@ export default function PurchaseQuotation() {
   const [loadingDetails, setLoadingDetails] = useState({});
   const [selectedItems, setSelectedItems] = useState({});
   const [dateFilters, setDateFilters] = useState(getCurrentMonthFilters);
+  const [quotations, setQuotations] = useState(getPublicQuotations);
+  const [copiedToken, setCopiedToken] = useState('');
+  const baseName = (import.meta.env.VITE_APP_BASE_NAME || '').replace(/\/$/, '');
+  const getOfferUrl = (token) => `${window.location.origin}${baseName}/quotation-offer/${token}`;
+
+  const metrics = [
+    { label: 'Draft Quotations', value: 0, variant: 'secondary', icon: 'ti ti-file-pencil' },
+    { label: 'Open Quotations', value: quotations.length, variant: 'primary', icon: 'ti ti-file-dollar' },
+    {
+      label: 'Submitted',
+      value: quotations.reduce((total, quotation) => total + getQuotationOffers(quotation.id).length, 0),
+      variant: 'warning',
+      icon: 'ti ti-send'
+    },
+    { label: 'Completed', value: 0, variant: 'success', icon: 'ti ti-circle-check' }
+  ];
 
   const loadRequests = async (filters = dateFilters) => {
     setLoadingRequests(true);
@@ -211,6 +218,32 @@ export default function PurchaseQuotation() {
   const selectedCount = Object.keys(selectedItems).length;
   const selectedItemEntries = Object.entries(selectedItems);
 
+  const createQuotation = () => {
+    if (!selectedItemEntries.length) return;
+    const items = selectedItemEntries.map(([key, selected]) => ({
+      id: key,
+      requestId: selected.requestId,
+      requestNumber: selected.requestNumber,
+      itemCode: getValue(selected.line, ['item_code', 'ItemCode'], '-'),
+      itemName: getValue(selected.line, ['item_name', 'ItemName', 'description', 'Dscription'], '-'),
+      quantity: Number(getValue(selected.line, ['quantity', 'Quantity'], 0)) || 0,
+      unit: getValue(selected.line, ['unit', 'UnitMsr', 'UomCode'], '-'),
+      warehouse: getValue(selected.line, ['warehouse', 'WhsCode', 'whs_code'], '-'),
+      requiredDate: getValue(selected.line, ['required_date', 'PQTReqDate', 'pqt_req_date'], '')
+    }));
+    const quotation = createPublicQuotation(items);
+    setQuotations(getPublicQuotations());
+    setSelectedItems({});
+    closeModal();
+    showAlert(`Request quotation ${quotation.number} berhasil dibuat`, 'success');
+  };
+
+  const copyOfferLink = async (token) => {
+    await navigator.clipboard.writeText(getOfferUrl(token));
+    setCopiedToken(token);
+    window.setTimeout(() => setCopiedToken(''), 1800);
+  };
+
   return (
     <>
       <EnterpriseWorkspace
@@ -223,6 +256,39 @@ export default function PurchaseQuotation() {
         compactMetrics
         columns={['Quotation No.', 'Date', 'Supplier', 'Purchase Request', 'Status', 'Action']}
         emptyMessage="Quotation data will appear here after the quotation API is available."
+        tableBody={
+          quotations.length
+            ? quotations.map((quotation) => {
+                const requestNumbers = [...new Set(quotation.items.map((item) => item.requestNumber))].join(', ');
+                const offerCount = getQuotationOffers(quotation.id).length;
+                return (
+                  <tr key={quotation.id}>
+                    <td className="fw-semibold">{quotation.number}</td>
+                    <td>{formatDisplayDate(quotation.createdAt)}</td>
+                    <td>{offerCount ? `${offerCount} penawaran` : '-'}</td>
+                    <td>{requestNumbers}</td>
+                    <td>
+                      <Badge bg={offerCount ? 'light-success' : 'light-primary'} text={offerCount ? 'success' : 'primary'}>
+                        {offerCount ? 'SUBMITTED' : quotation.status}
+                      </Badge>
+                    </td>
+                    <td>
+                      <div className="d-flex gap-2">
+                        <Button size="sm" variant="outline-primary" onClick={() => copyOfferLink(quotation.token)}>
+                          <i className="ti ti-copy me-1" />
+                          {copiedToken === quotation.token ? 'Copied' : 'Copy Link'}
+                        </Button>
+                        <Button size="sm" variant="outline-secondary" href={getOfferUrl(quotation.token)} target="_blank">
+                          <i className="ti ti-external-link me-1" />
+                          Open
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            : undefined
+        }
       />
 
       <Modal
@@ -335,7 +401,10 @@ export default function PurchaseQuotation() {
                                       <th className="purchase-quotation-check-column">
                                         <Form.Check
                                           type="checkbox"
-                                          checked={lines.length > 0 && lines.every((line, index) => selectedItems[getLineKey(requestId, line, index)])}
+                                          checked={
+                                            lines.length > 0 &&
+                                            lines.every((line, index) => selectedItems[getLineKey(requestId, line, index)])
+                                          }
                                           aria-label={`Select all items from request ${getRequestNumber(request)}`}
                                           onChange={() => toggleAllRequestItems(request, lines)}
                                         />
@@ -474,8 +543,9 @@ export default function PurchaseQuotation() {
           <Button variant="outline-secondary" onClick={() => setShowSelectedModal(false)}>
             Cancel
           </Button>
-          <Button variant="primary" disabled={!selectedCount} onClick={closeModal}>
-            Use Selected Items
+          <Button variant="primary" disabled={!selectedCount} onClick={createQuotation}>
+            <i className="ti ti-link me-1" />
+            Create Quotation & Public Link
           </Button>
         </Modal.Footer>
       </Modal>
