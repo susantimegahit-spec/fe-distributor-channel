@@ -64,6 +64,10 @@ class LogisticsServices {
     return DataService.get(`logistic/picklists/${encodeURIComponent(id)}/overload`);
   }
 
+  postAdjustOverload(id, payload) {
+    return DataService.post(`logistic/picklists/${encodeURIComponent(id)}/adjust-overload`, payload);
+  }
+
   getWorkerManagement({
     status = '',
     shipping_type = '',

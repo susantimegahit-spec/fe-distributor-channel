@@ -30,6 +30,16 @@ const enterpriseMenu = [
             url: withBasePath('/purchasing/request')
           },
           {
+            id: 'enterprise-purchasing-quotation',
+            title: 'Quotation',
+            type: 'item',
+            value: 'enterprise-purchasing-quotation',
+            label: 'Quotation',
+            selected: true,
+            icon: 'ti ti-file-dollar',
+            url: withBasePath('/purchasing/quotation')
+          },
+          {
             id: 'enterprise-purchasing-order',
             title: 'Order',
             type: 'item',

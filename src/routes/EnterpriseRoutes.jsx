@@ -7,6 +7,7 @@ import DashboardLayout from 'layout/Dashboard';
 import { RouteErrorBoundary } from 'views/ErrorBoundary';
 
 const PurchaseRequest = Loadable(lazy(() => import('views/corporate/purchasing/request/PurchaseRequest')));
+const PurchaseQuotation = Loadable(lazy(() => import('views/corporate/purchasing/quotation/PurchaseQuotation')));
 const PurchaseOrder = Loadable(lazy(() => import('views/corporate/purchasing/order/PurchaseOrder')));
 const Budget = Loadable(lazy(() => import('views/corporate/budget/Budget')));
 const DepartmentList = Loadable(lazy(() => import('views/setting/department/DepartmentList')));
@@ -31,6 +32,10 @@ const EnterpriseRoutes = {
     {
       path: 'corporate/purchasing/request',
       element: <PurchaseRequest />
+    },
+    {
+      path: 'corporate/purchasing/quotation',
+      element: <PurchaseQuotation />
     },
     {
       path: 'corporate/purchasing/order',

@@ -1333,8 +1333,27 @@
   font-size: 20px;
   font-weight: 800;
 }
+.vp-rate-detail-modal .modal-dialog {
+  width: calc(100vw - 48px);
+  max-width: 1800px;
+  margin-right: auto;
+  margin-left: auto;
+}
+.vp-rate-detail-modal .modal-content {
+  max-height: calc(100vh - 32px);
+}
 .vp-rate-detail-modal .modal-body {
   padding: 24px;
+  overflow: auto;
+}
+@media (max-width: 575.98px) {
+  .vp-rate-detail-modal .modal-dialog {
+    width: calc(100vw - 16px);
+  }
+
+  .vp-rate-detail-modal .modal-body {
+    padding: 16px;
+  }
 }
 .vp-rate-notice {
   padding: 10px 16px;

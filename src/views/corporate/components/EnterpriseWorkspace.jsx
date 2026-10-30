@@ -23,6 +23,7 @@ export default function EnterpriseWorkspace({
   columns,
   emptyMessage,
   tableToolbar,
+  tableClassName,
   tableBody,
   tableFooter,
   loading
@@ -113,7 +114,7 @@ export default function EnterpriseWorkspace({
           </Stack>
         </Card.Header>
         <div className="table-responsive">
-          <Table hover className="mb-0 align-middle">
+          <Table hover className={['mb-0 align-middle', tableClassName].filter(Boolean).join(' ')}>
             <thead>
               <tr>
                 {columns.map((column) => (
@@ -170,6 +171,7 @@ EnterpriseWorkspace.propTypes = {
   columns: PropTypes.arrayOf(PropTypes.string).isRequired,
   emptyMessage: PropTypes.string.isRequired,
   tableToolbar: PropTypes.node,
+  tableClassName: PropTypes.string,
   tableBody: PropTypes.node,
   tableFooter: PropTypes.node,
   loading: PropTypes.bool
@@ -180,6 +182,7 @@ EnterpriseWorkspace.defaultProps = {
   onAction: undefined,
   compactMetrics: false,
   tableToolbar: undefined,
+  tableClassName: undefined,
   tableBody: undefined,
   tableFooter: undefined,
   loading: false

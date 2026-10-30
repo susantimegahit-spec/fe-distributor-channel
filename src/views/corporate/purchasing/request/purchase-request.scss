@@ -18,6 +18,36 @@
   }
 }
 
+.purchase-request-detail-header {
+  padding: 18px;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 10px;
+  background: var(--bs-body-bg);
+}
+
+.purchase-request-detail-field {
+  height: 100%;
+  min-height: 64px;
+  padding: 10px 12px;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 8px;
+  background: var(--bs-tertiary-bg);
+}
+
+.purchase-request-detail-items {
+  min-width: 1250px;
+
+  th,
+  td {
+    padding: 10px 12px;
+    white-space: nowrap;
+  }
+
+  th {
+    background: var(--bs-tertiary-bg);
+  }
+}
+
 [data-pc-theme='dark'],
 [data-bs-theme='dark'] {
   .purchase-request-details {
@@ -161,6 +191,102 @@
   resize: vertical;
 }
 
+.purchase-request-list-table {
+  th,
+  td {
+    padding-right: 24px !important;
+    padding-left: 24px !important;
+  }
+
+  th:first-child,
+  td:first-child {
+    padding-left: 24px !important;
+  }
+
+  th:last-child,
+  td:last-child {
+    padding-right: 24px !important;
+  }
+
+  th:last-child,
+  td:last-child {
+    width: 190px;
+    text-align: center;
+  }
+}
+
+.purchase-request-status-badge {
+  min-width: 72px;
+  padding: 6px 10px;
+  border: 1px solid #4d79c7 !important;
+  background: #e2ebfb !important;
+  color: #244f9d !important;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: center;
+}
+
+.purchase-request-status-open,
+.purchase-request-status-approved,
+.purchase-request-status-completed {
+  border-color: #34a46f !important;
+  background: #d9f5e7 !important;
+  color: #087443 !important;
+}
+
+.purchase-request-status-draft,
+.purchase-request-status-pending,
+.purchase-request-status-submitted,
+.purchase-request-status-waiting-approval {
+  border-color: #d79b27 !important;
+  background: #fff0c9 !important;
+  color: #8a5700 !important;
+}
+
+.purchase-request-status-closed,
+.purchase-request-status-cancelled,
+.purchase-request-status-canceled,
+.purchase-request-status-rejected {
+  border-color: #8793a3 !important;
+  background: #e8ecf1 !important;
+  color: #465466 !important;
+}
+
+[data-pc-theme='dark'],
+[data-bs-theme='dark'] {
+  .purchase-request-status-badge {
+    border-color: #5c91e8 !important;
+    background: rgba(45, 102, 190, 0.3) !important;
+    color: #a9caff !important;
+  }
+
+  .purchase-request-status-open,
+  .purchase-request-status-approved,
+  .purchase-request-status-completed {
+    border-color: #39c986 !important;
+    background: rgba(20, 151, 91, 0.28) !important;
+    color: #72efb2 !important;
+  }
+
+  .purchase-request-status-draft,
+  .purchase-request-status-pending,
+  .purchase-request-status-submitted,
+  .purchase-request-status-waiting-approval {
+    border-color: #e7ad3b !important;
+    background: rgba(190, 126, 12, 0.3) !important;
+    color: #ffd477 !important;
+  }
+
+  .purchase-request-status-closed,
+  .purchase-request-status-cancelled,
+  .purchase-request-status-canceled,
+  .purchase-request-status-rejected {
+    border-color: #8292a8 !important;
+    background: rgba(93, 111, 137, 0.34) !important;
+    color: #d4deeb !important;
+  }
+}
+
 .purchase-request-list-filters {
   display: grid;
   width: min(100%, 730px);
@@ -216,15 +342,53 @@
   -webkit-appearance: none;
 }
 
-.purchase-request-line-card {
-  position: relative;
+.purchase-request-lines-table {
+  overflow: auto;
+
+  table {
+    min-width: 2140px;
+  }
+
+  th {
+    padding: 10px 8px;
+    white-space: nowrap;
+    background: var(--bs-tertiary-bg);
+  }
+
+  td {
+    min-width: 160px;
+    padding: 8px;
+  }
+
+  td:nth-child(2),
+  td:nth-child(3),
+  td:nth-child(8),
+  td:nth-child(9),
+  td:nth-child(10),
+  td:nth-child(11),
+  td:nth-child(12) {
+    min-width: 210px;
+  }
+
+  .form-control,
+  .sm-date-picker,
+  .select__control {
+    min-height: 38px;
+  }
+}
+
+.purchase-request-line-number {
+  width: 48px;
+  min-width: 48px !important;
+  text-align: center;
+}
+
+.purchase-request-line-action {
+  width: 76px;
+  min-width: 76px !important;
 }
 
 .purchase-request-remove-line.btn {
-  position: absolute;
-  z-index: 2;
-  top: 12px;
-  right: 12px;
   display: inline-flex !important;
   width: 32px;
   height: 32px;

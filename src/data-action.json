@@ -165,6 +165,15 @@
       "buttons": { "view": ["View Request"], "add": ["Create Request"] }
     },
     {
+      "menu_key": 24,
+      "system_key": "enterprise",
+      "menu_id": "enterprise-purchasing-quotation",
+      "route": "/corporate/purchasing/quotation",
+      "source": "src/views/corporate/purchasing/quotation/PurchaseQuotation.jsx",
+      "actions": ["view", "add"],
+      "buttons": { "view": ["View Quotation"], "add": ["Create Request Quotation"] }
+    },
+    {
       "menu_key": 23,
       "system_key": "enterprise",
       "menu_id": "enterprise-purchasing-order",

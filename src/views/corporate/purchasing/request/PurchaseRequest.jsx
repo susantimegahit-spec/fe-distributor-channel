@@ -15,6 +15,7 @@ import Overlay from 'react-bootstrap/Overlay';
 import Row from 'react-bootstrap/Row';
 import Spinner from 'react-bootstrap/Spinner';
 import Stack from 'react-bootstrap/Stack';
+import Table from 'react-bootstrap/Table';
 
 import PurchasingServices from '../../../../services/corporate/PurchasingServices';
 import DistributorServices from '../../../../services/customer-portal/DistributorServices';
@@ -33,6 +34,19 @@ const metrics = [
 ];
 
 const today = () => new Date().toISOString().slice(0, 10);
+const formatLocalDate = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+const getCurrentMonthRange = () => {
+  const currentDate = new Date();
+  return {
+    from: formatLocalDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)),
+    to: formatLocalDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0))
+  };
+};
 const SERIES_CARD_CODE = '1470000113';
 const REQUESTER_CODE = 'API';
 const getPurchaseRequestPage = (response, requestedPage = 1, perPage = 15) => {
@@ -87,8 +101,16 @@ const getRequestValue = (request, keys, fallback = '') => {
 
 const formatRequestDate = (value) => {
   if (!value) return '-';
+  const compactDate = String(value).match(/^(\d{4})(\d{2})(\d{2})$/);
+  if (compactDate) return `${compactDate[3]}/${compactDate[2]}/${compactDate[1]}`;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleDateString('id-ID');
+};
+
+const formatQuantity = (value) => {
+  if (value === undefined || value === null || value === '') return '-';
+  const quantity = Number(value);
+  return Number.isFinite(quantity) ? quantity.toLocaleString('id-ID', { maximumFractionDigits: 6 }) : '-';
 };
 
 const getStatusVariant = (status) => {
@@ -253,6 +275,7 @@ export default function PurchaseRequest() {
   const userWarehouse = String(getCookies('userWarehouse') ?? '');
   const loggedInUserId = String(getCookies('id') ?? getCookies('userId') ?? '');
   const userOriginatorId = getFirstId(getCookies('approval_originator'));
+  const initialMonthRange = getCurrentMonthRange();
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loadingSeries, setLoadingSeries] = useState(false);
@@ -265,6 +288,7 @@ export default function PurchaseRequest() {
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [requests, setRequests] = useState([]);
   const [selectedRequest, setSelectedRequest] = useState(null);
+  const [loadingRequestDetail, setLoadingRequestDetail] = useState(false);
   const [editingRequest, setEditingRequest] = useState(null);
   const [pendingAction, setPendingAction] = useState(null);
   const [actionSaving, setActionSaving] = useState(false);
@@ -276,8 +300,8 @@ export default function PurchaseRequest() {
     department: userDepartment,
     costCenter: '',
     status: 'DRAFT',
-    from: '',
-    to: '',
+    from: initialMonthRange.from,
+    to: initialMonthRange.to,
     search: '',
     perPage: 15
   });
@@ -285,8 +309,8 @@ export default function PurchaseRequest() {
     department: userDepartment,
     costCenter: '',
     status: 'DRAFT',
-    from: '',
-    to: '',
+    from: initialMonthRange.from,
+    to: initialMonthRange.to,
     search: '',
     perPage: 15
   });
@@ -294,6 +318,49 @@ export default function PurchaseRequest() {
   const [warehouseOptions, setWarehouseOptions] = useState([]);
   const [ocrOptions, setOcrOptions] = useState({ branch: [], businessUnit: [], department: [] });
   const [form, setForm] = useState(createInitialForm);
+
+  const viewPurchaseRequest = async (request) => {
+    const requestId = getRequestValue(request, ['DocEntry', 'doc_entry', 'id', 'request_id', 'DraftEntry', 'draft_entry']);
+    setSelectedRequest(request);
+    if (!requestId) {
+      showAlert('Purchase request ID is unavailable.', 'warning');
+      return;
+    }
+
+    setLoadingRequestDetail(true);
+    try {
+      const response = await PurchasingServices.getDetailPR(requestId);
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to load purchase request details');
+      const payload = response?.data?.data ?? response?.data ?? response;
+      const detail =
+        payload?.header ??
+        (Array.isArray(payload?.Table1) ? payload.Table1[0] : null) ??
+        payload?.request ??
+        payload?.purchase_request ??
+        payload?.purchaseRequest ??
+        payload;
+      const details =
+        payload?.items ??
+        payload?.Table2 ??
+        payload?.details ??
+        payload?.lines ??
+        payload?.Lines ??
+        detail?.details ??
+        detail?.lines ??
+        detail?.Lines ??
+        request?.details;
+
+      setSelectedRequest({
+        ...request,
+        ...(detail && typeof detail === 'object' ? detail : {}),
+        ...(Array.isArray(details) ? { details } : {})
+      });
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Failed to load purchase request details', 'danger');
+    } finally {
+      setLoadingRequestDetail(false);
+    }
+  };
 
   useEffect(() => {
     if (userDepartment) return undefined;
@@ -566,12 +633,13 @@ export default function PurchaseRequest() {
   };
 
   const resetRequestFilters = () => {
+    const monthRange = getCurrentMonthRange();
     const filters = {
       department: userDepartment,
       costCenter: '',
       status: appliedRequestFilters.status === 'DRAFT' ? 'DRAFT' : 'SUBMITTED',
-      from: '',
-      to: '',
+      from: monthRange.from,
+      to: monthRange.to,
       search: '',
       perPage: 15
     };
@@ -769,6 +837,7 @@ export default function PurchaseRequest() {
         metrics={metrics}
         compactMetrics
         columns={['Request No.', 'Request Date', 'Department', 'Requester', 'Status', 'Action']}
+        tableClassName="purchase-request-list-table"
         emptyMessage="Purchase requests will appear here after they are created."
         loading={loadingRequests}
         tableToolbar={
@@ -861,11 +930,14 @@ export default function PurchaseRequest() {
                     <td>{getRequestValue(request, ['department', 'department_name', 'Department'], '-')}</td>
                     <td>{getRequestValue(request, ['requester_name', 'RequesterName', 'requester'], '-')}</td>
                     <td>
-                      <Badge bg={`light-${getStatusVariant(status)}`} text={getStatusVariant(status)}>
+                      <Badge
+                        bg="transparent"
+                        className={`purchase-request-status-badge purchase-request-status-${status.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+                      >
                         {status}
                       </Badge>
                     </td>
-                    <td className="text-end">
+                    <td className="text-center">
                       <Button
                         size="sm"
                         variant={String(actionMenu?.request?.id) === String(requestId) ? 'primary' : 'outline-primary'}
@@ -929,7 +1001,7 @@ export default function PurchaseRequest() {
                 className="dropdown-item"
                 onClick={() => {
                   setActionMenu(null);
-                  if (request) setSelectedRequest(request);
+                  if (request) viewPurchaseRequest(request);
                 }}
               >
                 <i className="ti ti-eye text-primary me-2" />
@@ -989,25 +1061,89 @@ export default function PurchaseRequest() {
         </Offcanvas.Header>
         <Offcanvas.Body>
           <div className="purchase-request-details">
-            <h6>Request Details · {getRequestValue(selectedRequest, ['sap_doc_num'], '-')}</h6>
-            {selectedRequest?.details?.length ? (
-              <div className="table-responsive">
-                <table className="table table-sm mb-0 align-middle">
+            {loadingRequestDetail ? (
+              <div className="d-flex align-items-center justify-content-center gap-2 py-5 text-muted">
+                <Spinner animation="border" size="sm" />
+                Loading purchase request details...
+              </div>
+            ) : selectedRequest ? (
+              <>
+                <div className="purchase-request-detail-header mb-4">
+                  <Stack direction="horizontal" className="justify-content-between align-items-start gap-3 mb-3">
+                    <div>
+                      <div className="text-muted f-12">Purchase Request</div>
+                      <h5 className="mb-0">
+                        {getRequestValue(selectedRequest, ['DocNum', 'sap_doc_num', 'doc_num', 'DraftNum', 'draft_num'], '-')}
+                      </h5>
+                    </div>
+                    <Badge
+                      bg="transparent"
+                      className={`purchase-request-status-badge purchase-request-status-${String(
+                        getRequestValue(selectedRequest, ['DocStatus', 'status', 'document_status'], 'Open')
+                      )
+                        .toLowerCase()
+                        .replace(/[^a-z0-9]+/g, '-')}`}
+                    >
+                      {getRequestValue(selectedRequest, ['DocStatus', 'status', 'document_status'], 'Open')}
+                    </Badge>
+                  </Stack>
+                  <Row className="g-3">
+                    {[
+                      ['DocEntry', getRequestValue(selectedRequest, ['DocEntry', 'doc_entry'], '-')],
+                      ['Series', getRequestValue(selectedRequest, ['SeriesName', 'series_name', 'Series'], '-')],
+                      ['Document Date', formatRequestDate(getRequestValue(selectedRequest, ['DocDate', 'request_date']))],
+                      ['Required Date', formatRequestDate(getRequestValue(selectedRequest, ['ReqDate', 'DocDueDate']))],
+                      [
+                        'Department',
+                        [
+                          getRequestValue(selectedRequest, ['Department'], ''),
+                          getRequestValue(selectedRequest, ['DepartmentName', 'department_name'], '')
+                        ]
+                          .filter(Boolean)
+                          .join(' - ') || '-'
+                      ],
+                      ['Requester', getRequestValue(selectedRequest, ['RequesterName', 'requester_name', 'Requester'], '-')]
+                    ].map(([label, value]) => (
+                      <Col sm={6} lg={4} key={label}>
+                        <div className="purchase-request-detail-field">
+                          <div className="text-muted f-12">{label}</div>
+                          <div className="fw-semibold">{value}</div>
+                        </div>
+                      </Col>
+                    ))}
+                    <Col xs={12}>
+                      <div className="purchase-request-detail-field">
+                        <div className="text-muted f-12">Comments</div>
+                        <div>{getRequestValue(selectedRequest, ['Comments', 'comments'], '-') || '-'}</div>
+                      </div>
+                    </Col>
+                  </Row>
+                </div>
+
+                <Stack direction="horizontal" className="justify-content-between mb-2">
+                  <h6 className="mb-0">Request Items</h6>
+                  <Badge bg="light" text="dark">
+                    {selectedRequest.details?.length || 0} item
+                  </Badge>
+                </Stack>
+                {selectedRequest.details?.length ? (
+                  <div className="table-responsive border rounded">
+                    <table className="table table-sm mb-0 align-middle purchase-request-detail-items">
                   <thead>
                     <tr>
                       {[
+                        '#',
                         'Item Code',
                         'Item Name',
-                        'Required Date',
                         'Quantity',
                         'Unit',
                         'Warehouse',
+                        'Required Date',
                         'Branch',
                         'Business Unit',
                         'Department',
-                        'Unit Price',
-                        'Total',
-                        'Remarks'
+                        'Remarks',
+                        'Status'
                       ].map((label) => (
                         <th key={label}>{label}</th>
                       ))}
@@ -1015,32 +1151,36 @@ export default function PurchaseRequest() {
                   </thead>
                   <tbody>
                     {selectedRequest.details.map((detail, detailIndex) => (
-                      <tr key={detail.id ?? detailIndex}>
+                      <tr key={detail.LineNum ?? detail.id ?? detailIndex}>
+                        <td>{detailIndex + 1}</td>
                         <td>{getRequestValue(detail, ['item_code', 'ItemCode'], '-')}</td>
                         <td>{getRequestValue(detail, ['item_description', 'item_name', 'ItemName'], '-')}</td>
-                        <td>{formatRequestDate(getRequestValue(detail, ['pqt_req_date', 'PQTReqDate']))}</td>
-                        <td>{getRequestValue(detail, ['quantity', 'Quantity'], '-')}</td>
+                        <td>{formatQuantity(getRequestValue(detail, ['quantity', 'Quantity']))}</td>
                         <td>{getRequestValue(detail, ['unit_msr', 'UnitMsr', 'uom'], '-')}</td>
-                        <td>{getRequestValue(detail, ['whs_code', 'WhsCode'], '-')}</td>
+                        <td>
+                          {[getRequestValue(detail, ['WhsCode', 'whs_code'], ''), getRequestValue(detail, ['WhsName'], '')]
+                            .filter(Boolean)
+                            .join(' - ') || '-'}
+                        </td>
+                        <td>{formatRequestDate(getRequestValue(detail, ['pqt_req_date', 'PQTReqDate']))}</td>
                         <td>{getRequestValue(detail, ['ocr_code', 'OcrCode'], '-')}</td>
                         <td>{getRequestValue(detail, ['ocr_code2', 'OcrCode2'], '-')}</td>
                         <td>{getRequestValue(detail, ['ocr_code3', 'OcrCode3'], '-')}</td>
-                        <td>
-                          {Number(getRequestValue(detail, ['unit_price'], 0)).toLocaleString('id-ID', {
-                            maximumFractionDigits: 2
-                          })}
-                        </td>
-                        <td>
-                          {Number(getRequestValue(detail, ['line_total'], 0)).toLocaleString('id-ID', {
-                            maximumFractionDigits: 2
-                          })}
-                        </td>
                         <td>{getRequestValue(detail, ['free_txt', 'FreeTxt', 'remarks'], '-')}</td>
+                        <td>
+                          <Badge bg="light-success" text="success">
+                            {getRequestValue(detail, ['LineStatus', 'line_status'], '-')}
+                          </Badge>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              </div>
+                  </div>
+                ) : (
+                  <div className="text-center text-muted border rounded py-5">No items available for this request.</div>
+                )}
+              </>
             ) : (
               <p className="text-muted mb-0">No details available for this request.</p>
             )}
@@ -1149,25 +1289,30 @@ export default function PurchaseRequest() {
               </Button>
             </Stack>
 
-            {form.Lines.map((line, index) => (
-              <div className="purchase-request-line-card border rounded p-3 mb-3" key={line.key}>
-                <Stack direction="horizontal" className="justify-content-between mb-3">
-                  <span className="fw-semibold">Item {index + 1}</span>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline-danger"
-                    className="purchase-request-remove-line"
-                    aria-label={`Remove item ${index + 1}`}
-                    title="Remove line"
-                    onClick={() => removeLine(index)}
-                  >
-                    <i className="ti ti-trash" />
-                  </Button>
-                </Stack>
-                <Row className="g-3">
-                  <Col md={3}>
-                    <Form.Label>Item Code</Form.Label>
+            <div className="purchase-request-lines-table table-responsive border rounded">
+              <Table className="mb-0 align-middle" bordered>
+                <thead>
+                  <tr>
+                    <th className="purchase-request-line-number">#</th>
+                    <th>Item Code</th>
+                    <th>Item Name</th>
+                    <th>Required Date</th>
+                    <th>Quantity</th>
+                    <th>UoM Entry</th>
+                    <th>Unit</th>
+                    <th>Warehouse</th>
+                    <th>Branch</th>
+                    <th>Unit</th>
+                    <th>Department</th>
+                    <th>Line Remarks</th>
+                    <th className="purchase-request-line-action">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {form.Lines.map((line, index) => (
+                    <tr key={line.key}>
+                      <td className="purchase-request-line-number fw-semibold">{index + 1}</td>
+                      <td>
                     <Select
                       inputId={`purchase-request-item-${index}`}
                       options={itemOptions}
@@ -1178,26 +1323,23 @@ export default function PurchaseRequest() {
                       placeholder={loadingItems ? 'Loading items...' : 'Select item'}
                       noOptionsMessage={() => (loadingItems ? 'Loading items...' : 'Item not found')}
                     />
-                  </Col>
-                  <Col md={3}>
-                    <Form.Label>Item Name</Form.Label>
+                      </td>
+                      <td>
                     <Form.Control
                       value={line.ItemName}
                       onChange={(event) => updateLine(index, 'ItemName', event.target.value)}
                       readOnly={!line.ItemCode.toUpperCase().startsWith('JS')}
                     />
-                  </Col>
-                  <Col md={3}>
-                    <Form.Label>Required Date</Form.Label>
+                      </td>
+                      <td>
                     <FormDatePicker
                       type="date"
                       value={line.PQTReqDate}
                       onChange={(event) => updateLine(index, 'PQTReqDate', event.target.value)}
                       required
                     />
-                  </Col>
-                  <Col md={3}>
-                    <Form.Label>Quantity</Form.Label>
+                      </td>
+                      <td>
                     <Form.Control
                       type="number"
                       min="0.01"
@@ -1208,17 +1350,14 @@ export default function PurchaseRequest() {
                       onWheel={(event) => event.currentTarget.blur()}
                       required
                     />
-                  </Col>
-                  <Col md={3}>
-                    <Form.Label>UoM Entry</Form.Label>
+                      </td>
+                      <td>
                     <Form.Control value={line.UomEntry} onChange={(event) => updateLine(index, 'UomEntry', event.target.value)} />
-                  </Col>
-                  <Col md={3}>
-                    <Form.Label>Unit</Form.Label>
+                      </td>
+                      <td>
                     <Form.Control value={line.UnitMsr} onChange={(event) => updateLine(index, 'UnitMsr', event.target.value)} />
-                  </Col>
-                  <Col md={3}>
-                    <Form.Label>Warehouse</Form.Label>
+                      </td>
+                      <td>
                     {userWarehouse ? (
                       <Form.Control value={line.WhsCode} readOnly required />
                     ) : (
@@ -1232,9 +1371,8 @@ export default function PurchaseRequest() {
                         placeholder="Select warehouse"
                       />
                     )}
-                  </Col>
-                  <Col md={4}>
-                    <Form.Label>Branch</Form.Label>
+                      </td>
+                      <td>
                     {userBranch ? (
                       <Form.Control value={line.OcrCode} readOnly />
                     ) : (
@@ -1248,9 +1386,8 @@ export default function PurchaseRequest() {
                         placeholder="Select branch"
                       />
                     )}
-                  </Col>
-                  <Col md={4}>
-                    <Form.Label>Unit</Form.Label>
+                      </td>
+                      <td>
                     {userBusinessUnit ? (
                       <Form.Control value={line.OcrCode2} readOnly />
                     ) : (
@@ -1264,9 +1401,8 @@ export default function PurchaseRequest() {
                         placeholder="Select unit"
                       />
                     )}
-                  </Col>
-                  <Col md={4}>
-                    <Form.Label>Department</Form.Label>
+                      </td>
+                      <td>
                     {userDepartment ? (
                       <Form.Control value={line.OcrCode3} readOnly />
                     ) : (
@@ -1280,19 +1416,31 @@ export default function PurchaseRequest() {
                         placeholder="Select department"
                       />
                     )}
-                  </Col>
-                  <Col xs={12}>
-                    <Form.Label>Line Remarks</Form.Label>
+                      </td>
+                      <td>
                     <Form.Control
-                      as="textarea"
-                      rows={2}
                       value={line.FreeTxt}
                       onChange={(event) => updateLine(index, 'FreeTxt', event.target.value)}
                     />
-                  </Col>
-                </Row>
-              </div>
-            ))}
+                      </td>
+                      <td className="purchase-request-line-action text-center">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline-danger"
+                          className="purchase-request-remove-line"
+                          aria-label={`Remove item ${index + 1}`}
+                          title="Remove line"
+                          onClick={() => removeLine(index)}
+                        >
+                          <i className="ti ti-trash" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </div>
           </Form>
         </Modal.Body>
         <Modal.Footer>

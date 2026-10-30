@@ -642,6 +642,7 @@ export default function UserList() {
   const [loadingDetailAction, setLoadingDetailAction] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [loadingDelete, setLoadingDelete] = useState(false);
   const [userActionMenu, setUserActionMenu] = useState(null);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -1179,7 +1180,10 @@ export default function UserList() {
   const availableActionMenus = [
     ...new Map(actionMenuOptions.filter((item) => input.accessibleSystems.includes(item.systemKey)).map((menu) => [menu.id, menu])).values()
   ];
-  const availableActionWidgets = widgetActionOptions.filter((item) => input.accessibleSystems.includes(item.system_key));
+  // Dashboard layouts are assigned by role and may contain widgets from a
+  // system that is not listed in the user's navigation access. Keep every
+  // dashboard widget available here so its actions can still be assigned.
+  const availableActionWidgets = widgetActionOptions;
   const selectedWarehouses = input.whsCodes.map(
     (code) => listWarehouse.find((warehouse) => warehouse.value === code) || { value: code, label: code }
   );
@@ -1334,7 +1338,7 @@ export default function UserList() {
     setShowMenu(true);
   };
 
-  const showEditModal = (item) => {
+  const showUserFormModal = (item, mode = 'edit') => {
     const savedMenuAssignments = getSavedAssignments(item, 'menu');
     const distributors = getUserDistributors(item);
     const distributorCodes = distributors.flatMap((distributor) => normalizeArray(distributor.code)).map(String);
@@ -1344,14 +1348,16 @@ export default function UserList() {
       distributorCodes.length === listDistributor.length &&
       listDistributor.every((distributor) => distributorCodes.includes(distributor.value));
 
-    setFormMode('edit');
-    setSelectedUserId(item.id);
+    const isDuplicate = mode === 'duplicate';
+
+    setFormMode(mode);
+    setSelectedUserId(isDuplicate ? null : item.id);
     setPreservedClickUpActions(getPreservedClickUpActions(savedMenuAssignments));
     setShowView(false);
     setInput({
-      name: item.name || '',
-      username: item.username || '',
-      email: item.email || '',
+      name: isDuplicate ? `${item.name || item.username || 'User'} (Copy)` : item.name || '',
+      username: isDuplicate ? '' : item.username || '',
+      email: isDuplicate ? '' : item.email || '',
       password: '',
       roleId: item.role?.id || item.role_id || '',
       expeditionCode: String(getUserExpeditionCode(item) || ''),
@@ -1397,7 +1403,13 @@ export default function UserList() {
   const openEditModal = async (item) => {
     if (loadingDetail) return;
     const userDetail = await getUserDetail(item.id, 'edit');
-    if (userDetail) showEditModal(userDetail);
+    if (userDetail) showUserFormModal(userDetail);
+  };
+
+  const openDuplicateModal = async (item) => {
+    if (loadingDetail) return;
+    const userDetail = await getUserDetail(item.id, 'duplicate');
+    if (userDetail) showUserFormModal(userDetail, 'duplicate');
   };
 
   const openViewModal = async (item) => {
@@ -1489,14 +1501,23 @@ export default function UserList() {
   };
 
   const handleDelete = async () => {
-    const response = await UserServices.deleteUser(selectedUserId);
-    if (response.data.success) {
-      showAlert('User deleted successfully', 'success');
-      setSelectedUserId(null);
-      setShowConfirm(false);
-      fetchData();
-    } else {
-      showAlert(response.data.message || 'Failed to delete user', 'danger');
+    if (loadingDelete) return;
+
+    setLoadingDelete(true);
+    try {
+      const response = await UserServices.deleteUser(selectedUserId);
+      if (response.data.success) {
+        showAlert('User deleted successfully', 'success');
+        setSelectedUserId(null);
+        setShowConfirm(false);
+        fetchData();
+      } else {
+        showAlert(response.data.message || 'Failed to delete user', 'danger');
+      }
+    } catch (error) {
+      showAlert(error.response?.data?.message || 'Failed to delete user', 'danger');
+    } finally {
+      setLoadingDelete(false);
     }
   };
 
@@ -1713,7 +1734,11 @@ export default function UserList() {
                             {loadingDetailAction && String(loadingDetailAction.id) === String(item.id) ? (
                               <>
                                 <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true" />
-                                {loadingDetailAction.action === 'view' ? 'Loading view...' : 'Loading edit...'}
+                                {loadingDetailAction.action === 'view'
+                                  ? 'Loading view...'
+                                  : loadingDetailAction.action === 'duplicate'
+                                    ? 'Loading duplicate...'
+                                    : 'Loading edit...'}
                               </>
                             ) : (
                               <>
@@ -1810,6 +1835,18 @@ export default function UserList() {
                 <i className="ti ti-pencil text-warning me-2" />
                 Edit
               </button>
+              <button
+                type="button"
+                className="dropdown-item"
+                disabled={loadingDetail}
+                onClick={() => {
+                  setUserActionMenu(null);
+                  if (user) openDuplicateModal(user);
+                }}
+              >
+                <i className="ti ti-copy text-info me-2" />
+                Duplicate
+              </button>
               <div className="dropdown-divider" />
               <button
                 type="button"
@@ -1829,7 +1866,7 @@ export default function UserList() {
 
       <Modal show={showMenu} onHide={resetForm} size="xl" centered scrollable>
         <Modal.Header closeButton>
-          <Modal.Title>{formMode === 'edit' ? 'Edit User' : 'Add User'}</Modal.Title>
+          <Modal.Title>{formMode === 'edit' ? 'Edit User' : formMode === 'duplicate' ? 'Duplicate User' : 'Add User'}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Tabs defaultActiveKey="account" className="mb-3" mountOnEnter>
@@ -2254,7 +2291,7 @@ export default function UserList() {
             Cancel
           </Button>
           <Button variant="primary" onClick={formMode === 'edit' ? handleEdit : handleCreate} disabled={loadingSubmit || !formIsValid}>
-            {loadingSubmit ? <LoaderButton /> : 'Save'}
+            {loadingSubmit ? <LoaderButton /> : formMode === 'duplicate' ? 'Save as New User' : 'Save'}
           </Button>
         </Modal.Footer>
       </Modal>
@@ -2476,6 +2513,7 @@ export default function UserList() {
         show={showConfirm}
         onCancel={() => setShowConfirm(false)}
         onSubmit={handleDelete}
+        loading={loadingDelete}
         title="Delete User"
         subTitle="Are you sure you want to delete this user data?"
       />

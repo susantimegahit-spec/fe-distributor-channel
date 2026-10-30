@@ -2353,10 +2353,12 @@ export default function OrderPost({ cmoMode = false }) {
 
   return (
     <>
-      <Stack gap={3} className="order-create-page">
+      <Stack gap={3} className={`order-create-page${isDetailMode ? ' order-detail-page' : ''}`}>
         <>
           <MainCard
-            headerClassName="order-create-header"
+            className={isDetailMode ? 'order-detail-main-card' : undefined}
+            headerClassName={`order-create-header${isDetailMode ? ' order-detail-header' : ''}`}
+            bodyClassName={isDetailMode ? 'order-detail-main-body' : undefined}
             title={
               <Stack gap={1}>
                 <h5 className="mb-0">
@@ -2383,7 +2385,7 @@ export default function OrderPost({ cmoMode = false }) {
                 <Button
                   variant="outline-primary"
                   className="order-cancel-button"
-                  onClick={() => (cmoMode ? navigate('/customer-portal/order/cmo') : navigate(-1))}
+                  onClick={() => navigate(cmoMode ? '/customer-portal/order/cmo' : '/customer-portal/order/order-list')}
                 >
                   <i className="ti ti-arrow-left me-1" />
                   Cancel
@@ -2442,13 +2444,13 @@ export default function OrderPost({ cmoMode = false }) {
             {isLoading ? (
               <LoaderData />
             ) : (
-              <Row className="g-3 align-items-stretch">
-                <Col lg={cmoMode || isCustomerRole || !canSelectSales ? 12 : 9}>
-                  <Card className="border mb-0 h-100 claim-transaction-card">
+              <Row className="g-3 align-items-stretch order-detail-layout">
+                <Col lg={cmoMode || isCustomerRole || !canSelectSales ? 12 : 8}>
+                  <Card className="border mb-0 h-100 claim-transaction-card order-detail-section-card">
                     <Card.Header className="py-3">
                       <Stack direction="horizontal" gap={2} className="justify-content-between">
                         <div>
-                          <h5 className="mb-0">Information Order</h5>
+                          <h6 className="mb-0">Order Information</h6>
                           <small className="text-muted">Main transaction and customer data</small>
                         </div>
                         <Badge bg="light" text="dark">
@@ -2457,7 +2459,7 @@ export default function OrderPost({ cmoMode = false }) {
                       </Stack>
                     </Card.Header>
                     <Card.Body>
-                      <Row className="g-4">
+                      <Row className={isDetailMode ? 'g-3' : 'g-4'}>
                         <Col md={6} xl={4}>
                           <Form.Group>
                             <Form.Label className="small text-muted">
@@ -2618,10 +2620,10 @@ export default function OrderPost({ cmoMode = false }) {
                   </Card>
                 </Col>
                 {canSelectSales && !cmoMode ? (
-                  <Col lg={3} className="d-flex">
-                    <Card className="border mb-0 h-100 claim-transaction-card">
+                  <Col lg={4} className="d-flex">
+                    <Card className="border mb-0 h-100 w-100 claim-transaction-card order-detail-section-card order-detail-summary-card">
                       <Card.Header className="py-3">
-                        <h5 className="mb-0">Order Summary</h5>
+                        <h6 className="mb-0">Order Summary</h6>
                         <small className="text-muted">Estimate based on product details</small>
                       </Card.Header>
                       <Card.Body>
@@ -2651,13 +2653,13 @@ export default function OrderPost({ cmoMode = false }) {
                             </Stack>
                           )}
                           <div className="border-top pt-3">
-                            <Stack direction="horizontal" className="justify-content-between">
+                            <Stack direction="horizontal" className="justify-content-between order-detail-grand-total">
                               <span className="fw-semibold">Grand Total</span>
                               <h5 className="mb-0 text-primary">{formatCurrency(grandTotal)}</h5>
                             </Stack>
                           </div>
                           {!cmoMode && (
-                            <Button variant={isDetailMode ? 'outline-primary' : 'light-primary'} onClick={handleOpenDiscount}>
+                            <Button variant="light-primary" onClick={handleOpenDiscount}>
                               <i className="ti ti-discount-2 me-1" />
                               Set Discount
                             </Button>
@@ -2668,7 +2670,7 @@ export default function OrderPost({ cmoMode = false }) {
                   </Col>
                 ) : null}
                 <Col lg={12}>
-                  <Card className="border mb-0 claim-transaction-card">
+                  <Card className="border mb-0 claim-transaction-card order-detail-section-card">
                     <Card.Body>
                       <Stack gap={3}>
                         <Stack direction="horizontal" gap={3} className="align-items-start justify-content-between">
@@ -2717,7 +2719,7 @@ export default function OrderPost({ cmoMode = false }) {
           </MainCard>
 
           <MainCard
-            className="claim-transaction-card"
+            className={`claim-transaction-card${isDetailMode ? ' order-detail-content-card' : ''}`}
             title={
               <Stack gap={1}>
                 <h5 className="mb-0">
@@ -2872,7 +2874,7 @@ export default function OrderPost({ cmoMode = false }) {
           </MainCard>
 
           <MainCard
-            className="claim-transaction-card"
+            className={`claim-transaction-card${isDetailMode ? ' order-detail-content-card' : ''}`}
             title={
               <Stack gap={1}>
                 <h5 className="mb-0">Product Details</h5>
