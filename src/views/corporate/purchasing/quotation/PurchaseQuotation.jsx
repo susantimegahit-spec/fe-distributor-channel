@@ -111,7 +111,6 @@ export default function PurchaseQuotation() {
     setLoadingRequests(true);
     setExpandedRequests({});
     setRequestLines({});
-    setSelectedItems({});
     try {
       const response = await PurchasingServices.getGeneratedPr({
         From: filters.from.replaceAll('-', ''),
@@ -129,6 +128,7 @@ export default function PurchaseQuotation() {
 
   const openRequestModal = async () => {
     const monthFilters = getCurrentMonthFilters();
+    setSelectedItems({});
     setShowRequestModal(true);
     setDateFilters(monthFilters);
     await loadRequests(monthFilters);
@@ -231,6 +231,7 @@ export default function PurchaseQuotation() {
         fullscreen
         scrollable
         backdrop="static"
+        dialogClassName={showSelectedModal ? 'purchase-quotation-background-blurred' : undefined}
         backdropClassName="purchase-quotation-blur-backdrop"
       >
         <Modal.Header closeButton>
@@ -400,9 +401,6 @@ export default function PurchaseQuotation() {
           <Button variant="outline-secondary" onClick={closeModal}>
             Cancel
           </Button>
-          <Button variant="primary" disabled={!selectedCount} onClick={closeModal}>
-            Use Selected Items
-          </Button>
         </Modal.Footer>
       </Modal>
 
@@ -450,6 +448,7 @@ export default function PurchaseQuotation() {
                           type="button"
                           size="sm"
                           variant="outline-danger"
+                          data-permission-action="none"
                           className="purchase-quotation-remove-selected"
                           aria-label={`Remove ${getValue(selected.line, ['item_name', 'ItemName'], `item ${index + 1}`)}`}
                           onClick={() => removeSelectedItem(key)}
@@ -472,8 +471,11 @@ export default function PurchaseQuotation() {
         </Modal.Body>
         <Modal.Footer>
           <span className="me-auto text-muted">{selectedCount} item selected</span>
-          <Button variant="primary" onClick={() => setShowSelectedModal(false)}>
-            Done
+          <Button variant="outline-secondary" onClick={() => setShowSelectedModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" disabled={!selectedCount} onClick={closeModal}>
+            Use Selected Items
           </Button>
         </Modal.Footer>
       </Modal>
