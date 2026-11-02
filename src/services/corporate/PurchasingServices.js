@@ -49,6 +49,30 @@ class PurchasingServices {
     });
   }
 
+  getQuotations({ search = '', status = '', from = '', to = '', per_page = 15, page = 1 } = {}) {
+    return DataService.get('/purchasing-request/quotations', { search, status, from, to, per_page, page });
+  }
+
+  getDetailQuotations(id) {
+    return DataService.get(`/purchasing-request/quotations/${encodeURIComponent(id)}`);
+  }
+
+  getListOffer(quotationId) {
+    return DataService.get(`/purchasing-request/quotations/${encodeURIComponent(quotationId)}/offers`);
+  }
+
+  postQuotations(payload) {
+    return DataService.post('/purchasing-request/quotations', payload);
+  }
+
+  deleteQuotations(id) {
+    return DataService.delete(`/purchasing-request/quotations/${encodeURIComponent(id)}`);
+  }
+
+  postOffers(token, payload) {
+    return DataService.post(`/public/quotations/${encodeURIComponent(token)}/offers`, payload);
+  }
+
   postPurchasing(payload) {
     return DataService.post('/purchasing-request/requests', payload);
   }

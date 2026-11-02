@@ -5,7 +5,8 @@
   color: #172033;
 }
 .quotation-offer-container {
-  max-width: 1180px;
+  width: min(1600px, calc(100vw - 32px));
+  max-width: none;
   margin: 0 auto;
 }
 .quotation-offer-header {
@@ -36,26 +37,68 @@
   box-shadow: 0 3px 14px rgba(23, 32, 51, 0.04);
 }
 .quotation-offer-table {
-  min-width: 1050px;
+  width: 100%;
+  table-layout: fixed;
 }
 .quotation-offer-table th,
 .quotation-offer-table td {
-  padding: 14px;
+  padding: 12px 10px;
+}
+.quotation-offer-table th:first-child,
+.quotation-offer-table td:first-child {
+  width: 48px;
+  text-align: center;
 }
 .quotation-offer-table td:nth-child(2) {
-  min-width: 230px;
+  width: 20%;
 }
 .quotation-offer-table td:nth-child(2) small {
   display: block;
   margin-top: 4px;
   color: #64748b;
 }
-.quotation-offer-table td:nth-child(4) {
-  min-width: 180px;
+.quotation-offer-item-note {
+  display: block;
+  max-width: 320px;
+  margin-top: 8px;
+  padding: 7px 9px;
+  border-left: 3px solid #315fb4;
+  background: #f1f5fb;
+  color: #475569;
+  font-size: 12px;
+  white-space: normal;
 }
-.quotation-offer-table td:nth-child(5),
-.quotation-offer-table td:nth-child(6) {
-  min-width: 170px;
+.quotation-offer-table td:nth-child(4) {
+  width: 13%;
+}
+.quotation-offer-table td:nth-child(5) {
+  width: 15%;
+}
+.quotation-offer-table td:nth-child(6),
+.quotation-offer-table td:nth-child(7) {
+  width: 15%;
+}
+.quotation-offer-attachment-row td {
+  padding-top: 0;
+  border-top: 0;
+  background: #fbfcfe;
+}
+.quotation-offer-item + .quotation-offer-item .quotation-offer-attachment-row td {
+  border-top: 1px solid #e8edf4;
+}
+.quotation-offer-attachment {
+  display: grid;
+  grid-template-columns: 140px minmax(260px, 520px) 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0 12px;
+}
+.quotation-offer-attachment .form-label {
+  margin: 0;
+  font-weight: 600;
+}
+.quotation-offer-attachment small {
+  color: #64748b;
 }
 .quotation-offer-container footer {
   padding: 28px 0 0;
@@ -86,5 +129,16 @@
   }
   .quotation-offer-header h1 {
     font-size: 23px;
+  }
+  .quotation-offer-container {
+    width: 100%;
+  }
+  .quotation-offer-table {
+    min-width: 1050px;
+    table-layout: auto;
+  }
+  .quotation-offer-attachment {
+    grid-template-columns: 1fr;
+    gap: 6px;
   }
 }

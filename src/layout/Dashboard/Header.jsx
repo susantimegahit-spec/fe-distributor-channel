@@ -96,8 +96,18 @@ export default function Header({ showSidebar = true }) {
       if (!accountMenuRef.current?.contains(event.target)) setShowAccountMenu(false);
     };
 
+    const closeAccountMenuFromWorkspace = (event) => {
+      if (event.origin === window.location.origin && event.data?.type === 'dc:workspace-pointerdown') {
+        setShowAccountMenu(false);
+      }
+    };
+
     document.addEventListener('pointerdown', closeAccountMenu, true);
-    return () => document.removeEventListener('pointerdown', closeAccountMenu, true);
+    window.addEventListener('message', closeAccountMenuFromWorkspace);
+    return () => {
+      document.removeEventListener('pointerdown', closeAccountMenu, true);
+      window.removeEventListener('message', closeAccountMenuFromWorkspace);
+    };
   }, [showAccountMenu]);
 
   useEffect(() => {

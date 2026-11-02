@@ -1,17 +1,117 @@
-import { useMemo, useState } from 'react';
-import { Button, Card, Col, Form, Row, Table } from 'react-bootstrap';
+import { useEffect, useState } from 'react';
+import { Button, Card, Col, Form, Row, Spinner, Table } from 'react-bootstrap';
 import { useParams } from 'react-router-dom';
-import { getPublicQuotation, submitQuotationOffer } from '../../utils/publicQuotations';
+import PurchasingServices from '../../services/corporate/PurchasingServices';
+import { useAlert } from '../../utils/alertContext';
 import './public-quotation-offer.scss';
 
 const currencyFormatter = new Intl.NumberFormat('id-ID');
+const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
+const ATTACHMENT_ACCEPT = '.pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx';
+const getSubmittedOfferKey = (token) => `dc-quotation-offer-submitted:${token}`;
+
+const hasSubmittedOffer = (token) => {
+  try {
+    return Boolean(localStorage.getItem(getSubmittedOfferKey(token)));
+  } catch {
+    return false;
+  }
+};
+
+const rememberSubmittedOffer = (token) => {
+  try {
+    localStorage.setItem(getSubmittedOfferKey(token), new Date().toISOString());
+  } catch {
+    // The success screen still prevents a duplicate submission in this tab
+    // when browser storage is unavailable.
+  }
+};
+
+const getValue = (item, keys, fallback = '') => {
+  const value = keys.map((key) => item?.[key]).find((entry) => entry !== undefined && entry !== null && entry !== '');
+  return value ?? fallback;
+};
+
+const normalizeQuotation = (response) => {
+  const payload = response?.data?.data ?? response?.data ?? response ?? {};
+  const quotation = payload.quotation ?? payload.data ?? payload;
+  const rawItems = quotation.items ?? quotation.details ?? quotation.lines ?? payload.items ?? [];
+  return {
+    ...quotation,
+    id: getValue(quotation, ['id', 'quotation_id', 'DocEntry']),
+    number: getValue(quotation, ['rfq_number', 'quotation_no', 'quotation_number', 'number', 'code'], 'Request Quotation'),
+    title: getValue(quotation, ['title', 'quotation_title']),
+    notes: getValue(quotation, ['notes', 'description']),
+    validUntil: getValue(quotation, ['valid_until', 'validUntil']),
+    items: (Array.isArray(rawItems) ? rawItems : []).map((item, index) => ({
+      ...item,
+      id: getValue(item, ['id', 'quotation_item_id', 'line_id'], `item-${index}`),
+      itemCode: getValue(item, ['itemCode', 'item_code', 'ItemCode'], '-'),
+      itemName: getValue(item, ['itemName', 'item_name', 'ItemName', 'description'], '-'),
+      quantity: Number(getValue(item, ['quantity', 'Quantity'], 0)) || 0,
+      unit: getValue(item, ['unit', 'uom', 'UnitMsr'], '-'),
+      warehouse: getValue(item, ['warehouse', 'warehouse_code', 'WhsCode'], '-'),
+      requiredDate: getValue(item, ['requiredDate', 'required_date']),
+      requestNotes: getValue(item, ['notes', 'request_notes', 'remarks'])
+    }))
+  };
+};
 
 export default function PublicQuotationOffer() {
   const { token } = useParams();
-  const quotation = useMemo(() => getPublicQuotation(token), [token]);
+  const { showAlert } = useAlert();
+  const [quotation, setQuotation] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [vendor, setVendor] = useState({ name: '', email: '', phone: '', company: '', notes: '' });
   const [offers, setOffers] = useState({});
-  const [submitted, setSubmitted] = useState(false);
+  const [submitted, setSubmitted] = useState(() => hasSubmittedOffer(token));
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    setSubmitted(hasSubmittedOffer(token));
+    const handleStorage = (event) => {
+      if (event.key === getSubmittedOfferKey(token) && event.newValue) setSubmitted(true);
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, [token]);
+
+  useEffect(() => {
+    let active = true;
+    const loadQuotation = async () => {
+      setLoading(true);
+      setLoadError('');
+      try {
+        const response = await PurchasingServices.getDetailQuotations(token);
+        if (response?.data?.success === false) throw new Error(response.data.message || 'Request quotation tidak ditemukan');
+        const detail = normalizeQuotation(response);
+        if (!detail.id && !detail.items.length) throw new Error('Request quotation tidak ditemukan');
+        if (active) setQuotation(detail);
+      } catch (error) {
+        if (active) setLoadError(error?.response?.data?.message || error?.message || 'Request quotation tidak ditemukan');
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    loadQuotation();
+    return () => {
+      active = false;
+    };
+  }, [token]);
+
+  if (loading) {
+    return (
+      <main className="quotation-offer-page">
+        <Card className="quotation-offer-message">
+          <Card.Body>
+            <Spinner animation="border" variant="primary" />
+            <h2 className="mt-3">Memuat request quotation...</h2>
+          </Card.Body>
+        </Card>
+      </main>
+    );
+  }
 
   if (!quotation) {
     return (
@@ -20,7 +120,7 @@ export default function PublicQuotationOffer() {
           <Card.Body>
             <i className="ti ti-file-off" />
             <h2>Request quotation tidak ditemukan</h2>
-            <p>Pastikan link yang diberikan sudah benar dan masih aktif.</p>
+            <p>{loadError || 'Pastikan link yang diberikan sudah benar dan masih aktif.'}</p>
           </Card.Body>
         </Card>
       </main>
@@ -47,10 +147,62 @@ export default function PublicQuotationOffer() {
       [itemId]: { ...current[itemId], [field]: value }
     }));
 
-  const handleSubmit = (event) => {
+  const updateAttachment = (itemId, file, input) => {
+    if (file && file.size > MAX_ATTACHMENT_SIZE) {
+      showAlert('Ukuran attachment maksimal 10 MB.', 'danger');
+      input.value = '';
+      return;
+    }
+
+    updateOffer(itemId, 'attachment', file || null);
+  };
+
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    submitQuotationOffer(quotation.id, { vendor, items: quotation.items.map((item) => ({ ...item, ...offers[item.id] })) });
-    setSubmitted(true);
+    if (hasSubmittedOffer(token)) {
+      setSubmitted(true);
+      return;
+    }
+    const payload = {
+      vendor: {
+        company: vendor.company.trim(),
+        name: vendor.name.trim(),
+        email: vendor.email.trim(),
+        phone: vendor.phone.trim(),
+        notes: vendor.notes.trim()
+      },
+      items: quotation.items.map((item) => ({
+        id: Number(item.id),
+        itemCode: item.itemCode,
+        itemName: item.itemName,
+        quantity: Number(item.quantity),
+        unit: item.unit,
+        commitQty: Number(offers[item.id]?.commitQty),
+        unitPrice: Number(offers[item.id]?.unitPrice),
+        leadTime: offers[item.id]?.leadTime?.trim() || '',
+        notes: offers[item.id]?.notes?.trim() || ''
+      }))
+    };
+
+    const formData = new FormData();
+    Object.entries(payload.vendor).forEach(([key, value]) => formData.append(`vendor[${key}]`, value));
+    payload.items.forEach((item, index) => {
+      Object.entries(item).forEach(([key, value]) => formData.append(`items[${index}][${key}]`, value));
+      const attachment = offers[quotation.items[index].id]?.attachment;
+      if (attachment) formData.append(`items[${index}][attachment]`, attachment);
+    });
+
+    setSubmitting(true);
+    try {
+      const response = await PurchasingServices.postOffers(token, formData);
+      if (response?.data?.success === false) throw new Error(response.data.message || 'Gagal mengirim penawaran');
+      rememberSubmittedOffer(token);
+      setSubmitted(true);
+    } catch (error) {
+      showAlert(error?.response?.data?.message || error?.message || 'Gagal mengirim penawaran', 'danger');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -59,7 +211,8 @@ export default function PublicQuotationOffer() {
         <header className="quotation-offer-header">
           <span>REQUEST FOR QUOTATION</span>
           <h1>{quotation.number}</h1>
-          <p>Silakan lengkapi identitas dan penawaran harga untuk setiap item berikut.</p>
+          {quotation.title && <h5>{quotation.title}</h5>}
+          <p>{quotation.notes || 'Silakan lengkapi identitas dan penawaran harga untuk setiap item berikut.'}</p>
         </header>
         <Form onSubmit={handleSubmit}>
           <Card className="mb-3">
@@ -107,22 +260,37 @@ export default function PublicQuotationOffer() {
                   <tr>
                     <th>#</th>
                     <th>Item</th>
-                    <th>Qty</th>
+                    <th>Requested Qty</th>
+                    <th>Commit Qty *</th>
                     <th>Harga Satuan *</th>
                     <th>Lead Time *</th>
                     <th>Catatan</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {quotation.items.map((item, index) => (
-                    <tr key={item.id}>
+                {quotation.items.map((item, index) => (
+                  <tbody className="quotation-offer-item" key={item.id}>
+                    <tr>
                       <td>{index + 1}</td>
                       <td>
                         <strong>{item.itemCode}</strong>
                         <small>{item.itemName}</small>
+                        {item.requestNotes && <span className="quotation-offer-item-note">Note: {item.requestNotes}</span>}
                       </td>
                       <td>
                         {currencyFormatter.format(item.quantity)} {item.unit}
+                      </td>
+                      <td>
+                        <Form.Control
+                          type="number"
+                          min="0"
+                          max={item.quantity}
+                          step="any"
+                          required
+                          aria-label={`Commit quantity ${item.itemName}`}
+                          placeholder="0"
+                          value={offers[item.id]?.commitQty || ''}
+                          onChange={(event) => updateOffer(item.id, 'commitQty', event.target.value)}
+                        />
                       </td>
                       <td>
                         <Form.Control
@@ -152,8 +320,24 @@ export default function PublicQuotationOffer() {
                         />
                       </td>
                     </tr>
-                  ))}
-                </tbody>
+                    <tr className="quotation-offer-attachment-row">
+                      <td />
+                      <td colSpan={6}>
+                        <div className="quotation-offer-attachment">
+                          <Form.Label htmlFor={`attachment-${item.id}`}>Attachment item</Form.Label>
+                          <Form.Control
+                            id={`attachment-${item.id}`}
+                            type="file"
+                            accept={ATTACHMENT_ACCEPT}
+                            aria-label={`Attachment ${item.itemName}`}
+                            onChange={(event) => updateAttachment(item.id, event.target.files?.[0], event.target)}
+                          />
+                          <small>PDF, JPG, PNG, Word, atau Excel. Maksimal 10 MB.</small>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                ))}
               </Table>
             </div>
           </Card>
@@ -170,9 +354,9 @@ export default function PublicQuotationOffer() {
             </Card.Body>
           </Card>
           <div className="d-flex justify-content-end">
-            <Button type="submit" size="lg">
-              <i className="ti ti-send me-2" />
-              Kirim Penawaran
+            <Button type="submit" size="lg" disabled={submitting}>
+              {submitting ? <Spinner animation="border" size="sm" className="me-2" /> : <i className="ti ti-send me-2" />}
+              {submitting ? 'Mengirim Penawaran...' : 'Kirim Penawaran'}
             </Button>
           </div>
         </Form>

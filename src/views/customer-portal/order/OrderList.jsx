@@ -109,10 +109,19 @@ const cmoActionPopperConfig = {
   ]
 };
 
+const orderFilterSelectStyles = {
+  menu: (base) => ({ ...base, left: 0, right: 0, width: '100%', zIndex: 20 })
+};
+
 const normalizeStatus = (value) =>
   String(value || '')
     .trim()
     .toUpperCase();
+
+const normalizeCustomerGroup = (value) =>
+  String(value || '')
+    .trim()
+    .toLocaleLowerCase('id-ID');
 
 const normalizeSummaryStatus = (value) => {
   const normalizedStatus = normalizeStatus(value);
@@ -283,6 +292,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
   const [commitmentCustomerOptions, setCommitmentCustomerOptions] = useState([]);
   const [isLoadingCommitmentCustomers, setIsLoadingCommitmentCustomers] = useState(false);
   const [keywords, setKeywords] = useState('');
+  const [customerGroup, setCustomerGroup] = useState('');
   const [distributor, setDistributor] = useState('');
   const [status, setStatus] = useState('');
   const [date, setDate] = useState('');
@@ -320,7 +330,39 @@ export default function OrderList({ showOnlyCommitment = false }) {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [date, distributor, keywords, status]);
+  }, [customerGroup, date, distributor, keywords, status]);
+
+  const customerGroupOptions = useMemo(() => {
+    const groups = new Map();
+
+    commitmentCustomerOptions.forEach((option) => {
+      const customerName = String(option.customerName || '').trim();
+      if (!customerName) return;
+
+      const groupKey = normalizeCustomerGroup(customerName);
+      const currentGroup = groups.get(groupKey) || {
+        value: groupKey,
+        label: customerName,
+        customerCodes: []
+      };
+
+      if (!currentGroup.customerCodes.includes(option.value)) currentGroup.customerCodes.push(option.value);
+      groups.set(groupKey, currentGroup);
+    });
+
+    return [...groups.values()].sort((first, second) => first.label.localeCompare(second.label, 'id-ID'));
+  }, [commitmentCustomerOptions]);
+
+  const selectedCustomerGroup = useMemo(
+    () => customerGroupOptions.find((option) => option.value === customerGroup) || null,
+    [customerGroup, customerGroupOptions]
+  );
+
+  const depoOptions = useMemo(() => {
+    if (!selectedCustomerGroup) return commitmentCustomerOptions;
+    const customerCodeSet = new Set(selectedCustomerGroup.customerCodes);
+    return commitmentCustomerOptions.filter((option) => customerCodeSet.has(option.value));
+  }, [commitmentCustomerOptions, selectedCustomerGroup]);
 
   const filteredOrders = useMemo(() => {
     const normalizedKeyword = keywords.trim().toLowerCase();
@@ -331,13 +373,18 @@ export default function OrderList({ showOnlyCommitment = false }) {
       const orderCustomerCode = String(
         order.card_code || order.cardCode || order.customer_code || order.customerCode || order.code_customer || order.CardCode || ''
       );
+      const orderCustomerName = normalizeCustomerGroup(order.customer_name || order.customerName || order.distributor_name);
+      const matchesCustomer =
+        !selectedCustomerGroup ||
+        selectedCustomerGroup.customerCodes.includes(orderCustomerCode) ||
+        orderCustomerName === selectedCustomerGroup.value;
       const matchesDistributor = !distributor || orderCustomerCode === distributor;
       const matchesStatus = !status || normalizeSummaryStatus(order.status) === normalizeSummaryStatus(status);
       const matchesDate = !date || order.date === date;
 
-      return matchesKeyword && matchesDistributor && matchesStatus && matchesDate;
+      return matchesKeyword && matchesCustomer && matchesDistributor && matchesStatus && matchesDate;
     });
-  }, [date, distributor, keywords, orders, status]);
+  }, [date, distributor, keywords, orders, selectedCustomerGroup, status]);
 
   const commitmentCalendarDays = useMemo(() => {
     const calendarStart = commitmentCalendarMonth.clone().startOf('month').startOf('week');
@@ -358,12 +405,17 @@ export default function OrderList({ showOnlyCommitment = false }) {
       const orderCustomerCode = String(
         order.card_code || order.cardCode || order.customer_code || order.customerCode || order.code_customer || order.CardCode || ''
       );
+      const orderCustomerName = normalizeCustomerGroup(order.customer_name || order.customerName || order.distributor_name);
+      const matchesCustomer =
+        !selectedCustomerGroup ||
+        selectedCustomerGroup.customerCodes.includes(orderCustomerCode) ||
+        orderCustomerName === selectedCustomerGroup.value;
       const matchesDistributor = !distributor || orderCustomerCode === distributor;
       const matchesDate = !date || order.date === date;
 
-      return matchesKeyword && matchesDistributor && matchesDate;
+      return matchesKeyword && matchesCustomer && matchesDistributor && matchesDate;
     });
-  }, [date, distributor, keywords, orders]);
+  }, [date, distributor, keywords, orders, selectedCustomerGroup]);
 
   const summary = useMemo(() => {
     const statusCounts = statusSummaryItems.reduce(
@@ -435,7 +487,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
     </Row>
   );
 
-  const hasActiveFilter = Boolean(keywords || distributor || status || date);
+  const hasActiveFilter = Boolean(keywords || customerGroup || distributor || status || date);
   const orderCalendarDays = useMemo(() => {
     const calendarStart = orderCalendarMonth.clone().startOf('month').startOf('week');
 
@@ -449,6 +501,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
 
   const resetFilters = () => {
     setKeywords('');
+    setCustomerGroup('');
     setDistributor('');
     setStatus('');
     setDate('');
@@ -460,6 +513,16 @@ export default function OrderList({ showOnlyCommitment = false }) {
 
     setDistributor(customerCode);
     fetchData(customerCode);
+  };
+
+  const handleCustomerGroupChange = (option) => {
+    const nextCustomerGroup = option?.value || '';
+    const allowedCustomerCodes = new Set(option?.customerCodes || []);
+    const shouldClearDepo = Boolean(nextCustomerGroup && distributor && !allowedCustomerCodes.has(distributor));
+
+    setCustomerGroup(nextCustomerGroup);
+    if (shouldClearDepo) setDistributor('');
+    fetchData(shouldClearDepo ? '' : distributor);
   };
 
   const extractOrderList = (response) => {
@@ -491,7 +554,9 @@ export default function OrderList({ showOnlyCommitment = false }) {
 
             return {
               value: code,
-              label: `${code || '-'} - ${name || '-'} - ${depo || '-'}`
+              label: `${code || '-'} - ${name || '-'} - ${depo || '-'}`,
+              customerName: name,
+              depo
             };
           })
           .filter((item) => item.value)
@@ -1803,7 +1868,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
           >
             <Row className="g-2 align-items-end mb-3">
               <Col lg={3} md={6}>
-                <Form.Label className="f-12 text-muted">Customer Code</Form.Label>
+                <Form.Label className="f-12 text-muted">Depo</Form.Label>
                 <Select
                   classNamePrefix="react-select"
                   value={commitmentCustomerOptions.find((option) => option.value === commitmentCustomerCode) || null}
@@ -1812,7 +1877,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
                   isDisabled={isLoadingCommitmentCustomers}
                   isClearable
                   isSearchable
-                  placeholder="Search customer code..."
+                  placeholder="Search depo..."
                   noOptionsMessage={() => 'Distributor not found'}
                   onChange={(option) => setCommitmentCustomerCode(option?.value || '')}
                 />
@@ -2214,7 +2279,7 @@ export default function OrderList({ showOnlyCommitment = false }) {
             <MainCard>
               {renderStatusFilterBoxes()}
               <Row className="g-2 align-items-end mb-3">
-                <Col lg={3} md={6}>
+                <Col lg={2} md={6}>
                   <Form.Label className="f-12 text-muted">Search Order</Form.Label>
                   <InputGroup>
                     <InputGroup.Text>
@@ -2224,18 +2289,34 @@ export default function OrderList({ showOnlyCommitment = false }) {
                   </InputGroup>
                 </Col>
                 <Col lg={3} md={6}>
-                  <Form.Label className="f-12 text-muted">Customer Code</Form.Label>
+                  <Form.Label className="f-12 text-muted">Filter Customer</Form.Label>
                   <Select
                     classNamePrefix="react-select"
-                    value={commitmentCustomerOptions.find((option) => option.value === distributor) || null}
-                    options={commitmentCustomerOptions}
-                    menuPosition="fixed"
+                    styles={orderFilterSelectStyles}
+                    value={selectedCustomerGroup}
+                    options={customerGroupOptions}
                     isLoading={isLoadingCommitmentCustomers}
                     isDisabled={isLoadingCommitmentCustomers}
                     isClearable
                     isSearchable
-                    placeholder="Select customer code..."
-                    noOptionsMessage={() => 'Distributor not found'}
+                    placeholder="Select customer..."
+                    noOptionsMessage={() => 'Customer not found'}
+                    onChange={handleCustomerGroupChange}
+                  />
+                </Col>
+                <Col lg={3} md={6}>
+                  <Form.Label className="f-12 text-muted">Depo</Form.Label>
+                  <Select
+                    classNamePrefix="react-select"
+                    styles={orderFilterSelectStyles}
+                    value={depoOptions.find((option) => option.value === distributor) || null}
+                    options={depoOptions}
+                    isLoading={isLoadingCommitmentCustomers}
+                    isDisabled={isLoadingCommitmentCustomers}
+                    isClearable
+                    isSearchable
+                    placeholder="Select depo..."
+                    noOptionsMessage={() => (selectedCustomerGroup ? 'Depo not found for this customer' : 'Depo not found')}
                     onChange={handleCustomerCodeChange}
                   />
                 </Col>
