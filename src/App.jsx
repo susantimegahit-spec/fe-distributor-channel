@@ -12,6 +12,7 @@ import ErrorBoundary from './views/ErrorBoundary';
 import { AUTH_STATE_CHANGED_EVENT } from './utils/authEvents';
 import NetworkStatusGuard from './components/NetworkStatusGuard';
 import VendorPortalRoutes from './routes/VendorPortalRoutes';
+import PublicQuotationRoutes from './routes/PublicQuotationRoutes';
 import { applyThemePreference, getThemePreference, THEME_CHANGED_EVENT, THEME_STORAGE_KEY } from './utils/themePreference';
 
 // ==============================|| APP - THEME, ROUTER, LOCAL ||============================== //
@@ -24,6 +25,7 @@ const ProviderConfig = () => {
       ? window.location.pathname.slice(baseName.length) || '/'
       : window.location.pathname;
   const isVendorPortal = appPathname === '/vendor-portal' || appPathname.startsWith('/vendor-portal/');
+  const isPublicQuotation = appPathname.startsWith('/quotation-offer/');
 
   useEffect(() => {
     const syncAuthentication = () => {
@@ -36,6 +38,7 @@ const ProviderConfig = () => {
   }, []);
 
   if (isVendorPortal) return <RouterProvider router={VendorPortalRoutes} />;
+  if (isPublicQuotation) return <RouterProvider router={PublicQuotationRoutes} />;
 
   return isLoggedIn ? <RouterProvider router={router} /> : <RouterProvider router={AuthRoutes} />;
 };

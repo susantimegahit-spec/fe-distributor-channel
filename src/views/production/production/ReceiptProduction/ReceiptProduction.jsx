@@ -29,6 +29,7 @@ import {
 } from '../../../../redux/production/receiptPdoReducer';
 import { useAlert } from '../../../../utils/alertContext';
 import { getCookies } from '../../../../utils/cookies';
+import '../production-create-modal.scss';
 import './receipt-production.scss';
 
 const pageSize = 10;
@@ -1165,7 +1166,13 @@ export default function ReceiptProduction() {
         ) : null}
       </MainCard>
 
-      <Modal show={showAddReceipt} onHide={() => !savingReceipt && setShowAddReceipt(false)} fullscreen scrollable>
+      <Modal
+        show={showAddReceipt}
+        onHide={() => !savingReceipt && setShowAddReceipt(false)}
+        className="production-create-modal"
+        fullscreen
+        scrollable
+      >
         <Modal.Header closeButton={!savingReceipt}>
           <Modal.Title>Create Receipt Production</Modal.Title>
         </Modal.Header>

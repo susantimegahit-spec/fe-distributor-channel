@@ -20,6 +20,7 @@ import WarehouseServices from '../../../../services/customer-portal/WarehouseSer
 import ProductionServices from '../../../../services/production/ProductionServices';
 import { useAlert } from '../../../../utils/alertContext';
 import { getCookies } from '../../../../utils/cookies';
+import '../production-create-modal.scss';
 import './issue-production.scss';
 
 const pageSize = 10;
@@ -70,7 +71,9 @@ const shiftOptions = [
 ];
 const selectStyles = {
   menuPortal: (base) => ({ ...base, zIndex: 1090 }),
-  control: (base) => ({ ...base, minHeight: 38 })
+  control: (base) => ({ ...base, minHeight: 31, minWidth: 180, fontSize: '0.75rem' }),
+  valueContainer: (base) => ({ ...base, paddingTop: 0, paddingBottom: 0 }),
+  option: (base) => ({ ...base, fontSize: '0.75rem' })
 };
 const today = new Date().toLocaleDateString('en-CA');
 const createIssueForm = () => ({
@@ -1128,7 +1131,13 @@ export default function IssueProduction() {
         </Modal.Footer>
       </Modal>
 
-      <Modal show={showAddIssue} onHide={() => !savingIssue && setShowAddIssue(false)} fullscreen scrollable>
+      <Modal
+        show={showAddIssue}
+        onHide={() => !savingIssue && setShowAddIssue(false)}
+        className="production-create-modal"
+        fullscreen
+        scrollable
+      >
         <Modal.Header closeButton={!savingIssue}>
           <Modal.Title>Create Issue Production</Modal.Title>
         </Modal.Header>

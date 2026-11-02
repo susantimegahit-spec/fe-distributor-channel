@@ -170,8 +170,8 @@
       "menu_id": "enterprise-purchasing-quotation",
       "route": "/corporate/purchasing/quotation",
       "source": "src/views/corporate/purchasing/quotation/PurchaseQuotation.jsx",
-      "actions": ["view", "add"],
-      "buttons": { "view": ["View Quotation"], "add": ["Create Request Quotation"] }
+      "actions": ["view", "add", "delete"],
+      "buttons": { "view": ["View Quotation"], "add": ["Create Request Quotation"], "delete": ["Delete Quotation"] }
     },
     {
       "menu_key": 23,

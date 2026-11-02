@@ -1,0 +1,37 @@
+.production-create-modal {
+  font-size: 0.75rem;
+
+  .modal-title {
+    font-size: 1rem;
+  }
+
+  .form-label,
+  .form-control,
+  .form-select,
+  .input-group-text,
+  .table,
+  .btn,
+  .form-text,
+  .text-muted {
+    font-size: 0.75rem;
+  }
+
+  .form-label {
+    margin-bottom: 0.3rem;
+  }
+
+  .form-control:not(textarea),
+  .form-select {
+    min-height: 31px;
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+  }
+
+  .table > :not(caption) > * > * {
+    padding: 0.45rem 0.5rem;
+  }
+
+  h6 {
+    font-size: 0.875rem;
+  }
+}
