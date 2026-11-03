@@ -179,8 +179,8 @@
       "menu_id": "enterprise-purchasing-order",
       "route": "/corporate/purchasing/order",
       "source": "src/views/corporate/purchasing/order/PurchaseOrder.jsx",
-      "actions": ["view"],
-      "buttons": { "view": ["View Order"] }
+      "actions": ["view", "add"],
+      "buttons": { "view": ["View Order"], "add": ["Create Purchase Order"] }
     },
     {
       "menu_key": 25,

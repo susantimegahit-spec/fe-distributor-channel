@@ -6,6 +6,7 @@ import DashboardLayout from 'layout/Dashboard';
 import { RouteErrorBoundary } from 'views/ErrorBoundary';
 
 const PurchasingPlaceholder = Loadable(lazy(() => import('views/purchasing/PurchasingPlaceholder')));
+const PurchaseOrder = Loadable(lazy(() => import('views/corporate/purchasing/order/PurchaseOrder')));
 
 const PurchasingRoutes = {
   path: '/',
@@ -24,22 +25,12 @@ const PurchasingRoutes = {
     },
     {
       path: 'purchasing/orders',
-      element: (
-        <PurchasingPlaceholder
-          title="Purchase Orders"
-          description="Create and monitor purchase orders."
-          icon="ti ti-file-invoice"
-        />
-      )
+      element: <PurchaseOrder />
     },
     {
       path: 'purchasing/master/suppliers',
       element: (
-        <PurchasingPlaceholder
-          title="Suppliers"
-          description="Manage purchasing supplier master data."
-          icon="ti ti-building-warehouse"
-        />
+        <PurchasingPlaceholder title="Suppliers" description="Manage purchasing supplier master data." icon="ti ti-building-warehouse" />
       )
     }
   ]

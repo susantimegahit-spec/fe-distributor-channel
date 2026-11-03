@@ -38,7 +38,8 @@
 }
 .quotation-offer-table {
   width: 100%;
-  table-layout: fixed;
+  min-width: 1250px;
+  table-layout: auto;
 }
 .quotation-offer-table th,
 .quotation-offer-table td {
@@ -75,8 +76,41 @@
   width: 15%;
 }
 .quotation-offer-table td:nth-child(6),
-.quotation-offer-table td:nth-child(7) {
+.quotation-offer-table td:nth-child(7),
+.quotation-offer-table td:nth-child(8) {
+  min-width: 150px;
   width: 15%;
+}
+.quotation-discount-result {
+  background: #f8fafc;
+  font-weight: 600;
+}
+.quotation-total-price {
+  border-color: #cbd9ef;
+  background: #f1f5fb;
+  color: #234f9f;
+  font-weight: 700;
+}
+.quotation-offer-discount-row td {
+  padding-top: 4px;
+  padding-bottom: 8px;
+  border-top: 0;
+  background: #f8fafc;
+}
+.quotation-offer-discount {
+  display: grid;
+  grid-template-columns: 140px repeat(3, minmax(170px, 240px));
+  align-items: end;
+  gap: 12px;
+}
+.quotation-offer-discount > strong {
+  align-self: center;
+}
+.quotation-offer-discount .form-label {
+  margin-bottom: 4px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
 }
 .quotation-offer-attachment-row td {
   padding-top: 0;
@@ -134,11 +168,17 @@
     width: 100%;
   }
   .quotation-offer-table {
-    min-width: 1050px;
+    min-width: 1250px;
     table-layout: auto;
   }
   .quotation-offer-attachment {
     grid-template-columns: 1fr;
     gap: 6px;
+  }
+  .quotation-offer-discount {
+    grid-template-columns: repeat(3, minmax(170px, 1fr));
+  }
+  .quotation-offer-discount > strong {
+    grid-column: 1 / -1;
   }
 }

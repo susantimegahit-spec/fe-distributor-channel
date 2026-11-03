@@ -73,6 +73,14 @@ class PurchasingServices {
     return DataService.post(`/public/quotations/${encodeURIComponent(token)}/offers`, payload);
   }
 
+  getPurchaseOrders(params = {}) {
+    return DataService.get('/purchasing-request/purchase-orders', params);
+  }
+
+  postPurchaseOrder(payload) {
+    return DataService.post('/purchasing-request/purchase-orders', payload);
+  }
+
   postPurchasing(payload) {
     return DataService.post('/purchasing-request/requests', payload);
   }

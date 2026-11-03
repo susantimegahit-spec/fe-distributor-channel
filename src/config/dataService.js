@@ -27,6 +27,8 @@ const isFormData = (data) => typeof FormData !== 'undefined' && data instanceof 
 const isSapConnectionError = (error) => {
   const responseData = error?.response?.data;
   const requestUrl = String(error?.config?.url ?? error?.response?.config?.url ?? '').toLowerCase();
+  const responseStatus = Number(error?.response?.status || 0);
+  const errorCode = String(error?.code || '').toUpperCase();
   let serializedResponse = '';
   try {
     serializedResponse = JSON.stringify(responseData);
@@ -74,7 +76,27 @@ const isSapConnectionError = (error) => {
     'koneksi gagal'
   ].some((pattern) => normalizedMessage.includes(pattern));
 
-  return explicitlyMentionsSapConnection || (isProductionSapRequest && hasGenericConnectionFailure);
+  const hasSapServiceFailure = [
+    'sap service layer',
+    'service layer unavailable',
+    'service layer connection',
+    'failed connect sap',
+    'failed connecting to sap',
+    'unable to connect to sap',
+    'sap unavailable',
+    'sap is unavailable'
+  ].some((pattern) => normalizedMessage.includes(pattern));
+  const hasTransportFailure =
+    !error?.response ||
+    [502, 503, 504].includes(responseStatus) ||
+    ['ECONNABORTED', 'ECONNRESET', 'ETIMEDOUT', 'ERR_NETWORK'].includes(errorCode) ||
+    ['network error', 'timeout', 'timed out', 'socket hang up'].some((pattern) => normalizedMessage.includes(pattern));
+
+  return (
+    explicitlyMentionsSapConnection ||
+    hasSapServiceFailure ||
+    (isProductionSapRequest && (hasGenericConnectionFailure || hasTransportFailure))
+  );
 };
 
 const setSapConnectionErrorMessage = (error) => {
