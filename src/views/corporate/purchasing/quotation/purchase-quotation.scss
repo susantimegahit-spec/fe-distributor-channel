@@ -176,19 +176,90 @@
 }
 
 .purchase-quotation-status-badge.badge {
-  border: 1px solid #2f9e67;
-  background: #d5f2e2 !important;
-  color: #087443 !important;
-  -webkit-text-fill-color: #087443;
+  border: 1px solid var(--quotation-status-border, #7c8ea3);
+  background: var(--quotation-status-bg, #eef2f6) !important;
+  color: var(--quotation-status-color, #46586d) !important;
+  -webkit-text-fill-color: var(--quotation-status-color, #46586d);
   font-weight: 600;
+
+  &.is-open {
+    --quotation-status-border: #2f9e67;
+    --quotation-status-bg: #d5f2e2;
+    --quotation-status-color: #087443;
+  }
+
+  &.is-submitted {
+    --quotation-status-border: #3b82c4;
+    --quotation-status-bg: #dcecff;
+    --quotation-status-color: #175d9b;
+  }
+
+  &.is-draft {
+    --quotation-status-border: #d69a2d;
+    --quotation-status-bg: #fff1c9;
+    --quotation-status-color: #8a5b00;
+  }
+
+  &.is-closed {
+    --quotation-status-border: #7f8c9c;
+    --quotation-status-bg: #e9edf2;
+    --quotation-status-color: #465464;
+  }
+
+  &.is-cancelled {
+    --quotation-status-border: #d35d68;
+    --quotation-status-bg: #fde3e6;
+    --quotation-status-color: #a62d3a;
+  }
+
+  &.is-other {
+    --quotation-status-border: #8a67be;
+    --quotation-status-bg: #eee5fb;
+    --quotation-status-color: #68439d;
+  }
 }
 
 [data-pc-theme='dark'] .purchase-quotation-status-badge.badge,
 [data-bs-theme='dark'] .purchase-quotation-status-badge.badge {
-  border-color: rgba(72, 213, 151, 0.52);
-  background: rgba(24, 143, 102, 0.25) !important;
-  color: #72f0bd !important;
-  -webkit-text-fill-color: #72f0bd;
+  --quotation-status-border: rgba(159, 176, 195, 0.54);
+  --quotation-status-bg: rgba(116, 133, 151, 0.2);
+  --quotation-status-color: #d1d9e2;
+
+  &.is-open {
+    --quotation-status-border: rgba(72, 213, 151, 0.52);
+    --quotation-status-bg: rgba(24, 143, 102, 0.25);
+    --quotation-status-color: #72f0bd;
+  }
+
+  &.is-submitted {
+    --quotation-status-border: rgba(94, 174, 247, 0.58);
+    --quotation-status-bg: rgba(39, 112, 184, 0.26);
+    --quotation-status-color: #91caff;
+  }
+
+  &.is-draft {
+    --quotation-status-border: rgba(240, 183, 72, 0.58);
+    --quotation-status-bg: rgba(178, 119, 20, 0.25);
+    --quotation-status-color: #ffd477;
+  }
+
+  &.is-closed {
+    --quotation-status-border: rgba(164, 177, 191, 0.52);
+    --quotation-status-bg: rgba(106, 121, 139, 0.24);
+    --quotation-status-color: #d4dde7;
+  }
+
+  &.is-cancelled {
+    --quotation-status-border: rgba(239, 109, 121, 0.6);
+    --quotation-status-bg: rgba(174, 48, 61, 0.25);
+    --quotation-status-color: #ff9ca6;
+  }
+
+  &.is-other {
+    --quotation-status-border: rgba(183, 139, 240, 0.58);
+    --quotation-status-bg: rgba(112, 69, 167, 0.27);
+    --quotation-status-color: #d6b4ff;
+  }
 }
 
 .purchase-quotation-blur-backdrop.show {

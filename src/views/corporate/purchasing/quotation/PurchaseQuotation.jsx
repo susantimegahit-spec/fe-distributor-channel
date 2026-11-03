@@ -183,6 +183,20 @@ const getCurrentMonthFilters = () => {
 
 const initialQuotationFilters = { search: '', status: '', from: '', to: '', per_page: 15 };
 
+const getQuotationStatusClass = (status) => {
+  const normalizedStatus = String(status || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, '_');
+
+  if (['OPEN', 'ACTIVE'].includes(normalizedStatus)) return 'is-open';
+  if (['SUBMITTED', 'RESPONDED', 'OFFERED'].includes(normalizedStatus)) return 'is-submitted';
+  if (['DRAFT', 'PENDING'].includes(normalizedStatus)) return 'is-draft';
+  if (['CLOSED', 'COMPLETED'].includes(normalizedStatus)) return 'is-closed';
+  if (['CANCELLED', 'CANCELED', 'REJECTED', 'EXPIRED'].includes(normalizedStatus)) return 'is-cancelled';
+  return 'is-other';
+};
+
 const getPublicBaseUrl = () => {
   const hostname = window.location.hostname.toLowerCase();
   const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
@@ -606,7 +620,10 @@ export default function PurchaseQuotation() {
                     </td>
                     <td>{requestNumbers}</td>
                     <td>
-                      <Badge bg="light-success" text="success" className="purchase-quotation-status-badge">
+                      <Badge
+                        bg="light"
+                        className={`purchase-quotation-status-badge ${getQuotationStatusClass(status)}`}
+                      >
                         {status}
                       </Badge>
                     </td>
