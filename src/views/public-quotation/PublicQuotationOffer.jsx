@@ -10,6 +10,19 @@ const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
 const ATTACHMENT_ACCEPT = '.pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx';
 const getSubmittedOfferKey = (token) => `dc-quotation-offer-submitted:${token}`;
 
+const readAttachmentAsDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    if (!file) {
+      resolve(null);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+    reader.onerror = () => reject(new Error(`Gagal membaca attachment ${file.name}`));
+    reader.readAsDataURL(file);
+  });
+
 const getDiscountCalculation = (offer = {}) => {
   const subtotal = (Number(offer.commitQty) || 0) * (Number(offer.unitPrice) || 0);
   const type = offer.discountType || 'percent';
@@ -172,48 +185,34 @@ export default function PublicQuotationOffer() {
       setSubmitted(true);
       return;
     }
-    const payload = {
-      vendor: {
-        company: vendor.company.trim(),
-        name: vendor.name.trim(),
-        email: vendor.email.trim(),
-        phone: vendor.phone.trim(),
-        notes: vendor.notes.trim()
-      },
-      items: quotation.items.map((item) => ({
-        ...(() => {
-          const discount = getDiscountCalculation(offers[item.id]);
-          return {
-            discountType: offers[item.id]?.discountType || 'percent',
-            discountValue: Number(offers[item.id]?.discountValue) || 0,
-            discountNominal: discount.nominal,
-            discountPercent: discount.percent,
-            totalPrice: discount.total
-          };
-        })(),
-        id: Number(item.id),
-        itemCode: item.itemCode,
-        itemName: item.itemName,
-        quantity: Number(item.quantity),
-        unit: item.unit,
-        commitQty: Number(offers[item.id]?.commitQty),
-        unitPrice: Number(offers[item.id]?.unitPrice),
-        leadTime: offers[item.id]?.leadTime?.trim() || '',
-        notes: offers[item.id]?.notes?.trim() || ''
-      }))
-    };
-
-    const formData = new FormData();
-    Object.entries(payload.vendor).forEach(([key, value]) => formData.append(`vendor[${key}]`, value));
-    payload.items.forEach((item, index) => {
-      Object.entries(item).forEach(([key, value]) => formData.append(`items[${index}][${key}]`, value));
-      const attachment = offers[quotation.items[index].id]?.attachment;
-      if (attachment) formData.append(`items[${index}][attachment]`, attachment);
-    });
-
     setSubmitting(true);
     try {
-      const response = await PurchasingServices.postOffers(token, formData);
+      const attachmentValues = await Promise.all(quotation.items.map((item) => readAttachmentAsDataUrl(offers[item.id]?.attachment)));
+      const payload = {
+        vendor: {
+          company: vendor.company.trim(),
+          name: vendor.name.trim(),
+          email: vendor.email.trim(),
+          phone: vendor.phone.trim(),
+          notes: vendor.notes.trim()
+        },
+        items: quotation.items.map((item, index) => ({
+          id: Number(item.id),
+          itemCode: item.itemCode,
+          itemName: item.itemName,
+          quantity: Number(offers[item.id]?.commitQty),
+          unit: item.unit,
+          unitPrice: Number(offers[item.id]?.unitPrice),
+          discountType: offers[item.id]?.discountType || 'percent',
+          discountValue: Number(offers[item.id]?.discountValue) || 0,
+          nominalDisc: getDiscountCalculation(offers[item.id]).nominal,
+          leadTime: offers[item.id]?.leadTime?.trim() || '',
+          notes: offers[item.id]?.notes?.trim() || '',
+          attachment: attachmentValues[index]
+        }))
+      };
+
+      const response = await PurchasingServices.postOffers(token, payload);
       if (response?.data?.success === false) throw new Error(response.data.message || 'Gagal mengirim penawaran');
       rememberSubmittedOffer(token);
       setSubmitted(true);
@@ -306,6 +305,7 @@ export default function PublicQuotationOffer() {
                         <td>
                           <Form.Control
                             type="number"
+                            className="quotation-number-input"
                             min="0"
                             max={item.quantity}
                             step="any"
@@ -314,17 +314,20 @@ export default function PublicQuotationOffer() {
                             placeholder="0"
                             value={offers[item.id]?.commitQty || ''}
                             onChange={(event) => updateOffer(item.id, 'commitQty', event.target.value)}
+                            onWheel={(event) => event.currentTarget.blur()}
                           />
                         </td>
                         <td>
                           <Form.Control
                             type="number"
+                            className="quotation-number-input"
                             min="0"
                             step="1"
                             required
                             aria-label={`Harga ${item.itemName}`}
                             value={offers[item.id]?.unitPrice || ''}
                             onChange={(event) => updateOffer(item.id, 'unitPrice', event.target.value)}
+                            onWheel={(event) => event.currentTarget.blur()}
                           />
                         </td>
                         <td>
@@ -379,6 +382,7 @@ export default function PublicQuotationOffer() {
                                 {discountType === 'nominal' && <span className="input-group-text">Rp</span>}
                                 <Form.Control
                                   type="number"
+                                  className="quotation-number-input"
                                   min="0"
                                   max={discountType === 'percent' ? 100 : discount.subtotal || undefined}
                                   step="any"
@@ -386,6 +390,7 @@ export default function PublicQuotationOffer() {
                                   placeholder="0"
                                   value={offer.discountValue || ''}
                                   onChange={(event) => updateOffer(item.id, 'discountValue', event.target.value)}
+                                  onWheel={(event) => event.currentTarget.blur()}
                                 />
                                 {discountType === 'percent' && <span className="input-group-text">%</span>}
                               </div>

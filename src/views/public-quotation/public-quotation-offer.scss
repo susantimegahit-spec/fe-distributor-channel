@@ -36,6 +36,16 @@
   border-radius: 12px;
   box-shadow: 0 3px 14px rgba(23, 32, 51, 0.04);
 }
+.quotation-number-input {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.quotation-number-input::-webkit-inner-spin-button,
+.quotation-number-input::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+}
 .quotation-offer-table {
   width: 100%;
   min-width: 1250px;
