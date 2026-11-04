@@ -42,7 +42,7 @@ const productionStatusOptions = [
   { value: PRODUCTION_STATUS_RELEASE, label: 'Release' }
 ];
 const plannedProductionStatusOptions = productionStatusOptions.filter((option) => option.value === PRODUCTION_STATUS_PLANNED);
-const productionOrderFilterStatusOptions = ['Release', 'Close', 'Planned'].map((value) => ({ value, label: value }));
+const productionOrderFilterStatusOptions = ['Release', 'Close', 'Planned', 'Cancelled'].map((value) => ({ value, label: value }));
 const shiftOptions = ['All', 'Shift 1', 'Shift 2', 'Shift 3'].map((value) => ({ value, label: value }));
 const componentTypeOptions = [
   { value: COMPONENT_TYPE_ITEM, label: 'Item' },
@@ -355,7 +355,7 @@ const normalizeProductionOrder = (item = {}, index = 0) => ({
     item.warehouse_code ||
     '',
   unit: item.U_Unit || item.u_unit || item.Unit || item.unit || item.OcrCode2 || item.ocr_code2 || '',
-  status: item.ProductionOrderStatus || item.Status || item.status || item.order_status || '',
+  status: item.statusName || '',
   orderDate:
     item.PostingDate || item.PostDate || item.DocDate || item.post_date || item.order_date || item.posting_date || item.created_at || '',
   dueDate: item.DueDate || item.dueDate || item.due_date || item.end_date || '',
