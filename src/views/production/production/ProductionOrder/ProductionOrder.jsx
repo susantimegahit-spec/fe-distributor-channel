@@ -355,7 +355,7 @@ const normalizeProductionOrder = (item = {}, index = 0) => ({
     item.warehouse_code ||
     '',
   unit: item.U_Unit || item.u_unit || item.Unit || item.unit || item.OcrCode2 || item.ocr_code2 || '',
-  status: item.statusName || '',
+  status: item.status || '',
   orderDate:
     item.PostingDate || item.PostDate || item.DocDate || item.post_date || item.order_date || item.posting_date || item.created_at || '',
   dueDate: item.DueDate || item.dueDate || item.due_date || item.end_date || '',
