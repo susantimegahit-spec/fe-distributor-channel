@@ -13,12 +13,15 @@ import Table from 'react-bootstrap/Table';
 
 import ConfirmDialog from 'components/ConfirmDialog';
 import MainCard from 'components/MainCard';
+import TablePagination from 'components/TablePagination';
 import OrderServices from 'services/customer-portal/OrderServices';
 import { currency } from '../../../utils/global';
 import { useAlert } from '../../../utils/alertContext';
+import './return-requests-widget.scss';
 
 const MAX_ATTACHMENTS = 5;
 const MAX_ATTACHMENT_SIZE = 1024 * 1024;
+const PAGE_SIZE = 10;
 const valueOf = (source = {}, keys = [], fallback = '-') => {
   const key = keys.find((keyName) => source?.[keyName] !== undefined && source?.[keyName] !== null && source?.[keyName] !== '');
   return key ? source[key] : fallback;
@@ -29,6 +32,19 @@ const rowsOf = (payload) => {
   const rows = payload?.data || payload?.items || payload?.results || payload?.orders || payload?.sales_returns || payload?.salesReturns;
   if (Array.isArray(rows)) return rows;
   return rows && typeof rows === 'object' ? [rows] : [];
+};
+const pageOf = (response, requestedPage) => {
+  const root = response?.data ?? {};
+  const payload = root?.data ?? root;
+  const rows = rowsOf(payload);
+  const meta = root?.pagination || root?.meta || payload?.pagination || payload?.meta || payload;
+  const total = Number(meta?.total ?? root?.total ?? rows.length) || 0;
+  const currentPage = Number(meta?.current_page ?? meta?.page ?? root?.current_page ?? requestedPage) || requestedPage;
+  const pageCount =
+    Number(meta?.last_page ?? meta?.lastPage ?? root?.last_page ?? 0) ||
+    Math.max(Math.ceil(total / (Number(meta?.per_page) || PAGE_SIZE)), 1);
+
+  return { rows, total, currentPage, pageCount };
 };
 const linesOf = (source = {}) => {
   const lines = valueOf(source, ['details', 'lines', 'items', 'return_items', 'returnItems'], []);
@@ -76,6 +92,9 @@ const returnStatusColor = (value) => {
 export default function ReturnRequestsWidget() {
   const { showAlert } = useAlert();
   const [orders, setOrders] = useState([]);
+  const [page, setPage] = useState(1);
+  const [pageCount, setPageCount] = useState(1);
+  const [total, setTotal] = useState(0);
   const [returns, setReturns] = useState([]);
   const [expandedId, setExpandedId] = useState(null);
   const [details, setDetails] = useState({});
@@ -99,22 +118,28 @@ export default function ReturnRequestsWidget() {
     setError('');
     try {
       const [ordersResponse, returnsResponse] = await Promise.all([
-        OrderServices.getListOrder({ status: 'DELIVERY' }),
+        OrderServices.getListOrder({ status: 'DELIVERY', page, per_page: PAGE_SIZE }),
         OrderServices.getRetur()
       ]);
       if (ordersResponse?.data?.success === false || returnsResponse?.data?.success === false) {
         throw new Error(ordersResponse?.data?.message || returnsResponse?.data?.message || 'Failed to load return data');
       }
-      setOrders(rowsOf(payloadOf(ordersResponse)).filter((order) => normalizedStatus(order.status) === 'DELIVERY'));
+      const orderPage = pageOf(ordersResponse, page);
+      setOrders(orderPage.rows.filter((order) => normalizedStatus(order.status) === 'DELIVERY'));
+      setTotal(orderPage.total);
+      setPageCount(orderPage.pageCount);
+      if (orderPage.currentPage !== page) setPage(orderPage.currentPage);
       setReturns(rowsOf(payloadOf(returnsResponse)));
     } catch (loadError) {
       setOrders([]);
+      setTotal(0);
+      setPageCount(1);
       setReturns([]);
       setError(loadError?.response?.data?.message || loadError?.message || 'Failed to load return data');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     load();
@@ -282,8 +307,9 @@ export default function ReturnRequestsWidget() {
     try {
       const response = await OrderServices.postArrive(order.id);
       if (!response?.data?.success) throw new Error(response?.data?.message || 'Failed to complete sales order');
-      setOrders((current) => current.filter((item) => String(item.id) !== String(order.id)));
       showAlert(response.data.message || 'Sales order completed successfully', 'success');
+      if (orders.length === 1 && page > 1) setPage((current) => current - 1);
+      else await load();
     } catch (completeError) {
       showAlert(completeError?.response?.data?.message || completeError?.message || 'Failed to complete sales order', 'danger');
     } finally {
@@ -295,7 +321,7 @@ export default function ReturnRequestsWidget() {
   return (
     <>
       <MainCard
-        className="claim-transaction-card complete-order-card border"
+        className="claim-transaction-card complete-order-card order-delivery-widget border"
         title={
           <Stack direction="horizontal" className="justify-content-between align-items-start" gap={3}>
             <Stack gap={1}>
@@ -316,189 +342,204 @@ export default function ReturnRequestsWidget() {
         ) : error ? (
           <div className="sm-widget-state text-danger">{error}</div>
         ) : (
-          <Table responsive hover className="mb-0 align-middle">
-            <thead>
-              <tr>
-                <th />
-                <th>No. SO</th>
-                <th>Depo</th>
-                <th>Date</th>
-                <th>Total Order (Kg)</th>
-                <th>Status</th>
-                <th className="text-center">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders.length ? (
-                orders.map((order) => {
-                  const orderId = String(order.id);
-                  const expanded = expandedId === orderId;
-                  const orderDetails = details[orderId] || [];
-                  return (
-                    <Fragment key={orderId}>
-                      <tr>
-                        <td className="text-center">
-                          <Button
-                            variant="warning"
-                            size="sm"
-                            disabled={loadingDetailId === orderId}
-                            onClick={() => toggleDetails(order)}
-                            data-widget-action="view"
-                            aria-label={expanded ? 'Hide Delivery Order details' : 'Show Delivery Order details'}
-                          >
-                            <i
-                              className={`ti ${loadingDetailId === orderId ? 'ti-loader-2' : expanded ? 'ti-chevron-up' : 'ti-chevron-down'}`}
-                            />
-                          </Button>
-                        </td>
-                        <td className="fw-semibold">
-                          {valueOf(order, ['sap_doc_num', 'sapDocNum', 'doc_num', 'docNum', 'order_no', 'orderNo'])}
-                        </td>
-                        <td>
-                          {valueOf(order, ['depo', 'depot', 'warehouse_name', 'warehouseName'])} -{' '}
-                          {valueOf(order, ['customer_name', 'customerName', 'card_name', 'cardName'])}
-                        </td>
-                        <td>{dateText(valueOf(order, ['doc_date', 'docDate', 'created_at', 'createdAt'], ''))}</td>
-                        <td className="fw-semibold">{kgText(totalOrderKg(order))}</td>
-                        <td>
-                          <Badge bg="info">Delivery</Badge>
-                        </td>
-                        <td className="text-center">
-                          <Dropdown align="end">
-                            <Dropdown.Toggle size="sm" variant="outline-primary">
-                              <i className="ti ti-dots-vertical me-1" /> Actions
-                            </Dropdown.Toggle>
-                            <Dropdown.Menu>
-                              <Dropdown.Item onClick={() => openOrderDetail(order)} data-widget-action="view">
-                                <i className="ti ti-eye text-primary me-2" /> Detail
-                              </Dropdown.Item>
-                              <Dropdown.Item
-                                className="text-success"
-                                onClick={() => setOrderToComplete(order)}
-                                data-widget-action="approve"
-                              >
-                                <i className="ti ti-circle-check me-2" /> Complete Order
-                              </Dropdown.Item>
-                            </Dropdown.Menu>
-                          </Dropdown>
-                        </td>
-                      </tr>
-                      {expanded ? (
-                        <tr className="bg-light">
-                          <td colSpan={7} className="p-3">
-                            {loadingDetailId === orderId ? (
-                              <div className="text-center text-muted py-4">Loading Delivery Order details...</div>
-                            ) : detailErrors[orderId] ? (
-                              <div className="text-center text-danger py-4">{detailErrors[orderId]}</div>
-                            ) : (
-                              <Table responsive size="sm" className="mb-0 align-middle bg-white">
-                                <thead>
-                                  <tr>
-                                    <th>DO Number</th>
-                                    <th>Item</th>
-                                    <th className="text-end">Delivered</th>
-                                    <th className="text-end">Returned</th>
-                                    <th className="text-end">Remaining</th>
-                                    <th>Status Retur</th>
-                                    <th>Action</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {orderDetails.length ? (
-                                    orderDetails.map((detail, index) => {
-                                      const doNumber = valueOf(detail, ['DocNum', 'doc_num', 'docNum', 'do_num', 'doNumber'], '');
-                                      const itemCode = valueOf(detail, ['ItemCode', 'item_code', 'itemCode'], '');
-                                      const summary = summaries.get(`${String(doNumber).trim()}::${String(itemCode).trim().toUpperCase()}`);
-                                      const delivered = numberOf(detail, [
-                                        'Delivered_Qty',
-                                        'delivered_qty',
-                                        'deliveredQty',
-                                        'quantity',
-                                        'qty'
-                                      ]);
-                                      const returned = summary?.returned || 0;
-                                      const remaining = Math.max(delivered - returned, 0);
-                                      const latestStatus = valueOf(
-                                        summary?.entries?.at(-1)?.request,
-                                        ['status', 'return_status', 'returnStatus'],
-                                        '-'
-                                      );
-                                      return (
-                                        <tr key={`${doNumber}-${itemCode}-${index}`}>
-                                          <td className="fw-semibold">{doNumber || '-'}</td>
-                                          <td>
-                                            <span className="fw-semibold">{itemCode || '-'}</span>
-                                            <small className="d-block text-muted">
-                                              {valueOf(detail, ['ItemDescription', 'item_description', 'itemDescription'], '-')}
-                                            </small>
-                                          </td>
-                                          <td className="text-end">{quantityText(delivered)}</td>
-                                          <td className="text-end">{quantityText(returned)}</td>
-                                          <td className="text-end fw-semibold text-success">{quantityText(remaining)}</td>
-                                          <td>
-                                            {summary ? (
-                                              <Button
-                                                variant="link"
-                                                className="p-0 text-decoration-none"
-                                                onClick={() =>
-                                                  setHistory({
-                                                    ...summary,
-                                                    delivered,
-                                                    remaining,
-                                                    description: valueOf(detail, ['ItemDescription'], '-')
-                                                  })
-                                                }
-                                                data-widget-action="view"
-                                              >
-                                                <Badge bg={returnStatusColor(latestStatus)}>
-                                                  {String(latestStatus).replaceAll('_', ' ')}
-                                                </Badge>
-                                                <small className="d-block">{summary.entries.length} return detail</small>
-                                              </Button>
-                                            ) : (
-                                              '-'
-                                            )}
-                                          </td>
-                                          <td>
-                                            <Button
-                                              variant="warning"
-                                              size="sm"
-                                              disabled={!remaining}
-                                              onClick={() => openRequest(order, detail, summary)}
-                                              data-widget-action="add"
-                                            >
-                                              <i className="ti ti-package-export me-1" />
-                                              {!remaining ? 'Fully Returned' : summary ? 'Return Remaining' : 'Request Return'}
-                                            </Button>
-                                          </td>
-                                        </tr>
-                                      );
-                                    })
-                                  ) : (
-                                    <tr>
-                                      <td colSpan={7} className="text-center text-muted py-4">
-                                        Delivery Order details are not available.
-                                      </td>
-                                    </tr>
-                                  )}
-                                </tbody>
-                              </Table>
-                            )}
+          <>
+            <Table responsive hover className="mb-0 align-middle">
+              <thead>
+                <tr>
+                  <th />
+                  <th>No. SO</th>
+                  <th>Depo</th>
+                  <th>Date</th>
+                  <th>Total Order (Kg)</th>
+                  <th>Status</th>
+                  <th className="text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.length ? (
+                  orders.map((order) => {
+                    const orderId = String(order.id);
+                    const expanded = expandedId === orderId;
+                    const orderDetails = details[orderId] || [];
+                    return (
+                      <Fragment key={orderId}>
+                        <tr>
+                          <td className="text-center">
+                            <Button
+                              variant="warning"
+                              size="sm"
+                              disabled={loadingDetailId === orderId}
+                              onClick={() => toggleDetails(order)}
+                              data-widget-action="view"
+                              aria-label={expanded ? 'Hide Delivery Order details' : 'Show Delivery Order details'}
+                            >
+                              <i
+                                className={`ti ${loadingDetailId === orderId ? 'ti-loader-2' : expanded ? 'ti-chevron-up' : 'ti-chevron-down'}`}
+                              />
+                            </Button>
+                          </td>
+                          <td className="fw-semibold">
+                            {valueOf(order, ['sap_doc_num', 'sapDocNum', 'doc_num', 'docNum', 'order_no', 'orderNo'])}
+                          </td>
+                          <td>
+                            {valueOf(order, ['depo', 'depot', 'warehouse_name', 'warehouseName'])} -{' '}
+                            {valueOf(order, ['customer_name', 'customerName', 'card_name', 'cardName'])}
+                          </td>
+                          <td>{dateText(valueOf(order, ['doc_date', 'docDate', 'created_at', 'createdAt'], ''))}</td>
+                          <td className="fw-semibold">{kgText(totalOrderKg(order))}</td>
+                          <td>
+                            <Badge bg="info">Delivery</Badge>
+                          </td>
+                          <td className="text-center">
+                            <Dropdown align="end">
+                              <Dropdown.Toggle size="sm" variant="outline-primary">
+                                <i className="ti ti-dots-vertical me-1" /> Actions
+                              </Dropdown.Toggle>
+                              <Dropdown.Menu>
+                                <Dropdown.Item onClick={() => openOrderDetail(order)} data-widget-action="view">
+                                  <i className="ti ti-eye text-primary me-2" /> Detail
+                                </Dropdown.Item>
+                                <Dropdown.Item
+                                  className="text-success"
+                                  onClick={() => setOrderToComplete(order)}
+                                  data-widget-action="approve"
+                                >
+                                  <i className="ti ti-circle-check me-2" /> Complete Order
+                                </Dropdown.Item>
+                              </Dropdown.Menu>
+                            </Dropdown>
                           </td>
                         </tr>
-                      ) : null}
-                    </Fragment>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan={7} className="text-center text-muted py-4">
-                    No delivery sales orders.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </Table>
+                        {expanded ? (
+                          <tr className="order-delivery-expanded-row">
+                            <td colSpan={7} className="p-3">
+                              {loadingDetailId === orderId ? (
+                                <div className="text-center text-muted py-4">Loading Delivery Order details...</div>
+                              ) : detailErrors[orderId] ? (
+                                <div className="text-center text-danger py-4">{detailErrors[orderId]}</div>
+                              ) : (
+                                <Table responsive size="sm" className="order-delivery-detail-table mb-0 align-middle">
+                                  <thead>
+                                    <tr>
+                                      <th>DO Number</th>
+                                      <th>Item</th>
+                                      <th className="text-end">Delivered</th>
+                                      <th className="text-end">Returned</th>
+                                      <th className="text-end">Remaining</th>
+                                      <th>Status Retur</th>
+                                      <th>Action</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {orderDetails.length ? (
+                                      orderDetails.map((detail, index) => {
+                                        const doNumber = valueOf(detail, ['DocNum', 'doc_num', 'docNum', 'do_num', 'doNumber'], '');
+                                        const itemCode = valueOf(detail, ['ItemCode', 'item_code', 'itemCode'], '');
+                                        const summary = summaries.get(
+                                          `${String(doNumber).trim()}::${String(itemCode).trim().toUpperCase()}`
+                                        );
+                                        const delivered = numberOf(detail, [
+                                          'Delivered_Qty',
+                                          'delivered_qty',
+                                          'deliveredQty',
+                                          'quantity',
+                                          'qty'
+                                        ]);
+                                        const returned = summary?.returned || 0;
+                                        const remaining = Math.max(delivered - returned, 0);
+                                        const latestStatus = valueOf(
+                                          summary?.entries?.at(-1)?.request,
+                                          ['status', 'return_status', 'returnStatus'],
+                                          '-'
+                                        );
+                                        return (
+                                          <tr key={`${doNumber}-${itemCode}-${index}`}>
+                                            <td className="fw-semibold">{doNumber || '-'}</td>
+                                            <td>
+                                              <span className="fw-semibold">{itemCode || '-'}</span>
+                                              <small className="d-block text-muted">
+                                                {valueOf(detail, ['ItemDescription', 'item_description', 'itemDescription'], '-')}
+                                              </small>
+                                            </td>
+                                            <td className="text-end">{quantityText(delivered)}</td>
+                                            <td className="text-end">{quantityText(returned)}</td>
+                                            <td className="text-end fw-semibold text-success">{quantityText(remaining)}</td>
+                                            <td>
+                                              {summary ? (
+                                                <Button
+                                                  variant="link"
+                                                  className="p-0 text-decoration-none"
+                                                  onClick={() =>
+                                                    setHistory({
+                                                      ...summary,
+                                                      delivered,
+                                                      remaining,
+                                                      description: valueOf(detail, ['ItemDescription'], '-')
+                                                    })
+                                                  }
+                                                  data-widget-action="view"
+                                                >
+                                                  <Badge bg={returnStatusColor(latestStatus)}>
+                                                    {String(latestStatus).replaceAll('_', ' ')}
+                                                  </Badge>
+                                                  <small className="d-block">{summary.entries.length} return detail</small>
+                                                </Button>
+                                              ) : (
+                                                '-'
+                                              )}
+                                            </td>
+                                            <td>
+                                              <Button
+                                                variant="warning"
+                                                size="sm"
+                                                disabled={!remaining}
+                                                onClick={() => openRequest(order, detail, summary)}
+                                                data-widget-action="add"
+                                              >
+                                                <i className="ti ti-package-export me-1" />
+                                                {!remaining ? 'Fully Returned' : summary ? 'Return Remaining' : 'Request Return'}
+                                              </Button>
+                                            </td>
+                                          </tr>
+                                        );
+                                      })
+                                    ) : (
+                                      <tr>
+                                        <td colSpan={7} className="text-center text-muted py-4">
+                                          Delivery Order details are not available.
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </tbody>
+                                </Table>
+                              )}
+                            </td>
+                          </tr>
+                        ) : null}
+                      </Fragment>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={7} className="text-center text-muted py-4">
+                      No delivery sales orders.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </Table>
+            <TablePagination
+              currentPage={page}
+              onPageChange={(nextPage) => {
+                setExpandedId(null);
+                setPage(nextPage);
+              }}
+              pageCount={pageCount}
+              pageSize={PAGE_SIZE}
+              total={total}
+              itemLabel="orders"
+            />
+          </>
         )}
       </MainCard>
 

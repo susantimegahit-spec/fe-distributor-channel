@@ -1,0 +1,95 @@
+.order-delivery-widget {
+  --order-delivery-border: #d7e1ee;
+  --order-delivery-text: #24324a;
+  --order-delivery-muted: #66758d;
+  --order-delivery-detail-bg: #f4f8fc;
+
+  .table {
+    --bs-table-bg: transparent;
+    --bs-table-color: var(--order-delivery-text);
+    --bs-table-border-color: var(--order-delivery-border);
+  }
+
+  .table > thead > tr > th {
+    color: #34465f;
+    background: #edf4fa;
+    border-bottom-color: #b9cbe0;
+  }
+
+  .table-hover > tbody > tr:not(.order-delivery-expanded-row):hover > * {
+    --bs-table-bg-state: #eef7ff;
+    color: #172b46;
+  }
+}
+
+.order-delivery-expanded-row > td {
+  color: var(--order-delivery-text);
+  background: var(--order-delivery-detail-bg) !important;
+}
+
+.order-delivery-detail-table {
+  --bs-table-bg: #ffffff !important;
+  --bs-table-color: #24324a !important;
+  --bs-table-border-color: #c5d3e3 !important;
+
+  > thead > tr > th {
+    color: #31445f !important;
+    background: #e7f0f8 !important;
+  }
+
+  > tbody > tr > td {
+    color: #24324a;
+    background: #ffffff;
+  }
+}
+
+[data-pc-theme='dark'],
+[data-bs-theme='dark'] {
+  .order-delivery-widget {
+    --order-delivery-border: #315979;
+    --order-delivery-text: #e5f1fb;
+    --order-delivery-muted: #a9c1d5;
+    --order-delivery-detail-bg: #102f49;
+
+    .table > thead > tr > th {
+      color: #d9ecfa;
+      background: #123b5b;
+      border-bottom-color: #3d7199;
+    }
+
+    .table-hover > tbody > tr:not(.order-delivery-expanded-row):hover > * {
+      --bs-table-bg-state: #174668;
+      color: #ffffff;
+    }
+  }
+
+  .order-delivery-expanded-row > td {
+    color: #e5f1fb;
+    background: #102f49 !important;
+  }
+
+  .order-delivery-detail-table {
+    --bs-table-bg: #153d5c !important;
+    --bs-table-color: #edf7ff !important;
+    --bs-table-border-color: #477495 !important;
+
+    > thead > tr > th {
+      color: #ffffff !important;
+      background: #0f304b !important;
+    }
+
+    > tbody > tr > td {
+      color: #edf7ff;
+      background: #153d5c;
+    }
+
+    .text-muted {
+      color: #b7cee0 !important;
+    }
+
+    .text-success {
+      color: #69e2b6 !important;
+    }
+  }
+
+}
