@@ -12,6 +12,7 @@ import Stack from 'react-bootstrap/Stack';
 import Table from 'react-bootstrap/Table';
 
 import ConfirmDialog from 'components/ConfirmDialog';
+import FormDatePicker from 'components/FormDatePicker';
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
 import OrderServices from 'services/customer-portal/OrderServices';
@@ -22,6 +23,10 @@ import './return-requests-widget.scss';
 const MAX_ATTACHMENTS = 5;
 const MAX_ATTACHMENT_SIZE = 1024 * 1024;
 const PAGE_SIZE = 10;
+const currentMonthRange = () => ({
+  startDate: moment().startOf('month').format('YYYY-MM-DD'),
+  endDate: moment().endOf('month').format('YYYY-MM-DD')
+});
 const valueOf = (source = {}, keys = [], fallback = '-') => {
   const key = keys.find((keyName) => source?.[keyName] !== undefined && source?.[keyName] !== null && source?.[keyName] !== '');
   return key ? source[key] : fallback;
@@ -91,6 +96,8 @@ const returnStatusColor = (value) => {
 
 export default function ReturnRequestsWidget() {
   const { showAlert } = useAlert();
+  const [dateRange, setDateRange] = useState(currentMonthRange);
+  const [dateInput, setDateInput] = useState(currentMonthRange);
   const [orders, setOrders] = useState([]);
   const [page, setPage] = useState(1);
   const [pageCount, setPageCount] = useState(1);
@@ -118,7 +125,13 @@ export default function ReturnRequestsWidget() {
     setError('');
     try {
       const [ordersResponse, returnsResponse] = await Promise.all([
-        OrderServices.getListOrder({ status: 'DELIVERY', page, per_page: PAGE_SIZE }),
+        OrderServices.getListOrder({
+          status: 'DELIVERY',
+          start_date: dateRange.startDate,
+          end_date: dateRange.endDate,
+          page,
+          per_page: PAGE_SIZE
+        }),
         OrderServices.getRetur()
       ]);
       if (ordersResponse?.data?.success === false || returnsResponse?.data?.success === false) {
@@ -139,7 +152,7 @@ export default function ReturnRequestsWidget() {
     } finally {
       setLoading(false);
     }
-  }, [page]);
+  }, [dateRange.endDate, dateRange.startDate, page]);
 
   useEffect(() => {
     load();
@@ -334,6 +347,45 @@ export default function ReturnRequestsWidget() {
           </Stack>
         }
       >
+        <Stack direction="horizontal" gap={2} className="flex-wrap align-items-end mb-3">
+          <Form.Group style={{ width: 160 }} controlId="order-delivery-start-date">
+            <Form.Label className="f-12 text-muted mb-1">Start Date</Form.Label>
+            <FormDatePicker
+              size="sm"
+              value={dateInput.startDate}
+              max={dateInput.endDate}
+              clearable={false}
+              onChange={(event) => setDateInput((current) => ({ ...current, startDate: event.target.value }))}
+            />
+          </Form.Group>
+          <Form.Group style={{ width: 160 }} controlId="order-delivery-end-date">
+            <Form.Label className="f-12 text-muted mb-1">End Date</Form.Label>
+            <FormDatePicker
+              size="sm"
+              value={dateInput.endDate}
+              min={dateInput.startDate}
+              clearable={false}
+              onChange={(event) => setDateInput((current) => ({ ...current, endDate: event.target.value }))}
+            />
+          </Form.Group>
+          <Button
+            variant="primary"
+            size="sm"
+            disabled={loading}
+            onClick={() => {
+              if (!dateInput.startDate || !dateInput.endDate || dateInput.startDate > dateInput.endDate) {
+                showAlert('Please select a valid date range', 'warning');
+                return;
+              }
+              setPage(1);
+              setExpandedId(null);
+              setDateRange(dateInput);
+            }}
+            data-widget-action="none"
+          >
+            <i className="ti ti-search me-1" /> Search
+          </Button>
+        </Stack>
         {loading ? (
           <div className="sm-widget-state">
             <Spinner size="sm" />
