@@ -49,6 +49,9 @@ const getCurrentMonthRange = () => {
 };
 const SERIES_CARD_CODE = '1470000113';
 const REQUESTER_CODE = 'API';
+const selectMenuPortalStyles = {
+  menuPortal: (base) => ({ ...base, zIndex: 1060 })
+};
 const getPurchaseRequestPage = (response, requestedPage = 1, perPage = 15) => {
   const root = response?.data?.data ?? response?.data ?? {};
   const payload = root.Result ?? root.result ?? root;
@@ -1298,7 +1301,6 @@ export default function PurchaseRequest() {
                     <th>Item Name</th>
                     <th>Required Date</th>
                     <th>Quantity</th>
-                    <th>UoM Entry</th>
                     <th>Unit</th>
                     <th>Warehouse</th>
                     <th>Branch</th>
@@ -1320,6 +1322,9 @@ export default function PurchaseRequest() {
                       onChange={(option) => selectLineItem(index, option)}
                       isLoading={loadingItems}
                       isDisabled={loadingItems}
+                      menuPortalTarget={document.body}
+                      menuPosition="fixed"
+                      styles={selectMenuPortalStyles}
                       placeholder={loadingItems ? 'Loading items...' : 'Select item'}
                       noOptionsMessage={() => (loadingItems ? 'Loading items...' : 'Item not found')}
                     />
@@ -1352,9 +1357,6 @@ export default function PurchaseRequest() {
                     />
                       </td>
                       <td>
-                    <Form.Control value={line.UomEntry} onChange={(event) => updateLine(index, 'UomEntry', event.target.value)} />
-                      </td>
-                      <td>
                     <Form.Control value={line.UnitMsr} onChange={(event) => updateLine(index, 'UnitMsr', event.target.value)} />
                       </td>
                       <td>
@@ -1368,6 +1370,9 @@ export default function PurchaseRequest() {
                         onChange={(option) => updateLine(index, 'WhsCode', option?.value ?? '')}
                         isLoading={loadingLineMasters}
                         isDisabled={loadingLineMasters}
+                        menuPortalTarget={document.body}
+                        menuPosition="fixed"
+                        styles={selectMenuPortalStyles}
                         placeholder="Select warehouse"
                       />
                     )}
@@ -1383,6 +1388,9 @@ export default function PurchaseRequest() {
                         onChange={(option) => updateLine(index, 'OcrCode', option?.value ?? '')}
                         isLoading={loadingLineMasters}
                         isDisabled={loadingLineMasters}
+                        menuPortalTarget={document.body}
+                        menuPosition="fixed"
+                        styles={selectMenuPortalStyles}
                         placeholder="Select branch"
                       />
                     )}
@@ -1398,6 +1406,9 @@ export default function PurchaseRequest() {
                         onChange={(option) => updateLine(index, 'OcrCode2', option?.value ?? '')}
                         isLoading={loadingLineMasters}
                         isDisabled={loadingLineMasters}
+                        menuPortalTarget={document.body}
+                        menuPosition="fixed"
+                        styles={selectMenuPortalStyles}
                         placeholder="Select unit"
                       />
                     )}
@@ -1413,6 +1424,9 @@ export default function PurchaseRequest() {
                         onChange={(option) => updateLine(index, 'OcrCode3', option?.value ?? '')}
                         isLoading={loadingLineMasters}
                         isDisabled={loadingLineMasters}
+                        menuPortalTarget={document.body}
+                        menuPosition="fixed"
+                        styles={selectMenuPortalStyles}
                         placeholder="Select department"
                       />
                     )}

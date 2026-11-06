@@ -204,8 +204,8 @@ export const getMenuItemByPathname = (system, pathname = '') => {
 };
 
 export const canAccessMenuItem = (menuItem, permissionMenu = [], roleId) => {
-  if (isAdministratorRole(roleId)) return true;
   if (!menuItem?.id) return false;
+  if (isAdministratorRole(roleId) && !menuItem.requireExplicitPermission) return true;
 
   return normalizePermissionMenu(permissionMenu).includes(menuItem.id);
 };

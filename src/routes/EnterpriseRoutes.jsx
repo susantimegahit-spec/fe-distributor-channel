@@ -12,6 +12,7 @@ const PurchaseOrder = Loadable(lazy(() => import('views/corporate/purchasing/ord
 const Budget = Loadable(lazy(() => import('views/corporate/budget/Budget')));
 const DepartmentList = Loadable(lazy(() => import('views/setting/department/DepartmentList')));
 const CvScreening = Loadable(lazy(() => import('views/customer-portal/cv-screening/CvScreening')));
+const Recruitment = Loadable(lazy(() => import('views/corporate/hrd/Recruitment')));
 const TaskManagement = Loadable(lazy(() => import('views/corporate/hrd/TaskManagement')));
 const ToDoList = Loadable(lazy(() => import('views/corporate/hrd/ToDoList')));
 
@@ -48,6 +49,14 @@ const EnterpriseRoutes = {
     {
       path: 'corporate/hrd/cv',
       element: <CvScreening />
+    },
+    {
+      path: 'corporate/hrd/recruitment/vacancy',
+      element: <Recruitment type="vacancy" />
+    },
+    {
+      path: 'corporate/hrd/recruitment/candidate',
+      element: <Recruitment type="candidate" />
     },
     {
       path: 'corporate/hrd/task-management',

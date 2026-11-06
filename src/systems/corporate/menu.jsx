@@ -71,6 +71,39 @@ const enterpriseMenu = [
             url: withBasePath('/hrd/cv')
           },
           {
+            id: 'enterprise-hrd-recruitment',
+            title: 'Recruitment',
+            type: 'collapse',
+            value: 'enterprise-hrd-recruitment',
+            label: 'Recruitment',
+            selected: true,
+            icon: 'ti ti-user-search',
+            children: [
+              {
+                id: 'enterprise-hrd-recruitment-vacancy',
+                title: 'Vacancy',
+                type: 'item',
+                value: 'enterprise-hrd-recruitment-vacancy',
+                label: 'Vacancy',
+                selected: true,
+                requireExplicitPermission: true,
+                icon: 'ti ti-briefcase',
+                url: withBasePath('/hrd/recruitment/vacancy')
+              },
+              {
+                id: 'enterprise-hrd-recruitment-candidate',
+                title: 'Candidate',
+                type: 'item',
+                value: 'enterprise-hrd-recruitment-candidate',
+                label: 'Candidate',
+                selected: true,
+                requireExplicitPermission: true,
+                icon: 'ti ti-users',
+                url: withBasePath('/hrd/recruitment/candidate')
+              }
+            ]
+          },
+          {
             id: 'enterprise-hrd-task-management',
             title: 'ClickUp',
             type: 'item',

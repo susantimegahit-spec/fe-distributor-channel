@@ -201,6 +201,24 @@
       "buttons": { "view": ["View Task"] }
     },
     {
+      "menu_key": 29,
+      "system_key": "enterprise",
+      "menu_id": "enterprise-hrd-recruitment-vacancy",
+      "route": "/corporate/hrd/recruitment/vacancy",
+      "source": "src/views/corporate/hrd/Recruitment.jsx",
+      "actions": ["view"],
+      "buttons": { "view": ["View Vacancy"] }
+    },
+    {
+      "menu_key": 31,
+      "system_key": "enterprise",
+      "menu_id": "enterprise-hrd-recruitment-candidate",
+      "route": "/corporate/hrd/recruitment/candidate",
+      "source": "src/views/corporate/hrd/Recruitment.jsx",
+      "actions": ["view"],
+      "buttons": { "view": ["View Candidate"] }
+    },
+    {
       "menu_key": 27,
       "system_key": "enterprise",
       "menu_id": "enterprise-budget",

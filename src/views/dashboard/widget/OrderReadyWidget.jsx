@@ -73,6 +73,14 @@ const normalizeOrder = (order) => {
     loadingDate: formatDate(salesOrder.doc_due_date),
     etaDate: formatDate(salesOrder.eta_date),
     proposedEtaDate: formatDate(salesOrder.proposed_eta_date ?? salesOrder.proposedEtaDate),
+    comment:
+      salesOrder.comments ||
+      salesOrder.Comments ||
+      salesOrder.comment ||
+      salesOrder.Comment ||
+      salesOrder.remarks ||
+      salesOrder.Remarks ||
+      '-',
     status: String(salesOrder.status || '')
       .trim()
       .toUpperCase(),
@@ -167,6 +175,7 @@ export default function OrderReadyWidget() {
               <th>Loading Date</th>
               <th>ETA Date</th>
               <th>Proposed ETA</th>
+              <th>Comment</th>
               <th>Status</th>
               <th>Logistic Status</th>
               <th className="text-end">Action</th>
@@ -175,13 +184,13 @@ export default function OrderReadyWidget() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={10} className="text-center py-4">
+                <td colSpan={11} className="text-center py-4">
                   Loading Sales Orders...
                 </td>
               </tr>
             ) : error ? (
               <tr>
-                <td colSpan={10} className="text-center text-danger py-4">
+                <td colSpan={11} className="text-center text-danger py-4">
                   {error}
                 </td>
               </tr>
@@ -213,6 +222,11 @@ export default function OrderReadyWidget() {
                   <td>{order.etaDate}</td>
                   <td>{order.proposedEtaDate}</td>
                   <td>
+                    <span className="text-break d-inline-block" style={{ minWidth: 140, maxWidth: 260 }}>
+                      {order.comment}
+                    </span>
+                  </td>
+                  <td>
                     <Badge
                       bg={order.status === 'ORDER_APPROVED' ? 'success' : 'warning'}
                       text={order.status === 'ORDER_APPROVED' ? 'light' : 'dark'}
@@ -240,7 +254,7 @@ export default function OrderReadyWidget() {
               ))
             ) : (
               <tr>
-                <td colSpan={10} className="text-center text-muted py-4">
+                <td colSpan={11} className="text-center text-muted py-4">
                   No logistics orders found.
                 </td>
               </tr>
@@ -257,7 +271,9 @@ export default function OrderReadyWidget() {
           itemLabel="orders"
         />
       </MainCard>
-      {selectedOrder && <RescheduleLogModal order={selectedOrder} widgetKey="order-ready" onClose={() => setSelectedOrder(null)} onSuccess={fetchOrders} />}
+      {selectedOrder && (
+        <RescheduleLogModal order={selectedOrder} widgetKey="order-ready" onClose={() => setSelectedOrder(null)} onSuccess={fetchOrders} />
+      )}
     </>
   );
 }

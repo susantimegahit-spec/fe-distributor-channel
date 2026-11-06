@@ -31,7 +31,8 @@ const hiddenClickUpMenuId = 'enterprise-hrd-task-management';
 const accessibleSystemOptions = [
   { value: SYSTEM_KEYS.CUSTOMER_PORTAL, label: 'Customer Portal' },
   { value: SYSTEM_KEYS.ENTERPRISE, label: 'Corporate' },
-  { value: SYSTEM_KEYS.LOGISTICS, label: 'Logistics' }
+  { value: SYSTEM_KEYS.LOGISTICS, label: 'Logistics' },
+  { value: SYSTEM_KEYS.VENDOR_MANAGEMENT, label: 'Vendor Management' }
 ];
 
 const getMasterApprovalId = (item) => item?.id || '';

@@ -17,6 +17,8 @@ const approved = (order) =>
     .trim()
     .toUpperCase() === 'ORDER_APPROVED';
 const orderNumber = (order) => order.sap_doc_num || order.order_no || order.id;
+const orderComment = (order) =>
+  order.comments || order.Comments || order.comment || order.Comment || order.remarks || order.Remarks || order.notes || '-';
 const orderDate = (...values) => {
   const value = values.find((item) => item !== undefined && item !== null && String(item).trim() !== '');
   return value ? String(value).slice(0, 10) : '-';
@@ -1195,13 +1197,14 @@ export default function CreatePicklistModal({ onClose, onSuccess }) {
                 <th>Customer</th>
                 <th>Loading Date</th>
                 <th>ETA Date</th>
+                <th>Comment</th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-5">
+                  <td colSpan={7} className="text-center py-5">
                     <span className="spinner-border spinner-border-sm me-2" />
                     Loading approved Sales Orders...
                   </td>
@@ -1241,6 +1244,11 @@ export default function CreatePicklistModal({ onClose, onSuccess }) {
                       <td>{orderDate(item.doc_due_date, item.loading_date, item.loadingDate)}</td>
                       <td>{orderDate(item.eta_date, item.etaDate)}</td>
                       <td>
+                        <span className="text-break d-inline-block" style={{ minWidth: 130, maxWidth: 240 }}>
+                          {orderComment(item)}
+                        </span>
+                      </td>
+                      <td>
                         <Stack gap={1} className="align-items-start">
                           <Badge className="picklist-approved-badge">Order Approved</Badge>
                           <Badge className={logisticStatusClass(item.logistic_status)}>
@@ -1254,7 +1262,7 @@ export default function CreatePicklistModal({ onClose, onSuccess }) {
               )}
               {!loading && !filteredOrders.length && (
                 <tr>
-                  <td colSpan={6} className="text-center text-muted py-5">
+                  <td colSpan={7} className="text-center text-muted py-5">
                     {error ? 'Could not load Sales Orders. Please retry.' : 'No approved Sales Orders found.'}
                   </td>
                 </tr>
