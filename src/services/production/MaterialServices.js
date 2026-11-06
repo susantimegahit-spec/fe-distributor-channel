@@ -4,8 +4,6 @@ class MaterialServices {
   getMaterial(search = '') {
     const params = new URLSearchParams({
       search: search ?? '',
-      sales_item_status: 'Y',
-      purchase_item_status: 'Y',
       inventory_item_status: 'Y'
     });
 
