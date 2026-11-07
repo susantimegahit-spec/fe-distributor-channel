@@ -1,0 +1,114 @@
+.order-summary-widget {
+  --order-summary-chart-text: #344054;
+  --order-summary-chart-grid: rgba(71, 84, 103, 0.2);
+  min-width: 0;
+}
+
+.order-summary-widget .apexcharts-text,
+.order-summary-widget .apexcharts-legend-text {
+  color: var(--order-summary-chart-text) !important;
+  fill: var(--order-summary-chart-text) !important;
+}
+
+.order-summary-widget .apexcharts-gridline {
+  stroke: var(--order-summary-chart-grid) !important;
+}
+
+[data-pc-theme='dark'] .order-summary-widget,
+[data-bs-theme='dark'] .order-summary-widget {
+  --order-summary-chart-text: #dceaff;
+  --order-summary-chart-grid: rgba(145, 190, 226, 0.28);
+}
+
+.order-summary-widget__month-picker {
+  width: 180px;
+}
+
+.order-summary-widget__customer-select {
+  width: 240px;
+  min-width: 0;
+}
+
+.order-summary-widget__year-select {
+  width: 105px;
+  min-height: 31px;
+}
+
+.order-summary-widget__statuses {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.order-summary-widget__status {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid color-mix(in srgb, var(--status-color) 34%, var(--bs-border-color));
+  border-radius: 12px;
+  padding: 12px;
+  background: color-mix(in srgb, var(--status-color) 8%, var(--bs-body-bg));
+}
+
+.order-summary-widget__status-icon {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--status-color) 17%, transparent);
+  color: var(--status-color);
+  font-size: 18px;
+}
+
+.order-summary-widget__status small,
+.order-summary-widget__status strong,
+.order-summary-widget__chart-heading small {
+  display: block;
+}
+
+.order-summary-widget__status small {
+  overflow: hidden;
+  color: var(--bs-secondary-color);
+  font-size: 11px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.order-summary-widget__status strong {
+  color: var(--bs-body-color);
+  font-size: 20px;
+}
+
+.order-summary-widget__chart-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.order-summary-widget__chart-heading small {
+  margin-top: 2px;
+  color: var(--bs-secondary-color);
+}
+
+.order-summary-widget__chart-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+@media (max-width: 575.98px) {
+  .order-summary-widget__statuses {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .order-summary-widget .card-header .stack-horizontal {
+    align-items: stretch !important;
+  }
+}

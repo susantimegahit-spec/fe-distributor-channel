@@ -1,11 +1,12 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import moment from 'moment';
+import Select from 'react-select';
 import Badge from 'react-bootstrap/Badge';
 import Button from 'react-bootstrap/Button';
 import Col from 'react-bootstrap/Col';
-import Dropdown from 'react-bootstrap/Dropdown';
 import Form from 'react-bootstrap/Form';
 import Modal from 'react-bootstrap/Modal';
+import Overlay from 'react-bootstrap/Overlay';
 import Row from 'react-bootstrap/Row';
 import Spinner from 'react-bootstrap/Spinner';
 import Stack from 'react-bootstrap/Stack';
@@ -15,14 +16,30 @@ import ConfirmDialog from 'components/ConfirmDialog';
 import FormDatePicker from 'components/FormDatePicker';
 import MainCard from 'components/MainCard';
 import TablePagination from 'components/TablePagination';
+import DistributorServices from 'services/customer-portal/DistributorServices';
 import OrderServices from 'services/customer-portal/OrderServices';
 import { currency } from '../../../utils/global';
 import { useAlert } from '../../../utils/alertContext';
+import { getAssignedCustomerCodes } from '../../../utils/cookies';
 import './return-requests-widget.scss';
 
 const MAX_ATTACHMENTS = 5;
 const MAX_ATTACHMENT_SIZE = 1024 * 1024;
 const PAGE_SIZE = 10;
+const actionMenuPopperConfig = {
+  modifiers: [
+    { name: 'offset', options: { offset: [0, 8] } },
+    { name: 'preventOverflow', options: { boundary: 'viewport', padding: 8 } },
+    { name: 'flip', options: { fallbackPlacements: ['top-end', 'bottom-end'] } }
+  ]
+};
+const customerSelectStyles = {
+  menu: (base) => ({ ...base, left: 0, right: 0, width: '100%', zIndex: 20 })
+};
+const normalizeCustomerName = (value) =>
+  String(value || '')
+    .trim()
+    .toLocaleLowerCase('id-ID');
 const currentMonthRange = () => ({
   startDate: moment().startOf('month').format('YYYY-MM-DD'),
   endDate: moment().endOf('month').format('YYYY-MM-DD')
@@ -96,8 +113,14 @@ const returnStatusColor = (value) => {
 
 export default function ReturnRequestsWidget() {
   const { showAlert } = useAlert();
+  const assignedCustomerCodes = useMemo(() => getAssignedCustomerCodes(), []);
+  const showCustomerFilter = assignedCustomerCodes.length !== 1;
   const [dateRange, setDateRange] = useState(currentMonthRange);
   const [dateInput, setDateInput] = useState(currentMonthRange);
+  const [customerOptions, setCustomerOptions] = useState([]);
+  const [customerInput, setCustomerInput] = useState(null);
+  const [customerFilter, setCustomerFilter] = useState(null);
+  const [loadingCustomers, setLoadingCustomers] = useState(false);
   const [orders, setOrders] = useState([]);
   const [page, setPage] = useState(1);
   const [pageCount, setPageCount] = useState(1);
@@ -119,6 +142,7 @@ export default function ReturnRequestsWidget() {
   const [loadingViewOrderId, setLoadingViewOrderId] = useState(null);
   const [orderToComplete, setOrderToComplete] = useState(null);
   const [receivingOrderId, setReceivingOrderId] = useState(null);
+  const [actionMenu, setActionMenu] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -129,6 +153,7 @@ export default function ReturnRequestsWidget() {
           status: 'DELIVERY',
           start_date: dateRange.startDate,
           end_date: dateRange.endDate,
+          customer_code: customerFilter?.customerCodes?.[0] || (assignedCustomerCodes.length === 1 ? assignedCustomerCodes[0] : ''),
           page,
           per_page: PAGE_SIZE
         }),
@@ -152,11 +177,51 @@ export default function ReturnRequestsWidget() {
     } finally {
       setLoading(false);
     }
-  }, [dateRange.endDate, dateRange.startDate, page]);
+  }, [assignedCustomerCodes, customerFilter, dateRange.endDate, dateRange.startDate, page]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!showCustomerFilter) return undefined;
+
+    let active = true;
+
+    const loadCustomers = async () => {
+      setLoadingCustomers(true);
+      try {
+        const response = await DistributorServices.getAllDistributor('');
+        if (response?.data?.success === false) throw new Error(response.data.message || 'Failed to load customers');
+
+        const distributors = Array.isArray(response?.data?.data) ? response.data.data : [];
+        const groups = new Map();
+        distributors.forEach((item) => {
+          const customerName = String(item?.name || item?.customer_name || '').trim();
+          const customerCode = String(item?.code_customer || item?.customer_code || item?.card_code || '').trim();
+          if (!customerName || !customerCode) return;
+
+          const value = normalizeCustomerName(customerName);
+          const group = groups.get(value) || { value, label: customerName, customerCodes: [] };
+          if (!group.customerCodes.includes(customerCode)) group.customerCodes.push(customerCode);
+          groups.set(value, group);
+        });
+
+        if (active) {
+          setCustomerOptions([...groups.values()].sort((first, second) => first.label.localeCompare(second.label, 'id-ID')));
+        }
+      } catch (customerError) {
+        if (active) showAlert(customerError?.response?.data?.message || customerError?.message || 'Failed to load customers', 'danger');
+      } finally {
+        if (active) setLoadingCustomers(false);
+      }
+    };
+
+    loadCustomers();
+    return () => {
+      active = false;
+    };
+  }, [showAlert, showCustomerFilter]);
 
   const summaries = useMemo(() => {
     const result = new Map();
@@ -348,6 +413,25 @@ export default function ReturnRequestsWidget() {
         }
       >
         <Stack direction="horizontal" gap={2} className="flex-wrap align-items-end mb-3">
+          {showCustomerFilter ? (
+            <Form.Group style={{ width: 260 }} controlId="order-delivery-customer">
+              <Form.Label className="f-12 text-muted mb-1">Filter Customer</Form.Label>
+              <Select
+                inputId="order-delivery-customer"
+                classNamePrefix="react-select"
+                styles={customerSelectStyles}
+                value={customerInput}
+                options={customerOptions}
+                isLoading={loadingCustomers}
+                isDisabled={loadingCustomers}
+                isClearable
+                isSearchable
+                placeholder="Select customer..."
+                noOptionsMessage={() => 'Customer not found'}
+                onChange={setCustomerInput}
+              />
+            </Form.Group>
+          ) : null}
           <Form.Group style={{ width: 160 }} controlId="order-delivery-start-date">
             <Form.Label className="f-12 text-muted mb-1">Start Date</Form.Label>
             <FormDatePicker
@@ -379,6 +463,7 @@ export default function ReturnRequestsWidget() {
               }
               setPage(1);
               setExpandedId(null);
+              setCustomerFilter(customerInput);
               setDateRange(dateInput);
             }}
             data-widget-action="none"
@@ -443,23 +528,18 @@ export default function ReturnRequestsWidget() {
                             <Badge bg="info">Delivery</Badge>
                           </td>
                           <td className="text-center">
-                            <Dropdown align="end">
-                              <Dropdown.Toggle size="sm" variant="outline-primary">
-                                <i className="ti ti-dots-vertical me-1" /> Actions
-                              </Dropdown.Toggle>
-                              <Dropdown.Menu>
-                                <Dropdown.Item onClick={() => openOrderDetail(order)} data-widget-action="view">
-                                  <i className="ti ti-eye text-primary me-2" /> Detail
-                                </Dropdown.Item>
-                                <Dropdown.Item
-                                  className="text-success"
-                                  onClick={() => setOrderToComplete(order)}
-                                  data-widget-action="approve"
-                                >
-                                  <i className="ti ti-circle-check me-2" /> Complete Order
-                                </Dropdown.Item>
-                              </Dropdown.Menu>
-                            </Dropdown>
+                            <Button
+                              size="sm"
+                              variant="outline-primary"
+                              aria-haspopup="menu"
+                              aria-expanded={String(actionMenu?.order?.id) === orderId}
+                              onClick={(event) => {
+                                const isOpen = String(actionMenu?.order?.id) === orderId;
+                                setActionMenu(isOpen ? null : { order, target: event.currentTarget });
+                              }}
+                            >
+                              <i className="ti ti-dots-vertical me-1" /> Actions <i className="ti ti-chevron-down ms-1" />
+                            </Button>
                           </td>
                         </tr>
                         {expanded ? (
@@ -594,6 +674,63 @@ export default function ReturnRequestsWidget() {
           </>
         )}
       </MainCard>
+
+      <Overlay
+        show={Boolean(actionMenu)}
+        target={actionMenu?.target}
+        placement="bottom-end"
+        container={typeof document !== 'undefined' ? document.body : null}
+        containerPadding={8}
+        popperConfig={actionMenuPopperConfig}
+        rootClose
+        rootCloseEvent="mousedown"
+        onHide={() => setActionMenu(null)}
+      >
+        {({ ref, style, placement }) => {
+          const order = actionMenu?.order;
+          const isLoadingDetail = String(loadingViewOrderId) === String(order?.id);
+          const isCompleting = String(receivingOrderId) === String(order?.id);
+
+          return (
+            <div
+              ref={ref}
+              className="dropdown-menu show"
+              role="menu"
+              data-popper-placement={placement}
+              style={{ ...style, zIndex: 1080, minWidth: 190 }}
+            >
+              <button
+                type="button"
+                className="dropdown-item"
+                role="menuitem"
+                disabled={isLoadingDetail}
+                data-widget-action="view"
+                onClick={() => {
+                  setActionMenu(null);
+                  if (order) openOrderDetail(order);
+                }}
+              >
+                <i className={isLoadingDetail ? 'ti ti-loader-2 text-primary me-2' : 'ti ti-eye text-primary me-2'} />
+                Detail
+              </button>
+              <button
+                type="button"
+                className="dropdown-item text-success"
+                role="menuitem"
+                disabled={isCompleting}
+                data-widget-action="approve"
+                onClick={() => {
+                  setActionMenu(null);
+                  if (order) setOrderToComplete(order);
+                }}
+              >
+                <i className={isCompleting ? 'ti ti-loader-2 me-2' : 'ti ti-circle-check me-2'} />
+                Complete Order
+              </button>
+            </div>
+          );
+        }}
+      </Overlay>
 
       <Modal
         show={Boolean(viewOrder)}

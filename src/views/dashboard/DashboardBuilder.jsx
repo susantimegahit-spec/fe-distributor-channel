@@ -4,6 +4,7 @@ import Alert from 'react-bootstrap/Alert';
 import Button from 'react-bootstrap/Button';
 import Card from 'react-bootstrap/Card';
 import Form from 'react-bootstrap/Form';
+import InputGroup from 'react-bootstrap/InputGroup';
 import Modal from 'react-bootstrap/Modal';
 import DashboardLayoutServices from 'services/setting/DashboardLayoutServices';
 import RoleServices from 'services/setting/RoleServices';
@@ -76,17 +77,20 @@ export default function DashboardBuilder({ show, onClose, roleId, onSaved }) {
       setSaveError('');
     }
   }, [show, targetRole]);
+  const normalizedSearch = search.trim().toLocaleLowerCase('id-ID');
   const groups = useMemo(
     () =>
       widgetRegistry.reduce((all, w) => {
-        if (w.title.toLowerCase().includes(search.toLowerCase()) || w.group.toLowerCase().includes(search.toLowerCase())) {
+        const searchableText = `${w.title} ${w.group} ${w.id}`.toLocaleLowerCase('id-ID');
+        if (!normalizedSearch || searchableText.includes(normalizedSearch)) {
           if (!all[w.group]) all[w.group] = [];
           all[w.group].push(w);
         }
         return all;
       }, {}),
-    [search]
+    [normalizedSearch]
   );
+  const searchResultCount = useMemo(() => Object.values(groups).reduce((total, items) => total + items.length, 0), [groups]);
   const add = (id) => {
     setSelectedWidgetId(id || null);
     setLayout((current) => {
@@ -340,7 +344,27 @@ export default function DashboardBuilder({ show, onClose, roleId, onSaved }) {
                 ))}
                 {!roles.some((r) => String(r.id) === String(roleId)) && <option value={roleId}>Administrator</option>}
               </Form.Select>
-              <Form.Control className="mb-3" placeholder="Cari widget..." value={search} onChange={(e) => setSearch(e.target.value)} />
+              <Form.Label htmlFor="dashboard-widget-search">Cari widget</Form.Label>
+              <InputGroup className="sm-dashboard-widget-search">
+                <InputGroup.Text>
+                  <i className="ti ti-search" />
+                </InputGroup.Text>
+                <Form.Control
+                  id="dashboard-widget-search"
+                  type="search"
+                  placeholder="Nama atau grup widget..."
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                />
+                {search ? (
+                  <Button variant="outline-secondary" onClick={() => setSearch('')} aria-label="Hapus pencarian widget">
+                    <i className="ti ti-x" />
+                  </Button>
+                ) : null}
+              </InputGroup>
+              <small className="sm-dashboard-widget-search-result">
+                {normalizedSearch ? `${searchResultCount} widget ditemukan` : `${widgetRegistry.length} widget tersedia`}
+              </small>
               <Form.Label>Jumlah row dashboard</Form.Label>
               <Form.Select className="mb-3" value={layout.rows.length} onChange={(event) => updateRowCount(event.target.value)}>
                 {Array.from({ length: 10 }, (_, index) => (
@@ -383,6 +407,13 @@ export default function DashboardBuilder({ show, onClose, roleId, onSaved }) {
                   ))}
                 </div>
               ))}
+              {normalizedSearch && !searchResultCount ? (
+                <div className="sm-dashboard-widget-search-empty">
+                  <i className="ti ti-search-off" />
+                  <strong>Widget tidak ditemukan</strong>
+                  <span>Coba gunakan nama atau grup widget yang lain.</span>
+                </div>
+              ) : null}
             </Card.Body>
           </Card>
           <section

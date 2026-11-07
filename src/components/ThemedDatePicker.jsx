@@ -8,6 +8,13 @@ const toDate = (value) => {
   return new Date(year, month - 1, day);
 };
 
+const toMonthDate = (value) => {
+  if (!value) return null;
+  const [year, month] = String(value).split('-').map(Number);
+  if (!year || !month) return null;
+  return new Date(year, month - 1, 1);
+};
+
 const toValue = (date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -15,9 +22,16 @@ const toValue = (date) => {
   return `${year}-${month}-${day}`;
 };
 
+const toMonthValue = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
 const formatValue = (value) => {
   const date = toDate(value);
   return date ? new Intl.DateTimeFormat('en-GB').format(date) : 'dd/mm/yyyy';
+};
+
+const formatMonthValue = (value) => {
+  const date = toMonthDate(value);
+  return date ? new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(date) : 'Select month';
 };
 
 const sameDay = (left, right) =>
@@ -26,8 +40,19 @@ const sameDay = (left, right) =>
   left.getMonth() === right.getMonth() &&
   left.getDate() === right.getDate();
 
-export default function ThemedDatePicker({ value, onChange, min, max, disabled = false, clearable = true, size, className = '' }) {
-  const selectedDate = toDate(value);
+export default function ThemedDatePicker({
+  value,
+  onChange,
+  min,
+  max,
+  disabled = false,
+  clearable = true,
+  size,
+  className = '',
+  mode = 'date'
+}) {
+  const isMonthMode = mode === 'month';
+  const selectedDate = isMonthMode ? toMonthDate(value) : toDate(value);
   const [open, setOpen] = useState(false);
   const [visibleMonth, setVisibleMonth] = useState(() => selectedDate || new Date());
   const [popoverPosition, setPopoverPosition] = useState({ top: 0, left: 0, width: 330 });
@@ -35,9 +60,9 @@ export default function ThemedDatePicker({ value, onChange, min, max, disabled =
   const popoverRef = useRef(null);
 
   useEffect(() => {
-    const nextSelectedDate = toDate(value);
+    const nextSelectedDate = isMonthMode ? toMonthDate(value) : toDate(value);
     if (nextSelectedDate) setVisibleMonth(nextSelectedDate);
-  }, [value]);
+  }, [isMonthMode, value]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -83,13 +108,16 @@ export default function ThemedDatePicker({ value, onChange, min, max, disabled =
     return Array.from({ length: 42 }, (_, index) => new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + index));
   }, [visibleMonth]);
 
-  const minDate = toDate(min);
-  const maxDate = toDate(max);
+  const minDate = isMonthMode ? toMonthDate(min) : toDate(min);
+  const maxDate = isMonthMode ? toMonthDate(max) : toDate(max);
   const today = new Date();
-  const isDisabledDate = (date) => (minDate && date < minDate) || (maxDate && date > maxDate);
+  const isDisabledDate = (date) => {
+    const comparedDate = isMonthMode ? new Date(date.getFullYear(), date.getMonth(), 1) : date;
+    return (minDate && comparedDate < minDate) || (maxDate && comparedDate > maxDate);
+  };
   const selectDate = (date) => {
     if (isDisabledDate(date)) return;
-    onChange?.(toValue(date));
+    onChange?.(isMonthMode ? toMonthValue(date) : toValue(date));
     setOpen(false);
   };
 
@@ -104,46 +132,87 @@ export default function ThemedDatePicker({ value, onChange, min, max, disabled =
             style={{ position: 'fixed', top: popoverPosition.top, left: popoverPosition.left, width: popoverPosition.width }}
           >
             <div className="sm-date-picker-heading">
-              <strong>{new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(visibleMonth)}</strong>
+              <strong>
+                {isMonthMode
+                  ? visibleMonth.getFullYear()
+                  : new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(visibleMonth)}
+              </strong>
               <div className="sm-date-picker-navigation">
                 <button
                   type="button"
-                  aria-label="Previous month"
-                  onClick={() => setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1))}
+                  aria-label={isMonthMode ? 'Previous year' : 'Previous month'}
+                  onClick={() =>
+                    setVisibleMonth(
+                      isMonthMode
+                        ? new Date(visibleMonth.getFullYear() - 1, visibleMonth.getMonth(), 1)
+                        : new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1)
+                    )
+                  }
                 >
                   <i className="ti ti-chevron-left" />
                 </button>
                 <button
                   type="button"
-                  aria-label="Next month"
-                  onClick={() => setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1))}
+                  aria-label={isMonthMode ? 'Next year' : 'Next month'}
+                  onClick={() =>
+                    setVisibleMonth(
+                      isMonthMode
+                        ? new Date(visibleMonth.getFullYear() + 1, visibleMonth.getMonth(), 1)
+                        : new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1)
+                    )
+                  }
                 >
                   <i className="ti ti-chevron-right" />
                 </button>
               </div>
             </div>
-            <div className="sm-date-picker-weekdays" aria-hidden="true">
-              {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
-                <span key={`${day}-${index}`}>{day}</span>
-              ))}
-            </div>
-            <div className="sm-date-picker-days">
-              {days.map((date) => {
-                const outside = date.getMonth() !== visibleMonth.getMonth();
-                const dateDisabled = isDisabledDate(date);
-                return (
-                  <button
-                    type="button"
-                    key={toValue(date)}
-                    disabled={dateDisabled}
-                    className={`${outside ? 'is-outside ' : ''}${sameDay(date, today) ? 'is-today ' : ''}${sameDay(date, selectedDate) ? 'is-selected' : ''}`.trim()}
-                    onClick={() => selectDate(date)}
-                  >
-                    {date.getDate()}
-                  </button>
-                );
-              })}
-            </div>
+            {isMonthMode ? (
+              <div className="sm-date-picker-months">
+                {Array.from({ length: 12 }, (_, monthIndex) => {
+                  const date = new Date(visibleMonth.getFullYear(), monthIndex, 1);
+                  return (
+                    <button
+                      type="button"
+                      key={toMonthValue(date)}
+                      disabled={isDisabledDate(date)}
+                      className={`${date.getFullYear() === today.getFullYear() && date.getMonth() === today.getMonth() ? 'is-today ' : ''}${
+                        selectedDate && date.getFullYear() === selectedDate.getFullYear() && date.getMonth() === selectedDate.getMonth()
+                          ? 'is-selected'
+                          : ''
+                      }`.trim()}
+                      onClick={() => selectDate(date)}
+                    >
+                      {new Intl.DateTimeFormat('en-US', { month: 'short' }).format(date)}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <>
+                <div className="sm-date-picker-weekdays" aria-hidden="true">
+                  {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => (
+                    <span key={`${day}-${index}`}>{day}</span>
+                  ))}
+                </div>
+                <div className="sm-date-picker-days">
+                  {days.map((date) => {
+                    const outside = date.getMonth() !== visibleMonth.getMonth();
+                    const dateDisabled = isDisabledDate(date);
+                    return (
+                      <button
+                        type="button"
+                        key={toValue(date)}
+                        disabled={dateDisabled}
+                        className={`${outside ? 'is-outside ' : ''}${sameDay(date, today) ? 'is-today ' : ''}${sameDay(date, selectedDate) ? 'is-selected' : ''}`.trim()}
+                        onClick={() => selectDate(date)}
+                      >
+                        {date.getDate()}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
             <div className="sm-date-picker-actions">
               {clearable ? (
                 <button
@@ -159,7 +228,7 @@ export default function ThemedDatePicker({ value, onChange, min, max, disabled =
                 <span />
               )}
               <button type="button" disabled={isDisabledDate(today)} onClick={() => selectDate(today)}>
-                Today
+                {isMonthMode ? 'This month' : 'Today'}
               </button>
             </div>
           </div>,
@@ -177,7 +246,7 @@ export default function ThemedDatePicker({ value, onChange, min, max, disabled =
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
       >
-        <span className={value ? '' : 'sm-date-picker-placeholder'}>{formatValue(value)}</span>
+        <span className={value ? '' : 'sm-date-picker-placeholder'}>{isMonthMode ? formatMonthValue(value) : formatValue(value)}</span>
         <i className="ti ti-calendar" aria-hidden="true" />
       </button>
       {calendar}

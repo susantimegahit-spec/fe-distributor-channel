@@ -38,6 +38,16 @@
       }
     },
     {
+      "widget_key": "order-summary",
+      "system_key": "customer-portal",
+      "title": "Order Summary",
+      "group": "Customer Portal",
+      "actions": ["sync"],
+      "buttons": {
+        "sync": ["Refresh"]
+      }
+    },
+    {
       "widget_key": "order-ready",
       "system_key": "logistics",
       "title": "Order Ready",

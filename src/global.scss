@@ -3005,6 +3005,47 @@ body {
 .sm-dashboard-builder-sidebar .card-body {
   overflow-y: auto;
 }
+
+.sm-dashboard-widget-search {
+  margin-bottom: 5px;
+}
+
+.sm-dashboard-widget-search .input-group-text,
+.sm-dashboard-widget-search .form-control,
+.sm-dashboard-widget-search .btn {
+  min-height: 43px;
+}
+
+.sm-dashboard-widget-search-result {
+  display: block;
+  margin-bottom: 16px;
+  color: var(--bs-secondary-color);
+}
+
+.sm-dashboard-widget-search-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  border: 1px dashed var(--bs-border-color);
+  border-radius: 12px;
+  padding: 24px 14px;
+  color: var(--bs-secondary-color);
+  text-align: center;
+}
+
+.sm-dashboard-widget-search-empty > i {
+  margin-bottom: 3px;
+  font-size: 25px;
+}
+
+.sm-dashboard-widget-search-empty > strong {
+  color: var(--bs-body-color);
+}
+
+.sm-dashboard-widget-search-empty > span {
+  font-size: 12px;
+}
 .sm-dashboard-widget-group {
   margin: 20px 0;
 }
@@ -7756,6 +7797,41 @@ body {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 4px;
+}
+
+.sm-date-picker-months {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 14px 0 18px;
+}
+
+.sm-date-picker-months button {
+  min-height: 42px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--bs-body-color);
+  font-weight: 600;
+}
+
+.sm-date-picker-months button:hover:not(:disabled) {
+  background: rgba(var(--system-primary-rgb, 49, 95, 180), 0.12);
+  color: var(--system-primary, #315fb4);
+}
+
+.sm-date-picker-months button.is-today {
+  box-shadow: inset 0 0 0 1px var(--system-primary, #315fb4);
+}
+
+.sm-date-picker-months button.is-selected {
+  background: var(--system-primary, #315fb4);
+  color: #fff;
+}
+
+.sm-date-picker-months button:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
 }
 
 .sm-date-picker-weekdays span {
