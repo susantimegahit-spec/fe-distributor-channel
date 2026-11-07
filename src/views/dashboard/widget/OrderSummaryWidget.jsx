@@ -7,7 +7,6 @@ import Form from 'react-bootstrap/Form';
 import Spinner from 'react-bootstrap/Spinner';
 import Stack from 'react-bootstrap/Stack';
 
-import FormDatePicker from 'components/FormDatePicker';
 import MainCard from 'components/MainCard';
 import OrderServices from 'services/customer-portal/OrderServices';
 import { getAssignedCustomerCodes } from 'utils/cookies';
@@ -17,30 +16,6 @@ import './order-summary-widget.scss';
 const PAGE_SIZE = 100;
 const customerSelectStyles = {
   menu: (base) => ({ ...base, left: 0, right: 0, width: '100%', zIndex: 30 })
-};
-const STATUS_META = {
-  DRAFT: { label: 'Draft', color: '#5f6b7a', darkColor: '#aeb9c6', icon: 'ti ti-file-pencil' },
-  WAITING_OM: { label: 'Waiting OM', color: '#d98b00', darkColor: '#ffc857', icon: 'ti ti-clock' },
-  WAITING_ASM: { label: 'Waiting ASM', color: '#e76f00', darkColor: '#ff9f43', icon: 'ti ti-clock' },
-  WAITING_ADMIN_SALES: { label: 'Waiting Admin Sales', color: '#7048e8', darkColor: '#a78bfa', icon: 'ti ti-user-check' },
-  WAITING_FINANCE: { label: 'Waiting Finance', color: '#a83cc1', darkColor: '#e599f7', icon: 'ti ti-cash' },
-  ORDER_APPROVED: { label: 'Order Approved', color: '#0ca678', darkColor: '#4dd4ac', icon: 'ti ti-circle-check' },
-  DELIVERY: { label: 'Delivery', color: '#1971c2', darkColor: '#4dabf7', icon: 'ti ti-truck-delivery' },
-  ARRIVED: { label: 'Arrived', color: '#2b8a3e', darkColor: '#69db7c', icon: 'ti ti-package-import' },
-  CANCELLED: { label: 'Cancelled', color: '#68727d', darkColor: '#adb5bd', icon: 'ti ti-circle-minus' },
-  REJECTED: { label: 'Rejected', color: '#e03131', darkColor: '#ff6b6b', icon: 'ti ti-circle-x' },
-  FAILED: { label: 'Failed', color: '#c92a2a', darkColor: '#ff8787', icon: 'ti ti-alert-triangle' }
-};
-const STATUS_ORDER = Object.keys(STATUS_META);
-
-const normalizeStatus = (value) => {
-  const status = String(value || 'UNKNOWN')
-    .trim()
-    .toUpperCase();
-  if (status === 'WAITING_APPROVAL') return 'WAITING_OM';
-  if (status === 'APPROVED') return 'ORDER_APPROVED';
-  if (status === 'CANCELED') return 'CANCELLED';
-  return status || 'UNKNOWN';
 };
 const rowsOf = (response) => {
   const root = response?.data ?? {};
@@ -73,6 +48,12 @@ const branchOf = (order) => {
   );
   return String(branch || customerOf(order) || 'Unknown Branch').trim();
 };
+const monthIndexOf = (order) => {
+  const value = valueOf(order, ['doc_date', 'docDate', 'date', 'order_date', 'orderDate', 'created_at', 'createdAt'], '');
+  const compactDate = moment(String(value), 'YYYYMMDD', true);
+  const date = compactDate.isValid() ? compactDate : moment(value);
+  return date.isValid() ? date.month() : null;
+};
 const orderLinesOf = (order = {}) => {
   const lines = valueOf(order, ['details', 'lines', 'document_lines', 'documentLines', 'DocumentLines', 'items', 'products'], []);
   return Array.isArray(lines) ? lines : [];
@@ -96,7 +77,6 @@ const orderWeightKg = (order = {}) => {
     return total + productWeightKg(itemName) * quantity;
   }, 0);
 };
-const statusLabel = (status) => STATUS_META[status]?.label || status.replaceAll('_', ' ');
 const formatCount = (value) => new Intl.NumberFormat('id-ID').format(Number(value) || 0);
 const formatKg = (value) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: 2 }).format(Number(value) || 0);
 const activeTheme = () => {
@@ -107,9 +87,10 @@ const activeTheme = () => {
 
 export default function OrderSummaryWidget() {
   const assignedCustomerCodes = useMemo(() => getAssignedCustomerCodes(), []);
-  const [month, setMonth] = useState(() => moment().format('YYYY-MM'));
+  const [year, setYear] = useState(() => String(moment().year()));
   const [orders, setOrders] = useState([]);
   const [customerFilter, setCustomerFilter] = useState(null);
+  const [drilldownMonth, setDrilldownMonth] = useState(null);
   const [drilldownCustomer, setDrilldownCustomer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -117,21 +98,21 @@ export default function OrderSummaryWidget() {
   const [theme, setTheme] = useState(activeTheme);
   const yearOptions = useMemo(() => {
     const currentYear = moment().year();
-    const selectedYear = Number(month.slice(0, 4));
+    const selectedYear = Number(year);
     return [...new Set([selectedYear, ...Array.from({ length: 12 }, (_, index) => currentYear + 1 - index)])]
       .filter(Boolean)
       .sort((first, second) => second - first);
-  }, [month]);
+  }, [year]);
 
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const selectedMonth = moment(month, 'YYYY-MM', true);
-      if (!selectedMonth.isValid()) throw new Error('Please select a valid month');
+      const selectedYear = moment(year, 'YYYY', true);
+      if (!selectedYear.isValid()) throw new Error('Please select a valid year');
       const filters = {
-        start_date: selectedMonth.clone().startOf('month').format('YYYY-MM-DD'),
-        end_date: selectedMonth.clone().endOf('month').format('YYYY-MM-DD'),
+        start_date: selectedYear.clone().startOf('year').format('YYYY-MM-DD'),
+        end_date: selectedYear.clone().endOf('year').format('YYYY-MM-DD'),
         customer_code: assignedCustomerCodes.length === 1 ? assignedCustomerCodes[0] : '',
         page: 1,
         per_page: PAGE_SIZE
@@ -155,7 +136,7 @@ export default function OrderSummaryWidget() {
     } finally {
       setLoading(false);
     }
-  }, [assignedCustomerCodes, month]);
+  }, [assignedCustomerCodes, year]);
 
   useEffect(() => {
     load();
@@ -186,49 +167,54 @@ export default function OrderSummaryWidget() {
   }, [customerFilter, customerOptions]);
 
   useEffect(() => {
+    setDrilldownMonth(null);
     setDrilldownCustomer(null);
-  }, [customerFilter, month]);
+  }, [customerFilter, year]);
 
   const summary = useMemo(() => {
-    const counts = new Map();
+    let totalOrders = 0;
     const customers = new Map();
     const branchNames = new Set();
+    const months = Array.from({ length: 12 }, (_, index) => ({ index, customers: new Map(), totalOrders: 0, totalWeight: 0 }));
+    const addToCustomer = (collection, customer, branch, weightKg) => {
+      const customerSummary = collection.get(customer) || {
+        branchOrders: new Map(),
+        branchWeights: new Map(),
+        totalOrders: 0,
+        totalWeight: 0
+      };
+      customerSummary.branchOrders.set(branch, (customerSummary.branchOrders.get(branch) || 0) + 1);
+      customerSummary.branchWeights.set(branch, (customerSummary.branchWeights.get(branch) || 0) + weightKg);
+      customerSummary.totalOrders += 1;
+      customerSummary.totalWeight += weightKg;
+      collection.set(customer, customerSummary);
+    };
     orders
       .filter((order) => !customerFilter || customerOf(order) === customerFilter.value)
       .forEach((order) => {
-        const status = normalizeStatus(order?.status);
         const customer = customerOf(order);
         const branch = branchOf(order);
+        const monthIndex = monthIndexOf(order);
         const weightKg = orderWeightKg(order);
-        counts.set(status, (counts.get(status) || 0) + 1);
+        totalOrders += 1;
         branchNames.add(branch);
-        const customerSummary = customers.get(customer) || {
-          branchOrders: new Map(),
-          branchWeights: new Map(),
-          totalOrders: 0,
-          totalWeight: 0
-        };
-        customerSummary.branchOrders.set(branch, (customerSummary.branchOrders.get(branch) || 0) + 1);
-        customerSummary.branchWeights.set(branch, (customerSummary.branchWeights.get(branch) || 0) + weightKg);
-        customerSummary.totalOrders += 1;
-        customerSummary.totalWeight += weightKg;
-        customers.set(customer, customerSummary);
+        addToCustomer(customers, customer, branch, weightKg);
+        if (monthIndex !== null) {
+          const month = months[monthIndex];
+          addToCustomer(month.customers, customer, branch, weightKg);
+          month.totalOrders += 1;
+          month.totalWeight += weightKg;
+        }
       });
 
-    const activeStatuses = [...counts.keys()].sort((first, second) => {
-      const firstIndex = STATUS_ORDER.indexOf(first);
-      const secondIndex = STATUS_ORDER.indexOf(second);
-      return (firstIndex < 0 ? STATUS_ORDER.length : firstIndex) - (secondIndex < 0 ? STATUS_ORDER.length : secondIndex);
-    });
-    const statuses = [...STATUS_ORDER, ...activeStatuses.filter((status) => !STATUS_ORDER.includes(status))];
     const customerRows = [...customers.entries()]
       .map(([customer, customerSummary]) => ({ customer, ...customerSummary }))
       .sort((first, second) => first.customer.localeCompare(second.customer, 'id-ID'));
     return {
       branchNames: [...branchNames].sort((first, second) => first.localeCompare(second, 'id-ID')),
-      counts,
       customers: customerRows,
-      statuses
+      months,
+      totalOrders
     };
   }, [customerFilter, orders]);
 
@@ -239,7 +225,13 @@ export default function OrderSummaryWidget() {
     const palette = isDark
       ? ['#ff8787', '#ffd166', '#74c0fc', '#63e6be', '#b197fc', '#ffa94d', '#91a7ff', '#8ce99a', '#e599f7', '#66d9e8']
       : ['#e03131', '#d98b00', '#1971c2', '#0ca678', '#7048e8', '#e8590c', '#4263eb', '#2b8a3e', '#a61eaf', '#087f8c'];
-    const selectedCustomer = summary.customers.find((customer) => customer.customer === drilldownCustomer) || null;
+    const selectedMonth = drilldownMonth === null ? null : summary.months[drilldownMonth];
+    const monthCustomers = selectedMonth
+      ? [...selectedMonth.customers.entries()]
+          .map(([customer, customerSummary]) => ({ customer, ...customerSummary }))
+          .sort((first, second) => first.customer.localeCompare(second.customer, 'id-ID'))
+      : [];
+    const selectedCustomer = monthCustomers.find((customer) => customer.customer === drilldownCustomer) || null;
     const detailRows = selectedCustomer
       ? [...selectedCustomer.branchWeights.entries()]
           .map(([branch, weight]) => ({ branch, weight, orders: selectedCustomer.branchOrders.get(branch) || 0 }))
@@ -247,17 +239,33 @@ export default function OrderSummaryWidget() {
       : [];
     const rows = selectedCustomer
       ? detailRows.map((row) => ({ label: row.branch, value: row.weight, orders: row.orders }))
-      : summary.customers.map((customer) => ({
-          label: customer.customer,
-          value: customer.totalWeight,
-          orders: customer.totalOrders
+      : summary.months.map((month) => ({
+          label: moment().month(month.index).format('MMMM'),
+          value: month.totalWeight,
+          orders: month.totalOrders
         }));
-    const seriesColors = rows.map((_, index) => palette[index % palette.length]);
+    const overviewCustomers = summary.customers;
+    const seriesColors = (selectedCustomer ? rows : overviewCustomers).map((_, index) => palette[index % palette.length]);
+    const series = selectedCustomer
+      ? [{ name: 'Branch Total', data: rows.map((row) => row.value) }]
+      : overviewCustomers.map((customer) => ({
+          name: customer.customer,
+          data: summary.months.map((month) => month.customers.get(customer.customer)?.totalWeight || 0)
+        }));
+    const legendItems = selectedCustomer
+      ? rows.map((row, index) => ({ ...row, color: seriesColors[index] }))
+      : overviewCustomers.map((customer, index) => ({
+          color: seriesColors[index],
+          label: customer.customer,
+          orders: customer.totalOrders,
+          value: customer.totalWeight
+        }));
     return {
       detailRows,
-      isDetail: Boolean(selectedCustomer),
+      level: selectedCustomer ? 'branch' : 'month',
+      legendItems,
       rows,
-      series: [{ name: selectedCustomer ? 'Branch Total' : 'Customer Total', data: rows.map((row) => row.value) }],
+      series,
       options: {
         chart: {
           stacked: false,
@@ -266,58 +274,27 @@ export default function OrderSummaryWidget() {
           toolbar: { show: false },
           events: {
             dataPointSelection: (_event, _chartContext, config) => {
-              if (!selectedCustomer && config.dataPointIndex >= 0) {
-                setDrilldownCustomer(rows[config.dataPointIndex]?.label || null);
+              if (!selectedCustomer && config.dataPointIndex >= 0 && config.seriesIndex >= 0) {
+                setDrilldownMonth(config.dataPointIndex);
+                setDrilldownCustomer(overviewCustomers[config.seriesIndex]?.customer || null);
               }
             }
           }
         },
         theme: { mode: theme },
         colors: seriesColors,
-        fill: { type: 'solid', opacity: isDark ? 0.28 : 0.2 },
-        stroke: { show: true, width: 2, colors: seriesColors },
-        dataLabels: {
-          enabled: true,
-          formatter: (value, options) => {
-            if (!value) return '';
-            const row = rows[options.dataPointIndex];
-            return `${row?.label || '-'} · ${formatKg(value)} Kg · ${formatCount(row?.orders)} orders`;
-          },
-          textAnchor: 'start',
-          offsetY: -8,
-          style: {
-            fontSize: '10px',
-            fontWeight: 700,
-            colors: seriesColors.length ? seriesColors : [textColor]
-          },
-          background: {
-            enabled: true,
-            foreColor: isDark ? '#e6fbff' : '#183b4d',
-            borderRadius: 5,
-            padding: 5,
-            opacity: isDark ? 0.34 : 0.26,
-            borderWidth: 2,
-            borderColor: isDark ? '#22d3ee' : '#086f83'
-          },
-          dropShadow: {
-            enabled: true,
-            top: 0,
-            left: 0,
-            blur: 5,
-            color: isDark ? '#22d3ee' : '#0891b2',
-            opacity: isDark ? 0.65 : 0.35
-          }
-        },
-        grid: { borderColor: gridColor, strokeDashArray: 4, padding: { top: 120, left: 12, right: 12 } },
+        fill: { type: 'solid', opacity: isDark ? 0.68 : 0.78 },
+        stroke: { show: true, width: 1.5, colors: seriesColors },
+        dataLabels: { enabled: false },
+        grid: { borderColor: gridColor, strokeDashArray: 4, padding: { top: 12, left: 12, right: 12 } },
         legend: { show: false },
         plotOptions: {
           bar: {
             horizontal: false,
             borderRadius: 3,
             borderRadiusApplication: 'end',
-            distributed: true,
-            columnWidth: '80%',
-            dataLabels: { position: 'top', orientation: 'vertical' }
+            distributed: Boolean(selectedCustomer),
+            columnWidth: selectedCustomer ? '8%' : '36%'
           }
         },
         xaxis: {
@@ -337,7 +314,7 @@ export default function OrderSummaryWidget() {
         tooltip: { theme, shared: true, intersect: false, y: { formatter: (value) => `${formatKg(value)} Kg` } }
       }
     };
-  }, [drilldownCustomer, summary, theme]);
+  }, [drilldownCustomer, drilldownMonth, summary, theme]);
 
   return (
     <MainCard
@@ -370,24 +347,13 @@ export default function OrderSummaryWidget() {
                 onChange={setCustomerFilter}
               />
             </Form.Group>
-            <Form.Group controlId="order-summary-month">
-              <Form.Label className="f-12 text-muted mb-1">Month</Form.Label>
-              <FormDatePicker
-                mode="month"
-                size="sm"
-                value={month}
-                clearable={false}
-                className="order-summary-widget__month-picker"
-                onChange={(event) => setMonth(event.target.value)}
-              />
-            </Form.Group>
             <Form.Group controlId="order-summary-year">
               <Form.Label className="f-12 text-muted mb-1">Year</Form.Label>
               <Form.Select
                 size="sm"
                 className="order-summary-widget__year-select"
-                value={month.slice(0, 4)}
-                onChange={(event) => setMonth((current) => `${event.target.value}-${current.slice(5, 7)}`)}
+                value={year}
+                onChange={(event) => setYear(event.target.value)}
               >
                 {yearOptions.map((year) => (
                   <option value={year} key={year}>
@@ -419,54 +385,58 @@ export default function OrderSummaryWidget() {
         <div className="sm-widget-state text-danger">{error}</div>
       ) : orders.length ? (
         <>
-          <div className="order-summary-widget__statuses">
-            {summary.statuses.map((status) => (
-              <div
-                className="order-summary-widget__status"
-                key={status}
-                style={{
-                  '--status-color':
-                    (theme === 'dark' ? STATUS_META[status]?.darkColor : STATUS_META[status]?.color) ||
-                    (theme === 'dark' ? '#4dd0e1' : '#087f8c')
-                }}
-              >
-                <span className="order-summary-widget__status-icon">
-                  <i className={STATUS_META[status]?.icon || 'ti ti-circle'} />
-                </span>
-                <span>
-                  <small>{statusLabel(status)}</small>
-                  <strong>{formatCount(summary.counts.get(status))}</strong>
-                </span>
-              </div>
-            ))}
-          </div>
           <div className="order-summary-widget__chart-heading">
-            {chart.isDetail ? (
-              <Button variant="outline-primary" size="sm" onClick={() => setDrilldownCustomer(null)}>
-                <i className="ti ti-arrow-left me-1" /> Back
+            {chart.level !== 'month' ? (
+              <Button
+                variant="outline-primary"
+                size="sm"
+                className="order-summary-widget__back-button"
+                onClick={() => {
+                  setDrilldownCustomer(null);
+                  setDrilldownMonth(null);
+                }}
+                aria-label="Back one level"
+                title="Back one level"
+              >
+                <i className="ti ti-arrow-left" />
               </Button>
             ) : null}
             <span>
-              <strong>{chart.isDetail ? `Branch Detail — ${drilldownCustomer}` : 'Total Orders by Customer'}</strong>
+              <strong>
+                {chart.level === 'branch'
+                  ? `Branch Detail — ${drilldownCustomer} — ${moment().month(drilldownMonth).format('MMMM')}`
+                  : `Monthly Customer Orders — ${year}`}
+              </strong>
               <small>
-                {chart.isDetail
-                  ? `${formatCount(chart.detailRows.length)} branches · click Back to view all customers`
-                  : `${formatCount([...summary.counts.values()].reduce((total, count) => total + count, 0))} orders · ${formatCount(summary.customers.length)} customers · click a bar for branch detail`}
+                {chart.level === 'branch'
+                  ? `${formatCount(chart.detailRows.length)} branches · click Back to view monthly customers`
+                  : `${formatCount(summary.totalOrders)} orders · each color represents a customer · click a customer bar for branch detail`}
               </small>
             </span>
+          </div>
+          <div className="order-summary-widget__legend" aria-label={`${chart.level} legend`}>
+            {chart.legendItems.map((item) => (
+              <span className="order-summary-widget__legend-item" style={{ '--legend-color': item.color }} key={item.label}>
+                <i />
+                <span>{item.label}</span>
+                <small>
+                  {formatKg(item.value)} Kg · {formatCount(item.orders)} orders
+                </small>
+              </span>
+            ))}
           </div>
           <div className="order-summary-widget__chart-scroll">
             <ReactApexChart
               options={chart.options}
               series={chart.series}
               type="bar"
-              height={540}
-              width={Math.max(1000, chart.rows.length * 220)}
+              height={500}
+              width={chart.level === 'branch' ? Math.max(800, chart.rows.length * 180) : 1200}
             />
           </div>
         </>
       ) : (
-        <div className="sm-widget-state">No orders found for the selected month.</div>
+        <div className="sm-widget-state">No orders found for the selected year.</div>
       )}
     </MainCard>
   );
