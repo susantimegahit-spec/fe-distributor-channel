@@ -88,8 +88,13 @@
 .order-summary-widget__chart-heading {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 10px;
   margin-bottom: 8px;
+}
+
+.order-summary-widget__chart-heading .btn {
+  flex: 0 0 auto;
 }
 
 .order-summary-widget__chart-heading small {
